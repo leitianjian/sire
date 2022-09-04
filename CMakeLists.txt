@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.12)
-project(collision)
+project(ArisSim)
 
 # use c++ 17 standard
 set(EXECUTABLE_OUTPUT_PATH bin)
 set(LIBRARY_OUTPUT_PATH bin)
-set(USE_EIGEN3 ON)
+set(USE_EIGEN3 OFF)
 set(CMAKE_CXX_STANDARD 17)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)

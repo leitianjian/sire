@@ -7,7 +7,8 @@
 using namespace std;
 using namespace fcl;
 
-namespace zyc {
+namespace ArisSim
+{
     std::thread collision_thread_;
     std::mutex  collision_mutex_;
     static float x{ 0.0 }, y{ 0.0 }, z{ 0.0 };
