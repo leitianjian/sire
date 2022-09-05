@@ -1,12 +1,20 @@
 //
 // Created by ZHOUYC on 2022/6/14.
 //
-
 #ifndef DYNAMIC_H_
 #define DYNAMIC_H_
 
-using namespace Eigen;
-namespace zyc {
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <functional>
+#include <vector>
+#include <array>
+#include <algorithm>
+
+#include <aris.hpp>
+
+namespace aris_sim {
     auto InitSimulator()->void;
 
     [[noreturn]] auto SimThreadGetData()->void;

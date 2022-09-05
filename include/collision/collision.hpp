@@ -5,23 +5,22 @@
 #ifndef ROBOT_OCC_COLLISION_H
 #define ROBOT_OCC_COLLISION_H
 
+#include <iostream>
+
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
 
-#include "fcl/fcl.h"
-#include "fcl/narrowphase/collision_object.h"
-#include "fcl/geometry/bvh/BVH_model.h"
-#include "fcl/math/bv/AABB.h"
+#include <fcl/fcl.h>
+#include <fcl/narrowphase/collision_object.h>
+#include <fcl/geometry/bvh/BVH_model.h>
+#include <fcl/math/bv/AABB.h>
 #include <fcl/math/bv/OBBRSS.h>
-#include <iostream>
-#include <Eigen/Dense>
-#include <Eigen/Core>
 
 using namespace std;
 using namespace fcl;
 
-namespace zyc {
+namespace aris_sim {
     struct TriangleAndVertices {
         std::vector<fcl::Vector3f> vertices_;
         std::vector<fcl::Triangle> triangles_;
@@ -49,6 +48,6 @@ namespace zyc {
     auto InitCollision()->void;
     auto Collision(float x_, float y_, float z_, size_t& num_contacts_)->void;
 
-}//  namespace zyc
+}
 
 #endif //ROBOT_OCC_COLLISION_H

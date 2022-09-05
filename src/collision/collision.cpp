@@ -1,13 +1,15 @@
 //
 // Created by ZHOUYC on 2022/8/5.
 //
-#include <memory>
 #include <collision/collision.hpp>
+
+#include <memory>
 
 using namespace std;
 using namespace fcl;
 
-namespace zyc {
+namespace aris_sim
+{
     std::thread collision_thread_;
     std::mutex  collision_mutex_;
     static float x{ 0.0 }, y{ 0.0 }, z{ 0.0 };
