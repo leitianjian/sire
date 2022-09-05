@@ -2,10 +2,12 @@ cmake_minimum_required(VERSION 3.12)
 project(collision)
 
 # use c++ 17 standard
+set(CMAKE_CXX_STANDARD 17)
+
 set(EXECUTABLE_OUTPUT_PATH bin)
 set(LIBRARY_OUTPUT_PATH bin)
 set(USE_EIGEN3 ON)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message("Setting build type to 'RelWithDebInfo' as none was specified.")
@@ -22,7 +24,6 @@ endif ()
 
 if(UNIX)
 	set(CMAKE_INSTALL_PREFIX "/usr/aris_sim/aris_sim-1.0")
-	add_custom_target(uninstall rm -r /usr/aris)
 endif(UNIX)
 if(WIN32)
 	set(CMAKE_INSTALL_PREFIX "C:/aris_sim/aris_sim-1.0")
@@ -197,3 +198,10 @@ set(ARIS_SIM_LINK_LIB aris_sim_lib)
 install(EXPORT aris_sim-targets-debug NAMESPACE aris_sim::debug:: FILE aris_sim-targets-debug.cmake DESTINATION "share/aris_sim/cmake")
 install(EXPORT aris_sim-targets-release NAMESPACE aris_sim:: FILE aris_sim-targets-release.cmake DESTINATION "share/aris_sim/cmake")
 install(FILES include/aris_sim.hpp DESTINATION include)
+
+## install config ##
+include(CMakePackageConfigHelpers)
+set(aris_sim_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include)
+set(aris_sim_LIBRARIES ${aris_sim_LIBRARIES} ${RELY_LINK_LIB})
+configure_package_config_file(config/aris_sim-config.cmake.in ${PROJECT_BINARY_DIR}/aris_sim-config.cmake INSTALL_DESTINATION "share/aris_sim/cmake")
+install(FILES ${PROJECT_BINARY_DIR}/aris_sim-config.cmake DESTINATION "share/aris_sim/cmake")
