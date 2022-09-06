@@ -91,7 +91,7 @@ target_compile_features(aris_sim_simulator
 		cxx_std_17
 	)
 
-install(DIRECTORY include/simulator DESTINATION include/simulator)
+install(DIRECTORY include/simulator DESTINATION include)
 
 # Build lib collision of aris_sim
 add_library(aris_sim_collision OBJECT)
@@ -123,7 +123,7 @@ target_compile_options(aris_sim_collision
 		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
 	)
 
-install(DIRECTORY include/collision DESTINATION include/collision)
+install(DIRECTORY include/collision DESTINATION include)
 
 # Build library for aris_sim
 add_library(aris_sim_lib 
