@@ -1,0 +1,3 @@
+[submodule "hpp-fcl"]
+	path = hpp-fcl
+	url = git@github.com:humanoid-path-planner/hpp-fcl.git
