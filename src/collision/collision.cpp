@@ -1,9 +1,7 @@
 //
 // Created by ZHOUYC on 2022/8/5.
 //
-#include <collision/collision.hpp>
-
-#include <memory>
+#include "collision/collision.hpp"
 
 using namespace std;
 using namespace fcl;

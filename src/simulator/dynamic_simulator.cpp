@@ -4,6 +4,15 @@
 //
 #include "simulator/dynamic_simulator.hpp"
 
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <functional>
+#include <vector>
+#include <algorithm>
+
+#include <aris.hpp>
+
 using namespace std;
 using namespace aris::dynamic;
 

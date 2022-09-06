@@ -6,19 +6,17 @@
 #define ROBOT_OCC_COLLISION_H
 
 #include <iostream>
+#include <memory>
 
-#include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
+#include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/postprocess.h>     // Post processing flags
 
 #include <fcl/fcl.h>
-#include <fcl/narrowphase/collision_object.h>
 #include <fcl/geometry/bvh/BVH_model.h>
-#include <fcl/math/bv/AABB.h>
 #include <fcl/math/bv/OBBRSS.h>
-
-using namespace std;
-using namespace fcl;
+#include <fcl/narrowphase/collision_object.h>
+#include <fcl/math/bv/AABB.h>
 
 namespace aris_sim {
     struct TriangleAndVertices {
@@ -42,7 +40,7 @@ namespace aris_sim {
 
     void meshFromAssimpScene(
         const fcl::Vector3f& scale, const aiScene* scene,
-        const shared_ptr<fcl::BVHModel<OBBRSSf> >& mesh);
+        const std::shared_ptr<fcl::BVHModel<fcl::OBBRSSf> >& mesh);
 
     void fclCollision();
     auto InitCollision()->void;
