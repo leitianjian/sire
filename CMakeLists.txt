@@ -4,6 +4,13 @@ project(aris_sim VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
+if(UNIX)
+	set(CMAKE_INSTALL_PREFIX "/usr/aris_sim/aris_sim-1.0")
+endif(UNIX)
+if(WIN32)
+	set(CMAKE_INSTALL_PREFIX "C:/aris_sim/aris_sim-1.0")
+endif(WIN32)
+
 # Make sure kaanh and aris can be found
 if(UNIX)
 	set(TARGET_ARIS_PATH /usr/aris CACHE PATH "Aris install path")
