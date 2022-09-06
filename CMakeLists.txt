@@ -50,6 +50,7 @@ else()
 	message(WARNING "File/Directory at variable TARGET_CCD_PATH not exists!")
 endif()
 find_package(ccd REQUIRED)
+message(STATUS ${CCD_INCLUDE_DIRS})
 
 # find fcl
 if(EXISTS ${TARGET_FCL_PATH})
@@ -115,6 +116,7 @@ target_include_directories(aris_sim_collision
 	PRIVATE
 		${aris_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
+		${CCD_INCLUDE_DIRS}
 	)
 
 target_compile_options(aris_sim_collision
@@ -148,6 +150,7 @@ target_link_libraries(aris_sim_lib
 	PRIVATE
 		${aris_LIBRARIES} ${CCD_LIBRARIES}
 	)
+message(${aris_LIBRARIES})
 
 set(aris_sim_LIBRARIES 
 	optimized aris_sim::aris_sim_lib 
