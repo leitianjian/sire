@@ -12,15 +12,17 @@
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/postprocess.h>     // Post processing flags
 
-#include <fcl/fcl.h>
-#include <fcl/geometry/bvh/BVH_model.h>
-#include <fcl/math/bv/OBBRSS.h>
-#include <fcl/narrowphase/collision_object.h>
-#include <fcl/math/bv/AABB.h>
+#include <hpp/fcl/data_types.h>
+#include <hpp/fcl/BVH/BVH_model.h>
+#include <hpp/fcl/BV/OBBRSS.h>
+#include <hpp/fcl/narrowphase/narrowphase.h>
+#include <hpp/fcl/BV/AABB.h>
+
+using namespace hpp;
 
 namespace aris_sim {
     struct TriangleAndVertices {
-        std::vector<fcl::Vector3f> vertices_;
+        std::vector<fcl::Vec3f> vertices_;
         std::vector<fcl::Triangle> triangles_;
     };
 
@@ -34,13 +36,13 @@ namespace aris_sim {
         aiScene const* scene;
     };
 
-    void buildMesh(const fcl::Vector3f& scale, const aiScene* scene,
+    void buildMesh(const fcl::Vec3f& scale, const aiScene* scene,
         unsigned vertices_offset,
         TriangleAndVertices& tv);
 
     void meshFromAssimpScene(
-        const fcl::Vector3f& scale, const aiScene* scene,
-        const std::shared_ptr<fcl::BVHModel<fcl::OBBRSSf> >& mesh);
+        const fcl::Vec3f& scale, const aiScene* scene,
+        const std::shared_ptr<fcl::BVHModel<fcl::OBBRSS>>& mesh);
 
     void fclCollision();
     auto InitCollision()->void;

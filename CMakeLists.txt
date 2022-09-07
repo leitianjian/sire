@@ -38,29 +38,29 @@ endif()
 find_package(kaanh)
 
 # set ccd and fcl path
-set(TARGET_CCD_PATH "" CACHE PATH "Ccd install path")
-set(TARGET_FCL_PATH "" CACHE PATH "Fcl install path")
-set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
+# set(TARGET_CCD_PATH "" CACHE PATH "Ccd install path")
+# set(TARGET_FCL_PATH "" CACHE PATH "Fcl install path")
 
 # find ccd
-if(EXISTS ${TARGET_CCD_PATH})
-	message(STATUS "Directory to search ccd at ${TARGET_CCD_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${TARGET_CCD_PATH})
-else()
-	message(WARNING "File/Directory at variable TARGET_CCD_PATH not exists!")
-endif()
-find_package(ccd REQUIRED)
-message(STATUS ${CCD_INCLUDE_DIRS})
+# if(EXISTS ${TARGET_CCD_PATH})
+# 	message(STATUS "Directory to search ccd at ${TARGET_CCD_PATH}")
+# 	list(APPEND CMAKE_PREFIX_PATH ${TARGET_CCD_PATH})
+# else()
+# 	message(WARNING "File/Directory at variable TARGET_CCD_PATH not exists!")
+# endif()
+# find_package(ccd REQUIRED)
+# message(STATUS ${CCD_INCLUDE_DIRS})
+# 
+# # find fcl
+# if(EXISTS ${TARGET_FCL_PATH})
+# 	message(STATUS "Directory to search fcl at ${TARGET_FCL_PATH}")
+# 	list(APPEND CMAKE_PREFIX_PATH ${TARGET_FCL_PATH})
+# else()
+# 	message(WARNING "File/Directory at variable TARGET_FCL_PATH not exists!")
+# endif()
+# find_package(fcl REQUIRED)
 
-# find fcl
-if(EXISTS ${TARGET_FCL_PATH})
-	message(STATUS "Directory to search fcl at ${TARGET_FCL_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${TARGET_FCL_PATH})
-else()
-	message(WARNING "File/Directory at variable TARGET_FCL_PATH not exists!")
-endif()
-find_package(fcl REQUIRED)
-
+set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
 # find Assimp
 if(EXISTS ${TARGET_ASSIMP_PATH})
 	message(STATUS "Directory to search Assimp at ${TARGET_ASSIMP_PATH}")
@@ -69,6 +69,17 @@ else()
 	message(WARNING "File/Directory at variable TARGET_ASSIMP_PATH not exists!")
 endif()
 find_package(assimp REQUIRED)
+
+set(TARGET_HPP_FCL_PATH "" CACHE PATH "Hpp-fcl install path")
+
+# find Hpp-fcl
+if(EXISTS ${TARGET_HPP_FCL_PATH})
+	message(STATUS "Directory to search Assimp at ${TARGET_HPP_FCL_PATH}")
+	list(APPEND CMAKE_PREFIX_PATH ${TARGET_HPP_FCL_PATH})
+else()
+	message(WARNING "File/Directory at variable TARGET_HPP_FCL_PATH not exists!")
+endif()
+find_package(hpp-fcl REQUIRED)
 
 # Build lib simulator of aris_sim
 add_library(aris_sim_simulator OBJECT)
@@ -116,7 +127,7 @@ target_include_directories(aris_sim_collision
 	PRIVATE
 		${aris_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
-		${CCD_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
 	)
 
 target_compile_options(aris_sim_collision
@@ -146,11 +157,10 @@ target_include_directories(aris_sim_lib
 
 target_link_libraries(aris_sim_lib 
 	PUBLIC 
-		assimp::assimp ${FCL_LIBRARIES}
+		assimp::assimp ${hpp-fcl_LIBRARIES}
 	PRIVATE
-		${aris_LIBRARIES} ${CCD_LIBRARIES}
+		${aris_LIBRARIES} 
 	)
-message(${aris_LIBRARIES})
 
 set(aris_sim_LIBRARIES 
 	optimized aris_sim::aris_sim_lib 

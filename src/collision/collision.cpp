@@ -3,8 +3,17 @@
 //
 #include "collision/collision.hpp"
 
-using namespace std;
-using namespace fcl;
+#include <thread>
+#include <mutex>
+
+#include <hpp/fcl/math/transform.h>
+#include <hpp/fcl/shape/geometric_shapes.h>
+#include <hpp/fcl/collision_object.h>
+#include <hpp/fcl/collision_data.h>
+#include <hpp/fcl/collision.h>
+#include <hpp/fcl/distance.h>
+
+using namespace hpp;
 
 namespace aris_sim
 {
@@ -51,7 +60,7 @@ namespace aris_sim
                 resource_path);
     }
 
-    unsigned recurseBuildMesh(const fcl::Vector3f& scale, const aiScene* scene,
+    unsigned recurseBuildMesh(const fcl::Vec3f& scale, const aiScene* scene,
         const aiNode* node, unsigned vertices_offset,
         TriangleAndVertices& tv) {
         if (!node) return 0;
@@ -76,7 +85,7 @@ namespace aris_sim
                 aiVector3D p = input_mesh->mVertices[j];
                 //          p *= transform;
                 tv.vertices_.push_back(
-                    fcl::Vector3f(p.x * scale[0], p.y * scale[1], p.z * scale[2]));
+                    fcl::Vec3f(p.x * scale[0], p.y * scale[1], p.z * scale[2]));
             }
             //        cout<<"mNumFaces"<<":"<<input_mesh->mNumFaces<<endl;
 
@@ -100,14 +109,14 @@ namespace aris_sim
         return nbVertices;
     }
 
-    void buildMesh(const fcl::Vector3f& scale, const aiScene* scene,
+    void buildMesh(const fcl::Vec3f& scale, const aiScene* scene,
         unsigned vertices_offset, TriangleAndVertices& tv) {
         recurseBuildMesh(scale, scene, scene->mRootNode, vertices_offset, tv);
     }
 
     void meshFromAssimpScene(
-        const fcl::Vector3f& scale, const aiScene* scene,
-        const shared_ptr<fcl::BVHModel<OBBRSSf> >& mesh) {
+        const fcl::Vec3f& scale, const aiScene* scene,
+        const std::shared_ptr<fcl::BVHModel<fcl::OBBRSS>> & mesh) {
         TriangleAndVertices tv;
 
         mesh->beginModel();
@@ -122,21 +131,20 @@ namespace aris_sim
         //    Configure robot_ee geometry.
         Loader scene;
         scene.load("C:/Users/ZHOUYC/Desktop/ee_4.stl");
-        typedef fcl::BVHModel<OBBRSSf> Model;
+        typedef fcl::BVHModel<fcl::OBBRSS> Model;
         std::shared_ptr<Model> geom = std::make_shared<Model>();
-        Vector3f scale{ 1,1,1 };
+        fcl::Vec3f scale{ 1,1,1 };
         meshFromAssimpScene(scale, scene.scene, geom);
         geom->computeLocalAABB();
-        fcl::Transform3<float> X_WBV = fcl::Transform3<float>::Identity();
+        fcl::Transform3f X_WBV = fcl::Transform3f::Identity();
 
         //    Configure sphere geometry.
-        using Real = typename fcl::constants<float>::Real;
-        const Real r = 30;
-        auto sphere_geometry = std::make_shared<fcl::Sphere<float>>(r);
+        const fcl::FCL_REAL r = 30;
+        auto sphere_geometry = std::make_shared<fcl::Sphere>(r);
         // Poses of the geometry.
-        fcl::Transform3<float> X_WS = fcl::Transform3<float>::Identity();
+        fcl::Transform3f X_WS = fcl::Transform3f::Identity();
         X_WS.translation() << 167, 0, 0;
-        fcl::CollisionObject<float> Sphere(sphere_geometry, X_WS);
+        fcl::CollisionObject Sphere(sphere_geometry, X_WS);
         sphere_geometry->computeLocalAABB();
 
         //thread
@@ -145,28 +153,28 @@ namespace aris_sim
 
             X_WBV.translation() << -5.1 + x, -20.2 + y, -20.2 + z;
             //      X_WBV.linear() << 0,0,1, 0,1,0, -1,0,0;//y axis 90
-            auto Robot = new CollisionObjectf(geom, X_WBV);
+            auto Robot = new fcl::CollisionObject(geom, X_WBV);
 
             // Compute collision - single contact and enable contact.
-            fcl::CollisionRequest<float> Request(1, true);
+            fcl::CollisionRequest Request(fcl::CollisionRequestFlag::CONTACT, 1);
             // Request.gjk_solver_type = fcl::GJKSolverType::GST_LIBCCD;
-            fcl::CollisionResult<float> Result;
+            fcl::CollisionResult Result;
             // Calculate collision
             num_contacts = fcl::collide(&Sphere, Robot, Request, Result);
-            std::vector<fcl::Contact<float>> contacts;
+            std::vector<fcl::Contact> contacts;
             Result.getContacts(contacts);
 
             // set the distance request structure, here we just use the default setting
-            DistanceRequest<float> request;
+            fcl::DistanceRequest request;
             // result will be returned via the collision result structure
-            DistanceResult<float> result;
+            fcl::DistanceResult result;
             // perform distance test
-            distance(&Sphere, Robot, request, result);
+            fcl::distance(&Sphere, Robot, request, result);
             if (num_contacts) {
-                cout << "num " << contacts.size() << " contacts found" << endl;
-                for (const Contact<float>& contact : contacts) {
-                    cout << "collision position at : " << contact.pos[0] << " " << contact.pos[1] << " " << contact.pos[2] << endl;
-                    cout << "min_distance: " << result.min_distance << endl;
+                std::cout << "num " << contacts.size() << " contacts found" << std::endl;
+                for (const fcl::Contact& contact : contacts) {
+                    std::cout << "collision position at : " << contact.pos[0] << " " << contact.pos[1] << " " << contact.pos[2] << std::endl;
+                    std::cout << "min_distance: " << result.min_distance << std::endl;
                 }
             }
             delete Robot;
