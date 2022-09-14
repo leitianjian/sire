@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(aris_sim VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+# set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 
 if(UNIX)
 	set(CMAKE_INSTALL_PREFIX "/usr/aris_sim/aris_sim-1.0")
@@ -96,8 +96,10 @@ target_include_directories(aris_sim_simulator
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	PRIVATE
 		${aris_INCLUDE_DIRS}
+		${PROJECT_BINARY_DIR} # aris_sim_lib_EXPORTS
 	)
 
+target_compile_definitions(aris_sim_simulator PRIVATE aris_sim_lib_EXPORTS)
 target_compile_features(aris_sim_simulator 
 	PUBLIC 
 		cxx_std_17
@@ -126,10 +128,12 @@ target_include_directories(aris_sim_collision
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	PRIVATE
 		${aris_INCLUDE_DIRS}
+		${PROJECT_BINARY_DIR} # aris_sim_lib_EXPORTS
 		${ASSIMP_INCLUDE_DIRS}
 		${hpp-fcl_INCLUDE_DIRS}
 	)
 
+target_compile_definitions(aris_sim_collision PRIVATE aris_sim_lib_EXPORTS)
 target_compile_options(aris_sim_collision
 	PRIVATE 
 		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
@@ -145,19 +149,21 @@ add_library(aris_sim_lib
 		$<TARGET_OBJECTS:aris_sim_simulator>
 	)
 
-# generate_export_header(aris_sim_lib EXPORT_MACRO_NAME ARIS_SIM_API)
+include(GenerateExportHeader)
+generate_export_header(aris_sim_lib EXPORT_MACRO_NAME ARIS_SIM_API)
 
 target_include_directories(aris_sim_lib
 	PUBLIC 
 		$<INSTALL_INTERFACE:include>
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}> # aris_sim_lib_EXPORTS
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 	)
 
 set(PUB_RELY_LINK_LIB 
-	assimp::assimp 
-	${hpp-fcl_LIBRARIES})
+		assimp::assimp 
+		${hpp-fcl_LIBRARIES})
 
 target_link_libraries(aris_sim_lib 
 	PUBLIC 
@@ -196,8 +202,13 @@ install(EXPORT aris_sim-targets-release
 	DESTINATION "share/aris_sim/cmake"
 	)
 
-install(FILES include/aris_sim.hpp 
-	DESTINATION include)
+install(
+	FILES 
+		include/aris_sim.hpp 
+		${PROJECT_BINARY_DIR}/aris_lib_export.h
+	DESTINATION 
+		include
+	)
 
 ## install config ##
 include(CMakePackageConfigHelpers)

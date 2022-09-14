@@ -4,11 +4,12 @@
 #ifndef DYNAMIC_H_
 #define DYNAMIC_H_
 
+#include <aris_sim_lib_export.h>
 #include <array>
 
 namespace aris_sim {
-auto InitSimulator() -> void;
-auto DynamicSimulator(std::array<double, 7 * 16>& link_pm_) -> void;
+auto ARIS_SIM_API InitSimulator() -> void;
+auto ARIS_SIM_API DynamicSimulator(std::array<double, 7 * 16>& link_pm_) -> void;
 auto SimPlan() -> void;
 }  // namespace aris_sim
 
