@@ -87,7 +87,7 @@ target_sources(aris_sim_simulator
 	PRIVATE 
 		"src/simulator/dynamic_simulator.cpp"
 	PUBLIC 
-		"include/simulator/dynamic_simulator.hpp"
+		"include/aris_sim/simulator/dynamic_simulator.hpp"
 	)
 
 target_include_directories(aris_sim_simulator
@@ -103,7 +103,7 @@ target_compile_features(aris_sim_simulator
 		cxx_std_17
 	)
 
-install(DIRECTORY include/simulator DESTINATION include)
+install(DIRECTORY include/aris_sim/simulator DESTINATION include/aris_sim)
 
 # Build lib collision of aris_sim
 add_library(aris_sim_collision OBJECT)
@@ -117,7 +117,7 @@ target_sources(aris_sim_collision
 	PRIVATE 
 		"src/collision/collision.cpp"
 	PUBLIC 
-		"include/collision/collision.hpp"
+		"include/aris_sim/collision/collision.hpp"
 	)
 
 target_include_directories(aris_sim_collision
@@ -136,7 +136,7 @@ target_compile_options(aris_sim_collision
 		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
 	)
 
-install(DIRECTORY include/collision DESTINATION include)
+install(DIRECTORY include/aris_sim/collision DESTINATION include/aris_sim)
 
 # Build library for aris_sim
 add_library(aris_sim_lib 
@@ -155,9 +155,13 @@ target_include_directories(aris_sim_lib
 		${PROJECT_SOURCE_DIR}/src
 	)
 
+set(PUB_RELY_LINK_LIB 
+	assimp::assimp 
+	${hpp-fcl_LIBRARIES})
+
 target_link_libraries(aris_sim_lib 
 	PUBLIC 
-		assimp::assimp ${hpp-fcl_LIBRARIES}
+		${PUB_RELY_LINK_LIB}
 	PRIVATE
 		${aris_LIBRARIES} 
 	)
@@ -196,9 +200,9 @@ install(FILES include/aris_sim.hpp
 	DESTINATION include)
 
 ## install config ##
-set(aris_sim_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include)
-
 include(CMakePackageConfigHelpers)
+set(aris_sim_INCLUDE_DIRS ${CMAKE_INSTALL_PREFIX}/include)
+set(aris_sim_LIBRARIES ${aris_sim_LIBRARIES} ${PUB_RELY_LINK_LIB})
 configure_package_config_file(config/aris_sim-config.cmake.in 
 	${PROJECT_BINARY_DIR}/aris_sim-config.cmake 
 	INSTALL_DESTINATION "share/aris_sim/cmake"
