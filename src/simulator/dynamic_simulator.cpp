@@ -27,9 +27,9 @@ static std::array<double, 16> temp{1, 0, 0, 0, 0, 1, 0, 0,
                                    0, 0, 1, 0, 0, 0, 0, 1};
 
 const double ee[4][4]{
-    {0.0, 0.0, 1.0, 393.0},
+    {0.0, 0.0, 1.0, 0.393},
     {0.0, 1.0, 0.0, 0.0},
-    {-1.0, 0.0, 0.0, 642.0},
+    {-1.0, 0.0, 0.0, 0.642},
     {0.0, 0.0, 0.0, 1.0},
 };
 
@@ -41,13 +41,13 @@ auto InitSimulator() -> void {
     sim_thread_ = std::thread([]() {
       //初始化建立puma模型
       aris::dynamic::PumaParam param;
-      param.a1 = 40;
-      param.a2 = 275;
-      param.a3 = 25;
-      param.d1 = 342;
+      param.a1 = 0.040;
+      param.a2 = 0.275;
+      param.a3 = 0.025;
+      param.d1 = 0.342;
       param.d3 = 0.0;
-      param.d4 = 280;
-      param.tool0_pe[2] = 73;
+      param.d4 = 0.280;
+      param.tool0_pe[2] = 0.073;
       auto m = aris::dynamic::createModelPuma(param);
       auto& cs = aris::server::ControlServer::instance();
       cs.resetModel(m.release());
@@ -106,8 +106,8 @@ auto SimPlan() -> void {
       cs.executeCmd("ds");
       cs.executeCmd("md");
       cs.executeCmd("en");
-      cs.executeCmd("mvj --pe={393,0,642,0,1.5708,0}");
-      cs.executeCmd("mvj --pe={580,0,642,0,1.5708,0}");
+      cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
+      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.5708, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;
     }

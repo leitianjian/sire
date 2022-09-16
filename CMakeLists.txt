@@ -205,7 +205,7 @@ install(EXPORT aris_sim-targets-release
 install(
 	FILES 
 		include/aris_sim.hpp 
-		${PROJECT_BINARY_DIR}/aris_lib_export.h
+		${PROJECT_BINARY_DIR}/aris_sim_lib_export.h
 	DESTINATION 
 		include
 	)
