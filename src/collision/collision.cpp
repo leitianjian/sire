@@ -1,7 +1,7 @@
 //
 // Created by ZHOUYC on 2022/8/5.
 //
-#include "aris_sim/collision/collision.hpp"
+#include "sire/collision/collision.hpp"
 #include <hpp/fcl/collision.h>
 #include <hpp/fcl/collision_data.h>
 #include <hpp/fcl/collision_object.h>
@@ -15,7 +15,7 @@
 
 using namespace hpp;
 
-namespace aris_sim {
+namespace sire {
 static std::thread collision_thread_;
 static std::mutex collision_mutex_;
 static float x{0.0}, y{0.0}, z{0.0};
@@ -39,7 +39,6 @@ auto InitCollision(const std::string& resource_path) -> void {
       auto sphere_geometry = std::make_shared<fcl::Sphere>(r);
       // Poses of the geometry.
       fcl::Transform3f X_WS = fcl::Transform3f::Identity();
-      // fcl碰撞模型 建立的时候 末端与小球只差167
       X_WS.translation() << 0.560, 0, 0.642;
       fcl::CollisionObject sphere(sphere_geometry, X_WS);
 
@@ -89,4 +88,4 @@ auto Collision(float x_, float y_, float z_, size_t& num_contacts_) -> void {
   num_contacts_ = num_contacts;
 };
 
-}  // namespace aris_sim
+}  // namespace sire

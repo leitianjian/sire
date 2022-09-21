@@ -13,15 +13,15 @@
 #include <hpp/fcl/BVH/BVH_model.h>
 #include <hpp/fcl/data_types.h>
 #include <hpp/fcl/narrowphase/narrowphase.h>
-#include <aris_sim_lib_export.h>
+#include <sire_lib_export.h>
 #include <iostream>
 
 using namespace hpp;
 
-namespace aris_sim {
-auto ARIS_SIM_API InitCollision(const std::string& resource_path) -> void;
-auto ARIS_SIM_API Collision(float x_, float y_, float z_, size_t& num_contacts_)
+namespace sire {
+auto SIRE_API InitCollision(const std::string& resource_path) -> void;
+auto SIRE_API Collision(float x_, float y_, float z_, size_t& num_contacts_)
     -> void;
-}  // namespace aris_sim
+}  // namespace sire
 
 #endif  // ROBOT_OCC_COLLISION_H
