@@ -14,10 +14,12 @@ PointerAlignment: Left
 IncludeBlocks: Merge
 IncludeCategories:
 # Matches common headers first, but sorts them after project includes
-- Regex: '^\"aris_sim/' # project includes should sort first
+- Regex: '^\"sire/' # project includes should sort first
   Priority: 500
 - Regex: '^\"'
   Priority: 1500
+- Regex: 'lib_export.h>$'
+  Priority: 1800
 - Regex: '^<aris/'
   Priority: 2000
 - Regex: '^<.*/.*'

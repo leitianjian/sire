@@ -4,9 +4,9 @@
 #ifndef DYNAMIC_H_
 #define DYNAMIC_H_
 
+#include <sire_lib_export.h>
 #include <aris.hpp>
 #include <array>
-#include <sire_lib_export.h>
 
 namespace sire {
 class SIRE_API Simulator {

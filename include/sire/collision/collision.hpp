@@ -5,6 +5,7 @@
 #ifndef ROBOT_OCC_COLLISION_H
 #define ROBOT_OCC_COLLISION_H
 
+#include <sire_lib_export.h>
 #include <assimp/Importer.hpp>   // C++ importer interface
 #include <assimp/postprocess.h>  // Post processing flags
 #include <assimp/scene.h>        // Output data structure
@@ -13,7 +14,6 @@
 #include <hpp/fcl/BVH/BVH_model.h>
 #include <hpp/fcl/data_types.h>
 #include <hpp/fcl/narrowphase/narrowphase.h>
-#include <sire_lib_export.h>
 #include <iostream>
 
 using namespace hpp;

@@ -23,31 +23,29 @@ static int num_contacts{0};
 
 auto InitCollision(const std::string& resource_path) -> void {
   if (!collision_thread_.joinable()) {
-    collision_thread_ = std::thread([resource_path]() {
+    collision_thread_ = std::thread([&resource_path]() {
       // Configure robot_ee geometry.
       fcl::internal::Loader loader;
       loader.load(resource_path);
       typedef fcl::BVHModel<fcl::OBBRSS> Model;
-      std::shared_ptr<Model> geom = std::make_shared<Model>();
+      std::shared_ptr<Model> ee_model = std::make_shared<Model>();
       fcl::Vec3f scale{1, 1, 1};
-      fcl::internal::meshFromAssimpScene(scale, loader.scene, geom);
-      geom->computeLocalAABB();
-      fcl::Transform3f X_WBV = fcl::Transform3f::Identity();
+      fcl::internal::meshFromAssimpScene(scale, loader.scene, ee_model);
+      ee_model->computeLocalAABB();
+      fcl::CollisionObject robot_ee(ee_model);
 
       // Configure sphere geometry.
       const fcl::FCL_REAL r = 0.03;
       auto sphere_geometry = std::make_shared<fcl::Sphere>(r);
       // Poses of the geometry.
-      fcl::Transform3f X_WS = fcl::Transform3f::Identity();
-      X_WS.translation() << 0.560, 0, 0.642;
+      fcl::Transform3f X_WS(fcl::Vec3f(0.560, 0, 0.642));
       fcl::CollisionObject sphere(sphere_geometry, X_WS);
 
       // thread
       while (num_contacts == 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        X_WBV.translation() << x, y, z;
-        fcl::CollisionObject robot_ee(geom, X_WBV);
+        robot_ee.setTranslation(fcl::Vec3f(x, y, z));
 
         // Compute collision - single contact and enable contact.
         fcl::CollisionRequest col_req(fcl::CollisionRequestFlag::CONTACT, 1);
@@ -81,7 +79,6 @@ auto InitCollision(const std::string& resource_path) -> void {
 
 auto Collision(float x_, float y_, float z_, size_t& num_contacts_) -> void {
   std::lock_guard<std::mutex> guard(collision_mutex_);
-
   x = x_;
   y = y_;
   z = z_;
