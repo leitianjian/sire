@@ -12,129 +12,96 @@
 #include <vector>
 
 namespace sire {
-static std::thread sim_thread_;
-static std::mutex sim_mutex_;
-
-static std::array<double, 7 * 16> link_pm{
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0,
-    0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0,
-    0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
-    1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
-    0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
-};
-
-static std::array<double, 16> temp{1, 0, 0, 0, 0, 1, 0, 0,
-                                   0, 0, 1, 0, 0, 0, 0, 1};
-
-const double ee[4][4]{
-    {0.0, 0.0, 1.0, 0.393},
-    {0.0, 1.0, 0.0, 0.0},
-    {-1.0, 0.0, 0.0, 0.642},
-    {0.0, 0.0, 0.0, 1.0},
-};
-
-auto config_path = std::filesystem::absolute(".");  //获取当前工程所在的路径
-const std::string xmlfile = "sire.xml";
-
 struct Simulator::Imp {
   Simulator* simulator_;
-  std::thread retrieve_rt_pm;
-  Imp(Simulator* simulator) : simulator_(simulator) {}
+  aris::server::ControlServer& cs_;
+  std::thread retrieve_rt_pm_thead_;
+  std::array<double, 7 * 16> link_pm_;
+  std::mutex mu_link_pm_;
+
+  Imp(Simulator* simulator)
+      : simulator_(simulator), cs_(aris::server::ControlServer::instance()) {
+    link_pm_ = {
+        1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0,
+        0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0,
+        0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0,
+        1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
+        0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
+    };
+  }
   Imp(const Imp&) = delete;
 };
-Simulator::Simulator(const std::string& cs_config_path)
-    : cs_(aris::server::ControlServer::instance()),
-      cs_config_path_(cs_config_path),
-      env_config_path_(cs_config_path) {
-  aris::core::fromXmlFile(cs_, cs_config_path_);
-  cs_.init();
-  std::cout << aris::core::toXmlString(cs_) << std::endl;
+
+Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
+  aris::core::fromXmlFile(imp_->cs_, cs_config_path);
+  imp_->cs_.init();
+  std::cout << aris::core::toXmlString(imp_->cs_) << std::endl;
   try {
-    cs_.start();
-    cs_.executeCmd("md");
-    cs_.executeCmd("rc");
+    imp_->cs_.start();
+    imp_->cs_.executeCmd("md");
+    imp_->cs_.executeCmd("rc");
   } catch (const std::exception& err) {
     std::cout << "启动ControlServer错误，请检查配置文件" << std::endl;
+    exit(1);
   }
+
+  imp_->retrieve_rt_pm_thead_ = std::thread(
+      [](aris::server::ControlServer& cs, std::array<double, 7 * 16>& link_pm,
+         std::mutex& mu_link_pm) {
+        const double ee[4][4]{
+            {0.0, 0.0, 1.0, 0.393},
+            {0.0, 1.0, 0.0, 0.0},
+            {-1.0, 0.0, 0.0, 0.642},
+            {0.0, 0.0, 0.0, 1.0},
+        };
+        while (true) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          std::any data;
+          cs.getRtData(
+              [&link_pm, ee](aris::server::ControlServer& cs,
+                             const aris::plan::Plan* p,
+                             std::any& data) -> void {
+                auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
+                //获取杆件位姿
+                for (int i = 1; i < m->partPool().size(); ++i) {
+                  m->partPool().at(i).getPm(
+                      (link_pm.data() + static_cast<long>(16) * i));
+                }
+                //转换末端位姿
+                std::array<double, 16> temp{1, 0, 0, 0, 0, 1, 0, 0,
+                                            0, 0, 1, 0, 0, 0, 0, 1};
+                aris::dynamic::s_pm_dot_inv_pm(link_pm.data() + 16 * 6, *ee,
+                                               temp.data());
+                std::copy(temp.begin(), temp.end(), link_pm.data() + 16 * 6);
+                data = link_pm;
+              },
+              data);
+          std::lock_guard<std::mutex> guard(mu_link_pm);
+          link_pm = std::any_cast<std::array<double, 16 * 7>>(data);
+        }
+      },
+      std::ref(imp_->cs_), std::ref(imp_->link_pm_),
+      std::ref(imp_->mu_link_pm_));
 }
 
-auto Simulator::instance(const std::string& cs_config_path)
-    -> Simulator& {
+Simulator::~Simulator() {
+  imp_->cs_.stop();
+  imp_->cs_.close();
+}
+
+auto Simulator::GetLinkPM(std::array<double, 7 * 16>& link_pm) -> void {
+  std::lock_guard<std::mutex> guard(imp_->mu_link_pm_);
+  link_pm = imp_->link_pm_;
+}
+
+auto Simulator::instance(const std::string& cs_config_path) -> Simulator& {
   static Simulator instance(cs_config_path);
   return instance;
 }
 
-Simulator::~Simulator() { }
-
-auto InitSimulator() -> void {
-  if (!sim_thread_.joinable()) {
-    //开启sim_thread_线程，每100ms读取模型link位姿
-    sim_thread_ = std::thread([]() {
-
-    //初始化建立puma模型
-        aris::dynamic::PumaParam param;
-        param.a1 = 0.040;
-        param.a2 = 0.275;
-        param.a3 = 0.025;
-        param.d1 = 0.342;
-        param.d3 = 0.0;
-        param.d4 = 0.280;
-        param.tool0_pe[2] = 0.073;
-        auto m = aris::dynamic::createModelPuma(param);
-        auto& cs = aris::server::ControlServer::instance();
-        cs.resetModel(m.release());
-        cs.resetMaster(
-            aris::control::createDefaultEthercatMaster(6, 0,
-            0).release());
-        cs.resetController(
-            aris::control::createDefaultEthercatController(
-                6, 0, 0,
-                dynamic_cast<aris::control::EthercatMaster&>(cs.master()))
-                .release());
-        for (int i = 0; i < 6; ++i) {
-          cs.controller().motorPool()[i].setMaxPos(3.14);
-          cs.controller().motorPool()[i].setMinPos(-3.14);
-          cs.controller().motorPool()[i].setMaxVel(3.14);
-          cs.controller().motorPool()[i].setMinVel(-3.14);
-          cs.controller().motorPool()[i].setMaxAcc(100);
-          cs.controller().motorPool()[i].setMinAcc(-100);
-        }
-        cs.resetPlanRoot(aris::plan::createDefaultPlanRoot().release());
-
-      cs.init();
-      // print the control server state
-      std::cout << aris::core::toXmlString(cs) << std::endl;
-      cs.start();
-
-      //线程sim_thread_中getRtData每100ms读取link位姿
-      while (true) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        std::any data;
-        cs.getRtData(
-            [](aris::server::ControlServer& cs, const aris::plan::Plan* p,
-               std::any& data) -> void {
-              auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
-              //获取杆件位姿
-              for (int i = 1; i < m->partPool().size(); ++i) {
-                m->partPool().at(i).getPm(link_pm.data() +
-                                          static_cast<long>(16) * i);
-              }
-              //转换末端位姿
-              aris::dynamic::s_pm_dot_inv_pm(link_pm.data() + 16 * 6, *ee,
-                                             temp.data());
-              std::copy(temp.begin(), temp.end(), link_pm.data() + 16 * 6);
-              data = link_pm;
-            },
-            data);
-        link_pm = std::any_cast<std::array<double, 16 * 7>>(data);
-      }
-    });
-  }
-}
-
-auto SimPlan() -> void {
+auto Simulator::SimPlan() -> void {
   //发送仿真轨迹
-  if (sim_thread_.joinable()) {
+  if (imp_->retrieve_rt_pm_thead_.joinable()) {
     auto& cs = aris::server::ControlServer::instance();
     try {
       cs.executeCmd("ds");
@@ -149,10 +116,5 @@ auto SimPlan() -> void {
   }
 }
 
-void DynamicSimulator(std::array<double, 7 * 16>& link_pm_) {
-  // guard为局部变量，分配在栈上，超出作用域即调用析构函数
-  std::lock_guard<std::mutex> guard(sim_mutex_);
-  link_pm_ = link_pm;
-}
-
+// ARIS_REGISTRATION { aris::core::class_<Simulator>("Simulator"); }
 }  // namespace sire
