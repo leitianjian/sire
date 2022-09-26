@@ -19,6 +19,7 @@ namespace aris_sim {
 static std::thread collision_thread_;
 static std::mutex collision_mutex_;
 static float x{0.0}, y{0.0}, z{0.0};
+std::array<double, 7 * 7> link_pq;
 static int num_contacts{0};
 
 auto InitCollision(const std::string& resource_path) -> void {
@@ -35,11 +36,11 @@ auto InitCollision(const std::string& resource_path) -> void {
       fcl::Transform3f X_WBV = fcl::Transform3f::Identity();
 
       // Configure sphere geometry.
-      const fcl::FCL_REAL r = 0.03;
+      const fcl::FCL_REAL r = 0.030;
       auto sphere_geometry = std::make_shared<fcl::Sphere>(r);
       // Poses of the geometry.
       fcl::Transform3f X_WS = fcl::Transform3f::Identity();
-      // fcl碰撞模型 建立的时候 末端与小球只差167
+      // fcl碰撞模型 建立的时候 末端与小球只差0.167米
       X_WS.translation() << 0.560, 0, 0.642;
       fcl::CollisionObject sphere(sphere_geometry, X_WS);
 
@@ -47,9 +48,13 @@ auto InitCollision(const std::string& resource_path) -> void {
       while (num_contacts == 0) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-        X_WBV.translation() << x, y, z;
-        fcl::CollisionObject robot_ee(geom, X_WBV);
+        // Quaternion3f 一个实部加三个虚部
+        X_WBV.setTransform(
+            fcl::Quaternion3f(link_pq[6 * 7 + 6], link_pq[6 * 7 + 3],
+                              link_pq[6 * 7 + 4], link_pq[6 * 7 + 5]),
+            fcl::Vec3f(link_pq[6 * 7], link_pq[6 * 7 + 1], link_pq[6 * 7 + 2]));
 
+        fcl::CollisionObject robot_ee(geom, X_WBV);
         // Compute collision - single contact and enable contact.
         fcl::CollisionRequest col_req(fcl::CollisionRequestFlag::CONTACT, 1);
         // Request.gjk_solver_type = fcl::GJKSolverType::GST_LIBCCD;
@@ -80,12 +85,10 @@ auto InitCollision(const std::string& resource_path) -> void {
   }
 }
 
-auto Collision(float x_, float y_, float z_, size_t& num_contacts_) -> void {
+auto Collision(std::array<double, 7 * 7> linpq_, size_t& num_contacts_)
+    -> void {
   std::lock_guard<std::mutex> guard(collision_mutex_);
-
-  x = x_;
-  y = y_;
-  z = z_;
+  link_pq = linpq_;
   num_contacts_ = num_contacts;
 };
 

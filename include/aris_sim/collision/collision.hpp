@@ -20,7 +20,8 @@ using namespace hpp;
 
 namespace aris_sim {
 auto ARIS_SIM_API InitCollision(const std::string& resource_path) -> void;
-auto ARIS_SIM_API Collision(float x_, float y_, float z_, size_t& num_contacts_)
+auto ARIS_SIM_API Collision(std::array<double, 7 * 7> linpq_,
+                            size_t& num_contacts_)
     -> void;
 }  // namespace aris_sim
 

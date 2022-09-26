@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(aris_sim VERSION 1.0.0 LANGUAGES CXX)
 
 # set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set(Boost_LIB_PREFIX "lib")
+set(Boost_ARCHITECTURE "-x64")
 
 if(UNIX)
 	set(CMAKE_INSTALL_PREFIX "/usr/aris_sim/aris_sim-1.0")
@@ -60,21 +62,20 @@ find_package(kaanh)
 # endif()
 # find_package(fcl REQUIRED)
 
-set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
+# set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
 # find Assimp
-if(EXISTS ${TARGET_ASSIMP_PATH})
-	message(STATUS "Directory to search Assimp at ${TARGET_ASSIMP_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${TARGET_ASSIMP_PATH})
-else()
-	message(WARNING "File/Directory at variable TARGET_ASSIMP_PATH not exists!")
-endif()
-find_package(assimp REQUIRED)
+# if(EXISTS ${TARGET_ASSIMP_PATH})
+# 	message(STATUS "Directory to search Assimp at ${TARGET_ASSIMP_PATH}")
+# 	list(APPEND CMAKE_PREFIX_PATH ${TARGET_ASSIMP_PATH})
+# else()
+# 	message(WARNING "File/Directory at variable TARGET_ASSIMP_PATH not exists!")
+# endif()
+# find_package(assimp REQUIRED)
 
 set(TARGET_HPP_FCL_PATH "" CACHE PATH "Hpp-fcl install path")
-
 # find Hpp-fcl
 if(EXISTS ${TARGET_HPP_FCL_PATH})
-	message(STATUS "Directory to search Assimp at ${TARGET_HPP_FCL_PATH}")
+	message(STATUS "Directory to search hpp-fcl at ${TARGET_HPP_FCL_PATH}")
 	list(APPEND CMAKE_PREFIX_PATH ${TARGET_HPP_FCL_PATH})
 else()
 	message(WARNING "File/Directory at variable TARGET_HPP_FCL_PATH not exists!")
@@ -129,7 +130,7 @@ target_include_directories(aris_sim_collision
 	PRIVATE
 		${aris_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR} # aris_sim_lib_EXPORTS
-		${ASSIMP_INCLUDE_DIRS}
+		# ${ASSIMP_INCLUDE_DIRS}
 		${hpp-fcl_INCLUDE_DIRS}
 	)
 
@@ -162,8 +163,9 @@ target_include_directories(aris_sim_lib
 	)
 
 set(PUB_RELY_LINK_LIB 
-		assimp::assimp 
+		#  assimp::assimp 
 		${hpp-fcl_LIBRARIES})
+message(STATUS "hpp-fcl_LIBRARIES: ${hpp-fcl_LIBRARIES}")
 
 target_link_libraries(aris_sim_lib 
 	PUBLIC 

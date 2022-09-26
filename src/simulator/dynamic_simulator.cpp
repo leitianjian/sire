@@ -23,8 +23,7 @@ static std::array<double, 7 * 16> link_pm{
     0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
 };
 
-static std::array<double, 16> temp{1, 0, 0, 0, 0, 1, 0, 0,
-                                   0, 0, 1, 0, 0, 0, 0, 1};
+std::array<double, 16> temp{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1};
 
 const double ee[4][4]{
     {0.0, 0.0, 1.0, 0.393},
@@ -32,6 +31,14 @@ const double ee[4][4]{
     {-1.0, 0.0, 0.0, 0.642},
     {0.0, 0.0, 0.0, 1.0},
 };
+
+static std::array<double, 7 * 7> link_pq{
+    0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1};
+static std::array<double, 7 * 6> link_pe{
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+;
 
 auto InitSimulator() -> void {
   if (sim_thread_.joinable()) {
@@ -76,6 +83,8 @@ auto InitSimulator() -> void {
       while (true) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         std::any data;
+        std::any data_pm;
+
         cs.getRtData(
             [](aris::server::ControlServer& cs, const aris::plan::Plan* p,
                std::any& data) -> void {
@@ -92,7 +101,7 @@ auto InitSimulator() -> void {
               data = link_pm;
             },
             data);
-        link_pm = std::any_cast<std::array<double, 16 * 7>>(data);
+        link_pm = std::any_cast<std::array<double, 7 * 16>>(data);
       }
     });
   }
@@ -107,7 +116,7 @@ auto SimPlan() -> void {
       cs.executeCmd("md");
       cs.executeCmd("en");
       cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
-      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.5708, 0}");
+      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;
     }
@@ -115,10 +124,27 @@ auto SimPlan() -> void {
   }
 }
 
-void DynamicSimulator(std::array<double, 7 * 16>& link_pm_) {
-  // guard为局部变量，分配在栈上，超出作用域即调用析构函数
+void DynamicSimulatorLinkpm(std::array<double, 7 * 16>& link_pm_) {
   std::lock_guard<std::mutex> guard(sim_mutex_);
+  /// pm  :  4x4 位姿矩阵(pose matrix)\n
   link_pm_ = link_pm;
+}
+
+void DynamicSimulator(std::array<double, 7 * 7>& link_pq_) {
+  std::lock_guard<std::mutex> guard(sim_mutex_);
+  for (int i = 1; i < 7; ++i) {
+    aris::dynamic::s_pm2pq(link_pm.data() + i * 16, link_pq.data() + i * 7);
+  }
+  // pq: 7x1 点位置与四元数(position and quaternions) 三个虚部加一个实部\n
+  link_pq_ = link_pq;
+}
+
+void DynamicSimulator(std::array<double, 7 * 6>& link_pe_) {
+  std::lock_guard<std::mutex> guard(sim_mutex_);
+  for (int i = 1; i < 7; ++i) {
+    aris::dynamic::s_pm2pq(link_pm.data() + i * 16, link_pe.data() + i * 6);
+  }
+  link_pe_ = link_pe;
 }
 
 }  // namespace aris_sim
