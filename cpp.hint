@@ -1,0 +1,4 @@
+// 提示文件帮助 Visual Studio IDE 解释 Visual C++ 标识符,
+// 如函数和宏的名称。
+// 有关详细信息，请参见 https://go.microsoft.com/fwlink/?linkid=865984
+#define ARIS_REGISTRATION static void aris_reflection_register_function_(); namespace{ struct aris_reflection_help_class__{ aris_reflection_help_class__(){ aris_reflection_register_function_(); } }; } static const aris_reflection_help_class__ ARIS_REFLECT_CAT(auto_register__, __LINE__); static void aris_reflection_register_function_()

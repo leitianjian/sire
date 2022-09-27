@@ -1,4 +1,4 @@
-# Aris_sim 使用介绍
+# SIRE 使用介绍
 
 ## 编译流程
 
@@ -44,7 +44,7 @@
    -DTARGET_HPP_FCL_PATH=D:/leitianjian/Documents/code/ArisSim/third-parties/hpp-fcl/out/install/x64-Debug
    ```
 
-4. 安装ArisSim 默认安装位置在 `C:\aris-sim`下
+4. 安装ArisSim 默认安装位置在 `C:\sire`下
 
 5. 碰到问题，请发送邮件至leitianjian@outlook.com
 
@@ -52,7 +52,7 @@
 
 注：和ARIS一致
 
-1. 代码文件需要的地方使用 `#include <aris_sim.hpp>`
+1. 代码文件需要的地方使用 `#include <sire.hpp>`
 
 2. CMakeLists.txt需要使用`find_package()`指令进行查找，查找方法与aris一致
 
@@ -79,20 +79,20 @@
    endif()
    find_package(hpp-fcl REQUIRED)
    
-   set(ARIS_SIM_INSTALL_PATH C:/aris_sim CACHE PATH "Aris install path") # 设置默认查找位置 C:\aris_sim
-   if(EXISTS ${ARIS_SIM_INSTALL_PATH})
-   	message(STATUS "Directory to search aris_sim at ${ARIS_SIM_INSTALL_PATH}")
-   	list(APPEND CMAKE_PREFIX_PATH ${ARIS_SIM_INSTALL_PATH})
+   set(SIRE_INSTALL_PATH C:/sire CACHE PATH "Sire install path") # 设置默认查找位置 C:\sire
+   if(EXISTS ${SIRE_INSTALL_PATH})
+   	message(STATUS "Directory to search sire at ${SIRE_INSTALL_PATH}")
+   	list(APPEND CMAKE_PREFIX_PATH ${SIRE_INSTALL_PATH})
    else()
-   	message(WARNING "File/Directory at variable ARIS_SIM_INSTALL_PATH not exists!")
+   	message(WARNING "File/Directory at variable SIRE_INSTALL_PATH not exists!")
    endif()
-   find_package(aris_sim REQUIRED)
+   find_package(sire REQUIRED)
    
-   include_directories(${aris_sim_INCLUDE_DIRS})
+   include_directories(${SIRE_INSTALL_PATH})
    include_directories(${hpp-fcl_INCLUDE_DIRS})
    include_directories(${assimp_INCLUDE_DIRS})
    
-   target_link_libraries(${PROJECT_NAME} ${aris_sim_LIBRARIES})
+   target_link_libraries(${PROJECT_NAME} ${sire_LIBRARIES})
    target_link_libraries(${PROJECT_NAME} assimp::assimp)
    target_link_libraries(${PROJECT_NAME} ${hpp-fcl_LIBRARIES})
    ```

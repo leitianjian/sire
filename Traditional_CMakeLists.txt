@@ -23,12 +23,12 @@ else ()
 endif ()
 
 if(UNIX)
-	set(CMAKE_INSTALL_PREFIX "/usr/aris_sim/aris_sim-1.0")
+	set(CMAKE_INSTALL_PREFIX "/usr/sire/sire-1.0")
 endif(UNIX)
 if(WIN32)
-	set(CMAKE_INSTALL_PREFIX "C:/aris_sim/aris_sim-1.0")
+	set(CMAKE_INSTALL_PREFIX "C:/sire/sire-1.0")
 endif(WIN32)
-add_definitions(-DARIS_SIM_INSTALL_PATH="${CMAKE_INSTALL_PREFIX}")
+add_definitions(-Dsire_INSTALL_PATH="${CMAKE_INSTALL_PREFIX}")
 
 ## set rely libs ##
 # std & socker rely #
@@ -154,9 +154,9 @@ endif()
 foreach(target collision simulator)
 	file(GLOB HEADERS include/${target}/*.hpp include/${target}/*.h)
 	file(GLOB SOURCES src/${target}/*.cpp src/${target}/*.c src/${target}/*.hpp src/${target}/*.h ${HEADERS})
-	add_library(aris_sim_${target} OBJECT ${HEADERS} ${SOURCES})
-	target_compile_definitions(aris_sim_${target} PRIVATE aris_sim_lib_EXPORTS)
-	target_include_directories(aris_sim_${target}
+	add_library(sire_${target} OBJECT ${HEADERS} ${SOURCES})
+	target_compile_definitions(sire_${target} PRIVATE sire_lib_EXPORTS)
+	target_include_directories(sire_${target}
 		PUBLIC 
 			$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
 			$<INSTALL_INTERFACE:include>
@@ -166,9 +166,9 @@ foreach(target collision simulator)
 			${RELY_INCL_DIR}
 	)
 	
-	set_target_properties(aris_sim_${target} PROPERTIES PUBLIC_HEADER "${HEADERS}")
-	list(APPEND aris_sim_LIBRARIES optimized aris_sim::aris_sim_${target} debug aris_sim::debug::aris_sim_${target})
-	list(APPEND ARIS_SIM_LINK_LIB aris_sim_${target})
+	set_target_properties(sire_${target} PROPERTIES PUBLIC_HEADER "${HEADERS}")
+	list(APPEND sire_LIBRARIES optimized sire::sire_${target} debug sire::debug::sire_${target})
+	list(APPEND 1_LINK_LIB aris_sim_${target})
 	list(APPEND ARIS_SIM_OBJECTS $<TARGET_OBJECTS:aris_sim_${target}>)
 	list(APPEND ARIS_SIM_HEADERS include/${target})
 	
