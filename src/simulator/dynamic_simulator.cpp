@@ -63,16 +63,25 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
                              std::any& data) -> void {
                 auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
                 //获取杆件位姿
+                int geoCount = 1;
                 for (int i = 1; i < m->partPool().size(); ++i) {
-                  m->partPool().at(i).getPm(
-                      (link_pm.data() + static_cast<long>(16) * i));
+                  auto& part = m->partPool().at(i);
+                  // 获取Part位姿
+                  std::array<double, 16> prtPm{1, 0, 0, 0, 0, 1, 0, 0,
+                                               0, 0, 1, 0, 0, 0, 0, 1};
+                  part.getPm(prtPm.data());
+                  for (int j = 0; j < part.geometryPool().size(); ++j) {
+                    // 获取FileGeometry位姿
+                    auto geoPrtPm = dynamic_cast<aris::dynamic::FileGeometry&>(
+                                        part.geometryPool().at(j))
+                                        .prtPm();
+                    // T_part * inv(T_fg) = 3d模型真实位姿
+                    aris::dynamic::s_pm_dot_inv_pm(
+                        prtPm.data(), const_cast<double*>(*geoPrtPm),
+                        link_pm.data() + static_cast<long>(16) * geoCount);
+                    ++geoCount;
+                  }
                 }
-                //转换末端位姿
-                std::array<double, 16> temp{1, 0, 0, 0, 0, 1, 0, 0,
-                                            0, 0, 1, 0, 0, 0, 0, 1};
-                aris::dynamic::s_pm_dot_inv_pm(link_pm.data() + 16 * 6, *ee,
-                                               temp.data());
-                std::copy(temp.begin(), temp.end(), link_pm.data() + 16 * 6);
                 data = link_pm;
               },
               data);
