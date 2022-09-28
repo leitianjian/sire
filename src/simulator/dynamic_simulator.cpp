@@ -17,6 +17,8 @@ struct Simulator::Imp {
   aris::server::ControlServer& cs_;
   std::thread retrieve_rt_pm_thead_;
   std::array<double, 7 * 16> link_pm_;
+  std::array<double, 7 * 7> link_pq_;
+  std::array<double, 7 * 6> link_pe_;
   std::mutex mu_link_pm_;
 
   Imp(Simulator* simulator)
@@ -28,6 +30,13 @@ struct Simulator::Imp {
         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
         0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
     };
+    link_pq_ = {
+        0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+        0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+        1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1};
+    link_pe_ = {
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   }
   Imp(const Imp&) = delete;
 };
@@ -41,7 +50,7 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
     imp_->cs_.executeCmd("md");
     imp_->cs_.executeCmd("rc");
   } catch (const std::exception& err) {
-    std::cout << "启动ControlServer错误，请检查配置文件" << std::endl;
+    std::cout << "error 启动ControlServer错误，请检查配置文件" << std::endl;
     exit(1);
   }
 
@@ -103,6 +112,25 @@ auto Simulator::GetLinkPM(std::array<double, 7 * 16>& link_pm) -> void {
   link_pm = imp_->link_pm_;
 }
 
+auto Simulator::GetLinkPQ(std::array<double, 7 * 7>& link_pq) -> void {
+  std::lock_guard<std::mutex> guard(imp_->mu_link_pm_);
+  for (int i = 1; i < 7; ++i) {
+    aris::dynamic::s_pm2pq(imp_->link_pm_.data() + i * 16,
+                           imp_->link_pq_.data() + i * 7);
+  }
+  // pq: 7x1 点位置与四元数(position and quaternions) 三个虚部加一个实部\n
+  link_pq = imp_->link_pq_;
+}
+
+auto Simulator::GetLinkPE(std::array<double, 7 * 6>& link_pe) -> void {
+  std::lock_guard<std::mutex> guard(imp_->mu_link_pm_);
+  for (int i = 1; i < 7; ++i) {
+    aris::dynamic::s_pm2pe(imp_->link_pm_.data() + i * 16,
+                           imp_->link_pe_.data() + i * 6);
+  }
+  link_pe = imp_->link_pe_;
+}
+
 auto Simulator::instance(const std::string& cs_config_path) -> Simulator& {
   static Simulator instance(cs_config_path);
   return instance;
@@ -117,13 +145,12 @@ auto Simulator::SimPlan() -> void {
       cs.executeCmd("md");
       cs.executeCmd("en");
       cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
-      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.5708, 0}");
+      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;
     }
     return;
   }
 }
-
 // ARIS_REGISTRATION { aris::core::class_<Simulator>("Simulator"); }
 }  // namespace sire

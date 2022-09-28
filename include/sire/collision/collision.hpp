@@ -2,8 +2,8 @@
 // Created by ZHOUYC on 2022/8/5.
 //
 
-#ifndef ROBOT_OCC_COLLISION_H
-#define ROBOT_OCC_COLLISION_H
+#ifndef COLLISION_H
+#define COLLISION_H
 
 #include <sire_lib_export.h>
 #include <assimp/Importer.hpp>   // C++ importer interface
@@ -19,9 +19,24 @@
 using namespace hpp;
 
 namespace sire {
-auto SIRE_API InitCollision(const std::string& resource_path) -> void;
-auto SIRE_API Collision(float x_, float y_, float z_, size_t& num_contacts_)
-    -> void;
-}  // namespace sire
 
+class SIRE_API Collision {
+ private:
+  struct Imp;
+  std::unique_ptr<Imp> imp_;
+
+ private:
+  Collision();
+  ~Collision();
+  Collision(const std::string& ee_model_path);
+  Collision(const Collision&) = delete;
+  Collision& operator=(const Collision&) = delete;
+
+ public:
+  static auto instance(const std::string& ee_model_path =
+                           "C:/Users/ZHOUYC/Desktop/ee_5.STL") -> Collision&;
+  auto CalCollision(std::array<double, 7 * 7> linpq, size_t& num_contacts)
+      -> void;
+};
+}  // namespace sire
 #endif  // ROBOT_OCC_COLLISION_H

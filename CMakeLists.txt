@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(sire VERSION 1.0.0 LANGUAGES CXX)
 
 # set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set(Boost_LIB_PREFIX "lib")
+set(Boost_ARCHITECTURE "-x64")
 
 if(UNIX)
 	set(CMAKE_INSTALL_PREFIX "/usr/sire/sire-1.0")
@@ -37,21 +39,10 @@ else()
 endif()
 find_package(kaanh)
 
-set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
-# find Assimp
-if(EXISTS ${TARGET_ASSIMP_PATH})
-	message(STATUS "Directory to search Assimp at ${TARGET_ASSIMP_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${TARGET_ASSIMP_PATH})
-else()
-	message(WARNING "File/Directory at variable TARGET_ASSIMP_PATH not exists!")
-endif()
-find_package(assimp REQUIRED)
-
 set(TARGET_HPP_FCL_PATH "" CACHE PATH "Hpp-fcl install path")
-
 # find Hpp-fcl
 if(EXISTS ${TARGET_HPP_FCL_PATH})
-	message(STATUS "Directory to search Assimp at ${TARGET_HPP_FCL_PATH}")
+	message(STATUS "Directory to search hpp-fcl at ${TARGET_HPP_FCL_PATH}")
 	list(APPEND CMAKE_PREFIX_PATH ${TARGET_HPP_FCL_PATH})
 else()
 	message(WARNING "File/Directory at variable TARGET_HPP_FCL_PATH not exists!")
@@ -140,7 +131,6 @@ target_include_directories(sire_lib
 
 message(STATUS "hpp-fcl ${hpp-fcl_LIBRARIES}")
 set(PUB_RELY_LINK_LIB 
-		assimp::assimp 
 		${hpp-fcl_LIBRARIES}
 		${aris_LIBRARIES}
 )
