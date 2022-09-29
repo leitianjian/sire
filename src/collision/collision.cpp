@@ -52,7 +52,7 @@ Collision::Collision(const std::string& ee_model_path) : imp_(new Imp(this)) {
 
   imp_->collision_thread_ = std::thread(
       [](int& num_contacts, std::array<double, 7 * 7>& link_pq,
-         fcl::CollisionObject& robot_ee, fcl::CollisionObject& sphere) {
+         fcl::CollisionObject robot_ee, fcl::CollisionObject sphere) {
         // thread
         while (num_contacts == 0) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -90,7 +90,7 @@ Collision::Collision(const std::string& ee_model_path) : imp_(new Imp(this)) {
           }
         }
       },
-      std::ref(imp_->num_contacts), std::ref(imp_->link_pq), std::ref(robot_ee), std::ref(sphere));
+      std::ref(imp_->num_contacts), std::ref(imp_->link_pq), std::move(robot_ee), std::move(sphere));
 }
 Collision::~Collision() {}
 
