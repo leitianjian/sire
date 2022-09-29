@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 3.13 FATAL_ERROR)
 project(sire VERSION 1.0.0 LANGUAGES CXX)
 
 # set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-set(Boost_LIB_PREFIX "lib")
-set(Boost_ARCHITECTURE "-x64")
 
 if(UNIX)
 	set(CMAKE_INSTALL_PREFIX "/usr/sire/sire-1.0")
@@ -38,6 +36,16 @@ else()
 	message(WARNING "File/Directory at variable KAANH_INSTALL_PATH not exists!")
 endif()
 find_package(kaanh)
+
+# find Assimp
+set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
+if(EXISTS ${TARGET_ASSIMP_PATH})
+	message(STATUS "Directory to search Assimp at ${TARGET_ASSIMP_PATH}")
+	list(APPEND CMAKE_PREFIX_PATH ${TARGET_ASSIMP_PATH})
+else()
+	message(WARNING "File/Directory at variable TARGET_ASSIMP_PATH not exists!")
+endif()
+find_package(assimp REQUIRED)
 
 set(TARGET_HPP_FCL_PATH "" CACHE PATH "Hpp-fcl install path")
 # find Hpp-fcl

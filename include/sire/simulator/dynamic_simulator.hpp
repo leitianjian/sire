@@ -22,7 +22,7 @@ class SIRE_API Simulator {
   Simulator& operator=(const Simulator&) = delete;
 
  public:
-  static auto instance(const std::string& cs_config_path = "H:/contact/ArisSim/config/sire.xml")
+  static auto instance(const std::string& cs_config_path = "./sire.xml")
       -> Simulator&;
   auto GetLinkPM(std::array<double, 7 * 16>& link_pm) -> void;
   auto GetLinkPQ(std::array<double, 7 * 7>& link_pq) -> void;

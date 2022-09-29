@@ -34,7 +34,7 @@ class SIRE_API Collision {
 
  public:
   static auto instance(const std::string& ee_model_path =
-                           "C:/Users/ZHOUYC/Desktop/ee_5.STL") -> Collision&;
+                           "./ee.STL") -> Collision&;
   auto CalCollision(std::array<double, 7 * 7> linpq, size_t& num_contacts)
       -> void;
 };

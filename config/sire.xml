@@ -106,7 +106,9 @@
           <Marker name="tool15" active="true" pe="{0,0,0,-0,0,-0}"/>
           <Marker name="tool16" active="true" pe="{0,0,0,-0,0,-0}"/>
         </MarkerPoolElement>
-        <GeometryPoolElement __prop_name__="geometry_pool"/>
+        <GeometryPoolElement __prop_name__="geometry_pool">
+          <FileGeometry graphic_file_path="/robot/geometry/Rokae/XB4/l6.data" pm="{0.0,0.0,1.0,0.393,0.0,1.0,0.0,0.0,-1.0,0.0,0.0,0.642,0.0,0.0,0.0,1.0}"/>
+        </GeometryPoolElement>
       </Part>
     </PartPoolElement>
     <MotionPoolElement __prop_name__="motion_pool">

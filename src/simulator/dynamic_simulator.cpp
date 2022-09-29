@@ -30,13 +30,11 @@ struct Simulator::Imp {
         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0,
         0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1,
     };
-    link_pq_ = {
-        0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
-        0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
-        1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1};
-    link_pe_ = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    link_pq_ = {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+                0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
+                1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1};
+    link_pe_ = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   }
   Imp(const Imp&) = delete;
 };
@@ -75,20 +73,32 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
                 int geoCount = 1;
                 for (int i = 1; i < m->partPool().size(); ++i) {
                   auto& part = m->partPool().at(i);
-                  // 获取Part位姿
-                  std::array<double, 16> prtPm{1, 0, 0, 0, 0, 1, 0, 0,
-                                               0, 0, 1, 0, 0, 0, 0, 1};
-                  part.getPm(prtPm.data());
-                  for (int j = 0; j < part.geometryPool().size(); ++j) {
-                    // 获取FileGeometry位姿
-                    auto geoPrtPm = dynamic_cast<aris::dynamic::FileGeometry&>(
-                                        part.geometryPool().at(j))
-                                        .prtPm();
-                    // T_part * inv(T_fg) = 3d模型真实位姿
-                    aris::dynamic::s_pm_dot_inv_pm(
-                        prtPm.data(), const_cast<double*>(*geoPrtPm),
-                        link_pm.data() + static_cast<long>(16) * geoCount);
+                  // 没有geometry，直接复制part的位姿
+                  if (part.geometryPool().size() == 0) {
+                    part.getPm(link_pm.data() + static_cast<long>(16) * geoCount);
                     ++geoCount;
+                  } else {
+                    // 获取Part位姿
+                    std::array<double, 16> prtPm{1, 0, 0, 0, 0, 1, 0, 0,
+                                                 0, 0, 1, 0, 0, 0, 0, 1};
+                    part.getPm(prtPm.data());
+                    for (int j = 0; j < part.geometryPool().size(); ++j) {
+                      // 获取FileGeometry位姿
+                      try {
+                        auto geoPrtPm =
+                            dynamic_cast<aris::dynamic::FileGeometry&>(
+                                part.geometryPool().at(j))
+                                .prtPm();
+                        // T_part * inv(T_fg) = 3d模型真实位姿
+                        aris::dynamic::s_pm_dot_inv_pm(
+                            prtPm.data(), const_cast<double*>(*geoPrtPm),
+                            link_pm.data() + static_cast<long>(16) * geoCount);
+                        ++geoCount;
+                      } catch (const std::bad_cast& e) {
+                        std::cout << "part " << i << ", geometry " << j
+                                  << " is not FileGeometry, continue" << std::endl;
+                      }
+                    }
                   }
                 }
                 data = link_pm;
