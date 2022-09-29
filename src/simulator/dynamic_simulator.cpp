@@ -55,17 +55,11 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
   imp_->retrieve_rt_pm_thead_ = std::thread(
       [](aris::server::ControlServer& cs, std::array<double, 7 * 16>& link_pm,
          std::mutex& mu_link_pm) {
-        const double ee[4][4]{
-            {0.0, 0.0, 1.0, 0.393},
-            {0.0, 1.0, 0.0, 0.0},
-            {-1.0, 0.0, 0.0, 0.642},
-            {0.0, 0.0, 0.0, 1.0},
-        };
         while (true) {
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
           std::any data;
           cs.getRtData(
-              [&link_pm, ee](aris::server::ControlServer& cs,
+              [&link_pm](aris::server::ControlServer& cs,
                              const aris::plan::Plan* p,
                              std::any& data) -> void {
                 auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
