@@ -1,8 +1,8 @@
 //
 // Created by ZHOUYC on 2022/6/14.
 //
-#ifndef DYNAMIC_H_
-#define DYNAMIC_H_
+#ifndef DYNAMIC_SIMULATOR_H_
+#define DYNAMIC_SIMULATOR_H_
 
 #include <sire_lib_export.h>
 #include <aris.hpp>

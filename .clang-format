@@ -20,7 +20,7 @@ IncludeCategories:
   Priority: 1500
 - Regex: 'lib_export.h>$'
   Priority: 1800
-- Regex: '^<aris/'
+- Regex: '^<aris'
   Priority: 2000
 - Regex: '^<.*/.*'
   Priority: 4000
