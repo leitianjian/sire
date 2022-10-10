@@ -3,8 +3,8 @@
 // Created by ZHOUYC on 2022/6/14.
 //
 #include "sire/simulator/dynamic_simulator.hpp"
-#include <algorithm>
 #include <aris.hpp>
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <mutex>
@@ -60,8 +60,7 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
           std::any data;
           cs.getRtData(
               [&link_pm](aris::server::ControlServer& cs,
-                             const aris::plan::Plan* p,
-                             std::any& data) -> void {
+                         const aris::plan::Plan* p, std::any& data) -> void {
                 auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
                 //获取杆件位姿
                 int geoCount = 1;
@@ -69,7 +68,8 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
                   auto& part = m->partPool().at(i);
                   // 没有geometry，直接复制part的位姿
                   if (part.geometryPool().size() == 0) {
-                    part.getPm(link_pm.data() + static_cast<long>(16) * geoCount);
+                    part.getPm(link_pm.data() +
+                               static_cast<long>(16) * geoCount);
                     ++geoCount;
                   } else {
                     // 获取Part位姿
@@ -90,7 +90,8 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
                         ++geoCount;
                       } catch (const std::bad_cast& e) {
                         std::cout << "part " << i << ", geometry " << j
-                                  << " is not FileGeometry, continue" << std::endl;
+                                  << " is not FileGeometry, continue"
+                                  << std::endl;
                       }
                     }
                   }
