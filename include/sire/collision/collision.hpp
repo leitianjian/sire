@@ -33,10 +33,14 @@ class SIRE_API Collision {
   Collision& operator=(const Collision&) = delete;
 
  public:
-  static auto instance(const std::string& ee_model_path =
-                           "./ee.STL") -> Collision&;
+  static auto instance(const std::string& robot_stl_path =
+                           "./") -> Collision&;
   auto CalCollision(std::array<double, 7 * 7> linpq, size_t& num_contacts)
       -> void;
+
+  public:
+  auto GetFileName(const std::string& path, std::vector<std::string>& files) -> void;
+  
 };
 }  // namespace sire
-#endif  // ROBOT_OCC_COLLISION_H
+#endif  // COLLISION_H

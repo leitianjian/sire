@@ -56,7 +56,7 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
       [](aris::server::ControlServer& cs, std::array<double, 7 * 16>& link_pm,
          std::mutex& mu_link_pm) {
         while (true) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          std::this_thread::sleep_for(std::chrono::milliseconds(10));
           std::any data;
           cs.getRtData(
               [&link_pm](aris::server::ControlServer& cs,
@@ -149,6 +149,7 @@ auto Simulator::SimPlan() -> void {
       cs.executeCmd("md");
       cs.executeCmd("en");
       cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
+      cs.executeCmd("mvj --pe={0.480, 0, 0.700, 0, 1.5708, 0}");
       cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;
