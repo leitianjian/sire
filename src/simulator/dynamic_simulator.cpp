@@ -10,6 +10,7 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#include <algorithm>
 
 namespace sire {
 struct Simulator::Imp {
@@ -42,7 +43,7 @@ struct Simulator::Imp {
 Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
   aris::core::fromXmlFile(imp_->cs_, cs_config_path);
   imp_->cs_.init();
-  std::cout << aris::core::toXmlString(imp_->cs_) << std::endl;
+  //std::cout << aris::core::toXmlString(imp_->cs_) << std::endl;
   try {
     imp_->cs_.start();
     imp_->cs_.executeCmd("md");
@@ -152,11 +153,53 @@ auto Simulator::SimPlan() -> void {
       cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
       cs.executeCmd("mvj --pe={0.480, 0, 0.700, 0, 1.5708, 0}");
       cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
+      cs.executeCmd("mvj --pe={0.412470,-0.011717,0.481322,1.570796,-1.570796,0.350983}");
+      cs.executeCmd("mvj --pe={0.408609,-0.005380,0.481783,1.570796,-1.570796,0.201510}");
+      cs.executeCmd(
+          "mvj --pe={0.403391,-0.000154,0.482324,1.570796,-1.570796,-0.027216}");
+      cs.executeCmd(
+          "mvj --pe = {0.396442,0.002176,0.482930,1.570796,-1.570796,-0.329585}");
+      cs.executeCmd(
+          "mvj --pe = {0.389133, 0.001068, 0.483480, 1.570796, -1.570796, -0.522616}");
+
+      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
+      cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;
     }
     return;
   }
 }
+
+auto Simulator::SimPlan(std::vector<std::array<double, 6>> track_points)
+    -> void {
+  //发送仿真轨迹
+  if (imp_->retrieve_rt_pm_thead_.joinable()) {
+    auto& cs = aris::server::ControlServer::instance();
+    try {
+      cs.executeCmd("ds");
+      cs.executeCmd("md");
+      cs.executeCmd("en");
+      //初始位置
+      cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
+      //打磨位置
+      for (auto track_point : track_points) {
+        std::string str_tmp;
+        for (auto i : track_point) {
+          str_tmp += std::to_string(i) + ',';
+        }
+        std::cout << "mvj --pe={" + str_tmp + "}" << std::endl;
+        cs.executeCmd("mvj --pe={" + str_tmp + "}");
+      }
+      //恢复初始
+      cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
+
+    } catch (std::exception& e) {
+      std::cout << "cs:" << e.what() << std::endl;
+    }
+    return;
+  }
+}
+
 // ARIS_REGISTRATION { aris::core::class_<Simulator>("Simulator"); }
 }  // namespace sire

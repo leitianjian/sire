@@ -28,6 +28,7 @@ class SIRE_API Simulator {
   auto GetLinkPQ(std::array<double, 7 * 7>& link_pq) -> void;
   auto GetLinkPE(std::array<double, 7 * 6>& link_pe) -> void;
   auto SimPlan() -> void;
+  auto SimPlan(std::vector<std::array<double, 6>>) -> void;
 };
 }  // namespace sire
 
