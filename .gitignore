@@ -48,3 +48,6 @@ install_manifest.txt
 # for vscode
 .vscode/
 build/
+
+# for clion
+cmake-build-debug

@@ -1,3 +1,0 @@
-[submodule "third-parties/hpp-fcl"]
-	path = third-parties/hpp-fcl
-	url = git@github.com:leitianjian/hpp-fcl.git

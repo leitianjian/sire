@@ -21,8 +21,6 @@ namespace sire::server {
 auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)
     -> std::string {
   nlohmann::json js;
-  std::cout << "fuck" << std::endl;
-
   for (auto& key_value : ret) {
     if (auto value = std::any_cast<std::string>(&key_value.second))
       std::cout << key_value.first << ":" << *value << std::endl;
