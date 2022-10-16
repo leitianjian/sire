@@ -51,3 +51,4 @@ build/
 
 # for clion
 cmake-build-debug
+.idea
