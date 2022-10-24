@@ -1029,15 +1029,100 @@
       <SireGet name="get">
         <Command __prop_name__="command" name="get"/>
       </SireGet>
+      <SireGetForce name="motor_force">
+        <Command __prop_name__="command" name="get_force"/>
+      </SireGetForce>
+      <SireMoveJ name="plan">
+        <Command __prop_name__="command" name="sire_mvj">
+          <GroupParam name="group_param">
+            <Param name="pos_unit" default="m"/>
+            <UniqueParam name="unique_param" default="pq">
+              <Param name="pq" default="{0,0,0,0,0,0,1}"/>
+              <Param name="pm" default="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+              <GroupParam name="group_param">
+                <Param name="pe" default="{0,0,0,0,0,0}"/>
+                <Param name="ori_unit" default="rad"/>
+                <Param name="eul_type" default="321"/>
+              </GroupParam>
+            </UniqueParam>
+            <Param name="joint_acc" default="0.1"/>
+            <Param name="joint_vel" default="0.1"/>
+            <Param name="joint_dec" default="0.1"/>
+            <UniqueParam name="unique_param" default="check_all">
+              <Param name="check_all"/>
+              <Param name="check_none"/>
+              <GroupParam name="group_param">
+                <UniqueParam name="unique_param" default="check_enable">
+                  <Param name="check_enable"/>
+                  <Param name="not_check_enable"/>
+                </UniqueParam>
+                <UniqueParam name="unique_param" default="check_pos">
+                  <Param name="check_pos"/>
+                  <Param name="not_check_pos"/>
+                  <GroupParam name="group_param">
+                    <UniqueParam name="unique_param" default="check_pos_max">
+                      <Param name="check_pos_max"/>
+                      <Param name="not_check_pos_max"/>
+                    </UniqueParam>
+                    <UniqueParam name="unique_param" default="check_pos_min">
+                      <Param name="check_pos_min"/>
+                      <Param name="not_check_pos_min"/>
+                    </UniqueParam>
+                    <UniqueParam name="unique_param" default="check_pos_continuous">
+                      <Param name="check_pos_continuous"/>
+                      <Param name="not_check_pos_continuous"/>
+                    </UniqueParam>
+                    <UniqueParam name="unique_param" default="check_pos_continuous_second_order">
+                      <Param name="check_pos_continuous_second_order"/>
+                      <Param name="not_check_pos_continuous_second_order"/>
+                    </UniqueParam>
+                    <UniqueParam name="unique_param" default="check_pos_following_error">
+                      <Param name="check_pos_following_error"/>
+                      <Param name="not_check_pos_following_error"/>
+                    </UniqueParam>
+                  </GroupParam>
+                </UniqueParam>
+                <UniqueParam name="unique_param" default="check_vel">
+                  <Param name="check_vel"/>
+                  <Param name="not_check_vel"/>
+                  <GroupParam name="group_param">
+                    <UniqueParam name="unique_param" default="check_vel_max">
+                      <Param name="check_vel_max"/>
+                      <Param name="not_check_vel_max"/>
+                    </UniqueParam>
+                    <UniqueParam name="unique_param" default="check_vel_min">
+                      <Param name="check_vel_min"/>
+                      <Param name="not_check_vel_min"/>
+                    </UniqueParam>
+                    <UniqueParam name="unique_param" default="check_vel_continuous">
+                      <Param name="check_vel_continuous"/>
+                      <Param name="not_check_vel_continuous"/>
+                    </UniqueParam>
+                    <UniqueParam name="unique_param" default="check_vel_following_error">
+                      <Param name="check_vel_following_error"/>
+                      <Param name="not_check_vel_following_error"/>
+                    </UniqueParam>
+                  </GroupParam>
+                </UniqueParam>
+              </GroupParam>
+            </UniqueParam>
+          </GroupParam>
+        </Command>
+      </SireMoveJ>
     </PlanPoolObject>
   </PlanRoot>
   <TransferModelController __prop_name__="model_controller_transfer"/>
   <InterfacePoolObject __prop_name__="interface">
     <SireProgramWebInterface name="sire_program_websock_interface">
-      <Socket __prop_name__="socket" connect_type="WEB" port="5867"/>
+      <Socket __prop_name__="socket" connect_type="WEB" port="5868"/>
     </SireProgramWebInterface>
-    <SireHttpInterface name="http_interface" document_root="D:\leitianjian\Documents\code\RobotControllerHMI\client\build" port="8001"/>
+    <SireHttpInterface name="http_interface" document_root="D:\leitianjian\Documents\code\RobotControllerHMI\client\build" port="8003"/>
   </InterfacePoolObject>
   <SireProgramMiddleware __prop_name__="pro_middle_ware"/>
   <CustomModule __prop_name__="custom_module"/>
+  <SensorRoot __prop_name__="sensor_root">
+    <SensorPoolObject __prop_name__="sensor_pool_object">
+      <MotorForceVirtualSensor is_activate="true" is_virtual="false" motor_index="1" description="test virtual sensor" frequency="5"/>
+    </SensorPoolObject>
+  </SensorRoot>
 </ControlServer>
