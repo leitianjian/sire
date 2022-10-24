@@ -138,12 +138,33 @@ target_include_directories(sire_server
 	)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
 
+add_library(sire_sensor OBJECT)
+target_compile_definitions(sire_sensor PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_sensor PUBLIC cxx_std_17)
+target_sources(sire_sensor 
+	PRIVATE 
+		"src/sensor/sensor.cpp"
+	PUBLIC 
+		"include/sire/sensor/sensor.hpp"
+	)
+target_include_directories(sire_sensor
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+	)
+install(DIRECTORY include/sire/sensor DESTINATION include/sire)
+
 # Build library for sire
 add_library(sire_lib 
 	SHARED 
 		$<TARGET_OBJECTS:sire_collision>
 		$<TARGET_OBJECTS:sire_simulator>
 		$<TARGET_OBJECTS:sire_server>
+		$<TARGET_OBJECTS:sire_sensor>
 	)
 generate_export_header(sire_lib EXPORT_MACRO_NAME SIRE_API)
 target_compile_features(sire_lib PUBLIC cxx_std_17)
@@ -216,7 +237,7 @@ if(BUILD_DEMOS)
 		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
 		add_executable(${sire_demo} ${SOURCES})
 		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR})
-		target_link_libraries(${sire_demo} sire_server ${aris_LIBRARIES})
+		target_link_libraries(${sire_demo} sire_server sire_sensor ${aris_LIBRARIES})
 		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
 		install(TARGETS ${sire_demo} DESTINATION demo/${sire_demo})
 		install(TARGETS sire_lib DESTINATION demo/${sire_demo})
