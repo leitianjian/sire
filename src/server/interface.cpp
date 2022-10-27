@@ -579,7 +579,6 @@ HttpInterface::HttpInterface(const std::string& name, const std::string& port,
                              const std::string& document_root)
     : Interface(name), imp_(new Imp) {
   imp_->root_dir_ = document_root;
-  // imp_->dav_root_ = document_root;
   imp_->port_ = port;
 }
 

@@ -1029,9 +1029,9 @@
       <SireGet name="get">
         <Command __prop_name__="command" name="get"/>
       </SireGet>
-      <SireGetForce name="motor_force">
+      <SireGetForceSensorData name="get_force">
         <Command __prop_name__="command" name="get_force"/>
-      </SireGetForce>
+      </SireGetForceSensorData>
       <SireMoveJ name="plan">
         <Command __prop_name__="command" name="sire_mvj">
           <GroupParam name="group_param">
@@ -1122,7 +1122,7 @@
   <CustomModule __prop_name__="custom_module"/>
   <SensorRoot __prop_name__="sensor_root">
     <SensorPoolObject __prop_name__="sensor_pool_object">
-      <MotorForceVirtualSensor is_activate="true" is_virtual="false" motor_index="1" description="test virtual sensor" frequency="5"/>
+      <MotorForceVirtualSensor is_activate="true" is_virtual="false" motor_index="1" description="test virtual sensor" frequency="5" buffer_size="60"/>
     </SensorPoolObject>
   </SensorRoot>
 </ControlServer>

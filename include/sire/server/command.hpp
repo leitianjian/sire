@@ -11,14 +11,16 @@ class Get : public aris::core::CloneObject<Get, aris::plan::Plan> {
   explicit Get(const std::string& name = "Get_plan");
 };
 
-class GetForce : public aris::core::CloneObject<GetForce, aris::plan::Plan> {
+class GetForceSensorData
+    : public aris::core::CloneObject<GetForceSensorData, aris::plan::Plan> {
  public:
   auto virtual prepareNrt() -> void;
   auto virtual collectNrt() -> void;
-  explicit GetForce(const std::string& name = "GetForce_plan");
+  explicit GetForceSensorData(
+      const std::string& name = "GetForceSensorData_plan");
 };
 
-	/// \brief 将机器人从轴空间移动到某个位姿。
+/// \brief 将机器人从轴空间移动到某个位姿。
 ///
 ///
 /// ### 参数定义 ###
@@ -57,8 +59,7 @@ class GetForce : public aris::core::CloneObject<GetForce, aris::plan::Plan> {
 /// + 指定所有电机的加速度：“mvj --pe={0,0.5,1.1,0,0,0} --joint_vel=0.5
 /// --joint_dec={0.2,0.2,0.2,0.3,0.3,0.3}”
 ///
-class SireMoveJ
-    : public aris::core::CloneObject<SireMoveJ, aris::plan::Plan> {
+class SireMoveJ : public aris::core::CloneObject<SireMoveJ, aris::plan::Plan> {
  public:
   auto virtual prepareNrt() -> void override;
   auto virtual executeRT() -> int override;
@@ -71,5 +72,5 @@ class SireMoveJ
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
 };
-}
+}  // namespace sire::server
 #endif

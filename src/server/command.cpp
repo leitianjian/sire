@@ -1,7 +1,7 @@
 #include "sire/server/command.hpp"
 #include "sire/ext/json.hpp"
-#include "sire/server/interface.hpp"
 #include "sire/sensor/sensor.hpp"
+#include "sire/server/interface.hpp"
 
 #define CHECK_PARAM_STRING                           \
   "		<UniqueParam default=\"check_all\">"            \
@@ -154,12 +154,12 @@ auto Get::prepareNrt() -> void {
   if (cs.running()) {
     cs.getRtData(
         [](aris::server::ControlServer& cs, const aris::plan::Plan* target,
-            std::any& data) -> void {
+           std::any& data) -> void {
           auto& get_param = std::any_cast<GetParam&>(data);
           auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
           std::vector<double> temp_pq(7, 0.0);
           std::vector<double> temp_vs(6, 0.0);
-          for (aris::Size i(0); i < m->partPool().size(); ++ i) {
+          for (aris::Size i(0); i < m->partPool().size(); ++i) {
             // par.tool->getPq(*par.wobj, std::any_cast<GetParam
             // &>(data).part_pq.data() + i * 7);
             m->partPool().at(i).getPq(temp_pq.data());
@@ -252,39 +252,95 @@ Get::Get(const std::string& name) {
       "</Command>");
 }
 
-struct ForceParam {
-  std::vector<std::unique_ptr<aris::sensor::SensorData>> motor1_f;
-  ForceParam(aris::Size size = 10) : motor1_f(size) {}
+struct ForceDataConfig {
+  
 };
 
-auto GetForce::prepareNrt() -> void {
+struct ForceDataContainer {
+  std::vector<std::vector<std::unique_ptr<aris::sensor::SensorData>>>
+      data_sensor_force_;
+  ForceDataContainer(aris::Size sensor_size = 6) : data_sensor_force_(sensor_size) {}
+};
+
+enum PropertyTypes {
+
+};
+
+struct DataProperty {
+
+};
+
+// steam of SensorData
+struct StreamStructure {
+  std::string name;
+  std::string description;
+  std::vector<DataProperty> properties;
+};
+
+struct ForceDataRetStructure {
+  std::string name;
+  std::string description;
+  std::vector<StreamStructure> data_streams;
+};
+
+auto GetForceSensorData::prepareNrt() -> void {
   option() |= NOT_RUN_EXECUTE_FUNCTION | NOT_PRINT_CMD_INFO;
   for (auto& m : motorOptions()) m = aris::plan::Plan::NOT_CHECK_ENABLE;
-  ForceParam par(50);
-  aris::Size count = 0;
-  auto& cs = *controlServer();
-  auto& virtual_force_sensor = dynamic_cast<sensor::MotorForceVirtualSensor&>(cs.sensorRoot().sensorPool().at(0));
-  virtual_force_sensor.retrieveBufferData(par.motor1_f, count);
-  std::vector<double> force(count);
-  std::cout << count << std::endl;
-  for (int i = 0; i < count; ++i) {
-    force[i] =
-        static_cast<sensor::MotorForceData*>(par.motor1_f[i].release())->force_;
+  bool show_info = true;
+  bool show_config = false;
+  for (const auto& cmd_param : cmdParams()) {
+    if (cmd_param.first == "info") {
+      show_info = true;
+    }
   }
-  std::vector<std::pair<std::string, std::any>> out_param;
-  out_param.push_back(std::make_pair<std::string, std::vector<double>>(
-      "motor_force", nlohmann::json(force)));
+  if (show_info) {
+    ForceDataContainer param;
+    auto& sensor_pool = controlServer()->sensorRoot().sensorPool();
+    aris::Size sensor_pool_size = sensor_pool.size();
+    param.data_sensor_force_.resize(sensor_pool_size);
+    std::vector<std::vector<double>> result_force(sensor_pool_size);
+    for (int i = 0; i < sensor_pool_size; ++i) {
+      try {
+        aris::Size data_count = 0;
+        auto& virtual_force_sensor =
+            dynamic_cast<sensor::MotorForceVirtualSensor&>(sensor_pool.at(i));
+        param.data_sensor_force_[i].resize(virtual_force_sensor.bufferSize());
+        virtual_force_sensor.retrieveBufferData(param.data_sensor_force_[i],
+                                                data_count);
+        result_force[i].resize(data_count);
+        for (int j = 0; j < data_count; ++j) {
+          result_force[i][j] = static_cast<sensor::MotorForceData*>(
+                                   param.data_sensor_force_[i][j].release())
+                                   ->force_;
+        }
+      } catch (std::bad_cast& err) {
+        std::cout << "sensor at " << i << " is not a virtual force sensor"
+                  << std::endl;
+        continue;
+      }
+    }
+    std::vector<std::pair<std::string, std::any>> out_param;
+    out_param.push_back(std::make_pair<std::string, std::any>(
+        "motors_force", nlohmann::json(result_force)));
 
-  ret() = out_param;
+    ret() = out_param;
+    return;
+  }
+  if (show_config) {
+
+  }
 }
 
-auto GetForce::collectNrt() -> void {}
+auto GetForceSensorData::collectNrt() -> void {}
 
-GetForce::GetForce(const std::string& name) {
-  aris::core::fromXmlString(
-      command(),
-      "<Command name=\"get_force\">"
-      "</Command>");
+GetForceSensorData::GetForceSensorData(const std::string& name) {
+  aris::core::fromXmlString(command(),
+                            "<Command name=\"get_force\">"
+                            "  <UniqueParam default=\"info\">"
+                            "    <Param name=\"info\" abbreviation=\"i\">"
+                            "    <Param name=\"config\" abbreviation=\"c\">"
+                            "  </UniqueParam>"
+                            "</Command>");
 }
 
 auto set_check_option(
@@ -415,7 +471,7 @@ auto check_eul_validity(std::string_view eul_type) -> bool {
 }
 
 auto find_pq(const std::map<std::string_view, std::string_view>& params,
-           aris::plan::Plan& plan, double* pq_out) -> bool {
+             aris::plan::Plan& plan, double* pq_out) -> bool {
   double pos_unit;
   auto pos_unit_found = params.find("pos_unit");
   if (pos_unit_found == params.end())
@@ -481,7 +537,7 @@ struct SireMoveJParam {
   std::vector<aris::Size> total_count;
 };
 struct SireMoveJ::Imp {};
-auto SireMoveJ::prepareNrt()->void {
+auto SireMoveJ::prepareNrt() -> void {
   set_check_option(cmdParams(), *this);
 
   SireMoveJParam mvj_param;
@@ -598,7 +654,7 @@ auto SireMoveJ::executeRT() -> int {
 
     // compute max count //
     for (aris::Size i = 0; i < std::min(controller()->motorPool().size(),
-                                  model()->motionPool().size());
+                                        model()->motionPool().size());
          ++i) {
       mvj_param->joint_pos_end[i] = *model()->motionPool()[i].p();
       aris::plan::moveAbsolute(
@@ -614,7 +670,7 @@ auto SireMoveJ::executeRT() -> int {
   }
 
   for (aris::Size i = 0; i < std::min(controller()->motorPool().size(),
-                                model()->motionPool().size());
+                                      model()->motionPool().size());
        ++i) {
     aris::plan::moveAbsolute(
         static_cast<double>(count()) * mvj_param->total_count[i] /
@@ -653,8 +709,7 @@ SireMoveJ::SireMoveJ(const std::string& name) : imp_(new Imp) {
       "		</UniqueParam>"
       "		<Param name=\"joint_acc\" default=\"0.1\"/>"
       "		<Param name=\"joint_vel\" default=\"0.1\"/>"
-      "		<Param name=\"joint_dec\" default=\"0.1\"/>" 
-					CHECK_PARAM_STRING
+      "		<Param name=\"joint_dec\" default=\"0.1\"/>" CHECK_PARAM_STRING
       "	</GroupParam>"
       "</Command>");
 }
@@ -663,6 +718,7 @@ ARIS_DEFINE_BIG_FOUR_CPP(SireMoveJ);
 ARIS_REGISTRATION {
   aris::core::class_<Get>("SireGet").inherit<aris::plan::Plan>();
   aris::core::class_<SireMoveJ>("SireMoveJ").inherit<aris::plan::Plan>();
-  aris::core::class_<GetForce>("SireGetForce").inherit<aris::plan::Plan>();
+  aris::core::class_<GetForceSensorData>("SireGetForceSensorData")
+      .inherit<aris::plan::Plan>();
 }
 }  // namespace sire::server

@@ -53,8 +53,7 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
   auto send_code_and_msg = [send_ret](int code,
                                       const std::string& ret_msg_str) -> int {
     nlohmann::json js;
-    js["return_code"] =
-        code;  ///////////////////////////////////////////////////////////
+    js["return_code"] = code;
     js["return_message"] = ret_msg_str;
 
     auto ret_str = js.dump(-1, ' ', true);
