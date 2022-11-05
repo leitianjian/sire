@@ -1,6 +1,6 @@
 #include "sire/server/command.hpp"
 #include "sire/ext/json.hpp"
-#include "sire/sensor/sensor.hpp"
+#include "sire/controller/controller_sensor.hpp"
 #include "sire/server/interface.hpp"
 
 #define CHECK_PARAM_STRING                           \
@@ -257,7 +257,7 @@ struct ForceDataConfig {
 };
 
 struct ForceDataContainer {
-  std::vector<std::vector<std::unique_ptr<aris::sensor::SensorData>>>
+  std::vector<std::vector<std::unique_ptr<aris::control::SensorData>>>
       data_sensor_force_;
   ForceDataContainer(aris::Size sensor_size = 6) : data_sensor_force_(sensor_size) {}
 };
@@ -293,23 +293,24 @@ auto GetForceSensorData::prepareNrt() -> void {
       show_info = true;
     }
   }
-  if (show_info) {
+  //if (show_info) {
     ForceDataContainer param;
-    auto& sensor_pool = controlServer()->sensorRoot().sensorPool();
+    auto& sensor_pool = controller()->sensorPool();
     aris::Size sensor_pool_size = sensor_pool.size();
+    std::cout << "sensor number: " << sensor_pool_size << std::endl;
     param.data_sensor_force_.resize(sensor_pool_size);
     std::vector<std::vector<double>> result_force(sensor_pool_size);
     for (int i = 0; i < sensor_pool_size; ++i) {
       try {
         aris::Size data_count = 0;
         auto& virtual_force_sensor =
-            dynamic_cast<sensor::MotorForceVirtualSensor&>(sensor_pool.at(i));
+            dynamic_cast<controller::MotorForceVirtualSensor&>(sensor_pool.at(i));
         param.data_sensor_force_[i].resize(virtual_force_sensor.bufferSize());
         virtual_force_sensor.retrieveBufferData(param.data_sensor_force_[i],
                                                 data_count);
         result_force[i].resize(data_count);
         for (int j = 0; j < data_count; ++j) {
-          result_force[i][j] = static_cast<sensor::MotorForceData*>(
+          result_force[i][j] = static_cast<controller::MotorForceData*>(
                                    param.data_sensor_force_[i][j].release())
                                    ->force_;
         }
@@ -322,13 +323,13 @@ auto GetForceSensorData::prepareNrt() -> void {
     std::vector<std::pair<std::string, std::any>> out_param;
     out_param.push_back(std::make_pair<std::string, std::any>(
         "motors_force", nlohmann::json(result_force)));
-
+    
     ret() = out_param;
     return;
-  }
-  if (show_config) {
+  //}
+  //if (show_config) {
 
-  }
+  //}
 }
 
 auto GetForceSensorData::collectNrt() -> void {}
@@ -336,10 +337,10 @@ auto GetForceSensorData::collectNrt() -> void {}
 GetForceSensorData::GetForceSensorData(const std::string& name) {
   aris::core::fromXmlString(command(),
                             "<Command name=\"get_force\">"
-                            "  <UniqueParam default=\"info\">"
-                            "    <Param name=\"info\" abbreviation=\"i\">"
-                            "    <Param name=\"config\" abbreviation=\"c\">"
-                            "  </UniqueParam>"
+ //                           "  <UniqueParam default=\"info\">"
+ //                           "    <Param name=\"info\" abbreviation=\"i\">"
+ //                           "    <Param name=\"config\" abbreviation=\"c\">"
+ //                           "  </UniqueParam>"
                             "</Command>");
 }
 
