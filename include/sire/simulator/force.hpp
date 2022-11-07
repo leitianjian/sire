@@ -2,8 +2,8 @@
 #ifndef ARIS_SIM_FORCE_HPP
 #define ARIS_SIM_FORCE_HPP
 
-#include <aris.hpp>
 #include <sire_lib_export.h>
+#include <aris.hpp>
 
 namespace sire {
 class SIRE_API Force {
@@ -25,10 +25,6 @@ class SIRE_API Force {
   auto GetLinkPQ(std::array<double, 7 * 7>& link_pq) -> void;
   auto GetLinkPE(std::array<double, 7 * 6>& link_pe) -> void;
   auto SimPlan() -> void;
-
- private:
-
-
 };
 }  // namespace sire
 

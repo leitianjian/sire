@@ -10,19 +10,18 @@
 #include <mutex>
 #include <thread>
 #include <vector>
-#include <algorithm>
 
 namespace sire {
 struct Simulator::Imp {
   Simulator* simulator_;
   aris::server::ControlServer& cs_;
   std::thread retrieve_rt_pm_thead_;
-  std::array<double, 7 * 16> link_pm_;
-  std::array<double, 7 * 7> link_pq_;
-  std::array<double, 7 * 6> link_pe_;
+  std::array<double, 7 * 16> link_pm_{};
+  std::array<double, 7 * 7> link_pq_{};
+  std::array<double, 7 * 6> link_pe_{};
   std::mutex mu_link_pm_;
 
-  Imp(Simulator* simulator)
+  explicit Imp(Simulator* simulator)
       : simulator_(simulator), cs_(aris::server::ControlServer::instance()) {
     link_pm_ = {
         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0,
@@ -43,7 +42,7 @@ struct Simulator::Imp {
 Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
   aris::core::fromXmlFile(imp_->cs_, cs_config_path);
   imp_->cs_.init();
-  //std::cout << aris::core::toXmlString(imp_->cs_) << std::endl;
+  // std::cout << aris::core::toXmlString(imp_->cs_) << std::endl;
   try {
     imp_->cs_.start();
     imp_->cs_.executeCmd("md");
@@ -63,6 +62,20 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
               [&link_pm](aris::server::ControlServer& cs,
                          const aris::plan::Plan* p, std::any& data) -> void {
                 auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
+
+//                // add ee general motion //
+//                double pq_ee_i[]{ 0.481, 0.0, 0.642, 0.0, 0.0, 0.0, 1.0 };//x方向加上0.088
+//                double pm_ee_i[16];
+//                double pm_ee_j[16]{ 1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1 };
+//
+//                aris::dynamic::s_pq2pm(pq_ee_i, pm_ee_i);
+//
+//                auto &p6 = m->partPool().at(6); //part6
+//                auto &makI = p6.markerPool().add<aris::dynamic::Marker>("ee_makI",pm_ee_i);
+//                auto &makJ = m->ground().markerPool().add<aris::dynamic::Marker>("ee_makJ",pm_ee_j);
+//                auto &ee = m->generalMotionPool().add<aris::dynamic::GeneralMotion>("ee",&makI,&makJ);
+//
+
                 //获取杆件位姿
                 int geoCount = 1;
                 for (int i = 1; i < m->partPool().size(); ++i) {
@@ -152,17 +165,6 @@ auto Simulator::SimPlan() -> void {
       cs.executeCmd("en");
       cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
       cs.executeCmd("mvj --pe={0.480, 0, 0.700, 0, 1.5708, 0}");
-      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
-      cs.executeCmd("mvj --pe={0.412470,-0.011717,0.481322,1.570796,-1.570796,0.350983}");
-      cs.executeCmd("mvj --pe={0.408609,-0.005380,0.481783,1.570796,-1.570796,0.201510}");
-      cs.executeCmd(
-          "mvj --pe={0.403391,-0.000154,0.482324,1.570796,-1.570796,-0.027216}");
-      cs.executeCmd(
-          "mvj --pe = {0.396442,0.002176,0.482930,1.570796,-1.570796,-0.329585}");
-      cs.executeCmd(
-          "mvj --pe = {0.389133, 0.001068, 0.483480, 1.570796, -1.570796, -0.522616}");
-
-      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
       cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;

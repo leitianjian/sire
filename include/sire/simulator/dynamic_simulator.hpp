@@ -17,7 +17,7 @@ class SIRE_API Simulator {
  private:
   Simulator();
   ~Simulator();
-  Simulator(const std::string& cs_config_path);
+  explicit Simulator(const std::string& cs_config_path);
   Simulator(const Simulator&) = delete;
   Simulator& operator=(const Simulator&) = delete;
 
@@ -32,4 +32,4 @@ class SIRE_API Simulator {
 };
 }  // namespace sire
 
-#endif // DYNAMIC_H_
+#endif  // DYNAMIC_H_

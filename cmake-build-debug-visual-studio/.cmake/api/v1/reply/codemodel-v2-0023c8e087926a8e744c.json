@@ -1,0 +1,88 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"hasInstallRule" : true,
+					"jsonFile" : "directory-.-Debug-df91e0407b88824989fd.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.13"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"name" : "Debug",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "sire",
+					"targetIndexes" : 
+					[
+						0,
+						1,
+						2,
+						3
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "sire_collision::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-sire_collision-Debug-451ad2c6e68802e7334d.json",
+					"name" : "sire_collision",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "sire_lib::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-sire_lib-Debug-dae911ac74e8d7f32758.json",
+					"name" : "sire_lib",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "sire_server::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-sire_server-Debug-e481ec612c932012c1d9.json",
+					"name" : "sire_server",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "sire_simulator::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-sire_simulator-Debug-ef575f60e893b6016b70.json",
+					"name" : "sire_simulator",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "H:/contact/Sire/cmake-build-debug-visual-studio",
+		"source" : "H:/contact/Sire"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 4
+	}
+}
