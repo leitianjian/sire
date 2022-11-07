@@ -146,7 +146,6 @@ auto SensorDataBuffer::updateBufferData(
 auto SensorDataBuffer::retrieveBufferData(
     std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
     aris::Size& count) -> void {
-  std::cout << vec.size() << std::endl;
   for (int i = 0; i < vec.size(); ++i) {
     // 这个上锁的方式有问题
     std::unique_lock<std::recursive_mutex> data_to_read_lock(
