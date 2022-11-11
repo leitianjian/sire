@@ -78,6 +78,20 @@ class SIRE_API RtSensor : public aris::control::SensorBase {
   auto virtual getRtData(aris::control::SensorData*) -> void = 0;
 };
 
+template <class DataType>
+class RtSensorTemplate : public RtSensor {
+ public:
+  virtual ~RtSensorTemplate() = default;
+  explicit RtSensorTemplate()
+      : RtSensor(
+            []() -> aris::control::SensorData* { return new DataType; }) {}
+  RtSensorTemplate(const RtSensorTemplate& other) noexcept =
+      default;
+  RtSensorTemplate(RtSensorTemplate&& other) noexcept = default;
+  RtSensorTemplate& operator=(const RtSensorTemplate& other) noexcept = default;
+  RtSensorTemplate& operator=(RtSensorTemplate&& other) noexcept = default;
+};
+
 class SIRE_API SensorDataBuffer {
  public:
   auto virtual updateBufferData(std::unique_ptr<aris::control::SensorData> data) -> void;
@@ -160,7 +174,7 @@ struct MotorForceData : aris::control::SensorData {
   virtual ~MotorForceData() = default;
   MotorForceData(double force = 0) : force_(force) {}
 };
-class SIRE_API MotorForceVirtualSensor
+class SIRE_API BufferedMotorForceVirtualSensor
     : public BufferedRtSensorTemplate<MotorForceData> {
  public:
   auto motorIndex() const -> aris::Size;
@@ -172,10 +186,37 @@ class SIRE_API MotorForceVirtualSensor
   auto virtual stop() -> void override;
   auto virtual updateData(std::unique_ptr<aris::control::SensorData> data)
       -> void override;
+  virtual ~BufferedMotorForceVirtualSensor();
+  BufferedMotorForceVirtualSensor(aris::Size moter_index = 0);
+  BufferedMotorForceVirtualSensor(BufferedMotorForceVirtualSensor& other);
+  BufferedMotorForceVirtualSensor(BufferedMotorForceVirtualSensor&& other) = delete;
+  BufferedMotorForceVirtualSensor& operator=(const BufferedMotorForceVirtualSensor& other);
+  BufferedMotorForceVirtualSensor& operator=(BufferedMotorForceVirtualSensor&& other) = delete;
+
+ protected:
+  auto virtual getRtData(aris::control::SensorData*) -> void override;
+
+ private:
+  struct Imp;
+  std::unique_ptr<Imp> imp_;
+};
+class SIRE_API MotorForceVirtualSensor
+    : public RtSensorTemplate<MotorForceData> {
+ public:
+  auto motorIndex() const -> aris::Size;
+  auto setMotorIndex(aris::Size index) -> void;
+  auto virtual copiedDataPtr()
+      -> std::unique_ptr<aris::control::SensorData> override;
+  auto virtual init() -> void override;
+  auto virtual start() -> void override;
+  auto virtual stop() -> void override;
+  auto virtual updateData(std::unique_ptr<aris::control::SensorData> data)
+      -> void;
   virtual ~MotorForceVirtualSensor();
   MotorForceVirtualSensor(aris::Size moter_index = 0);
   MotorForceVirtualSensor(MotorForceVirtualSensor& other);
-  MotorForceVirtualSensor(MotorForceVirtualSensor&& other) = delete;
+  MotorForceVirtualSensor(MotorForceVirtualSensor&& other) =
+      delete;
   MotorForceVirtualSensor& operator=(const MotorForceVirtualSensor& other);
   MotorForceVirtualSensor& operator=(MotorForceVirtualSensor&& other) = delete;
 
@@ -186,6 +227,7 @@ class SIRE_API MotorForceVirtualSensor
   struct Imp;
   std::unique_ptr<Imp> imp_;
 };
+
 };  // namespace sire::controller
 
 #endif

@@ -219,10 +219,51 @@ BufferedRtSensor::BufferedRtSensor(
   imp_->buffer_.reset(new SensorDataBuffer(buffer_size));
 };
 
-struct MotorForceVirtualSensor::Imp {
+struct BufferedMotorForceVirtualSensor::Imp {
   aris::Size motor_index_{0};
   aris::Size count_{0};
   Imp() : motor_index_(0), count_(0) {}
+};
+auto BufferedMotorForceVirtualSensor::motorIndex() const -> aris::Size {
+  return imp_->motor_index_;
+}
+auto BufferedMotorForceVirtualSensor::setMotorIndex(aris::Size index) -> void {
+  imp_->motor_index_ = index;
+}
+auto BufferedMotorForceVirtualSensor::init() -> void {}
+auto BufferedMotorForceVirtualSensor::start() -> void {}
+auto BufferedMotorForceVirtualSensor::stop() -> void {}
+auto BufferedMotorForceVirtualSensor::updateData(
+    std::unique_ptr<aris::control::SensorData> data) -> void {
+  if (frequency() == 0) {
+    updateBufferData(std::move(data));
+  } else {
+    if (imp_->count_ % (1000 / frequency()) == 0) {
+      updateBufferData(std::move(data));
+    }
+    imp_->count_ = (imp_->count_ + 1) % (1000 / frequency());
+  }
+}
+auto BufferedMotorForceVirtualSensor::copiedDataPtr()
+    -> std::unique_ptr<aris::control::SensorData> {
+  return std::move(retrieveData());
+}
+auto BufferedMotorForceVirtualSensor::getRtData(aris::control::SensorData* data)
+    -> void{};
+BufferedMotorForceVirtualSensor::~BufferedMotorForceVirtualSensor() = default;
+BufferedMotorForceVirtualSensor::BufferedMotorForceVirtualSensor(aris::Size motor_index)
+    : BufferedRtSensorTemplate<MotorForceData>(), imp_(new Imp) {
+  imp_->motor_index_ = motor_index;
+}
+
+struct MotorForceVirtualSensor::Imp {
+  aris::Size motor_index_{0};
+  aris::Size count_{0};
+  std::unique_ptr<aris::control::SensorData> data_{std::make_unique<controller::MotorForceData>(0)};
+  Imp()
+      : motor_index_(0),
+        count_(0),
+        data_(std::make_unique<controller::MotorForceData>(0)) {}
 };
 auto MotorForceVirtualSensor::motorIndex() const -> aris::Size {
   return imp_->motor_index_;
@@ -236,23 +277,25 @@ auto MotorForceVirtualSensor::stop() -> void {}
 auto MotorForceVirtualSensor::updateData(
     std::unique_ptr<aris::control::SensorData> data) -> void {
   if (frequency() == 0) {
-    updateBufferData(std::move(data));
+    imp_->data_ = std::move(data);
   } else {
     if (imp_->count_ % (1000 / frequency()) == 0) {
-      updateBufferData(std::move(data));
+      imp_->data_ = std::move(data);
     }
     imp_->count_ = (imp_->count_ + 1) % (1000 / frequency());
   }
 }
 auto MotorForceVirtualSensor::copiedDataPtr()
     -> std::unique_ptr<aris::control::SensorData> {
-  return std::move(retrieveData());
+  return std::move(imp_->data_);
 }
-auto MotorForceVirtualSensor::getRtData(aris::control::SensorData* data)
+auto MotorForceVirtualSensor::getRtData(
+    aris::control::SensorData* data)
     -> void{};
 MotorForceVirtualSensor::~MotorForceVirtualSensor() = default;
-MotorForceVirtualSensor::MotorForceVirtualSensor(aris::Size motor_index)
-    : BufferedRtSensorTemplate<MotorForceData>(), imp_(new Imp) {
+MotorForceVirtualSensor::MotorForceVirtualSensor(
+    aris::Size motor_index)
+    : RtSensorTemplate<MotorForceData>(), imp_(new Imp) {
   imp_->motor_index_ = motor_index;
 }
 
@@ -264,9 +307,14 @@ ARIS_REGISTRATION {
       .inherit<RtSensor>()
       .prop("buffer_size", &BufferedRtSensor::setBufferSize,
             &BufferedRtSensor::bufferSize);
+  aris::core::class_<BufferedMotorForceVirtualSensor>(
+      "BufferedMotorForceControllerVirtualSensor")
+      .inherit<BufferedRtSensor>()
+      .prop("motor_index", &BufferedMotorForceVirtualSensor::setMotorIndex,
+            &BufferedMotorForceVirtualSensor::motorIndex);
   aris::core::class_<MotorForceVirtualSensor>(
       "MotorForceControllerVirtualSensor")
-      .inherit<BufferedRtSensor>()
+      .inherit<RtSensor>()
       .prop("motor_index", &MotorForceVirtualSensor::setMotorIndex,
             &MotorForceVirtualSensor::motorIndex);
 }

@@ -306,7 +306,7 @@ auto GetForceSensorData::prepareNrt() -> void {
       try {
         aris::Size data_count = 0;
         auto& virtual_force_sensor =
-            dynamic_cast<controller::MotorForceVirtualSensor&>(
+            dynamic_cast<controller::BufferedMotorForceVirtualSensor&>(
                 sensor_pool.at(i));
         param.data_sensor_force_[i].resize(virtual_force_sensor.bufferSize());
         virtual_force_sensor.retrieveBufferData(param.data_sensor_force_[i],
