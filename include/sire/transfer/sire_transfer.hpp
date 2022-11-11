@@ -23,6 +23,7 @@ class SIRE_API SireTransferModelController
  private:
   aris::Size part_pool_length_;
   aris::Size motion_pool_length_;
+  aris::Size general_motion_pool_length_;
   double dt_seconds_;
   std::vector<double> motion_force_;
   std::array<std::vector<double>, 2> parts_ps_array_;

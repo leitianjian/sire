@@ -11,6 +11,10 @@ SireTransferModelController::SireTransferModelController() {
                           aris::server::ControlServer::instance().model())
                           .motionPool()
                           .size();
+  general_motion_pool_length_ = dynamic_cast<aris::dynamic::Model&>(
+                            aris::server::ControlServer::instance().model())
+                            .generalMotionPool()
+                            .size();
   dt_seconds_ = 0.001;
   motion_force_.resize(motion_pool_length_, 0.0);
   parts_ps_array_[0].resize(6 * part_pool_length_, 0.0);
@@ -61,13 +65,21 @@ auto SireTransferModelController::updateDataController2Model(
     aris::dynamic::s_ps2pm(now_parts_ps_, now_pm.data());
     part.setPm(now_pm.data());
   }
+  csModel->forwardKinematics();
   for (std::size_t i = 0; i < motion_pool_length_; ++i) {
     auto& motion = csModel->motionPool().at(i);
     motion.updA();
     motion.updV();
     motion.updP();
+    // std::cout << motion.mp() << " ";
   }
-  csModel->forwardKinematics();
+  // std::cout << std::endl;
+  for (std::size_t i = 0; i < general_motion_pool_length_; ++i) {
+    auto& general_motion = csModel->generalMotionPool().at(i);
+    general_motion.updA();
+    general_motion.updV();
+    general_motion.updP();
+  }
   // for (std::size_t i = 0; i < controller->motorPool().size(); ++i) {
   //   auto& cm = controller->motorPool()[i];
   //   if ((options[i] & aris::plan::Plan::UPDATE_MODEL_POS_FROM_CONTROLLER))
@@ -113,13 +125,18 @@ auto SireTransferModelController::integrateAs2Ps(double* vs_in[3],
                                                  double* ps_out) -> void {
   std::swap(vs_in[0], vs_in[2]);
   std::swap(vs_in[0], vs_in[1]);
-  for (int i = 0; i < 6; ++i) {
-    vs_in[2][i] =
-        vs_in[1][i] +
-        dt_seconds_ * (as_in[0][i] + 4 * as_in[1][i] + as_in[2][i]) / 6.0;
-    ps_out[i] = 
-        old_ps[i] + 
-        dt_seconds_ * (vs_in[0][i] + 4 * vs_in[1][i] + vs_in[2][i]) / 6.0;
+  for (int i = 0; i < part_pool_length_; ++i) {
+    for (int j = 0; j < 6; ++j) {
+      int temp = i * 6 + j;
+      vs_in[2][temp] =
+          vs_in[1][temp] +
+          dt_seconds_ * (as_in[0][temp] + 4 * as_in[1][temp] + as_in[2][temp]) /
+              6.0;
+      ps_out[temp] =
+          old_ps[temp] +
+          dt_seconds_ * (vs_in[0][temp] + 4 * vs_in[1][temp] + vs_in[2][temp]) /
+              6.0;
+    }
   }
 }
 

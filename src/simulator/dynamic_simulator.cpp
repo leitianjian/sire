@@ -161,9 +161,9 @@ auto Simulator::SimPlan() -> void {
           "sire_mvj --pe = {0.396442,0.002176,0.482930,1.570796,-1.570796,-0.329585}");
       cs.executeCmd(
           "sire_mvj --pe = {0.389133, 0.001068, 0.483480, 1.570796, -1.570796, -0.522616}");
-
-      cs.executeCmd("mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
-      cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
+      
+      cs.executeCmd("sire_mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
+      cs.executeCmd("sire_mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;
     }
