@@ -51,13 +51,16 @@ auto SireTransferModelController::updateDataController2Model(
   csModel->setInputFce(motion_force_.data());
   if (csModel->forwardDynamics())
     std::cout << "forward dynamic failed" << std::endl;
+  // 读取正解做完的结果（As）
   for (std::size_t i = 0; i < part_pool_length_; ++i) {
     auto& part = csModel->partPool()[i];
     std::swap(parts_as_ptrs_[0], parts_as_ptrs_[2]);
     std::swap(parts_as_ptrs_[0], parts_as_ptrs_[1]);
     part.getAs(parts_as_ptrs_[2] + static_cast<long>(6) * i);
   }
+  // As -> Vs -> Ps Runge-Kutta
   integrateAs2Ps(parts_vs_ptrs_.data(), parts_as_ptrs_.data(), old_parts_ps_, now_parts_ps_);
+  // Ps -> Pm -> Parts
   for (std::size_t i = 0; i < part_pool_length_; ++i) {
     aris::dynamic::Part& part = csModel->partPool().at(i);
     part.setVs(parts_vs_ptrs_[2]);
@@ -65,21 +68,22 @@ auto SireTransferModelController::updateDataController2Model(
     aris::dynamic::s_ps2pm(now_parts_ps_, now_pm.data());
     part.setPm(now_pm.data());
   }
+  // 调整与杆件相关的marker坐标与杆件位姿（最小二乘）
   csModel->forwardKinematics();
+  // 根据更新的杆件相关的信息更新Motion的值
   for (std::size_t i = 0; i < motion_pool_length_; ++i) {
     auto& motion = csModel->motionPool().at(i);
     motion.updA();
     motion.updV();
     motion.updP();
-    // std::cout << motion.mp() << " ";
   }
-  // std::cout << std::endl;
   for (std::size_t i = 0; i < general_motion_pool_length_; ++i) {
     auto& general_motion = csModel->generalMotionPool().at(i);
     general_motion.updA();
     general_motion.updV();
     general_motion.updP();
   }
+  std::swap(old_parts_ps_, now_parts_ps_);
   // for (std::size_t i = 0; i < controller->motorPool().size(); ++i) {
   //   auto& cm = controller->motorPool()[i];
   //   if ((options[i] & aris::plan::Plan::UPDATE_MODEL_POS_FROM_CONTROLLER))
@@ -87,7 +91,6 @@ auto SireTransferModelController::updateDataController2Model(
   //   if ((options[i] & aris::plan::Plan::UPDATE_MODEL_VEL_FROM_CONTROLLER))
   //     model->setInputVelAt(cm.targetVel(), i);
   // }
-  std::swap(old_parts_ps_, now_parts_ps_);
 }
 auto SireTransferModelController::updateDataModel2Controller(
     const std::vector<std::uint64_t>& options,
