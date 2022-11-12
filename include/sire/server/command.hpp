@@ -6,18 +6,34 @@
 namespace sire::server {
 class Get : public aris::core::CloneObject<Get, aris::plan::Plan> {
  public:
-  auto virtual prepareNrt() -> void;
-  auto virtual collectNrt() -> void;
+  auto virtual prepareNrt() -> void override;
+  auto virtual collectNrt() -> void override;
   explicit Get(const std::string& name = "Get_plan");
 };
 
 class GetForceSensorData
     : public aris::core::CloneObject<GetForceSensorData, aris::plan::Plan> {
  public:
-  auto virtual prepareNrt() -> void;
-  auto virtual collectNrt() -> void;
+  auto virtual prepareNrt() -> void override;
+  auto virtual collectNrt() -> void override;
   explicit GetForceSensorData(
       const std::string& name = "GetForceSensorData_plan");
+};
+
+class ForceControlTest
+    : public aris::core::CloneObject<ForceControlTest, aris::plan::Plan> {
+ public:
+  auto virtual prepareNrt() -> void override;
+  auto virtual collectNrt() -> void override;
+  auto virtual executeRT() -> int override;
+  virtual ~ForceControlTest() = default;
+  explicit ForceControlTest(
+      const std::string& name = "ForceControlTest_plan");
+  ARIS_DECLARE_BIG_FOUR(ForceControlTest);
+
+ private:
+  struct Imp;
+  aris::core::ImpPtr<Imp> imp_;
 };
 
 /// \brief 将机器人从轴空间移动到某个位姿。

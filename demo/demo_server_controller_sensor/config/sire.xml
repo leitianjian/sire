@@ -1037,6 +1037,9 @@
       <SireGet name="get">
         <Command __prop_name__="command" name="get"/>
       </SireGet>
+      <SireForceControlTest name="fc_test">
+        <Command __prop_name__="command" name="FCTest"/>
+      </SireForceControlTest>
       <SireGetForceSensorData name="get_force">
         <Command __prop_name__="command" name="get_force">
           <UniqueParam default="info">

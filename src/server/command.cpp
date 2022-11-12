@@ -367,6 +367,24 @@ GetForceSensorData::GetForceSensorData(const std::string& name) {
                             "</Command>");
 }
 
+struct ForceControlTest::Imp {};
+auto ForceControlTest::prepareNrt() -> void {
+  for (auto& option : motorOptions())
+    option |= aris::plan::Plan::USE_TARGET_TOQ;
+}
+auto ForceControlTest::executeRT() -> int {
+  std::vector<double> force_data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+  model()->setInputFce(force_data.data());
+  return count() > 5000 ? 0 : 1;
+}
+auto ForceControlTest::collectNrt() -> void {}
+ForceControlTest::ForceControlTest(const std::string& name) : imp_(new Imp) {
+  aris::core::fromXmlString(command(),
+                            "<Command name=\"FCTest\">"
+                            "</Command>");
+}
+ARIS_DEFINE_BIG_FOUR_CPP(ForceControlTest);
+
 auto set_check_option(
     const std::map<std::string_view, std::string_view>& cmd_params,
     aris::plan::Plan& plan) -> void {
@@ -652,8 +670,7 @@ auto SireMoveJ::prepareNrt() -> void {
   this->param() = mvj_param;
 
   for (auto& option : motorOptions())
-    option |= aris::plan::Plan::USE_TARGET_POS |
-              aris::plan::Plan::UPDATE_MODEL_POS_FROM_CONTROLLER;
+    option |= aris::plan::Plan::USE_TARGET_POS;
 
   std::vector<std::pair<std::string, std::any>> ret_value;
   ret() = ret_value;
@@ -741,6 +758,8 @@ ARIS_DEFINE_BIG_FOUR_CPP(SireMoveJ);
 
 ARIS_REGISTRATION {
   aris::core::class_<Get>("SireGet").inherit<aris::plan::Plan>();
+  aris::core::class_<ForceControlTest>("SireForceControlTest")
+      .inherit<aris::plan::Plan>();
   aris::core::class_<SireMoveJ>("SireMoveJ").inherit<aris::plan::Plan>();
   aris::core::class_<GetForceSensorData>("SireGetForceSensorData")
       .inherit<aris::plan::Plan>();

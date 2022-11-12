@@ -16,8 +16,8 @@ class SIRE_API SireTransferModelController
                                   const aris::dynamic::ModelBase* model,
                                   aris::control::Controller* controller)
       -> void override;
-  auto integrateAs2Ps(double* vs_in[3], double* as_in[3],
-                      double* old_ps, double* ps_out) -> void;
+  auto integrateAs2Ps(double* vs_in[3], double* as_in[3], double* old_ps,
+                      double* ps_out) -> void;
   SireTransferModelController();
 
  private:
