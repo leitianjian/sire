@@ -1,11 +1,25 @@
 #ifndef SIRE_TRANSFER_HPP_
 #define SIRE_TRANSFER_HPP_
 
+#include "sire/simulator/integrator.hpp"
 #include <sire_lib_export.h>
 #include <aris.hpp>
 
 namespace sire::transfer {
-class SIRE_API SireTransferModelController
+class SIRE_API VirtualForceSensorTransfer
+    : public aris::server::TransferModelController {
+ public:
+  auto updateDataController2Model(const std::vector<std::uint64_t>& options,
+                                  const aris::control::Controller* controller,
+                                  aris::dynamic::ModelBase* model)
+      -> void override;
+  auto updateDataModel2Controller(const std::vector<std::uint64_t>& options,
+                                  const aris::dynamic::ModelBase* model,
+                                  aris::control::Controller* controller)
+      -> void override;
+};
+
+class SIRE_API ForceControlSimulationTransfer
     : public aris::server::TransferModelController {
  public:
   auto updateDataController2Model(const std::vector<std::uint64_t>& options,
@@ -18,9 +32,13 @@ class SIRE_API SireTransferModelController
       -> void override;
   auto integrateAs2Ps(double* vs_in[3], double* as_in[3], double* old_ps,
                       double* ps_out) -> void;
-  SireTransferModelController();
+  auto resetIntegrator(simulator::Integrator* integrator) -> void;
+  auto integrator() -> simulator::Integrator&;
+  auto integrator() const -> const simulator::Integrator&;
+  ForceControlSimulationTransfer();
 
  private:
+  std::unique_ptr<simulator::Integrator> integrator_;
   aris::Size part_pool_length_;
   aris::Size motion_pool_length_;
   aris::Size general_motion_pool_length_;
@@ -33,7 +51,6 @@ class SIRE_API SireTransferModelController
   std::array<double*, 3> parts_vs_ptrs_;
   std::array<std::vector<double>, 3> parts_as_array_;
   std::array<double*, 3> parts_as_ptrs_;
-  std::vector<aris::core::Matrix> parts_pm_;
 };
 }  // namespace sire::transfer
 

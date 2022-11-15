@@ -65,8 +65,11 @@ target_compile_features(sire_simulator PUBLIC cxx_std_17)
 target_sources(sire_simulator 
 	PRIVATE 
 		"src/simulator/dynamic_simulator.cpp"
+		"src/simulator/integrator.cpp"
 	PUBLIC 
+		"include/sire/simulator/simulator.hpp"
 		"include/sire/simulator/dynamic_simulator.hpp"
+		"include/sire/simulator/integrator.hpp"
 	)
 
 target_include_directories(sire_simulator
@@ -280,7 +283,7 @@ if(BUILD_DEMOS)
 		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
 		add_executable(${sire_demo} ${SOURCES})
 		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR})
-		target_link_libraries(${sire_demo} sire_server sire_controller sire_transfer ${aris_LIBRARIES})
+		target_link_libraries(${sire_demo} sire_server sire_controller sire_transfer sire_simulator ${aris_LIBRARIES})
 		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
 		install(TARGETS ${sire_demo} DESTINATION demo/${sire_demo})
 		install(TARGETS sire_lib DESTINATION demo/${sire_demo})

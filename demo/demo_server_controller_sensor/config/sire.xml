@@ -1127,7 +1127,9 @@
       </SireMoveJ>
     </PlanPoolObject>
   </PlanRoot>
-  <SireTransferModelController __prop_name__="model_controller_transfer"/>
+  <ForceControlSimulationTransfer __prop_name__="model_controller_transfer">
+    <RK4Integrator step_size="0.001" data_length="6"/>  
+  </ForceControlSimulationTransfer>
   <InterfacePoolObject __prop_name__="interface">
     <SireProgramWebInterface name="sire_program_websock_interface">
       <Socket __prop_name__="socket" connect_type="WEB" port="5867"/>
