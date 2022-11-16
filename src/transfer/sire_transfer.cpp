@@ -49,8 +49,9 @@ auto VirtualForceSensorTransfer::updateDataModel2Controller(
   for (std::size_t i = 0; i < controller->sensorPool().size(); ++i) {
     auto& sensor = controller->sensorPool()[i];
     try {
-      auto& mfvs = dynamic_cast<controller::MotorForceVirtualSensor&>(sensor);
-      mfvs.updateData(std::make_unique<controller::MotorForceData>(
+      auto& mfvs =
+          dynamic_cast<controller::BufferedMotorForceVirtualSensor&>(sensor);
+      mfvs.lockFreeUpdateData(std::make_unique<controller::MotorForceData>(
           model->inputFceAt(mfvs.motorIndex())));
     } catch (std::bad_cast& e) {
       std::cout << "Not a motor force virtual sensor, skip!" << std::endl;

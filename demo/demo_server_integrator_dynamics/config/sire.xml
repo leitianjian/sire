@@ -413,12 +413,12 @@
     <DigitalIoPoolObject __prop_name__="digital_io_pool"/>
     <FtSensorPoolObject __prop_name__="ft_sensor_pool"/>
     <SensorPoolObject __prop_name__="sensor_pool">
-      <BufferedMotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="0" description="test virtual sensor" frequency="0" buffer_size="50"/>
-      <BufferedMotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="1" description="test virtual sensor" frequency="0" buffer_size="50"/>
-      <BufferedMotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="2" description="test virtual sensor" frequency="0" buffer_size="50"/>
-      <BufferedMotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="3" description="test virtual sensor" frequency="0" buffer_size="50"/>
-      <BufferedMotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="4" description="test virtual sensor" frequency="0" buffer_size="50"/>
-      <BufferedMotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="5" description="test virtual sensor" frequency="0" buffer_size="50"/>
+      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="0" description="test virtual sensor" frequency="0"/>
+      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="1" description="test virtual sensor" frequency="0"/>
+      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="2" description="test virtual sensor" frequency="0"/>
+      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="3" description="test virtual sensor" frequency="0"/>
+      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="4" description="test virtual sensor" frequency="0"/>
+      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="5" description="test virtual sensor" frequency="0"/>
     </SensorPoolObject>
   </Controller>
   <PlanRoot __prop_name__="plan_root">
@@ -1127,7 +1127,9 @@
       </SireMoveJ>
     </PlanPoolObject>
   </PlanRoot>
-  <VirtualForceSensorTransfer __prop_name__="model_controller_transfer"/>
+  <ForceControlSimulationTransfer __prop_name__="model_controller_transfer">
+    <RK4Integrator step_size="0.001" data_length="6"/>  
+  </ForceControlSimulationTransfer>
   <InterfacePoolObject __prop_name__="interface">
     <SireProgramWebInterface name="sire_program_websock_interface">
       <Socket __prop_name__="socket" connect_type="WEB" port="5867"/>

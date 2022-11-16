@@ -1,4 +1,5 @@
 #include "sire/controller/controller_sensor.hpp"
+#include "sire/ext/json.hpp"
 
 namespace sire::controller {
 struct NrtSensor::Imp {
@@ -70,14 +71,14 @@ NrtSensor::NrtSensor(
 
 NrtSensorDataProtector::NrtSensorDataProtector(NrtSensor* nrt_sensor)
     : nrt_sensor_(nrt_sensor), data_(nullptr) {
-  //这里data_to_read_指向最新的内存,例如如果data_to_read_为2,那么有两种情况：
-  // 1.此时正在写内存0,内存1空闲。
-  // 2.在某些极端特殊时刻下,sensor正好刚刚写到内存1,正准备释放dataMutex0,并且之后准备将data_to_read_置为0。
-  //无论以上哪种情况,dataMutex2都会被锁住。
-  //紧接着以上两种情况,继而会发生以下情况：
-  // 1.正在写内存0,内存1空闲,dataMutex2都会被锁住后data_to_read_依然为2,那么此后数据一直在操作内存2,安全。
-  // 2.dataMutex2被锁住的同时,data_to_read_被更新到0,此时传感器开始写内存1,由于dataMutex2被锁,因此传感器一直无法
-  //更新到内存2；但是数据读取的是内存0,安全。
+  // 这里data_to_read_指向最新的内存,例如如果data_to_read_为2,那么有两种情况：
+  //  1.此时正在写内存0,内存1空闲。
+  //  2.在某些极端特殊时刻下,sensor正好刚刚写到内存1,正准备释放dataMutex0,并且之后准备将data_to_read_置为0。
+  //    无论以上哪种情况,dataMutex2都会被锁住。
+  // 紧接着以上两种情况,继而会发生以下情况：
+  //  1.正在写内存0,内存1空闲,dataMutex2都会被锁住后data_to_read_依然为2,那么此后数据一直在操作内存2,安全。
+  //  2.dataMutex2被锁住的同时,data_to_read_被更新到0,此时传感器开始写内存1,由于dataMutex2被锁,因此传感器一直无法
+  //    更新到内存2；但是数据读取的是内存0,安全。
 
   do {
     lock_ = std::unique_lock<std::recursive_mutex>(
@@ -153,6 +154,9 @@ auto SensorDataBuffer::retrieveBufferData(
     std::unique_lock<std::recursive_mutex> data_to_write_lock(
         imp_->data_to_write_mutex_, std::defer_lock);
     std::lock(data_to_read_lock, data_to_write_lock);
+    if (imp_->data_to_read == -1) {
+      return;
+    }
     std::unique_lock<std::recursive_mutex> lock_data_read(
         imp_->buffer_mutex_[imp_->data_to_read]);
     if (imp_->buffer_is_full_ || imp_->data_to_read != imp_->data_to_write) {
@@ -189,6 +193,10 @@ SensorDataBuffer::SensorDataBuffer(aris::Size buffer_size)
 
 struct BufferedRtSensor::Imp {
   std::unique_ptr<SensorDataBuffer> buffer_;
+  aris::Size count_{0};
+  std::thread update_buffer_data_thread_;
+  std::atomic_bool is_update_buffer_data_thread_running_;
+  aris::core::Pipe data_pipe_;
 };
 auto BufferedRtSensor::setBufferSize(aris::Size buffer_size) -> void {
   imp_->buffer_->setBufferSize(buffer_size);
@@ -209,31 +217,7 @@ auto BufferedRtSensor::retrieveData()
     -> std::unique_ptr<aris::control::SensorData> {
   return imp_->buffer_->retrieveData();
 }
-BufferedRtSensor::~BufferedRtSensor() = default;
-BufferedRtSensor::BufferedRtSensor(
-    std::function<aris::control::SensorData*()> sensor_data_ctor,
-    const std::string& name, const std::string& desc, bool is_virtual,
-    bool activate, aris::Size frequency, aris::Size buffer_size)
-    : RtSensor(sensor_data_ctor, name, desc, is_virtual, activate, frequency),
-      imp_(new Imp) {
-  imp_->buffer_.reset(new SensorDataBuffer(buffer_size));
-};
-
-struct BufferedMotorForceVirtualSensor::Imp {
-  aris::Size motor_index_{0};
-  aris::Size count_{0};
-  Imp() : motor_index_(0), count_(0) {}
-};
-auto BufferedMotorForceVirtualSensor::motorIndex() const -> aris::Size {
-  return imp_->motor_index_;
-}
-auto BufferedMotorForceVirtualSensor::setMotorIndex(aris::Size index) -> void {
-  imp_->motor_index_ = index;
-}
-auto BufferedMotorForceVirtualSensor::init() -> void {}
-auto BufferedMotorForceVirtualSensor::start() -> void {}
-auto BufferedMotorForceVirtualSensor::stop() -> void {}
-auto BufferedMotorForceVirtualSensor::updateData(
+auto BufferedRtSensor::updateData(
     std::unique_ptr<aris::control::SensorData> data) -> void {
   if (frequency() == 0) {
     updateBufferData(std::move(data));
@@ -244,6 +228,78 @@ auto BufferedMotorForceVirtualSensor::updateData(
     imp_->count_ = (imp_->count_ + 1) % (1000 / frequency());
   }
 }
+auto BufferedRtSensor::lockFreeUpdateData(
+    std::unique_ptr<aris::control::SensorData> data) -> void {
+  aris::core::MsgFix<MAX_MSG_SIZE> msg;
+  std::string str;
+  data->to_json_string(str);
+  msg.copy(str);
+  imp_->data_pipe_.sendMsg(msg);
+}
+auto BufferedRtSensor::start() -> void {
+  imp_->is_update_buffer_data_thread_running_.store(true);
+  imp_->update_buffer_data_thread_ = std::thread([this]() {
+    aris::core::Msg msg;
+    while (imp_->is_update_buffer_data_thread_running_) {
+      if (imp_->data_pipe_.recvMsg(msg)) {
+        if (!msg.empty()) {
+          MotorForceData data;
+          try {
+            data.from_json_string(msg.toString());
+            updateData(std::make_unique<MotorForceData>(data));
+          } catch (nlohmann::json::parse_error& err) {
+            continue;
+            // std::cout << "not json and skip with msg: " << msg.toString()
+            //           << std::endl;
+          }
+        }
+      }
+    }
+  });
+}
+auto BufferedRtSensor::stop() -> void {
+  imp_->is_update_buffer_data_thread_running_.store(false);
+  imp_->update_buffer_data_thread_.join();
+}
+BufferedRtSensor::~BufferedRtSensor() = default;
+BufferedRtSensor::BufferedRtSensor(
+    std::function<aris::control::SensorData*()> sensor_data_ctor,
+    const std::string& name, const std::string& desc, bool is_virtual,
+    bool activate, aris::Size frequency, aris::Size buffer_size)
+    : RtSensor(sensor_data_ctor, name, desc, is_virtual, activate, frequency),
+      imp_(new Imp) {
+  imp_->buffer_.reset(new SensorDataBuffer(buffer_size));
+};
+
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MotorForceData, force_);
+auto MotorForceData::to_json_string(std::string& str) -> void {
+  nlohmann::json j;
+  controller::to_json(j, *this);
+  str = j.dump();
+};
+auto MotorForceData::from_json_string(const std::string& str) -> void {
+  controller::from_json(nlohmann::json::parse(str), *this);
+};
+
+struct BufferedMotorForceVirtualSensor::Imp {
+  aris::Size motor_index_{0};
+  Imp() : motor_index_(0) {}
+};
+auto BufferedMotorForceVirtualSensor::motorIndex() const -> aris::Size {
+  return imp_->motor_index_;
+}
+auto BufferedMotorForceVirtualSensor::setMotorIndex(aris::Size index) -> void {
+  imp_->motor_index_ = index;
+}
+auto BufferedMotorForceVirtualSensor::init() -> void {}
+auto BufferedMotorForceVirtualSensor::start() -> void {
+  BufferedRtSensor::start();
+}
+auto BufferedMotorForceVirtualSensor::stop() -> void {}
+auto BufferedMotorForceVirtualSensor::updateData(
+    std::unique_ptr<aris::control::SensorData> data) -> void {
+  BufferedRtSensor::updateData(std::move(data));
+}
 auto BufferedMotorForceVirtualSensor::copiedDataPtr()
     -> std::unique_ptr<aris::control::SensorData> {
   return std::move(retrieveData());
@@ -251,7 +307,8 @@ auto BufferedMotorForceVirtualSensor::copiedDataPtr()
 auto BufferedMotorForceVirtualSensor::getRtData(aris::control::SensorData* data)
     -> void{};
 BufferedMotorForceVirtualSensor::~BufferedMotorForceVirtualSensor() = default;
-BufferedMotorForceVirtualSensor::BufferedMotorForceVirtualSensor(aris::Size motor_index)
+BufferedMotorForceVirtualSensor::BufferedMotorForceVirtualSensor(
+    aris::Size motor_index)
     : BufferedRtSensorTemplate<MotorForceData>(), imp_(new Imp) {
   imp_->motor_index_ = motor_index;
 }
@@ -259,7 +316,8 @@ BufferedMotorForceVirtualSensor::BufferedMotorForceVirtualSensor(aris::Size moto
 struct MotorForceVirtualSensor::Imp {
   aris::Size motor_index_{0};
   aris::Size count_{0};
-  std::unique_ptr<aris::control::SensorData> data_{std::make_unique<controller::MotorForceData>(0)};
+  std::unique_ptr<aris::control::SensorData> data_{
+      std::make_unique<controller::MotorForceData>(0)};
   Imp()
       : motor_index_(0),
         count_(0),
@@ -289,12 +347,10 @@ auto MotorForceVirtualSensor::copiedDataPtr()
     -> std::unique_ptr<aris::control::SensorData> {
   return std::move(imp_->data_);
 }
-auto MotorForceVirtualSensor::getRtData(
-    aris::control::SensorData* data)
+auto MotorForceVirtualSensor::getRtData(aris::control::SensorData* data)
     -> void{};
 MotorForceVirtualSensor::~MotorForceVirtualSensor() = default;
-MotorForceVirtualSensor::MotorForceVirtualSensor(
-    aris::Size motor_index)
+MotorForceVirtualSensor::MotorForceVirtualSensor(aris::Size motor_index)
     : RtSensorTemplate<MotorForceData>(), imp_(new Imp) {
   imp_->motor_index_ = motor_index;
 }

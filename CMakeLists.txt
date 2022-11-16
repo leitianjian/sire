@@ -129,6 +129,7 @@ target_sources(sire_server
 		"include/sire/server/middle_ware.hpp"
 		"include/sire/server/command.hpp"
 		"include/sire/ext/tinyxml2.h"
+		"include/sire/ext/json.hpp"
 	)
 target_include_directories(sire_server
 	PUBLIC
@@ -170,6 +171,7 @@ target_sources(sire_controller
 	PUBLIC 
 		"include/sire/controller/controller_sensor.hpp"
 		"include/sire/controller/controller.hpp"
+		"include/sire/ext/json.hpp"
 	)
 target_include_directories(sire_controller
 	PUBLIC
@@ -278,7 +280,7 @@ install(FILES ${PROJECT_BINARY_DIR}/sire-config.cmake
 # ---------------------- build demos ---------------------------
 option(BUILD_DEMOS "build sire demos" OFF)
 if(BUILD_DEMOS)
-	set(SIRE_DEMOS demo_server_controller_sensor)
+	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics)
 	foreach(sire_demo ${SIRE_DEMOS})
 		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
 		add_executable(${sire_demo} ${SOURCES})

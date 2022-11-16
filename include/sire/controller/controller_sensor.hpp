@@ -12,7 +12,9 @@ class SIRE_API NrtSensorDataProtector {
   auto get() const -> const aris::control::SensorData* { return data_; }
   auto data() const -> const aris::control::SensorData& { return *data_; }
   auto operator->() const -> const aris::control::SensorData* { return data_; }
-  auto operator*() const -> const aris::control::SensorData& { return std::ref(*data_); }
+  auto operator*() const -> const aris::control::SensorData& {
+    return std::ref(*data_);
+  }
   // auto operator=(SensorDataProtector && other)->SensorDataProtector & {
   // std::swap(*this, other); return *this; }
 
@@ -34,10 +36,11 @@ class SIRE_API NrtSensorDataProtector {
 
 class SIRE_API NrtSensor : public aris::control::SensorBase {
  public:
-  auto virtual copiedDataPtr() -> std::unique_ptr<aris::control::SensorData> override;
-  auto virtual init() -> void;
-  auto virtual start() -> void;
-  auto virtual stop() -> void;
+  auto virtual copiedDataPtr()
+      -> std::unique_ptr<aris::control::SensorData> override;
+  auto virtual init() -> void override;
+  auto virtual start() -> void override;
+  auto virtual stop() -> void override;
   auto dataProtector() -> NrtSensorDataProtector;
   virtual ~NrtSensor();
   NrtSensor(std::function<aris::control::SensorData*()> sensor_data_ctor,
@@ -51,8 +54,8 @@ class SIRE_API NrtSensor : public aris::control::SensorBase {
   NrtSensor& operator=(NrtSensor&& other) = delete;
 
  protected:
-  auto virtual release() -> void {}
-  auto virtual updateData(aris::control::SensorData& data) -> void{};
+  auto virtual release() -> void = 0;
+  auto virtual updateData(aris::control::SensorData& data) -> void = 0;
 
  private:
   struct Imp;
@@ -63,7 +66,8 @@ class SIRE_API NrtSensor : public aris::control::SensorBase {
 
 class SIRE_API RtSensor : public aris::control::SensorBase {
  public:
-  auto virtual copiedDataPtr() -> std::unique_ptr<aris::control::SensorData> = 0;
+  auto virtual copiedDataPtr()
+      -> std::unique_ptr<aris::control::SensorData> = 0;
   auto virtual init() -> void = 0;
   auto virtual start() -> void = 0;
   auto virtual stop() -> void = 0;
@@ -83,10 +87,8 @@ class RtSensorTemplate : public RtSensor {
  public:
   virtual ~RtSensorTemplate() = default;
   explicit RtSensorTemplate()
-      : RtSensor(
-            []() -> aris::control::SensorData* { return new DataType; }) {}
-  RtSensorTemplate(const RtSensorTemplate& other) noexcept =
-      default;
+      : RtSensor([]() -> aris::control::SensorData* { return new DataType; }) {}
+  RtSensorTemplate(const RtSensorTemplate& other) noexcept = default;
   RtSensorTemplate(RtSensorTemplate&& other) noexcept = default;
   RtSensorTemplate& operator=(const RtSensorTemplate& other) noexcept = default;
   RtSensorTemplate& operator=(RtSensorTemplate&& other) noexcept = default;
@@ -94,9 +96,11 @@ class RtSensorTemplate : public RtSensor {
 
 class SIRE_API SensorDataBuffer {
  public:
-  auto virtual updateBufferData(std::unique_ptr<aris::control::SensorData> data) -> void;
-  auto virtual retrieveBufferData(std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
-                                  aris::Size& count) -> void;
+  auto virtual updateBufferData(std::unique_ptr<aris::control::SensorData> data)
+      -> void;
+  auto virtual retrieveBufferData(
+      std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
+      aris::Size& count) -> void;
   auto virtual retrieveData() -> std::unique_ptr<aris::control::SensorData>;
   auto bufferSize() const -> aris::Size;
   auto setBufferSize(aris::Size buffer_size) -> void;
@@ -114,26 +118,34 @@ class SIRE_API SensorDataBuffer {
 
 class SIRE_API BufferedSensorInterface {
  protected:
-  auto virtual updateBufferData(std::unique_ptr<aris::control::SensorData> data) -> void = 0;
-  auto virtual retrieveBufferData(std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
-                                  aris::Size& count) -> void = 0;
+  auto virtual updateBufferData(std::unique_ptr<aris::control::SensorData> data)
+      -> void = 0;
+  auto virtual retrieveBufferData(
+      std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
+      aris::Size& count) -> void = 0;
   auto virtual retrieveData() -> std::unique_ptr<aris::control::SensorData> = 0;
 };
 
 class SIRE_API BufferedRtSensor : public RtSensor,
                                   public BufferedSensorInterface {
  public:
-  auto virtual copiedDataPtr() -> std::unique_ptr<aris::control::SensorData> = 0;
-  auto virtual init() -> void = 0;
-  auto virtual start() -> void = 0;
-  auto virtual stop() -> void = 0;
+  enum { MAX_MSG_SIZE = 500 };
+  auto virtual copiedDataPtr()
+      -> std::unique_ptr<aris::control::SensorData> = 0;
+  auto virtual init() -> void{};
+  auto virtual start() -> void;
+  auto virtual stop() -> void;
   auto virtual updateData(std::unique_ptr<aris::control::SensorData> data)
-      -> void = 0;
+      -> void;
+  auto virtual lockFreeUpdateData(
+      std::unique_ptr<aris::control::SensorData> data) -> void;
   auto bufferSize() const -> aris::Size;
   auto setBufferSize(aris::Size buffer_size) -> void;
-  auto updateBufferData(std::unique_ptr<aris::control::SensorData> data) -> void override;
-  auto retrieveBufferData(std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
-                          aris::Size& count) -> void override;
+  auto updateBufferData(std::unique_ptr<aris::control::SensorData> data)
+      -> void override;
+  auto retrieveBufferData(
+      std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
+      aris::Size& count) -> void override;
   auto retrieveData() -> std::unique_ptr<aris::control::SensorData> override;
   virtual ~BufferedRtSensor();
   BufferedRtSensor(std::function<aris::control::SensorData*()> sensor_data_ctor,
@@ -159,7 +171,8 @@ class BufferedRtSensorTemplate : public BufferedRtSensor {
  public:
   virtual ~BufferedRtSensorTemplate() = default;
   explicit BufferedRtSensorTemplate()
-      : BufferedRtSensor([]() -> aris::control::SensorData* { return new DataType; }) {}
+      : BufferedRtSensor(
+            []() -> aris::control::SensorData* { return new DataType; }) {}
   BufferedRtSensorTemplate(const BufferedRtSensorTemplate& other) noexcept =
       default;
   BufferedRtSensorTemplate(BufferedRtSensorTemplate&& other) noexcept = default;
@@ -169,11 +182,16 @@ class BufferedRtSensorTemplate : public BufferedRtSensor {
       BufferedRtSensorTemplate&& other) noexcept = default;
 };
 
-struct MotorForceData : aris::control::SensorData {
+class SIRE_API MotorForceData : public aris::control::SensorData {
+ public:
   double force_;
   virtual ~MotorForceData() = default;
-  MotorForceData(double force = 0) : force_(force) {}
+  MotorForceData(double force = 0)
+      : aris::control::SensorData(), force_(force){};
+  auto virtual to_json_string(std::string& j) -> void override;
+  auto virtual from_json_string(const std::string& j) -> void override;
 };
+
 class SIRE_API BufferedMotorForceVirtualSensor
     : public BufferedRtSensorTemplate<MotorForceData> {
  public:
@@ -189,9 +207,12 @@ class SIRE_API BufferedMotorForceVirtualSensor
   virtual ~BufferedMotorForceVirtualSensor();
   BufferedMotorForceVirtualSensor(aris::Size moter_index = 0);
   BufferedMotorForceVirtualSensor(BufferedMotorForceVirtualSensor& other);
-  BufferedMotorForceVirtualSensor(BufferedMotorForceVirtualSensor&& other) = delete;
-  BufferedMotorForceVirtualSensor& operator=(const BufferedMotorForceVirtualSensor& other);
-  BufferedMotorForceVirtualSensor& operator=(BufferedMotorForceVirtualSensor&& other) = delete;
+  BufferedMotorForceVirtualSensor(BufferedMotorForceVirtualSensor&& other) =
+      delete;
+  BufferedMotorForceVirtualSensor& operator=(
+      const BufferedMotorForceVirtualSensor& other);
+  BufferedMotorForceVirtualSensor& operator=(
+      BufferedMotorForceVirtualSensor&& other) = delete;
 
  protected:
   auto virtual getRtData(aris::control::SensorData*) -> void override;
@@ -215,8 +236,7 @@ class SIRE_API MotorForceVirtualSensor
   virtual ~MotorForceVirtualSensor();
   MotorForceVirtualSensor(aris::Size moter_index = 0);
   MotorForceVirtualSensor(MotorForceVirtualSensor& other);
-  MotorForceVirtualSensor(MotorForceVirtualSensor&& other) =
-      delete;
+  MotorForceVirtualSensor(MotorForceVirtualSensor&& other) = delete;
   MotorForceVirtualSensor& operator=(const MotorForceVirtualSensor& other);
   MotorForceVirtualSensor& operator=(MotorForceVirtualSensor&& other) = delete;
 
