@@ -228,11 +228,12 @@ auto BufferedRtSensor::updateData(
     imp_->count_ = (imp_->count_ + 1) % (1000 / frequency());
   }
 }
+// TODO: add const quantifier
 auto BufferedRtSensor::lockFreeUpdateData(
-    std::unique_ptr<aris::control::SensorData> data) -> void {
+    aris::control::SensorData& data) -> void {
   aris::core::MsgFix<MAX_MSG_SIZE> msg;
   std::string str;
-  data->to_json_string(str);
+  data.to_json_string(str);
   msg.copy(str);
   imp_->data_pipe_.sendMsg(msg);
 }

@@ -138,7 +138,7 @@ class SIRE_API BufferedRtSensor : public RtSensor,
   auto virtual updateData(std::unique_ptr<aris::control::SensorData> data)
       -> void;
   auto virtual lockFreeUpdateData(
-      std::unique_ptr<aris::control::SensorData> data) -> void;
+      aris::control::SensorData& data) -> void;
   auto bufferSize() const -> aris::Size;
   auto setBufferSize(aris::Size buffer_size) -> void;
   auto updateBufferData(std::unique_ptr<aris::control::SensorData> data)
