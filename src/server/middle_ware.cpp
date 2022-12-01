@@ -1,13 +1,13 @@
 #include "sire/server/middle_ware.hpp"
+#include "sire/collision/collision_engine.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/server/api.hpp"
 #include <aris/core/core.hpp>
+#include <aris/core/object.hpp>
 #include <aris/server/control_server.hpp>
 
 namespace sire::server {
 struct ProgramMiddleware::Imp {
-  std::unique_ptr<aris::core::Socket> sock_{new aris::core::Socket};
-
   aris::core::CommandParser command_parser_;
   aris::core::LanguageParser language_parser_;
   aris::core::Calculator calculator_;
@@ -673,9 +673,39 @@ ProgramMiddleware& ProgramMiddleware::operator=(ProgramMiddleware&& other) =
     default;
 ProgramMiddleware::~ProgramMiddleware() = default;
 
+struct SireMiddleware::Imp {
+  unique_ptr<aris::core::PointerArray<modules::SireModuleBase>> modules_pool_;
+};
+auto SireMiddleware::init() -> void {
+  for (auto& sire_module : *imp_->modules_pool_) {
+    sire_module.init();
+  }
+}
+auto SireMiddleware::modulesPool()
+    -> aris::core::PointerArray<modules::SireModuleBase>& {
+  return *imp_->modules_pool_;
+}
+auto SireMiddleware::resetModulesPool(
+    aris::core::PointerArray<modules::SireModuleBase>* pool) -> void {
+  imp_->modules_pool_.reset(pool);
+}
+SireMiddleware::SireMiddleware() : imp_(new Imp) {}
+SireMiddleware::SireMiddleware(SireMiddleware&& other) = default;
+SireMiddleware& SireMiddleware::operator=(SireMiddleware&& other) = default;
+SireMiddleware::~SireMiddleware() = default;
+
 ARIS_REGISTRATION {
   aris::core::class_<ProgramMiddleware>("SireProgramMiddleware")
       .inherit<aris::server::MiddleWare>();
-}
 
+  aris::core::class_<aris::core::PointerArray<modules::SireModuleBase>>(
+      "SireModulesPoolObject")
+      .asRefArray();
+  typedef aris::core::PointerArray<modules::SireModuleBase>& (
+      SireMiddleware::*ModulesPoolFunc)();
+  aris::core::class_<SireMiddleware>("SireMiddleware")
+      .inherit<ProgramMiddleware>()
+      .prop("modules_pool", &SireMiddleware::resetModulesPool,
+            ModulesPoolFunc(&SireMiddleware::modulesPool));
+}
 }  // namespace sire::server

@@ -78,6 +78,7 @@ target_include_directories(sire_simulator
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
 	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 	)
 install(DIRECTORY include/sire/simulator DESTINATION include/sire)
@@ -94,18 +95,21 @@ target_compile_options(sire_collision
 target_sources(sire_collision 
 	PRIVATE 
 		"src/collision/collision.cpp"
+		"src/collision/collision_engine.cpp"
 	PUBLIC 
 		"include/sire/collision/collision.hpp"
+		"include/sire/collision/collision_engine.hpp"
 	)
 target_include_directories(sire_collision
 	PUBLIC
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-	PRIVATE
 		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 		${ASSIMP_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/collision DESTINATION include/sire)
 
@@ -136,31 +140,13 @@ target_include_directories(sire_server
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
-
-# add_library(sire_sensor OBJECT)
-# target_compile_definitions(sire_sensor PRIVATE sire_lib_EXPORTS)
-# target_compile_features(sire_sensor PUBLIC cxx_std_17)
-# target_sources(sire_sensor 
-# 	PRIVATE 
-# 		"src/sensor/sensor.cpp"
-# 	PUBLIC 
-# 		"include/sire/sensor/sensor.hpp"
-# 	)
-# target_include_directories(sire_sensor
-# 	PUBLIC
-# 		$<INSTALL_INTERFACE:include> 
-# 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-# 		${aris_INCLUDE_DIRS}
-# 	PRIVATE
-# 		${PROJECT_SOURCE_DIR}/src
-# 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-# 	)
-# install(DIRECTORY include/sire/sensor DESTINATION include/sire)
 
 add_library(sire_controller OBJECT)
 target_compile_definitions(sire_controller PRIVATE sire_lib_EXPORTS)
@@ -199,11 +185,66 @@ target_include_directories(sire_transfer
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/transfer DESTINATION include/sire)
+
+add_library(sire_modules OBJECT)
+target_compile_definitions(sire_modules PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_modules PUBLIC cxx_std_17)
+target_sources(sire_modules 
+	PRIVATE 
+		"src/modules/module_base.cpp"
+		"src/modules/collision_module.cpp"
+	PUBLIC 
+		"include/sire/modules/module_base.hpp"
+		"include/sire/modules/collision_module.hpp"
+		"include/sire/modules/modules.hpp"
+	)
+target_include_directories(sire_modules
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
+	)
+install(DIRECTORY include/sire/modules DESTINATION include/sire)
+
+add_library(sire_geometry OBJECT)
+target_compile_definitions(sire_geometry PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_geometry PUBLIC cxx_std_17)
+target_compile_options(sire_geometry
+	PRIVATE 
+		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
+	)
+target_sources(sire_geometry 
+	PRIVATE 
+		"src/geometry/collision_geometry.cpp"
+	PUBLIC 
+		"include/sire/geometry/collision_geometry.hpp"
+		"include/sire/geometry/geometry.hpp"
+	)
+target_include_directories(sire_geometry
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
+	)
+install(DIRECTORY include/sire/geometry DESTINATION include/sire)
 
 # Build library for sire
 add_library(sire_lib 
@@ -213,6 +254,8 @@ add_library(sire_lib
 		$<TARGET_OBJECTS:sire_server>
 		$<TARGET_OBJECTS:sire_controller>
 		$<TARGET_OBJECTS:sire_transfer>
+		$<TARGET_OBJECTS:sire_geometry>
+		$<TARGET_OBJECTS:sire_modules>
 	)
 generate_export_header(sire_lib EXPORT_MACRO_NAME SIRE_API)
 target_compile_features(sire_lib PUBLIC cxx_std_17)
@@ -280,16 +323,30 @@ install(FILES ${PROJECT_BINARY_DIR}/sire-config.cmake
 # ---------------------- build demos ---------------------------
 option(BUILD_DEMOS "build sire demos" OFF)
 if(BUILD_DEMOS)
-	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics)
+	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics demo_middle_ware_collision)
 	foreach(sire_demo ${SIRE_DEMOS})
 		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
 		add_executable(${sire_demo} ${SOURCES})
-		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR})
-		target_link_libraries(${sire_demo} sire_server sire_controller sire_transfer sire_simulator ${aris_LIBRARIES})
+		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR} ${hpp-fcl_INCLUDE_DIRS})
+		target_link_libraries(${sire_demo} sire_server sire_controller sire_transfer sire_simulator sire_geometry sire_collision sire_modules ${PUB_RELY_LINK_LIB})
 		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
-		install(TARGETS ${sire_demo} DESTINATION demo/${sire_demo})
-		install(TARGETS sire_lib DESTINATION demo/${sire_demo})
-		install(FILES "${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" DESTINATION demo/${sire_demo})
+		install(
+			TARGETS 
+				sire_lib 
+				${sire_demo} 
+			DESTINATION 
+				demo/${sire_demo}
+			)
+		install(
+			FILES 
+				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
+				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+				"${assimp_DIR}/../../debug/bin/assimp-vc143-mtd.dll"
+				"${assimp_DIR}/../../debug/bin/zlibd1.dll"
+				"${assimp_DIR}/../../debug/bin/pugixml.dll"
+			DESTINATION 
+				demo/${sire_demo}
+			)
 		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/config)
 			install(DIRECTORY demo/${sire_demo}/config/ DESTINATION demo/${sire_demo})
 		endif()

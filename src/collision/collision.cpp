@@ -6,6 +6,12 @@
 #include "hpp/fcl/broadphase/default_broadphase_callbacks.h"
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
+#include <hpp/fcl/BV/AABB.h>
+#include <hpp/fcl/BV/OBBRSS.h>
+#include <hpp/fcl/BVH/BVH_model.h>
+#include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
+#include <hpp/fcl/data_types.h>
+#include <hpp/fcl/narrowphase/narrowphase.h>
 #include <hpp/fcl/collision.h>
 #include <hpp/fcl/collision_data.h>
 #include <hpp/fcl/collision_object.h>
@@ -23,7 +29,7 @@
 
 using namespace hpp;
 
-namespace sire {
+namespace sire::collision {
 struct Collision::Imp {
   Collision* collision_;
   std::thread collision_thread_;
@@ -95,20 +101,30 @@ Collision::Collision(const std::string& robot_stl_path) : imp_(new Imp(this)) {
           dynamic_tree->update();
 
           fcl::CollisionCallBackDefault collision_data;
+          fcl::CollisionCallBackDefault manipulator_collision_data;
           fcl::DistanceCallBackDefault distance_data;
           // Compute collision - single contact and enable contact.
           fcl::CollisionRequest co_req(fcl::CollisionRequestFlag::CONTACT, 1);
           co_req.security_margin = fcl::FCL_REAL(1e-2);
+          fcl::CollisionRequest co_req2(fcl::CollisionRequestFlag::CONTACT, 10);
+          co_req2.security_margin = fcl::FCL_REAL(1e-2);
           collision_data.data.request = co_req;
+          manipulator_collision_data.data.request = co_req2;
+          dynamic_tree->collide(&manipulator_collision_data);
           dynamic_tree->collide(&sphere, &collision_data);
-          dynamic_tree->distance(&sphere, &distance_data);
+          // dynamic_tree->distance(&sphere, &distance_data);
           num_contacts = collision_data.data.result.numContacts();
+          size_t man_num_contacts =
+              manipulator_collision_data.data.result.numContacts();
           std::vector<fcl::Contact> contacts;
           collision_data.data.result.getContacts(contacts);
-          double min_distance = distance_data.data.result.min_distance;
+          std::vector<fcl::Contact> contacts2;
+          manipulator_collision_data.data.result.getContacts(contacts2);
+          // double min_distance = distance_data.data.result.min_distance;
 
           // std::cout << "min_distance: " << min_distance << std::endl;
           // std::cout << "num_contacts: " << num_contacts << std::endl;
+          std::cout << "man_num_contacts: " << man_num_contacts << std::endl;
 
           if (num_contacts) {
             std::cout << "num " << contacts.size() << " contacts found"
@@ -116,7 +132,17 @@ Collision::Collision(const std::string& robot_stl_path) : imp_(new Imp(this)) {
             for (const fcl::Contact& contact : contacts) {
               std::cout << "collision position at : " << contact.pos[0] << " "
                         << contact.pos[1] << " " << contact.pos[2] << std::endl;
-              std::cout << "min_distance: " << min_distance << std::endl;
+              // std::cout << "min_distance: " << min_distance << std::endl;
+            }
+          }
+          if (man_num_contacts) {
+            std::cout << "self collision num " << contacts2.size()
+                      << " contacts found" << std::endl;
+            for (const fcl::Contact& contact : contacts2) {
+              std::cout << "robot arm self collision position at : "
+                        << contact.pos[0] << " " << contact.pos[1] << " "
+                        << contact.pos[2] << std::endl;
+              // std::cout << "min_distance: " << min_distance << std::endl;
             }
           }
         }  // thread_while
@@ -163,4 +189,4 @@ auto Collision::CalCollision(std::array<double, 7 * 7> linpq,
   imp_->link_pq = linpq;
   num_contacts = imp_->num_contacts;
 }
-}  // namespace sire
+}  // namespace sire::collision
