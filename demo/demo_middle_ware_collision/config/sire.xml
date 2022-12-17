@@ -1132,22 +1132,22 @@
     <SireProgramWebInterface name="sire_program_websock_interface">
       <Socket __prop_name__="socket" connect_type="WEB" port="5867"/>
     </SireProgramWebInterface>
-    <SireHttpInterface name="http_interface" document_root="D:\leitianjian\Documents\code\RobotControllerHMI\client\build" port="8001"/>
+    <SireHttpInterface name="http_interface" document_root="" port="8001"/>
   </InterfacePoolObject>
   <SireMiddleware __prop_name__="pro_middle_ware">
     <SireModulesPoolObject __prop_name__="modules_pool">
       <SireCollisionModule __prop_name__="pro_middle_ware">
         <CollisionEngine __prop_name__="collision_engine">
           <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
-            <MeshGeometry id="1" part_id="1" is_dynamic="true" resource_path="D:/leitianjian/Documents/3d_model/xb4/AXIS1.STL"/>
-            <MeshGeometry id="2" part_id="2" is_dynamic="true" resource_path="D:/leitianjian/Documents/3d_model/xb4/AXIS2.STL"/>
-            <MeshGeometry id="3" part_id="3" is_dynamic="true" resource_path="D:/leitianjian/Documents/3d_model/xb4/AXIS3.STL"/>
-            <MeshGeometry id="4" part_id="4" is_dynamic="true" resource_path="D:/leitianjian/Documents/3d_model/xb4/AXIS4.STL"/>
-            <MeshGeometry id="5" part_id="5" is_dynamic="true" resource_path="D:/leitianjian/Documents/3d_model/xb4/AXIS5.STL"/>
-            <MeshGeometry id="6" part_id="6" is_dynamic="true" pm="{0,0,-1,0.642,0,1,0,0,1,0,0,-0.393,0,0,0,1}" resource_path="D:/leitianjian/Documents/3d_model/xb4/AXIS6.STL"/>
+            <MeshGeometry id="1" part_id="1" is_dynamic="true" resource_path=""/>
+            <MeshGeometry id="2" part_id="2" is_dynamic="true" resource_path=""/>
+            <MeshGeometry id="3" part_id="3" is_dynamic="true" resource_path=""/>
+            <MeshGeometry id="4" part_id="4" is_dynamic="true" resource_path=""/>
+            <MeshGeometry id="5" part_id="5" is_dynamic="true" resource_path=""/>
+            <MeshGeometry id="6" part_id="6" is_dynamic="true" pm="{0,0,-1,0.642,0,1,0,0,1,0,0,-0.393,0,0,0,1}" resource_path=""/>
           </GeometryPoolObject>
           <GeometryPoolObject __prop_name__="anchored_geometry_pool">
-            <MeshGeometry id="0" part_id="0" is_dynamic="false" resource_path="D:/leitianjian/Documents/3d_model/xb4/AXIS0.STL"/>
+            <MeshGeometry id="0" part_id="0" is_dynamic="false" resource_path=""/>
             <SphereGeometry id="7" part_id="0" is_dynamic="false" radius="0.030" pm="{1,0,0,0.560,0,1,0,0,0,0,0,0.642,0,0,0,1}"/>
           </GeometryPoolObject>
           <CollisionFilter __prop_name__="collision_filter" filter_state="{1,1,1,1,0,1,0,1, 1,1,1,1,0,1,0,1, 1,1,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,0,1,0,1,1,0, 1,1,0,0,0,0,0,1}"/>

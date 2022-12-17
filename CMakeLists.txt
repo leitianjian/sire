@@ -341,7 +341,7 @@ if(BUILD_DEMOS)
 			FILES 
 				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
 				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
-				"${assimp_DIR}/../../debug/bin/assimp-vc143-mtd.dll"
+				"${assimp_DIR}/../../debug/bin/assimp-vc${MSVC_TOOLSET_VERSION}-mtd.dll"
 				"${assimp_DIR}/../../debug/bin/zlibd1.dll"
 				"${assimp_DIR}/../../debug/bin/pugixml.dll"
 			DESTINATION 
