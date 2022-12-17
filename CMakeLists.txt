@@ -347,9 +347,9 @@ if(BUILD_DEMOS)
 			DESTINATION 
 				demo/${sire_demo}
 			)
-		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/config)
-			install(DIRECTORY demo/${sire_demo}/config/ DESTINATION demo/${sire_demo})
-		endif()
+#		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/config)
+#			install(DIRECTORY demo/${sire_demo}/config/ DESTINATION demo/${sire_demo})
+#		endif()
 		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/resource)
 			install(DIRECTORY demo/${sire_demo}/resource/ DESTINATION resource/${sire_demo})
 		endif()
