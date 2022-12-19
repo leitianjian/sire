@@ -75,9 +75,9 @@ auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
                          std::vector<std::pair<std::string, std::any>>>(
                          &plan.ret())) {
             js->push_back(std::make_pair<std::string, std::any>(
-                "return_code", plan.retCode()));
+                "return_code", plan.executeRetCode()));
             js->push_back(std::make_pair<std::string, std::any>(
-                "return_message", std::string(plan.retMsg())));
+                "return_message", std::string(plan.executeRetMsg())));
             ret_msg.copy(parse_ret_value(*js));
           }
 

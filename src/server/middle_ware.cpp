@@ -318,15 +318,15 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
             cs.waitForAllCollection();
 
             // 如果因为其他轨迹出错而取消 //
-            if (ret->retCode() == aris::plan::Plan::PREPARE_CANCELLED ||
-                ret->retCode() == aris::plan::Plan::EXECUTE_CANCELLED) {
+            if (ret->executeRetCode() == aris::plan::Plan::PREPARE_CANCELLED ||
+                ret->executeRetCode() == aris::plan::Plan::EXECUTE_CANCELLED) {
               ARIS_PRO_COUT << current_line << "---" << ret->cmdId()
                             << "---canceled" << std::endl;
               // LOG_ERROR << "pro " << current_line << "---" << ret->cmdId() <<
               // "---canceled" << std::endl;
-            } else if (ret->retCode() < 0) {
-              imp_->last_error_code_ = ret->retCode();
-              imp_->last_error_ = ret->retMsg();
+            } else if (ret->executeRetCode() < 0) {
+              imp_->last_error_code_ = ret->executeRetCode();
+              imp_->last_error_ = ret->executeRetMsg();
               imp_->last_error_line_ = current_line;
               ARIS_PRO_COUT << imp_->last_error_line_ << "---" << ret->cmdId()
                             << "---err_code:" << imp_->last_error_code_
@@ -400,17 +400,17 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
                 cs.waitForAllCollection();
                 for (int i = 0; i < plans.size(); ++i) {
                   // 如果因为其他轨迹出错而取消 //
-                  if (plans[i]->retCode() ==
+                  if (plans[i]->executeRetCode() ==
                           aris::plan::Plan::PREPARE_CANCELLED ||
-                      plans[i]->retCode() ==
+                      plans[i]->executeRetCode() ==
                           aris::plan::Plan::EXECUTE_CANCELLED) {
                     ARIS_PRO_COUT << lines[i] << "---" << plans[i]->cmdId()
                                   << "---canceled" << std::endl;
                     // LOG_ERROR << "pro " << lines[i] << "---" <<
                     // plans[i]->cmdId() << "---canceled" << std::endl;
-                  } else if (plans[i]->retCode() < 0) {
-                    imp_->last_error_code_ = plans[i]->retCode();
-                    imp_->last_error_ = plans[i]->retMsg();
+                  } else if (plans[i]->executeRetCode() < 0) {
+                    imp_->last_error_code_ = plans[i]->executeRetCode();
+                    imp_->last_error_ = plans[i]->executeRetMsg();
                     imp_->last_error_line_ = lines[i];
                     ARIS_PRO_COUT
                         << imp_->last_error_line_ << "---" << plans[i]->cmdId()
@@ -623,16 +623,16 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
                   std::any_cast<std::vector<std::pair<std::string, std::any>>>(
                       &plan.ret())) {
             js->push_back(std::make_pair<std::string, std::any>(
-                "return_code", plan.retCode()));
+                "return_code", plan.executeRetCode()));
             js->push_back(std::make_pair<std::string, std::any>(
-                "return_message", std::string(plan.retMsg())));
+                "return_message", std::string(plan.executeRetMsg())));
             send_ret(sire::server::parse_ret_value(*js));
           } else {
             std::vector<std::pair<std::string, std::any>> ret_js;
             ret_js.push_back(std::make_pair<std::string, std::any>(
-                "return_code", plan.retCode()));
+                "return_code", plan.executeRetCode()));
             ret_js.push_back(std::make_pair<std::string, std::any>(
-                "return_message", std::string(plan.retMsg())));
+                "return_message", std::string(plan.executeRetMsg())));
             send_ret(sire::server::parse_ret_value(ret_js));
           }
         });
