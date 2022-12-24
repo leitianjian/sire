@@ -50,5 +50,6 @@ install_manifest.txt
 build/
 
 # for clion
+cmake-build-debug-visual-studio
 cmake-build-debug
 .idea
