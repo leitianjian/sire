@@ -58,6 +58,26 @@ endif()
 find_package(hpp-fcl REQUIRED)
 
 include(GenerateExportHeader)
+add_library(sire_core OBJECT)
+target_compile_definitions(sire_core PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_core PUBLIC cxx_std_17)
+target_sources(sire_core 
+	PRIVATE 
+		"src/core/module_base.cpp"
+	PUBLIC 
+		"include/sire/core/module_base.hpp"
+	)
+target_include_directories(sire_core
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+	)
+install(DIRECTORY include/sire/core DESTINATION include/sire)
+
 # Build lib simulator of sire
 add_library(sire_simulator OBJECT)
 target_compile_definitions(sire_simulator PRIVATE sire_lib_EXPORTS)
@@ -94,15 +114,19 @@ target_compile_options(sire_collision
 	)
 target_sources(sire_collision 
 	PRIVATE 
+		"src/collision/geometry/collision_geometry.cpp"
 		"src/collision/collision.cpp"
 		"src/collision/collision_engine.cpp"
+		"src/collision/collision_module.cpp"
 		"src/collision/collision_calculator.cpp"
 		"src/collision/collision_filter.cpp"
 		"src/collision/collision_exists_callback.cpp"
 		"src/collision/collided_objects_callback.cpp"
 	PUBLIC 
+		"include/sire/collision/geometry/collision_geometry.hpp"
 		"include/sire/collision/collision.hpp"
 		"include/sire/collision/collision_engine.hpp"
+		"include/sire/collision/collision_module.hpp"
 		"include/sire/collision/collision_calculator.hpp"
 		"include/sire/collision/collision_filter.hpp"
 		"include/sire/collision/collision_exists_callback.hpp"
@@ -148,11 +172,9 @@ target_include_directories(sire_server
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
 
@@ -193,66 +215,11 @@ target_include_directories(sire_transfer
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/transfer DESTINATION include/sire)
-
-add_library(sire_modules OBJECT)
-target_compile_definitions(sire_modules PRIVATE sire_lib_EXPORTS)
-target_compile_features(sire_modules PUBLIC cxx_std_17)
-target_sources(sire_modules 
-	PRIVATE 
-		"src/modules/module_base.cpp"
-		"src/modules/collision_module.cpp"
-	PUBLIC 
-		"include/sire/modules/module_base.hpp"
-		"include/sire/modules/collision_module.hpp"
-		"include/sire/modules/modules.hpp"
-	)
-target_include_directories(sire_modules
-	PUBLIC
-		$<INSTALL_INTERFACE:include> 
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
-	PRIVATE
-		${PROJECT_SOURCE_DIR}/src
-		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${ASSIMP_INCLUDE_DIRS}
-	)
-install(DIRECTORY include/sire/modules DESTINATION include/sire)
-
-add_library(sire_geometry OBJECT)
-target_compile_definitions(sire_geometry PRIVATE sire_lib_EXPORTS)
-target_compile_features(sire_geometry PUBLIC cxx_std_17)
-target_compile_options(sire_geometry
-	PRIVATE 
-		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
-		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
-	)
-target_sources(sire_geometry 
-	PRIVATE 
-		"src/geometry/collision_geometry.cpp"
-	PUBLIC 
-		"include/sire/geometry/collision_geometry.hpp"
-		"include/sire/geometry/geometry.hpp"
-	)
-target_include_directories(sire_geometry
-	PUBLIC
-		$<INSTALL_INTERFACE:include> 
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
-	PRIVATE
-		${PROJECT_SOURCE_DIR}/src
-		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${ASSIMP_INCLUDE_DIRS}
-	)
-install(DIRECTORY include/sire/geometry DESTINATION include/sire)
 
 # Build lib CAM backend of sire
 add_library(sire_cam_backend OBJECT)
@@ -285,13 +252,12 @@ install(DIRECTORY include/sire/cam_backend DESTINATION include/sire)
 # Build library for sire
 add_library(sire_lib 
 	SHARED 
+		$<TARGET_OBJECTS:sire_core>
 		$<TARGET_OBJECTS:sire_collision>
 		$<TARGET_OBJECTS:sire_simulator>
 		$<TARGET_OBJECTS:sire_server>
 		$<TARGET_OBJECTS:sire_controller>
 		$<TARGET_OBJECTS:sire_transfer>
-		$<TARGET_OBJECTS:sire_geometry>
-		$<TARGET_OBJECTS:sire_modules>
 	)
 generate_export_header(sire_lib EXPORT_MACRO_NAME SIRE_API)
 target_compile_features(sire_lib PUBLIC cxx_std_17)
@@ -364,7 +330,7 @@ if(BUILD_DEMOS)
 		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
 		add_executable(${sire_demo} ${SOURCES})
 		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR} ${hpp-fcl_INCLUDE_DIRS})
-		target_link_libraries(${sire_demo} sire_server sire_controller sire_transfer sire_simulator sire_geometry sire_collision sire_modules ${PUB_RELY_LINK_LIB})
+		target_link_libraries(${sire_demo} sire_core sire_server sire_controller sire_transfer sire_simulator sire_collision ${PUB_RELY_LINK_LIB})
 		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
 		install(
 			TARGETS 

@@ -2,7 +2,7 @@
 #define COLLIDED_OBJECTS_CALLBACK_H
 
 #include "sire/collision/collision_filter.hpp"
-#include "sire/geometry/geometry.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
 #include <hpp/fcl/collision_data.h>

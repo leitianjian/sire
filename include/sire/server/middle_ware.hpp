@@ -1,7 +1,7 @@
 ﻿#ifndef SIRE_SERVER_MIDDLE_WARE_HPP_
 #define SIRE_SERVER_MIDDLE_WARE_HPP_
 
-#include "sire/modules/module_base.hpp"
+#include "sire/core/module_base.hpp"
 #include "sire/server/interface.hpp"
 #include <sire_lib_export.h>
 #include <aris/server/interface.hpp>
@@ -39,8 +39,8 @@ class SIRE_API ProgramMiddleware : public aris::server::MiddleWare {
 class SIRE_API SireMiddleware : public ProgramMiddleware {
  public:
   auto virtual init() -> void override;
-  auto modulesPool() -> aris::core::PointerArray<modules::SireModuleBase>&;
-  auto resetModulesPool(aris::core::PointerArray<modules::SireModuleBase>* pool)
+  auto modulesPool() -> aris::core::PointerArray<core::SireModuleBase>&;
+  auto resetModulesPool(aris::core::PointerArray<core::SireModuleBase>* pool)
       -> void;
 
   virtual ~SireMiddleware();

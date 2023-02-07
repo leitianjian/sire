@@ -2,7 +2,7 @@
 #define CAM_BACKEND_H
 
 #include "sire/collision/collided_objects_callback.hpp"
-#include "sire/geometry/geometry.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 #include <aris/core/expression_calculator.hpp>
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>

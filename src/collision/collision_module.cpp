@@ -1,4 +1,4 @@
-#include "sire/modules/collision_module.hpp"
+#include "sire/collision/collision_module.hpp"
 #include <aris/core/reflection.hpp>
 
 namespace sire::modules {
@@ -17,7 +17,7 @@ CollisionModule::CollisionModule() : imp_(new Imp) {}
 CollisionModule::~CollisionModule() = default;
 ARIS_REGISTRATION {
   aris::core::class_<CollisionModule>("SireCollisionModule")
-      .inherit<SireModuleBase>()
+      .inherit<core::SireModuleBase>()
       .prop("collision_engine", &CollisionModule::resetCollisionEngine,
             &CollisionModule::getCollisionEngine);
 }

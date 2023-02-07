@@ -1,5 +1,4 @@
 #include "sire/server/middle_ware.hpp"
-#include "sire/collision/collision_engine.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/server/api.hpp"
 #include <aris/core/core.hpp>
@@ -674,7 +673,7 @@ ProgramMiddleware& ProgramMiddleware::operator=(ProgramMiddleware&& other) =
 ProgramMiddleware::~ProgramMiddleware() = default;
 
 struct SireMiddleware::Imp {
-  unique_ptr<aris::core::PointerArray<modules::SireModuleBase>> modules_pool_;
+  unique_ptr<aris::core::PointerArray<core::SireModuleBase>> modules_pool_;
 };
 auto SireMiddleware::init() -> void {
   for (auto& sire_module : *imp_->modules_pool_) {
@@ -682,11 +681,11 @@ auto SireMiddleware::init() -> void {
   }
 }
 auto SireMiddleware::modulesPool()
-    -> aris::core::PointerArray<modules::SireModuleBase>& {
+    -> aris::core::PointerArray<core::SireModuleBase>& {
   return *imp_->modules_pool_;
 }
 auto SireMiddleware::resetModulesPool(
-    aris::core::PointerArray<modules::SireModuleBase>* pool) -> void {
+    aris::core::PointerArray<core::SireModuleBase>* pool) -> void {
   imp_->modules_pool_.reset(pool);
 }
 SireMiddleware::SireMiddleware() : imp_(new Imp) {}
@@ -698,10 +697,10 @@ ARIS_REGISTRATION {
   aris::core::class_<ProgramMiddleware>("SireProgramMiddleware")
       .inherit<aris::server::MiddleWare>();
 
-  aris::core::class_<aris::core::PointerArray<modules::SireModuleBase>>(
+  aris::core::class_<aris::core::PointerArray<core::SireModuleBase>>(
       "SireModulesPoolObject")
       .asRefArray();
-  typedef aris::core::PointerArray<modules::SireModuleBase>& (
+  typedef aris::core::PointerArray<core::SireModuleBase>& (
       SireMiddleware::*ModulesPoolFunc)();
   aris::core::class_<SireMiddleware>("SireMiddleware")
       .inherit<ProgramMiddleware>()

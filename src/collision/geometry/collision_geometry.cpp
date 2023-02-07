@@ -1,4 +1,4 @@
-#include "sire/geometry/collision_geometry.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 #include <aris/core/reflection.hpp>
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
@@ -11,7 +11,7 @@
 #include <string>
 #include <string_view>
 
-namespace sire::geometry {
+namespace sire::collision::geometry {
 struct CollisionGeometry::Imp {
   GeometryId id_{generate_new_id()};
   double prt_pm_[4][4]{{0}};

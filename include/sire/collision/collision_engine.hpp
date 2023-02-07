@@ -1,7 +1,7 @@
 #ifndef COLLISION_ENGINE_H
 #define COLLISION_ENGINE_H
 
-#include "sire/geometry/geometry.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 #include "sire/collision/collision_filter.hpp"
 #include "sire/collision/collision_exists_callback.hpp"
 #include <aris/core/expression_calculator.hpp>

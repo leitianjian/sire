@@ -4,7 +4,7 @@
 #include <sire_lib_export.h>
 #include <aris/core/object.hpp>
 
-namespace sire::modules {
+namespace sire::core {
 using namespace std;
 class SIRE_API SireModuleBase : aris::core::NamedObject {
  public:

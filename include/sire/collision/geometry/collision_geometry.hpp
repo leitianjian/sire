@@ -8,7 +8,8 @@
 #include <atomic>
 #include <string>
 
-namespace sire::geometry {
+namespace sire::collision {
+namespace geometry {
 /* unique geometry id for every added collision geometry */
 using namespace std;
 using namespace hpp;
@@ -81,5 +82,6 @@ class SIRE_API MeshGeometry : public CollisionGeometry {
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
 };
-}  // namespace sire::geometry
+}  // namespace geometry
+}  // namespace sire::collision
 #endif
