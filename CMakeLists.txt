@@ -96,9 +96,17 @@ target_sources(sire_collision
 	PRIVATE 
 		"src/collision/collision.cpp"
 		"src/collision/collision_engine.cpp"
+		"src/collision/collision_calculator.cpp"
+		"src/collision/collision_filter.cpp"
+		"src/collision/collision_exists_callback.cpp"
+		"src/collision/collided_objects_callback.cpp"
 	PUBLIC 
 		"include/sire/collision/collision.hpp"
 		"include/sire/collision/collision_engine.hpp"
+		"include/sire/collision/collision_calculator.hpp"
+		"include/sire/collision/collision_filter.hpp"
+		"include/sire/collision/collision_exists_callback.hpp"
+		"include/sire/collision/collided_objects_callback.hpp"
 	)
 target_include_directories(sire_collision
 	PUBLIC
@@ -245,6 +253,34 @@ target_include_directories(sire_geometry
 		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/geometry DESTINATION include/sire)
+
+# Build lib CAM backend of sire
+add_library(sire_cam_backend OBJECT)
+target_compile_features(sire_cam_backend PRIVATE cxx_std_17)
+target_compile_definitions(sire_cam_backend PRIVATE sire_lib_EXPORTS)
+target_compile_options(sire_cam_backend
+	PRIVATE 
+		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
+	)
+target_sources(sire_cam_backend 
+	PRIVATE 
+		"src/cam_backend/cam_backend.cpp"
+	PUBLIC 
+		"include/sire/cam_backend/cam_backend.hpp"
+	)
+target_include_directories(sire_cam_backend
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
+	)
+install(DIRECTORY include/sire/cam_backend DESTINATION include/sire)
 
 # Build library for sire
 add_library(sire_lib 

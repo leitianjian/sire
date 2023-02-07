@@ -1,4 +1,4 @@
-#include "sire/collision/collision_engine.hpp"
+#include "sire/collision/collision_calculator.hpp"
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
@@ -14,7 +14,7 @@
 #include <string>
 #include <thread>
 namespace sire::collision {
-struct CollisionEngine::Imp {
+struct CollisionCalculator::Imp {
   unique_ptr<aris::core::PointerArray<geometry::CollisionGeometry,
                                       aris::dynamic::Geometry>>
       dynamic_geometry_pool_;
@@ -28,42 +28,38 @@ struct CollisionEngine::Imp {
   unordered_map<geometry::GeometryId, geometry::CollisionGeometry*>
       anchored_objects_map_;
   unique_ptr<CollisionFilter> collision_filter_;
-  // aris::core::Matrix part_pq_buffer_;
-  // thread retrieve_part_pq_;
-  atomic_bool collision_detection_running_;
-  thread collision_detection_;
   aris::server::ControlServer* server_;
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_;
   aris::Size part_size_;
 };
-auto CollisionEngine::resetCollisionFilter(CollisionFilter* filter) -> void {
+auto CollisionCalculator::resetCollisionFilter(CollisionFilter* filter) -> void {
   imp_->collision_filter_.reset(filter);
 }
-auto CollisionEngine::collisionFilter() -> CollisionFilter& {
+auto CollisionCalculator::collisionFilter() -> CollisionFilter& {
   return *imp_->collision_filter_;
 }
-auto CollisionEngine::resetDynamicGeometryPool(
+auto CollisionCalculator::resetDynamicGeometryPool(
     aris::core::PointerArray<geometry::CollisionGeometry,
                              aris::dynamic::Geometry>* pool) -> void {
   imp_->dynamic_geometry_pool_.reset(pool);
 }
-auto CollisionEngine::dynamicGeometryPool()
+auto CollisionCalculator::dynamicGeometryPool()
     -> aris::core::PointerArray<geometry::CollisionGeometry,
                                 aris::dynamic::Geometry>& {
   return *imp_->dynamic_geometry_pool_;
 }
-auto CollisionEngine::resetAnchoredGeometryPool(
+auto CollisionCalculator::resetAnchoredGeometryPool(
     aris::core::PointerArray<geometry::CollisionGeometry,
                              aris::dynamic::Geometry>* pool) -> void {
   imp_->anchored_geometry_pool_.reset(pool);
 }
-auto CollisionEngine::anchoredGeometryPool()
+auto CollisionCalculator::anchoredGeometryPool()
     -> aris::core::PointerArray<geometry::CollisionGeometry,
                                 aris::dynamic::Geometry>& {
   return *imp_->anchored_geometry_pool_;
 }
-auto CollisionEngine::addDynamicGeometry(
+auto CollisionCalculator::addDynamicGeometry(
     geometry::CollisionGeometry& dynamic_geometry) -> bool {
   dynamic_geometry.updateLocation(nullptr);
   dynamic_geometry.getCollisionObject()->computeAABB();
@@ -72,7 +68,7 @@ auto CollisionEngine::addDynamicGeometry(
   imp_->dynamic_objects_map_[dynamic_geometry.geometryId()] = &dynamic_geometry;
   return true;
 }
-auto CollisionEngine::addAnchoredGeometry(
+auto CollisionCalculator::addAnchoredGeometry(
     geometry::CollisionGeometry& anchored_geometry) -> bool {
   anchored_geometry.updateLocation(nullptr);
   anchored_geometry.getCollisionObject()->computeAABB();
@@ -82,45 +78,39 @@ auto CollisionEngine::addAnchoredGeometry(
       &anchored_geometry;
   return false;
 }
-auto CollisionEngine::removeGeometry() -> bool { return false; }
-auto CollisionEngine::clearDynamicGeometry() -> bool {
+auto CollisionCalculator::removeGeometry() -> bool { return false; }
+auto CollisionCalculator::clearDynamicGeometry() -> bool {
   imp_->dynamic_tree_.clear();
   return true;
 }
-auto CollisionEngine::clearAnchoredGeometry() -> bool {
+auto CollisionCalculator::clearAnchoredGeometry() -> bool {
   imp_->anchored_tree_.clear();
   return true;
 }
-auto CollisionEngine::updateLocation() -> bool {
-  aris::core::Matrix buffer_pq(imp_->part_size_, 7);
-  std::any data;
-  imp_->server_->getRtData(
-      [this, &buffer_pq](aris::server::ControlServer& cs,
-                         const aris::plan::Plan* p, std::any& data) -> void {
-        for (int i = 0; i < imp_->part_size_; ++i) {
-          auto& part = imp_->part_pool_ptr_->at(i);
-          part.getPq(buffer_pq.data() + 7 * i);
-        }
-      },
-      data);
+auto CollisionCalculator::updateLocation(double* part_pq) -> bool {
+  if (!part_pq) {
+    return true;
+  }
   for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
     double temp_pm[16];
-    aris::dynamic::s_pq2pm(buffer_pq.data() + 7 * dynamic_geometry.partId(),
+    aris::dynamic::s_pq2pm(part_pq + 7 * dynamic_geometry.partId(),
                            temp_pm);
     dynamic_geometry.updateLocation(temp_pm);
   }
   imp_->dynamic_tree_.update();
   return true;
 }
-auto CollisionEngine::hasCollisions(CollisionExistsCallback& callback)
+auto CollisionCalculator::hasCollisions(fcl::CollisionCallBackBase& callback)
     -> void {
-  callback.data.request.num_max_contacts = 10;
-  callback.data.request.enable_contact = false;
-  callback.data.request.gjk_tolerance = 2e-12;
-  imp_->dynamic_tree_.collide(&callback);
-  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
+  CollidedObjectsCallback& callback_casted =
+      dynamic_cast<CollidedObjectsCallback&>(callback);
+  callback_casted.data.request.num_max_contacts = 10;
+  callback_casted.data.request.enable_contact = false;
+  callback_casted.data.request.gjk_tolerance = 2e-12;
+  imp_->dynamic_tree_.collide(&callback_casted);
+  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback_casted);
 }
-auto CollisionEngine::init() -> void {
+auto CollisionCalculator::init() -> void {
   for (auto& anchored_geometry : *imp_->anchored_geometry_pool_) {
     anchored_geometry.init();
     addAnchoredGeometry(anchored_geometry);
@@ -136,63 +126,28 @@ auto CollisionEngine::init() -> void {
   imp_->part_pool_ptr_ =
       &dynamic_cast<aris::dynamic::Model*>(&imp_->server_->model())->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
-  imp_->collision_detection_running_.store(true);
-  imp_->collision_detection_ = std::thread([this]() {
-    int64_t count = 0;
-    auto& time_start = chrono::system_clock::now();
-    while (imp_->collision_detection_running_) {
-      if (imp_->server_->running()) {
-        if (count % 100 == 0) {
-          auto& time_now = chrono::system_clock::now();
-          auto& duration = chrono::duration_cast<chrono::milliseconds>(
-              time_now - time_start);
-          cout << "cost: " << duration.count() << "ms" << endl;
-          time_start = chrono::system_clock::now();
-        }
-        this->updateLocation();
-        CollisionExistsCallback callback(imp_->collision_filter_.get());
-        this->hasCollisions(callback);
-        // cout << "has collision number: " <<
-        // callback.data.result.numContacts() << endl;
-        // if (callback.collidedObjectMap().size() != 0) {
-        //   cout << callback.collidedObjectMap().size() << endl; 
-        // }
-        // for (auto& obj_pair : callback.collidedObjectMap()) {
-        //   cout << "collided object of "
-        //        // << imp_->collision_filter_->queryGeometryIdByPtr(c.o1) << " "
-        //        << obj_pair.first
-        //        << " "
-        //        //<< imp_->collision_filter_->queryGeometryIdByPtr(c.o2) << endl;
-        //        << obj_pair.second << endl;
-        // }
-        ++count;
-      }
-    }
-  });
 }
-CollisionEngine::CollisionEngine() : imp_(new Imp) {}
-CollisionEngine::~CollisionEngine() {
-  imp_->collision_detection_running_.store(false);
-};
+CollisionCalculator::CollisionCalculator() : imp_(new Imp) {}
+CollisionCalculator::~CollisionCalculator() {};
 
 ARIS_REGISTRATION {
-  aris::core::class_<aris::core::PointerArray<geometry::CollisionGeometry,
-                                              aris::dynamic::Geometry>>(
-      "GeometryPoolObject")
-      .asRefArray();
+  //aris::core::class_<aris::core::PointerArray<geometry::CollisionGeometry,
+  //                                            aris::dynamic::Geometry>>(
+  //    "GeometryPoolObject")
+  //    .asRefArray();
 
   typedef aris::core::PointerArray<geometry::CollisionGeometry,
                                    aris::dynamic::Geometry>& (
-      CollisionEngine::*GeometryPoolFunc)();
+      CollisionCalculator::*GeometryPoolFunc)();
   typedef sire::collision::CollisionFilter& (
-      CollisionEngine::*CollisionFilterPoolFunc)();
-  aris::core::class_<CollisionEngine>("CollisionEngine")
-      .prop("dynamic_geometry_pool", &CollisionEngine::resetDynamicGeometryPool,
-            GeometryPoolFunc(&CollisionEngine::dynamicGeometryPool))
+      CollisionCalculator::*CollisionFilterPoolFunc)();
+  aris::core::class_<CollisionCalculator>("CollisionCalculator")
+      .prop("dynamic_geometry_pool", &CollisionCalculator::resetDynamicGeometryPool,
+            GeometryPoolFunc(&CollisionCalculator::dynamicGeometryPool))
       .prop("anchored_geometry_pool",
-            &CollisionEngine::resetAnchoredGeometryPool,
-            GeometryPoolFunc(&CollisionEngine::anchoredGeometryPool))
-      .prop("collision_filter", &CollisionEngine::resetCollisionFilter,
-            CollisionFilterPoolFunc(&CollisionEngine::collisionFilter));
+            &CollisionCalculator::resetAnchoredGeometryPool,
+            GeometryPoolFunc(&CollisionCalculator::anchoredGeometryPool))
+      .prop("collision_filter", &CollisionCalculator::resetCollisionFilter,
+            CollisionFilterPoolFunc(&CollisionCalculator::collisionFilter));
 }
 }  // namespace sire::collision

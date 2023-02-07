@@ -1,9 +1,9 @@
-#ifndef COLLISION_ENGINE_H
-#define COLLISION_ENGINE_H
+#ifndef COLLISION_CALCULATOR_H
+#define COLLISION_CALCULATOR_H
 
-#include "sire/geometry/geometry.hpp"
+#include "sire/collision/collided_objects_callback.hpp"
 #include "sire/collision/collision_filter.hpp"
-#include "sire/collision/collision_exists_callback.hpp"
+#include "sire/geometry/geometry.hpp"
 #include <aris/core/expression_calculator.hpp>
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
@@ -19,7 +19,7 @@ using namespace std;
 using namespace hpp;
 // drake-based implementation
 // filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
-class SIRE_API CollisionEngine {
+class SIRE_API CollisionCalculator {
  public:
   auto resetCollisionFilter(CollisionFilter* filter) -> void;
   auto collisionFilter() -> CollisionFilter&;
@@ -42,15 +42,15 @@ class SIRE_API CollisionEngine {
   auto removeGeometry() -> bool;
   auto clearDynamicGeometry() -> bool;
   auto clearAnchoredGeometry() -> bool;
-  auto updateLocation() -> bool;
-  auto hasCollisions(CollisionExistsCallback& callback) -> void;
+  auto updateLocation(double* part_pq) -> bool;
+  auto hasCollisions(fcl::CollisionCallBackBase& callback) -> void;
   auto init() -> void;
-  CollisionEngine();
-  virtual ~CollisionEngine();
-  CollisionEngine(const CollisionEngine& other) = delete;
-  CollisionEngine(CollisionEngine&& other) = delete;
-  CollisionEngine& operator=(const CollisionEngine& other) = delete;
-  CollisionEngine& operator=(CollisionEngine&& other) = delete;
+  CollisionCalculator();
+  virtual ~CollisionCalculator();
+  CollisionCalculator(const CollisionCalculator& other) = delete;
+  CollisionCalculator(CollisionCalculator&& other) = delete;
+  CollisionCalculator& operator=(const CollisionCalculator& other) = delete;
+  CollisionCalculator& operator=(CollisionCalculator&& other) = delete;
 
  private:
   struct Imp;
