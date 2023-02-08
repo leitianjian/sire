@@ -29,13 +29,13 @@ else()
 endif()
 find_package(aris REQUIRED)
 
-if(EXISTS ${TARGET_KAANH_PATH})
-	message(STATUS "Directory to search kaanh at ${TARGET_KAANH_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${TARGET_KAANH_PATH})
-else()
-	message(WARNING "File/Directory at variable KAANH_INSTALL_PATH not exists!")
-endif()
-find_package(kaanh)
+# if(EXISTS ${TARGET_KAANH_PATH})
+# 	message(STATUS "Directory to search kaanh at ${TARGET_KAANH_PATH}")
+# 	list(APPEND CMAKE_PREFIX_PATH ${TARGET_KAANH_PATH})
+# else()
+# 	message(WARNING "File/Directory at variable KAANH_INSTALL_PATH not exists!")
+# endif()
+# find_package(kaanh)
 
 # find Assimp
 set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
@@ -205,10 +205,11 @@ target_compile_definitions(sire_transfer PRIVATE sire_lib_EXPORTS)
 target_compile_features(sire_transfer PUBLIC cxx_std_17)
 target_sources(sire_transfer 
 	PRIVATE 
-		"src/transfer/sire_transfer.cpp"
+		"src/transfer/force_control_simulation_transfer.cpp"
+		"src/transfer/virtual_force_sensor_transfer.cpp"
 	PUBLIC 
-		"include/sire/transfer/sire_transfer.hpp"
-		"include/sire/transfer/transfer.hpp"
+		"include/sire/transfer/force_control_simulation_transfer.hpp"
+		"include/sire/transfer/virtual_force_sensor_transfer.hpp"
 	)
 target_include_directories(sire_transfer
 	PUBLIC
@@ -357,3 +358,9 @@ if(BUILD_DEMOS)
 		endif()
 	endforeach(sire_demo)
 endif(BUILD_DEMOS)
+
+# ---------------------- build tests ---------------------------
+option(BUILD_TESTS "build sire tests" OFF)
+if(BUILD_TESTS)
+	add_subdirectory(tests)
+endif(BUILD_TESTS)
