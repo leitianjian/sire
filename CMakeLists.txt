@@ -12,13 +12,13 @@ if(WIN32)
 endif(WIN32)
 
 # Make sure kaanh and aris can be found
-if(UNIX)
-	set(TARGET_ARIS_PATH /usr/aris CACHE PATH "Aris install path")
-	set(TARGET_KAANH_PATH /usr/kaanh CACHE PATH "Kaanh install path")
-endif(UNIX)
-if(WIN32)
-	set(TARGET_ARIS_PATH C:/aris CACHE PATH "Aris install path")
-endif(WIN32)
+# if(UNIX)
+# 	set(TARGET_ARIS_PATH /usr/aris CACHE PATH "Aris install path")
+# 	set(TARGET_KAANH_PATH /usr/kaanh CACHE PATH "Kaanh install path")
+# endif(UNIX)
+# if(WIN32)
+# 	set(TARGET_ARIS_PATH C:/aris CACHE PATH "Aris install path")
+# endif(WIN32)
 
 # Find kaanh and aris
 if(EXISTS ${TARGET_ARIS_PATH})
@@ -339,8 +339,19 @@ if(BUILD_DEMOS)
 			TARGETS 
 				sire_lib 
 				${sire_demo} 
+			CONFIGURATIONS
+				Debug
 			DESTINATION 
-				demo/${sire_demo}
+				demo/debug/${sire_demo}
+			)
+		install(
+			TARGETS 
+				sire_lib 
+				${sire_demo} 
+			CONFIGURATIONS
+				Release
+			DESTINATION 
+				demo/release/${sire_demo}
 			)
 		install(
 			FILES 
@@ -349,15 +360,31 @@ if(BUILD_DEMOS)
 				"${assimp_DIR}/../../debug/bin/assimp-vc${MSVC_TOOLSET_VERSION}-mtd.dll"
 				"${assimp_DIR}/../../debug/bin/zlibd1.dll"
 				"${assimp_DIR}/../../debug/bin/pugixml.dll"
+			CONFIGURATIONS
+				Debug
 			DESTINATION 
-				demo/${sire_demo}
+				demo/debug/${sire_demo}
+			)
+		install(
+			FILES 
+				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
+				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+				"${assimp_DIR}/../../bin/assimp-vc${MSVC_TOOLSET_VERSION}-mt.dll"
+				"${assimp_DIR}/../../bin/zlib1.dll"
+				"${assimp_DIR}/../../bin/pugixml.dll"
+			CONFIGURATIONS
+				Release
+			DESTINATION 
+				demo/release/${sire_demo}
 			)
 		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/config)
-			install(DIRECTORY demo/${sire_demo}/config/ DESTINATION demo/${sire_demo})
+			install(DIRECTORY demo/${sire_demo}/config/ CONFIGURATIONS Release DESTINATION demo/release/${sire_demo})
+			install(DIRECTORY demo/${sire_demo}/config/ CONFIGURATIONS Debug DESTINATION demo/debug/${sire_demo})
 		endif()
-		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/resource)
-			install(DIRECTORY demo/${sire_demo}/resource/ DESTINATION resource/${sire_demo})
-		endif()
+		# if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/resource)
+		# 	install(DIRECTORY demo/${sire_demo}/resource/ DESTINATION demo/${sire_demo})
+		# 	install(DIRECTORY demo/${sire_demo}/resource/ DESTINATION resource/${sire_demo})
+		# endif()
 	endforeach(sire_demo)
 endif(BUILD_DEMOS)
 
