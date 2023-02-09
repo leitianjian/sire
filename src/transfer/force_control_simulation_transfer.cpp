@@ -1,4 +1,3 @@
-#include "sire/controller/controller_sensor.hpp"
 #include "sire/transfer/force_control_simulation_transfer.hpp"
 
 namespace sire::transfer {

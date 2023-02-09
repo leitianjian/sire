@@ -1,9 +1,9 @@
 #ifndef COLLISION_ENGINE_H
 #define COLLISION_ENGINE_H
 
-#include "sire/collision/geometry/collision_geometry.hpp"
-#include "sire/collision/collision_filter.hpp"
 #include "sire/collision/collision_exists_callback.hpp"
+#include "sire/collision/collision_filter.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 #include <aris/core/expression_calculator.hpp>
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
@@ -17,8 +17,10 @@
 namespace sire::collision {
 using namespace std;
 using namespace hpp;
-// drake-based implementation
-// filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
+/* drake-based implementation
+ * filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
+ * 需要修改位姿更新方式，使用无锁数据同步从transfer中取数据
+ */
 class SIRE_API CollisionEngine {
  public:
   auto resetCollisionFilter(CollisionFilter* filter) -> void;

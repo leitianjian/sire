@@ -206,9 +206,11 @@ target_compile_features(sire_transfer PUBLIC cxx_std_17)
 target_sources(sire_transfer 
 	PRIVATE 
 		"src/transfer/force_control_simulation_transfer.cpp"
+		"src/transfer/part_pq_transfer.cpp"
 		"src/transfer/virtual_force_sensor_transfer.cpp"
 	PUBLIC 
 		"include/sire/transfer/force_control_simulation_transfer.hpp"
+		"include/sire/transfer/part_pq_transfer.hpp"
 		"include/sire/transfer/virtual_force_sensor_transfer.hpp"
 	)
 target_include_directories(sire_transfer

@@ -1,4 +1,5 @@
 #include "sire/collision/collision_engine.hpp"
+#include "sire/transfer/part_pq_transfer.hpp"
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
@@ -92,28 +93,46 @@ auto CollisionEngine::clearAnchoredGeometry() -> bool {
   return true;
 }
 auto CollisionEngine::updateLocation() -> bool {
-  aris::core::Matrix buffer_pq(imp_->part_size_, 7);
-  std::any data;
-  imp_->server_->getRtData(
-      [this, &buffer_pq](aris::server::ControlServer& cs,
-                         const aris::plan::Plan* p, std::any& data) -> void {
-        for (int i = 0; i < imp_->part_size_; ++i) {
-          auto& part = imp_->part_pool_ptr_->at(i);
-          part.getPq(buffer_pq.data() + 7 * i);
-        }
-      },
-      data);
-  for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
-    double temp_pm[16];
-    aris::dynamic::s_pq2pm(buffer_pq.data() + 7 * dynamic_geometry.partId(),
-                           temp_pm);
-    dynamic_geometry.updateLocation(temp_pm);
+  sire::transfer::PartPQTransfer& transfer =
+      dynamic_cast<sire::transfer::PartPQTransfer&>(
+          imp_->server_->transferModelController());
+  std::atomic<double*>& parts_pq_ref = transfer.getPartsPq();
+  double* ptr = parts_pq_ref.load();
+  if (ptr) {
+    std::vector<double> buffer_pq(ptr, ptr + imp_->part_size_ * 7);
+    parts_pq_ref.exchange(nullptr);
+    for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
+      double temp_pm[16];
+      aris::dynamic::s_pq2pm(buffer_pq.data() + 7 * dynamic_geometry.partId(),
+                             temp_pm);
+      dynamic_geometry.updateLocation(temp_pm);
+    }
+    imp_->dynamic_tree_.update();
+    return true;
   }
-  imp_->dynamic_tree_.update();
-  return true;
+  return false;
+
+  // aris::core::Matrix buffer_pq(imp_->part_size_, 7);
+  // std::any data;
+  // imp_->server_->getRtData(
+  //     [this, &buffer_pq](aris::server::ControlServer& cs,
+  //                        const aris::plan::Plan* p, std::any& data) -> void {
+  //       for (int i = 0; i < imp_->part_size_; ++i) {
+  //         auto& part = imp_->part_pool_ptr_->at(i);
+  //         part.getPq(buffer_pq.data() + 7 * i);
+  //       }
+  //     },
+  //     data);
+  // for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
+  //   double temp_pm[16];
+  //   aris::dynamic::s_pq2pm(buffer_pq.data() + 7 * dynamic_geometry.partId(),
+  //                          temp_pm);
+  //   dynamic_geometry.updateLocation(temp_pm);
+  // }
+  // imp_->dynamic_tree_.update();
+  // return true;
 }
-auto CollisionEngine::hasCollisions(CollisionExistsCallback& callback)
-    -> void {
+auto CollisionEngine::hasCollisions(CollisionExistsCallback& callback) -> void {
   callback.data.request.num_max_contacts = 10;
   callback.data.request.enable_contact = false;
   callback.data.request.gjk_tolerance = 2e-12;
@@ -138,7 +157,7 @@ auto CollisionEngine::init() -> void {
   imp_->part_size_ = imp_->part_pool_ptr_->size();
   imp_->collision_detection_running_.store(true);
   imp_->collision_detection_ = std::thread([this]() {
-    int64_t count = 0;
+    int64_t count = 1;
     auto& time_start = chrono::system_clock::now();
     while (imp_->collision_detection_running_) {
       if (imp_->server_->running()) {
@@ -148,24 +167,28 @@ auto CollisionEngine::init() -> void {
               time_now - time_start);
           cout << "cost: " << duration.count() << "ms" << endl;
           time_start = chrono::system_clock::now();
+          count = 1;
         }
-        this->updateLocation();
-        CollisionExistsCallback callback(imp_->collision_filter_.get());
-        this->hasCollisions(callback);
+        if (this->updateLocation()) {
+          CollisionExistsCallback callback(imp_->collision_filter_.get());
+          this->hasCollisions(callback);
+          ++count;
+        }
         // cout << "has collision number: " <<
         // callback.data.result.numContacts() << endl;
         // if (callback.collidedObjectMap().size() != 0) {
-        //   cout << callback.collidedObjectMap().size() << endl; 
+        //   cout << callback.collidedObjectMap().size() << endl;
         // }
         // for (auto& obj_pair : callback.collidedObjectMap()) {
         //   cout << "collided object of "
-        //        // << imp_->collision_filter_->queryGeometryIdByPtr(c.o1) << " "
+        //        // << imp_->collision_filter_->queryGeometryIdByPtr(c.o1) << "
+        //        "
         //        << obj_pair.first
         //        << " "
-        //        //<< imp_->collision_filter_->queryGeometryIdByPtr(c.o2) << endl;
+        //        //<< imp_->collision_filter_->queryGeometryIdByPtr(c.o2) <<
+        //        endl;
         //        << obj_pair.second << endl;
         // }
-        ++count;
       }
     }
   });
