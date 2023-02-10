@@ -1,15 +1,19 @@
 #include "sire/collision/collision_filter.hpp"
-#include <aris/core/reflection.hpp>
-#include <aris/server/control_server.hpp>
+
+#include <stdio.h>
+
+#include <fstream>
+#include <mutex>
+#include <string>
+#include <thread>
+
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
 #include <hpp/fcl/distance.h>
 #include <hpp/fcl/math/transform.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
-#include <fstream>
-#include <mutex>
-#include <stdio.h>
-#include <string>
-#include <thread>
+
+#include <aris/core/reflection.hpp>
+#include <aris/server/control_server.hpp>
 namespace sire::collision {
 struct CollisionFilter::Imp {
   FilterState filter_state_;

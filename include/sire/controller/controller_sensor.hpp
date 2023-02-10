@@ -2,6 +2,7 @@
 #define SIRE_CONTROLLER_SENSOR_HPP_
 
 #include <sire_lib_export.h>
+
 #include <aris.hpp>
 
 namespace sire::controller {
@@ -137,8 +138,7 @@ class SIRE_API BufferedRtSensor : public RtSensor,
   auto virtual stop() -> void;
   auto virtual updateData(std::unique_ptr<aris::control::SensorData> data)
       -> void;
-  auto virtual lockFreeUpdateData(
-      aris::control::SensorData& data) -> void;
+  auto virtual lockFreeUpdateData(aris::control::SensorData& data) -> void;
   auto bufferSize() const -> aris::Size;
   auto setBufferSize(aris::Size buffer_size) -> void;
   auto updateBufferData(std::unique_ptr<aris::control::SensorData> data)

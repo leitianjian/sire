@@ -1,15 +1,17 @@
 ﻿#ifndef SIRE_SERVER_INTERFACE_H_
 #define SIRE_SERVER_INTERFACE_H_
 
-#include <sire_lib_export.h>
-#include <aris/core/core.hpp>
-#include <aris/core/object.hpp>
-#include <aris/server/interface.hpp>
 #include <future>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <string>
+
+#include <sire_lib_export.h>
+
+#include <aris/core/core.hpp>
+#include <aris/core/object.hpp>
+#include <aris/server/interface.hpp>
 
 namespace sire::server {
 class SIRE_API ProgramWebInterface : public aris::server::Interface {

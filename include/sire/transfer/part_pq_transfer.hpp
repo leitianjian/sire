@@ -1,13 +1,14 @@
 #ifndef PART_PQ_TRANSFER_HPP_
 #define PART_PQ_TRANSFER_HPP_
 
-#include "sire/simulator/integrator.hpp"
 #include <sire_lib_export.h>
+
 #include <aris.hpp>
 
+#include "sire/simulator/integrator.hpp"
+
 namespace sire::transfer {
-class SIRE_API PartPQTransfer
-    : public aris::server::TransferModelController {
+class SIRE_API PartPQTransfer : public aris::server::TransferModelController {
  public:
   auto updateDataController2Model(const std::vector<std::uint64_t>& options,
                                   const aris::control::Controller* controller,

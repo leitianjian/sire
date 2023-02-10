@@ -2,30 +2,32 @@
 // Created by ZHOUYC on 2022/8/5.
 //
 #include "sire/collision/collision.hpp"
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
-#include <hpp/fcl/broadphase/broadphase_callbacks.h>
-#include <hpp/fcl/broadphase/broadphase_collision_manager.h>
+
+#include <stdio.h>
+
+#include <fstream>
+#include <mutex>
+#include <string>
+#include <thread>
+
 #include <hpp/fcl/BV/AABB.h>
 #include <hpp/fcl/BV/OBBRSS.h>
 #include <hpp/fcl/BVH/BVH_model.h>
+#include <hpp/fcl/broadphase/broadphase_callbacks.h>
+#include <hpp/fcl/broadphase/broadphase_collision_manager.h>
+#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
 #include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
-#include <hpp/fcl/data_types.h>
-#include <hpp/fcl/narrowphase/narrowphase.h>
 #include <hpp/fcl/collision.h>
 #include <hpp/fcl/collision_data.h>
 #include <hpp/fcl/collision_object.h>
+#include <hpp/fcl/data_types.h>
 #include <hpp/fcl/distance.h>
 #include <hpp/fcl/math/transform.h>
 #include <hpp/fcl/mesh_loader/assimp.h>
 #include <hpp/fcl/mesh_loader/loader.h>
+#include <hpp/fcl/narrowphase/narrowphase.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
-#include <fstream>
 #include <io.h>
-#include <mutex>
-#include <stdio.h>
-#include <string>
-#include <thread>
 
 using namespace hpp;
 

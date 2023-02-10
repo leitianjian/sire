@@ -27,8 +27,7 @@ class ForceControlTest
   auto virtual collectNrt() -> void override;
   auto virtual executeRT() -> int override;
   virtual ~ForceControlTest() = default;
-  explicit ForceControlTest(
-      const std::string& name = "ForceControlTest_plan");
+  explicit ForceControlTest(const std::string& name = "ForceControlTest_plan");
   ARIS_DECLARE_BIG_FOUR(ForceControlTest);
 
  private:

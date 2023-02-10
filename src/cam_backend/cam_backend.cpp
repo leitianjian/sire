@@ -1,19 +1,26 @@
 #include "sire/cam_backend/cam_backend.hpp"
+
 #include "sire/collision/collision_calculator.hpp"
 #include "sire/collision/collision_filter.hpp"
+
 #include <aris/core/serialization.hpp>
 #include <aris/dynamic/model.hpp>
+
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
 #include <hpp/fcl/distance.h>
 #include <hpp/fcl/math/transform.h>
 #include <hpp/fcl/mesh_loader/assimp.h>
 #include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
+
 #include <cmath>
 
 namespace sire::cam_backend {
 struct CamBackend::Imp {
   vector<bool> collision_result;
+  vector<set<std::pair<collision::geometry::GeometryId,
+                       collision::geometry::GeometryId>>>
+      collided_objects_result;
 
   aris::dynamic::Model robot_model;
   collision::CollisionCalculator collision_calculator;
@@ -34,8 +41,7 @@ void CamBackend::cptCollisionByEEPose(
   imp_->collision_calculator.hasCollisions(callback);
 }
 
-void CamBackend::init(string model_xml_path,
-                                  string collision_xml_path) {
+void CamBackend::init(string model_xml_path, string collision_xml_path) {
   auto config_path = std::filesystem::absolute(".");  // 获取当前工程所在的路径
   const string model_config_name = "cam_model.xml";
   auto model_config_path = config_path / model_config_name;
@@ -60,11 +66,11 @@ void CamBackend::init(string model_xml_path,
  *  单位 m
  */
 void CamBackend::cptCollisionMap(int option, aris::Size resolution,
-                                             aris::Size pSize, double* points,
-                                             double* tilt_angles,
-                                             double* forward_angles,
-                                             double* normal, double* tangent) {
+                                 aris::Size pSize, double* points,
+                                 double* tilt_angles, double* forward_angles,
+                                 double* normal, double* tangent) {
   imp_->collision_result.resize(resolution * pSize);
+  imp_->collided_objects_result.resize(resolution * pSize);
   // AxisA6
   if (option == 0) {
     auto& gm = imp_->robot_model.generalMotionPool().at(0);
@@ -133,8 +139,11 @@ void CamBackend::cptCollisionMap(int option, aris::Size resolution,
             &imp_->collision_calculator.collisionFilter());
         imp_->collision_calculator.updateLocation(part_pq.data());
         imp_->collision_calculator.hasCollisions(callback);
-        if (callback.collidedObjectMap().size() != 0)
+        if (callback.collidedObjectMap().size() != 0) {
           imp_->collision_result[i * pSize + j] = true;
+          imp_->collided_objects_result[i * pSize + j] =
+              callback.collidedObjectMap();
+        }
       }
     }
   }
@@ -173,7 +182,7 @@ void CamBackend::cptCollisionMap(int option, aris::Size resolution,
                                     1.0};
         // 2. 根据前倾旋转加工点坐标系（normal tangent)
         double forward_re[3]{0.0, forward_angle / 180.0 * aris::PI,
-                                  0.0};  // 321
+                             0.0};  // 321
         double forward_pm[16];
         aris::dynamic::s_re2pm(forward_re, forward_pm, "321");
         double tool_pm[16];
@@ -221,8 +230,11 @@ void CamBackend::cptCollisionMap(int option, aris::Size resolution,
             &imp_->collision_calculator.collisionFilter());
         imp_->collision_calculator.updateLocation(part_pq.data());
         imp_->collision_calculator.hasCollisions(callback);
-        if (callback.collidedObjectMap().size() != 0)
+        if (callback.collidedObjectMap().size() != 0) {
           imp_->collision_result[i * pSize + j] = true;
+          imp_->collided_objects_result[i * pSize + j] =
+              callback.collidedObjectMap();
+        }
       }
     }
   }

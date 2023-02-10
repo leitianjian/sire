@@ -2,6 +2,7 @@
 #define VIRTUAL_FORCE_SENSOR_TRANSFER_HPP_
 
 #include <sire_lib_export.h>
+
 #include <aris.hpp>
 
 namespace sire::transfer {
@@ -18,4 +19,4 @@ class SIRE_API VirtualForceSensorTransfer
       -> void override;
 };
 }  // namespace sire::transfer
-#endif 
+#endif

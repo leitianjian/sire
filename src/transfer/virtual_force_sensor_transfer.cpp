@@ -1,4 +1,5 @@
 #include "sire/transfer/virtual_force_sensor_transfer.hpp"
+
 #include "sire/controller/controller_sensor.hpp"
 
 namespace sire::transfer {

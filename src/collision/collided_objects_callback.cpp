@@ -1,9 +1,11 @@
 #include "sire/collision/collided_objects_callback.hpp"
-#include <aris/core/reflection.hpp>
-#include <aris/server/control_server.hpp>
+
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
 #include <hpp/fcl/distance.h>
 #include <hpp/fcl/math/transform.h>
+
+#include <aris/core/reflection.hpp>
+#include <aris/server/control_server.hpp>
 namespace sire::collision {
 auto CollidedObjectsCallback::collide(fcl::CollisionObject* o1,
                                       fcl::CollisionObject* o2) -> bool {

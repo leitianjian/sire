@@ -1,9 +1,10 @@
 #ifndef COLLISION_MODULE_H_
 #define COLLISION_MODULE_H_
 
+#include <sire_lib_export.h>
+
 #include "sire/collision/collision_engine.hpp"
 #include "sire/core/module_base.hpp"
-#include <sire_lib_export.h>
 
 namespace sire::modules {
 using namespace std;

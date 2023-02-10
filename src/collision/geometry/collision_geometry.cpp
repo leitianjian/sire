@@ -1,11 +1,14 @@
 #include "sire/collision/geometry/collision_geometry.hpp"
+
 #include <aris/core/reflection.hpp>
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
+
 #include <hpp/fcl/bvh/BVH_model.h>
 #include <hpp/fcl/mesh_loader/assimp.h>
 #include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
+
 #include <array>
 #include <memory>
 #include <string>
@@ -185,4 +188,4 @@ ARIS_REGISTRATION {
             &MeshGeometry::resourcePath)
       .prop("scale", &setMeshGeometryScale, &getMeshGeometryScale);
 }
-}  // namespace sire::geometry
+}  // namespace sire::collision::geometry

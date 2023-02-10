@@ -2,6 +2,7 @@
 #define MODULE_BASE_H_
 
 #include <sire_lib_export.h>
+
 #include <aris/core/object.hpp>
 
 namespace sire::core {
@@ -12,5 +13,5 @@ class SIRE_API SireModuleBase : aris::core::NamedObject {
   SireModuleBase() = default;
   virtual ~SireModuleBase() = default;
 };
-}  // namespace sire::modules
+}  // namespace sire::core
 #endif

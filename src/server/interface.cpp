@@ -1,13 +1,5 @@
 ﻿#include "sire/server/interface.hpp"
-#include "sire/ext/fifo_map.hpp"
-#include "sire/ext/json.hpp"
-#include "sire/server/api.hpp"
-#include "sire/server/middle_ware.hpp"
-#include "md5.h"
-#include <aris/control/control.hpp>
-#include <aris/core/core.hpp>
-#include <aris/server/control_server.hpp>
-#include <aris/server/interface.hpp>
+
 #include <algorithm>
 #include <cinttypes>
 #include <cstdio>
@@ -16,6 +8,18 @@
 #include <queue>
 #include <thread>
 #include <unordered_map>
+
+#include "md5.h"
+
+#include <aris/control/control.hpp>
+#include <aris/core/core.hpp>
+#include <aris/server/control_server.hpp>
+#include <aris/server/interface.hpp>
+
+#include "sire/ext/fifo_map.hpp"
+#include "sire/ext/json.hpp"
+#include "sire/server/api.hpp"
+#include "sire/server/middle_ware.hpp"
 
 namespace sire::server {
 auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)

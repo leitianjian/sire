@@ -1,4 +1,5 @@
 #include "sire/server/command.hpp"
+
 #include "sire/controller/controller_sensor.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/server/interface.hpp"

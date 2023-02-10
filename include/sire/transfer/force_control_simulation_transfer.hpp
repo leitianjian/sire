@@ -1,9 +1,11 @@
 #ifndef FORCE_CONTROL_SIMULATION_TRANSFER_HPP_
 #define FORCE_CONTROL_SIMULATION_TRANSFER_HPP_
 
-#include "sire/simulator/integrator.hpp"
 #include <sire_lib_export.h>
+
 #include <aris.hpp>
+
+#include "sire/simulator/integrator.hpp"
 
 namespace sire::transfer {
 class SIRE_API ForceControlSimulationTransfer

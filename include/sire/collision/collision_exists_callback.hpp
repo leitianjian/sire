@@ -1,15 +1,17 @@
 #ifndef COLLISION_EXISTS_CALLBACK_H
 #define COLLISION_EXISTS_CALLBACK_H
 
-#include "sire/collision/geometry/collision_geometry.hpp"
-#include "sire/collision/collision_filter.hpp"
+#include <string>
+
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
 #include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
 #include <hpp/fcl/collision.h>
 #include <hpp/fcl/collision_data.h>
 #include <hpp/fcl/collision_object.h>
-#include <string>
+
+#include "sire/collision/collision_filter.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 
 namespace sire::collision {
 using namespace std;

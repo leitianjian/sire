@@ -1,9 +1,11 @@
-#include <aris.hpp>
 #include <filesystem>
 #include <iostream>
+
 #include <sire/server/server.hpp>
 
-auto xmlpath = std::filesystem::absolute(".");  //获取当前工程所在的路径
+#include <aris.hpp>
+
+auto xmlpath = std::filesystem::absolute(".");  // 获取当前工程所在的路径
 const std::string xmlfile = "sire.xml";
 
 int main(int argc, char* argv[]) {
@@ -12,7 +14,7 @@ int main(int argc, char* argv[]) {
   aris::core::fromXmlFile(cs, xmlpath);
   cs.init();
 
-  //开启控制器服务
+  // 开启控制器服务
   try {
     cs.start();
     cs.executeCmd("md");

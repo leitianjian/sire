@@ -5,7 +5,8 @@
 // SensorBase<DataType>::~SensorBase() = default;
 // template <class DataType>
 // SensorBase<DataType>::SensorBase(const std::string& name, bool is_virtual,
-//                                  bool activate, const std::string& description)
+//                                  bool activate, const std::string&
+//                                  description)
 //     : aris::sensor::SensorTemplate<DataType>(name),
 //       is_virtual_(is_virtual),
 //       activate_(activate),
@@ -26,7 +27,7 @@
 // auto SensorBase<DataType>::setActivate(bool is_activate) -> void {
 //   activate_ = is_activate;
 // }
-// 
+//
 // template <class DataType>
 // auto VirtualSensor<DataType>::setControlServer(
 //     aris::server::ControlServer* cs) noexcept -> void {
@@ -38,7 +39,8 @@
 //   return cs_;
 // }
 // template <class DataType>
-// auto VirtualSensor<DataType>::setModelBase(aris::dynamic::ModelBase* m) noexcept
+// auto VirtualSensor<DataType>::setModelBase(aris::dynamic::ModelBase* m)
+// noexcept
 //     -> void {
 //   model_base_ = m;
 // }
@@ -71,7 +73,7 @@
 // template <class DataType>
 // VirtualSensor<DataType>::VirtualSensor(const std::string& name)
 //     : SensorBase<DataType>(name){};
-// 
+//
 // struct MotorForceVirtualSensor::Imp {
 //   aris::Size frequency_{10};
 //   aris::Size motor_index_{0};
@@ -107,7 +109,7 @@
 // auto MotorForceVirtualSensor::setBufferSize(aris::Size buffer_size) -> void {
 //   imp_->buffer_size_ = buffer_size;
 // }
-// 
+//
 // auto MotorForceVirtualSensor::init(aris::server::ControlServer* cs) -> void {
 //   std::vector<std::recursive_mutex> new_mutex_list(imp_->buffer_size_);
 //   imp_->buffer_mutex_.swap(new_mutex_list);
@@ -134,7 +136,8 @@
 //   std::any force = 0.0;
 //   if (cs.running()) {
 //     cs.getRtData(
-//         [this](aris::server::ControlServer& cs, const aris::plan::Plan* target,
+//         [this](aris::server::ControlServer& cs, const aris::plan::Plan*
+//         target,
 //                std::any& data) -> void {
 //           auto& force = std::any_cast<double&>(data);
 //           auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
@@ -148,7 +151,7 @@
 //   // std::cout << mfData.force_ << std::endl;
 //   std::this_thread::sleep_until(start + period_time);
 // };
-// 
+//
 // auto MotorForceVirtualSensor::updateBufferData(
 //     std::unique_ptr<aris::sensor::SensorData> data) -> void {
 //   std::unique_lock<std::recursive_mutex> lock_property(
@@ -171,7 +174,7 @@
 //     }
 //   }
 // };
-// 
+//
 // auto MotorForceVirtualSensor::retrieveBufferData(
 //     std::vector<std::unique_ptr<aris::sensor::SensorData>>& vec,
 //     aris::Size& count) -> void {
@@ -192,7 +195,7 @@
 //     }
 //   }
 // }
-// 
+//
 // MotorForceVirtualSensor::~MotorForceVirtualSensor() = default;
 // MotorForceVirtualSensor::MotorForceVirtualSensor(const std::string& name,
 //                                                  aris::Size frequency,
@@ -201,7 +204,7 @@
 //   imp_->frequency_ = frequency;
 //   imp_->motor_index_ = motor_index;
 // }
-// 
+//
 // ARIS_REGISTRATION {
 //   aris::core::class_<MotorForceVirtualSensor>("MotorForceVirtualSensor")
 //       .inherit<aris::sensor::Sensor>()

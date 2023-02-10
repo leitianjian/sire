@@ -3,7 +3,7 @@
 
 // #include <sire_lib_export.h>
 // #include <aris.hpp>
-// 
+//
 // namespace sire::sensor {
 // template <class DataType>
 // class SIRE_API SensorBase : public aris::sensor::SensorTemplate<DataType> {
@@ -14,28 +14,29 @@
 //   auto activate() const -> bool;
 //   auto setActivate(bool is_activate = true) -> void;
 //   auto description() -> std::string& { return description_; };
-// 
+//
 //   virtual ~SensorBase();
-//   SensorBase(const std::string& name = "sensor_base", bool is_virtual = false,
+//   SensorBase(const std::string& name = "sensor_base", bool is_virtual =
+//   false,
 //              bool activate = false,
 //              const std::string& description = "Virtual sensor base");
 //   SensorBase(SensorBase& other);
 //   SensorBase(SensorBase&& other) = delete;
 //   SensorBase& operator=(const SensorBase& other);
 //   SensorBase& operator=(SensorBase&& other) = delete;
-// 
+//
 //  protected:
 //   auto virtual init() -> void{};
 //   auto virtual release() -> void{};
 //   auto virtual updateData(aris::sensor::SensorData& data,
 //                           UpdateDataCallback callback = nullptr) -> void{};
-// 
+//
 //  private:
 //   bool is_virtual_;
 //   bool activate_;
 //   std::string description_;
 // };
-// 
+//
 // template <class DataType>
 // class SIRE_API VirtualSensor : public SensorBase<DataType> {
 //  public:
@@ -49,20 +50,20 @@
 //   auto setController(aris::control::Controller*) noexcept -> void;
 //   auto controller() noexcept -> aris::control::Controller*;
 //   auto virtual init() -> void{};
-// 
+//
 //   virtual ~VirtualSensor();
 //   VirtualSensor(const std::string& name = "virtual_sensor");
 //   VirtualSensor(VirtualSensor& other);
 //   VirtualSensor(VirtualSensor&& other) = delete;
 //   VirtualSensor& operator=(const VirtualSensor& other);
 //   VirtualSensor& operator=(VirtualSensor&& other) = delete;
-// 
+//
 //  protected:
 //   auto virtual release() -> void{};
 //   auto virtual updateData(aris::sensor::SensorData& data,
 //                           SensorBase::UpdateDataCallback callback = nullptr)
 //       -> void{};
-// 
+//
 //  private:
 //   aris::dynamic::ModelBase* model_base_{nullptr};
 //   aris::control::Master* master_{nullptr};
@@ -70,7 +71,7 @@
 //   aris::control::EthercatMaster* ec_master_{nullptr};
 //   aris::server::ControlServer* cs_{nullptr};
 // };
-// 
+//
 // struct MotorForceData : aris::sensor::SensorData {
 //   double force_;
 //   virtual ~MotorForceData() = default;
@@ -96,19 +97,19 @@
 //   MotorForceVirtualSensor(MotorForceVirtualSensor& other);
 //   MotorForceVirtualSensor(MotorForceVirtualSensor&& other) = delete;
 //   MotorForceVirtualSensor& operator=(const MotorForceVirtualSensor& other);
-//   MotorForceVirtualSensor& operator=(MotorForceVirtualSensor&& other) = delete;
-// 
+//   MotorForceVirtualSensor& operator=(MotorForceVirtualSensor&& other) =
+//   delete;
+//
 //  protected:
 //   auto release() -> void;
 //   void updateData(aris::sensor::SensorData& data,
 //                   SensorBase::UpdateDataCallback callback) override;
-// 
+//
 //  private:
-//   auto updateBufferData(std::unique_ptr<aris::sensor::SensorData> data) -> void;
-//   struct Imp;
-//   std::unique_ptr<Imp> imp_;
+//   auto updateBufferData(std::unique_ptr<aris::sensor::SensorData> data) ->
+//   void; struct Imp; std::unique_ptr<Imp> imp_;
 // };
-// 
+//
 // };  // namespace sire::sensor
 
 #endif

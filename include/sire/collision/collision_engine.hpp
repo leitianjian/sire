@@ -1,18 +1,21 @@
 #ifndef COLLISION_ENGINE_H
 #define COLLISION_ENGINE_H
 
-#include "sire/collision/collision_exists_callback.hpp"
-#include "sire/collision/collision_filter.hpp"
-#include "sire/collision/geometry/collision_geometry.hpp"
-#include <aris/core/expression_calculator.hpp>
+#include <map>
+#include <string>
+
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
 #include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
 #include <hpp/fcl/collision.h>
 #include <hpp/fcl/collision_data.h>
 #include <hpp/fcl/collision_object.h>
-#include <map>
-#include <string>
+
+#include <aris/core/expression_calculator.hpp>
+
+#include "sire/collision/collision_exists_callback.hpp"
+#include "sire/collision/collision_filter.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 
 namespace sire::collision {
 using namespace std;

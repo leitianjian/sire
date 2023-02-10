@@ -1,12 +1,15 @@
 #ifndef COLLISION_GEOMETRY_H_
 #define COLLISION_GEOMETRY_H_
 
-#include <sire_lib_export.h>
-#include <aris/dynamic/model_basic.hpp>
-#include <aris/dynamic/model_coordinate.hpp>
-#include <hpp/fcl/collision_object.h>
 #include <atomic>
 #include <string>
+
+#include <sire_lib_export.h>
+
+#include <hpp/fcl/collision_object.h>
+
+#include <aris/dynamic/model_basic.hpp>
+#include <aris/dynamic/model_coordinate.hpp>
 
 namespace sire::collision {
 namespace geometry {

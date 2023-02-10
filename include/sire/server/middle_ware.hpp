@@ -1,13 +1,16 @@
 ﻿#ifndef SIRE_SERVER_MIDDLE_WARE_HPP_
 #define SIRE_SERVER_MIDDLE_WARE_HPP_
 
-#include "sire/core/module_base.hpp"
-#include "sire/server/interface.hpp"
-#include <sire_lib_export.h>
-#include <aris/server/interface.hpp>
-#include <aris/server/middle_ware.hpp>
 #include <functional>
 #include <string_view>
+
+#include <sire_lib_export.h>
+
+#include <aris/server/interface.hpp>
+#include <aris/server/middle_ware.hpp>
+
+#include "sire/core/module_base.hpp"
+#include "sire/server/interface.hpp"
 
 namespace sire::server {
 using namespace std;

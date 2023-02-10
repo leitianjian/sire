@@ -1,9 +1,11 @@
 #include "sire/server/middle_ware.hpp"
-#include "sire/ext/json.hpp"
-#include "sire/server/api.hpp"
+
 #include <aris/core/core.hpp>
 #include <aris/core/object.hpp>
 #include <aris/server/control_server.hpp>
+
+#include "sire/ext/json.hpp"
+#include "sire/server/api.hpp"
 
 namespace sire::server {
 struct ProgramMiddleware::Imp {

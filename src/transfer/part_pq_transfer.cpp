@@ -34,15 +34,13 @@ auto PartPQTransfer::updateDataModel2Controller(
     const std::vector<std::uint64_t>& options,
     const aris::dynamic::ModelBase* model,
     aris::control::Controller* controller) -> void {
-  auto ptr = parts_pq_atomic_ptr_.load();
-  if (ptr == nullptr) {
+  if (!parts_pq_atomic_ptr_.load()) {
     const aris::dynamic::Model* csModel =
         dynamic_cast<const aris::dynamic::Model*>(model);
     double* parts_pq_ptr = parts_pq_.data();
     for (aris::Size i = 0; i < part_pool_length_; ++i) {
       csModel->partPool().at(i).getPq(parts_pq_ptr + 7 * i);
     }
-
     parts_pq_atomic_ptr_.exchange(parts_pq_ptr);
   }
 
@@ -79,8 +77,7 @@ inline double* PartPQTransfer::exchange(double* ptr) {
 
 ARIS_REGISTRATION {
   typedef sire::simulator::Integrator& (PartPQTransfer::*IntegratorFunc)();
-  aris::core::class_<PartPQTransfer>(
-      "PartPQTransfer")
+  aris::core::class_<PartPQTransfer>("PartPQTransfer")
       .inherit<aris::server::TransferModelController>();
 }
 }  // namespace sire::transfer

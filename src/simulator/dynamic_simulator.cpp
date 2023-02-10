@@ -3,13 +3,15 @@
 // Created by ZHOUYC on 2022/6/14.
 //
 #include "sire/simulator/dynamic_simulator.hpp"
-#include <aris.hpp>
+
 #include <algorithm>
 #include <functional>
 #include <iostream>
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#include <aris.hpp>
 
 namespace sire {
 struct Simulator::Imp {

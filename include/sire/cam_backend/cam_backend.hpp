@@ -1,17 +1,20 @@
 #ifndef CAM_BACKEND_H
 #define CAM_BACKEND_H
 
-#include "sire/collision/collided_objects_callback.hpp"
-#include "sire/collision/geometry/collision_geometry.hpp"
-#include <aris/core/expression_calculator.hpp>
+#include <map>
+#include <string>
+
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
 #include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
 #include <hpp/fcl/collision.h>
 #include <hpp/fcl/collision_data.h>
 #include <hpp/fcl/collision_object.h>
-#include <map>
-#include <string>
+
+#include <aris/core/expression_calculator.hpp>
+
+#include "sire/collision/collided_objects_callback.hpp"
+#include "sire/collision/geometry/collision_geometry.hpp"
 
 namespace sire::cam_backend {
 using namespace std;

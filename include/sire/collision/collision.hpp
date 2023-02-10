@@ -5,12 +5,13 @@
 #ifndef COLLISION_H
 #define COLLISION_H
 
-#include <sire_lib_export.h>
 #include <array>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <sire_lib_export.h>
 
 namespace sire::collision {
 // using namespace hpp;

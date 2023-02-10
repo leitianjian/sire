@@ -1,4 +1,5 @@
 #include "sire/collision/collision_module.hpp"
+
 #include <aris/core/reflection.hpp>
 
 namespace sire::modules {

@@ -1,18 +1,21 @@
 #include "sire/collision/collision_calculator.hpp"
-#include <aris/core/reflection.hpp>
-#include <aris/server/control_server.hpp>
+
+#include <stdio.h>
+
+#include <fstream>
+#include <mutex>
+#include <string>
+#include <thread>
+
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
 #include <hpp/fcl/distance.h>
 #include <hpp/fcl/math/transform.h>
 #include <hpp/fcl/mesh_loader/assimp.h>
 #include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
-#include <fstream>
-#include <io.h>
-#include <mutex>
-#include <stdio.h>
-#include <string>
-#include <thread>
+
+#include <aris/core/reflection.hpp>
+#include <aris/server/control_server.hpp>
 namespace sire::collision {
 struct CollisionCalculator::Imp {
   unique_ptr<aris::core::PointerArray<geometry::CollisionGeometry,
@@ -33,7 +36,8 @@ struct CollisionCalculator::Imp {
       part_pool_ptr_;
   aris::Size part_size_;
 };
-auto CollisionCalculator::resetCollisionFilter(CollisionFilter* filter) -> void {
+auto CollisionCalculator::resetCollisionFilter(CollisionFilter* filter)
+    -> void {
   imp_->collision_filter_.reset(filter);
 }
 auto CollisionCalculator::collisionFilter() -> CollisionFilter& {
@@ -93,8 +97,7 @@ auto CollisionCalculator::updateLocation(double* part_pq) -> bool {
   }
   for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
     double temp_pm[16];
-    aris::dynamic::s_pq2pm(part_pq + 7 * dynamic_geometry.partId(),
-                           temp_pm);
+    aris::dynamic::s_pq2pm(part_pq + 7 * dynamic_geometry.partId(), temp_pm);
     dynamic_geometry.updateLocation(temp_pm);
   }
   imp_->dynamic_tree_.update();
@@ -128,13 +131,13 @@ auto CollisionCalculator::init() -> void {
   imp_->part_size_ = imp_->part_pool_ptr_->size();
 }
 CollisionCalculator::CollisionCalculator() : imp_(new Imp) {}
-CollisionCalculator::~CollisionCalculator() {};
+CollisionCalculator::~CollisionCalculator(){};
 
 ARIS_REGISTRATION {
-  //aris::core::class_<aris::core::PointerArray<geometry::CollisionGeometry,
-  //                                            aris::dynamic::Geometry>>(
-  //    "GeometryPoolObject")
-  //    .asRefArray();
+  // aris::core::class_<aris::core::PointerArray<geometry::CollisionGeometry,
+  //                                             aris::dynamic::Geometry>>(
+  //     "GeometryPoolObject")
+  //     .asRefArray();
 
   typedef aris::core::PointerArray<geometry::CollisionGeometry,
                                    aris::dynamic::Geometry>& (
@@ -142,7 +145,8 @@ ARIS_REGISTRATION {
   typedef sire::collision::CollisionFilter& (
       CollisionCalculator::*CollisionFilterPoolFunc)();
   aris::core::class_<CollisionCalculator>("CollisionCalculator")
-      .prop("dynamic_geometry_pool", &CollisionCalculator::resetDynamicGeometryPool,
+      .prop("dynamic_geometry_pool",
+            &CollisionCalculator::resetDynamicGeometryPool,
             GeometryPoolFunc(&CollisionCalculator::dynamicGeometryPool))
       .prop("anchored_geometry_pool",
             &CollisionCalculator::resetAnchoredGeometryPool,

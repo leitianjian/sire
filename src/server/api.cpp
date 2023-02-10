@@ -1,12 +1,15 @@
 #include "sire/server/api.hpp"
-#include "sire/ext/fifo_map.hpp"
-#include "sire/ext/json.hpp"
-#include <aris.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <codecvt>
 #include <filesystem>
 #include <random>
+
+#include <aris.hpp>
+
+#include "sire/ext/fifo_map.hpp"
+#include "sire/ext/json.hpp"
 
 namespace sire::server {
 using Matrix = aris::core::Matrix;

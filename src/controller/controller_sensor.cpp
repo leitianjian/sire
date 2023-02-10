@@ -1,4 +1,5 @@
 #include "sire/controller/controller_sensor.hpp"
+
 #include "sire/ext/json.hpp"
 
 namespace sire::controller {
@@ -229,8 +230,8 @@ auto BufferedRtSensor::updateData(
   }
 }
 // TODO: add const quantifier
-auto BufferedRtSensor::lockFreeUpdateData(
-    aris::control::SensorData& data) -> void {
+auto BufferedRtSensor::lockFreeUpdateData(aris::control::SensorData& data)
+    -> void {
   aris::core::MsgFix<MAX_MSG_SIZE> msg;
   std::string str;
   data.to_json_string(str);

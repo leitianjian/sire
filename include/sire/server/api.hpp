@@ -1,13 +1,15 @@
 #ifndef SIRE_SERVER_API_H_
 #define SIRE_SERVER_API_H_
 
-#include <sire_lib_export.h>
-#include <aris.hpp>
 #include <filesystem>
 #include <map>
 #include <string>
 #include <string_view>
 #include <tuple>
+
+#include <sire_lib_export.h>
+
+#include <aris.hpp>
 
 namespace sire::server {
 class SIRE_API MakeBlockly {
