@@ -1,4 +1,4 @@
-#include "sire/server/command.hpp"
+#include "sire/plan/command.hpp"
 
 #include "sire/controller/controller_sensor.hpp"
 #include "sire/ext/json.hpp"

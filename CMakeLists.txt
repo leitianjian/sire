@@ -152,8 +152,7 @@ target_sources(sire_server
 	PRIVATE 
 		"src/server/api.cpp"
 		"src/server/interface.cpp"
-		"src/server/middle_ware.cpp"
-		"src/server/command.cpp"
+		"src/plan/command.cpp"
 		"src/server/mongoose.c"
 		"src/server/mongoose.h"
 		"src/server/md5.cpp"
@@ -162,8 +161,7 @@ target_sources(sire_server
 	PUBLIC 
 		"include/sire/server/api.hpp"
 		"include/sire/server/interface.hpp"
-		"include/sire/server/middle_ware.hpp"
-		"include/sire/server/command.hpp"
+		"include/sire/plan/command.hpp"
 		"include/sire/ext/tinyxml2.h"
 		"include/sire/ext/json.hpp"
 	)
@@ -177,6 +175,29 @@ target_include_directories(sire_server
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 	)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
+
+add_library(sire_middleware OBJECT)
+target_compile_definitions(sire_middleware PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_middleware PUBLIC cxx_std_17)
+target_sources(sire_middleware 
+	PRIVATE 
+		"src/middleware/program_middleware.cpp"
+		"src/middleware/sire_middleware.cpp"
+	PUBLIC 
+		"include/sire/middleware/program_middleware.hpp"
+		"include/sire/middleware/sire_middleware.hpp"
+		"include/sire/ext/json.hpp"
+	)
+target_include_directories(sire_middleware
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+	)
+install(DIRECTORY include/sire/middleware DESTINATION include/sire)
 
 add_library(sire_controller OBJECT)
 target_compile_definitions(sire_controller PRIVATE sire_lib_EXPORTS)
@@ -256,6 +277,7 @@ install(DIRECTORY include/sire/cam_backend DESTINATION include/sire)
 add_library(sire_lib 
 	SHARED 
 		$<TARGET_OBJECTS:sire_core>
+		$<TARGET_OBJECTS:sire_middleware>
 		$<TARGET_OBJECTS:sire_collision>
 		$<TARGET_OBJECTS:sire_simulator>
 		$<TARGET_OBJECTS:sire_server>
@@ -333,7 +355,7 @@ if(BUILD_DEMOS)
 		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
 		add_executable(${sire_demo} ${SOURCES})
 		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR} ${hpp-fcl_INCLUDE_DIRS})
-		target_link_libraries(${sire_demo} sire_core sire_server sire_controller sire_transfer sire_simulator sire_collision ${PUB_RELY_LINK_LIB})
+		target_link_libraries(${sire_demo} sire_core sire_server sire_middleware sire_controller sire_transfer sire_simulator sire_collision ${PUB_RELY_LINK_LIB})
 		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
 		install(
 			TARGETS 

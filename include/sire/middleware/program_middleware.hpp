@@ -1,5 +1,5 @@
-﻿#ifndef SIRE_SERVER_MIDDLE_WARE_HPP_
-#define SIRE_SERVER_MIDDLE_WARE_HPP_
+﻿#ifndef SIRE_PROGRAM_MIDDLE_WARE_HPP_
+#define SIRE_PROGRAM_MIDDLE_WARE_HPP_
 
 #include <functional>
 #include <string_view>
@@ -12,7 +12,7 @@
 #include "sire/core/module_base.hpp"
 #include "sire/server/interface.hpp"
 
-namespace sire::server {
+namespace sire::middleware {
 using namespace std;
 // middleware可以在controlserver中调用init，所以有需要的可以放这里，而不是custom_module
 class SIRE_API ProgramMiddleware : public aris::server::MiddleWare {
@@ -38,24 +38,6 @@ class SIRE_API ProgramMiddleware : public aris::server::MiddleWare {
   struct Imp;
   std::unique_ptr<Imp> imp_;
 };
-
-class SIRE_API SireMiddleware : public ProgramMiddleware {
- public:
-  auto virtual init() -> void override;
-  auto modulesPool() -> aris::core::PointerArray<core::SireModuleBase>&;
-  auto resetModulesPool(aris::core::PointerArray<core::SireModuleBase>* pool)
-      -> void;
-
-  virtual ~SireMiddleware();
-  SireMiddleware();
-  SireMiddleware(SireMiddleware&& other);
-  SireMiddleware& operator=(SireMiddleware&& other);
-
- private:
-  struct Imp;
-  std::unique_ptr<Imp> imp_;
-};
-
 }  // namespace sire::server
 
-#endif  // ARIS_SERVER_MIDDLE_WARE_HPP_
+#endif  // SIRE_PROGRAM_MIDDLE_WARE_HPP_

@@ -1,4 +1,4 @@
-#include "sire/server/middle_ware.hpp"
+#include "sire/middleware/program_middleware.hpp"
 
 #include <aris/core/core.hpp>
 #include <aris/core/object.hpp>
@@ -7,7 +7,7 @@
 #include "sire/ext/json.hpp"
 #include "sire/server/api.hpp"
 
-namespace sire::server {
+namespace sire::middleware {
 struct ProgramMiddleware::Imp {
   aris::core::CommandParser command_parser_;
   aris::core::LanguageParser language_parser_;
@@ -600,10 +600,10 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
   } else if (cmd == "program_file") {
     for (auto& [param, value] : params) {
       if (param == "get") {
-        auto ret = fetchPrograms();
+        auto ret = server::fetchPrograms();
         return send_code_and_msg(0, ret);
       } else if (param == "post") {
-        auto ret = createProgram(std::string(params.at("data")));
+        auto ret = server::createProgram(std::string(params.at("data")));
         return send_code_and_msg(0, ret);
       } else if (param == "put") {
         return send_code_and_msg(0, "");
@@ -674,39 +674,8 @@ ProgramMiddleware& ProgramMiddleware::operator=(ProgramMiddleware&& other) =
     default;
 ProgramMiddleware::~ProgramMiddleware() = default;
 
-struct SireMiddleware::Imp {
-  unique_ptr<aris::core::PointerArray<core::SireModuleBase>> modules_pool_;
-};
-auto SireMiddleware::init() -> void {
-  for (auto& sire_module : *imp_->modules_pool_) {
-    sire_module.init();
-  }
-}
-auto SireMiddleware::modulesPool()
-    -> aris::core::PointerArray<core::SireModuleBase>& {
-  return *imp_->modules_pool_;
-}
-auto SireMiddleware::resetModulesPool(
-    aris::core::PointerArray<core::SireModuleBase>* pool) -> void {
-  imp_->modules_pool_.reset(pool);
-}
-SireMiddleware::SireMiddleware() : imp_(new Imp) {}
-SireMiddleware::SireMiddleware(SireMiddleware&& other) = default;
-SireMiddleware& SireMiddleware::operator=(SireMiddleware&& other) = default;
-SireMiddleware::~SireMiddleware() = default;
-
 ARIS_REGISTRATION {
   aris::core::class_<ProgramMiddleware>("SireProgramMiddleware")
       .inherit<aris::server::MiddleWare>();
-
-  aris::core::class_<aris::core::PointerArray<core::SireModuleBase>>(
-      "SireModulesPoolObject")
-      .asRefArray();
-  typedef aris::core::PointerArray<core::SireModuleBase>& (
-      SireMiddleware::*ModulesPoolFunc)();
-  aris::core::class_<SireMiddleware>("SireMiddleware")
-      .inherit<ProgramMiddleware>()
-      .prop("modules_pool", &SireMiddleware::resetModulesPool,
-            ModulesPoolFunc(&SireMiddleware::modulesPool));
 }
 }  // namespace sire::server

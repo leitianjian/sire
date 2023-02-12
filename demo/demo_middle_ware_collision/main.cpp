@@ -1,8 +1,6 @@
 #include <filesystem>
 #include <iostream>
 
-#include <sire/server/server.hpp>
-
 #include <aris.hpp>
 
 auto xmlpath = std::filesystem::absolute(".");  // 获取当前工程所在的路径

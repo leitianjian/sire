@@ -19,7 +19,7 @@
 #include "sire/ext/fifo_map.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/server/api.hpp"
-#include "sire/server/middle_ware.hpp"
+#include "sire/middleware/program_middleware.hpp"
 
 namespace sire::server {
 auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)
@@ -171,56 +171,56 @@ auto ProgramWebInterface::isConnected() const -> bool {
 }
 auto ProgramWebInterface::close() -> void { socket().stop(); }
 auto ProgramWebInterface::lastError() -> std::string {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->lastError();
   else
     return "";
 }
 auto ProgramWebInterface::lastErrorCode() -> int {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->lastErrorCode();
   else
     return 0;
 }
 auto ProgramWebInterface::lastErrorLine() -> int {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->lastErrorLine();
   else
     return 0;
 }
 auto ProgramWebInterface::isAutoMode() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoMode();
   else
     return false;
 }
 auto ProgramWebInterface::isAutoRunning() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoRunning();
   else
     return false;
 }
 auto ProgramWebInterface::isAutoPaused() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoPaused();
   else
     return false;
 }
 auto ProgramWebInterface::isAutoStopped() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoStopped();
   else
     return true;
 }
 auto ProgramWebInterface::currentFileLine() -> std::tuple<std::string, int> {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->currentFileLine();
   else
