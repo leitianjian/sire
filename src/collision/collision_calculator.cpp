@@ -134,11 +134,6 @@ CollisionCalculator::CollisionCalculator() : imp_(new Imp) {}
 CollisionCalculator::~CollisionCalculator(){};
 
 ARIS_REGISTRATION {
-  // aris::core::class_<aris::core::PointerArray<geometry::CollisionGeometry,
-  //                                             aris::dynamic::Geometry>>(
-  //     "GeometryPoolObject")
-  //     .asRefArray();
-
   typedef aris::core::PointerArray<geometry::CollisionGeometry,
                                    aris::dynamic::Geometry>& (
       CollisionCalculator::*GeometryPoolFunc)();

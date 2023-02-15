@@ -6,7 +6,7 @@
 #include "sire/collision/collision_engine.hpp"
 #include "sire/core/module_base.hpp"
 
-namespace sire::modules {
+namespace sire::collision {
 using namespace std;
 class SIRE_API CollisionModule : public core::SireModuleBase {
  public:

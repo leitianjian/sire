@@ -3,6 +3,7 @@
 
 #include <functional>
 #include <string_view>
+#include <iostream>
 
 #include <sire_lib_export.h>
 
@@ -17,6 +18,9 @@ using namespace std;
 class SIRE_API SireMiddleware : public aris::server::MiddleWare {
  public:
   auto virtual init() -> void override;
+  auto virtual executeCmd(std::string_view str,
+                          std::function<void(std::string)> send_ret,
+                          aris::server::Interface* interface) -> int override;
   auto modulesPool() -> aris::core::PointerArray<core::SireModuleBase>&;
   auto resetModulesPool(aris::core::PointerArray<core::SireModuleBase>* pool)
       -> void;

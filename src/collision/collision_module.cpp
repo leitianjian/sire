@@ -2,14 +2,14 @@
 
 #include <aris/core/reflection.hpp>
 
-namespace sire::modules {
+namespace sire::collision {
 struct CollisionModule::Imp {
-  unique_ptr<collision::CollisionEngine> collision_engine_;
+  unique_ptr<CollisionEngine> collision_engine_;
 };
-auto CollisionModule::getCollisionEngine() -> collision::CollisionEngine& {
+auto CollisionModule::getCollisionEngine() -> CollisionEngine& {
   return *imp_->collision_engine_;
 }
-auto CollisionModule::resetCollisionEngine(collision::CollisionEngine* engine)
+auto CollisionModule::resetCollisionEngine(CollisionEngine* engine)
     -> void {
   imp_->collision_engine_.reset(engine);
 }

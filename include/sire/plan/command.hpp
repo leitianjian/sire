@@ -1,5 +1,5 @@
-#ifndef COMMAND_H_
-#define COMMAND_H_
+#ifndef SIRE_PLAN_COMMAND_H_
+#define SIRE_PLAN_COMMAND_H_
 
 #include <aris.hpp>
 

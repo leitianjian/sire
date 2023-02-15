@@ -257,8 +257,10 @@ target_compile_options(sire_cam_backend
 target_sources(sire_cam_backend 
 	PRIVATE 
 		"src/cam_backend/cam_backend.cpp"
+		"src/cam_backend/command.cpp"
 	PUBLIC 
 		"include/sire/cam_backend/cam_backend.hpp"
+		"include/sire/cam_backend/command.hpp"
 	)
 target_include_directories(sire_cam_backend
 	PUBLIC
@@ -350,12 +352,12 @@ install(FILES ${PROJECT_BINARY_DIR}/sire-config.cmake
 # ---------------------- build demos ---------------------------
 option(BUILD_DEMOS "build sire demos" OFF)
 if(BUILD_DEMOS)
-	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics demo_middle_ware_collision)
+	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics demo_middle_ware_collision demo_duan_cam_backend)
 	foreach(sire_demo ${SIRE_DEMOS})
 		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
 		add_executable(${sire_demo} ${SOURCES})
 		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR} ${hpp-fcl_INCLUDE_DIRS})
-		target_link_libraries(${sire_demo} sire_core sire_server sire_middleware sire_controller sire_transfer sire_simulator sire_collision ${PUB_RELY_LINK_LIB})
+		target_link_libraries(${sire_demo} sire_core sire_server sire_middleware sire_controller sire_transfer sire_simulator sire_collision sire_cam_backend ${PUB_RELY_LINK_LIB})
 		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
 		install(
 			TARGETS 

@@ -1125,6 +1125,22 @@
           </GroupParam>
         </Command>
       </SireMoveJ>
+      <CptCollisionMap name="cpt_collision_map">
+        <Command name="cpt_collision_map">
+          <GroupParam>
+            <Param name="tool_install" default="0"/>
+            <Param name="option" default="0"/>
+            <Param name="point_size"/>
+            <Param name="resolution"/>
+            <Param name="points"/>
+            <Param name="tool_angles"/>
+            <Param name="side_angles"/>
+            <Param name="forward_angles"/>
+            <Param name="normals"/>
+            <Param name="tangents"/>
+          </GroupParam>
+        </Command>
+      </CptCollisionMap>
     </PlanPoolObject>
   </PlanRoot>
   <PartPQTransfer __prop_name__="model_controller_transfer"/>
@@ -1136,8 +1152,8 @@
   </InterfacePoolObject>
   <SireMiddleware __prop_name__="pro_middle_ware">
     <SireModulesPoolObject __prop_name__="modules_pool">
-      <SireCollisionModule __prop_name__="collision_module">
-        <CollisionEngine __prop_name__="collision_engine">
+      <SireCamBackend __prop_name__="collision_module">
+        <CollisionCalculator __prop_name__="collision_calculator">
           <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
             <MeshGeometry id="1" part_id="1" is_dynamic="true" resource_path=""/>
             <MeshGeometry id="2" part_id="2" is_dynamic="true" resource_path=""/>
@@ -1151,8 +1167,8 @@
             <SphereGeometry id="7" part_id="0" is_dynamic="false" radius="0.030" pm="{1,0,0,0.560,0,1,0,0,0,0,0,0.642,0,0,0,1}"/>
           </GeometryPoolObject>
           <CollisionFilter __prop_name__="collision_filter" filter_state="{1,1,1,1,0,1,0,1, 1,1,1,1,0,1,0,1, 1,1,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,0,1,0,1,1,0, 1,1,0,0,0,0,0,1}"/>
-        </CollisionEngine>
-      </SireCollisionModule>
+        </CollisionCalculator>
+      </SireCamBackend>
     </SireModulesPoolObject>
   </SireMiddleware>
   <CustomModule __prop_name__="custom_module"/>
