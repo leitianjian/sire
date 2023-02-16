@@ -22,7 +22,7 @@ auto PartPQTransfer::updateDataController2Model(
     const std::vector<std::uint64_t>& options,
     const aris::control::Controller* controller,
     aris::dynamic::ModelBase* model) -> void {
-  for (aris::Size i = 0; i < controller->motorPool().size(); ++i) {
+  for (sire::Size i = 0; i < controller->motorPool().size(); ++i) {
     auto& cm = controller->motorPool()[i];
     if ((options[i] & aris::plan::Plan::UPDATE_MODEL_POS_FROM_CONTROLLER))
       model->setInputPosAt(cm.targetPos(), i);
@@ -38,7 +38,7 @@ auto PartPQTransfer::updateDataModel2Controller(
     const aris::dynamic::Model* csModel =
         dynamic_cast<const aris::dynamic::Model*>(model);
     double* parts_pq_ptr = parts_pq_.data();
-    for (aris::Size i = 0; i < part_pool_length_; ++i) {
+    for (sire::Size i = 0; i < part_pool_length_; ++i) {
       csModel->partPool().at(i).getPq(parts_pq_ptr + 7 * i);
     }
     parts_pq_atomic_ptr_.exchange(parts_pq_ptr);

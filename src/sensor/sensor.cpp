@@ -75,9 +75,9 @@
 //     : SensorBase<DataType>(name){};
 //
 // struct MotorForceVirtualSensor::Imp {
-//   aris::Size frequency_{10};
-//   aris::Size motor_index_{0};
-//   aris::Size buffer_size_{50};
+//   sire::Size frequency_{10};
+//   sire::Size motor_index_{0};
+//   sire::Size buffer_size_{50};
 //   std::atomic_bool buffer_is_full_;
 //   std::atomic_int data_to_read{-1};
 //   std::atomic_int data_to_write{0};
@@ -91,22 +91,22 @@
 //         buffer_(buffer_size_),
 //         buffer_mutex_(buffer_size_) {}
 // };
-// auto MotorForceVirtualSensor::motorIndex() const -> aris::Size {
+// auto MotorForceVirtualSensor::motorIndex() const -> sire::Size {
 //   return imp_->motor_index_;
 // }
-// auto MotorForceVirtualSensor::setMotorIndex(aris::Size index) -> void {
+// auto MotorForceVirtualSensor::setMotorIndex(sire::Size index) -> void {
 //   imp_->motor_index_ = index;
 // }
-// auto MotorForceVirtualSensor::frequency() const -> aris::Size {
+// auto MotorForceVirtualSensor::frequency() const -> sire::Size {
 //   return imp_->frequency_;
 // }
-// auto MotorForceVirtualSensor::setFrequency(aris::Size frequency) -> void {
+// auto MotorForceVirtualSensor::setFrequency(sire::Size frequency) -> void {
 //   imp_->frequency_ = frequency;
 // }
-// auto MotorForceVirtualSensor::bufferSize() const -> aris::Size {
+// auto MotorForceVirtualSensor::bufferSize() const -> sire::Size {
 //   return imp_->buffer_size_;
 // }
-// auto MotorForceVirtualSensor::setBufferSize(aris::Size buffer_size) -> void {
+// auto MotorForceVirtualSensor::setBufferSize(sire::Size buffer_size) -> void {
 //   imp_->buffer_size_ = buffer_size;
 // }
 //
@@ -177,7 +177,7 @@
 //
 // auto MotorForceVirtualSensor::retrieveBufferData(
 //     std::vector<std::unique_ptr<aris::sensor::SensorData>>& vec,
-//     aris::Size& count) -> void {
+//     sire::Size& count) -> void {
 //   std::cout << vec.size() << std::endl;
 //   for (int i = 0; i < vec.size(); ++i) {
 //     std::unique_lock<std::recursive_mutex> lock_property(
@@ -198,8 +198,8 @@
 //
 // MotorForceVirtualSensor::~MotorForceVirtualSensor() = default;
 // MotorForceVirtualSensor::MotorForceVirtualSensor(const std::string& name,
-//                                                  aris::Size frequency,
-//                                                  aris::Size motor_index)
+//                                                  sire::Size frequency,
+//                                                  sire::Size motor_index)
 //     : VirtualSensor<MotorForceData>(name), imp_(new Imp) {
 //   imp_->frequency_ = frequency;
 //   imp_->motor_index_ = motor_index;

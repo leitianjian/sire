@@ -2,6 +2,7 @@
 
 #include "sire/cam_backend/cam_backend.hpp"
 #include "sire/controller/controller_sensor.hpp"
+#include "sire/core/constants.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/server/interface.hpp"
@@ -10,8 +11,8 @@ namespace sire::cam_backend {
 struct CptCollisionMapParam {
   WobjToolInstallMethod tool_install;
   int option;
-  aris::Size resolution;
-  aris::Size point_size;                    // n
+  sire::Size resolution;
+  sire::Size point_size;                    // n
   std::vector<double> points;               // n * 3
   std::vector<double> tool_axis_angles;     // n * 1
   std::vector<double> side_tilt_angles;     // n * 1
@@ -46,7 +47,7 @@ auto CptCollisionMap::prepareNrt() -> void {
       cpt_collision_map_param.resolution = uint64Param(cmd_param.first);
     }
   }
-  aris::Size pSize = cpt_collision_map_param.point_size;
+  sire::Size pSize = cpt_collision_map_param.point_size;
   cpt_collision_map_param.points.resize(pSize * 3, 0.0);
   cpt_collision_map_param.normals.resize(pSize * 3, 0.0);
   cpt_collision_map_param.tangents.resize(pSize * 3, 0.0);

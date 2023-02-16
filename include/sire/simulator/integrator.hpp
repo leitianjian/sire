@@ -2,7 +2,10 @@
 #define SIRE_INTEGRATOR_HPP_
 
 #include <sire_lib_export.h>
-#include <aris.hpp>
+
+#include <aris/core/object.hpp>
+
+#include "sire/core/constants.hpp"
 
 namespace sire::simulator {
 class SIRE_API Integrator {
@@ -12,14 +15,14 @@ class SIRE_API Integrator {
   virtual ~Integrator() = default;
   auto stepSize() const -> double;
   auto setStepSize(double step_size) -> void;
-  auto dataLength() const -> aris::Size;
-  auto setDataLength(aris::Size data_length) -> void;
-  Integrator(aris::Size data_length = 6, double step_size = 0.001);
+  auto dataLength() const -> sire::Size;
+  auto setDataLength(sire::Size data_length) -> void;
+  Integrator(sire::Size data_length = 6, double step_size = 0.001);
   ARIS_DECLARE_BIG_FOUR(Integrator);
 
  private:
   double step_size_;
-  aris::Size data_length_;
+  sire::Size data_length_;
 };
 
 class SIRE_API RK4Integrator final : public Integrator {
@@ -27,7 +30,7 @@ class SIRE_API RK4Integrator final : public Integrator {
   auto integrate(double** diff_data_in, double* old_result, double* result_out)
       -> bool override;
   ~RK4Integrator() = default;
-  RK4Integrator(aris::Size data_length = 6, double step_size = 0.001);
+  RK4Integrator(sire::Size data_length = 6, double step_size = 0.001);
   ARIS_DECLARE_BIG_FOUR(RK4Integrator);
 };
 

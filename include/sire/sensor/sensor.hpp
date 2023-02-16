@@ -2,7 +2,7 @@
 #define SIRE_SENSOR_HPP_
 
 // #include <sire_lib_export.h>
-// #include <aris.hpp>
+// #include "sire/core/constants"
 //
 // namespace sire::sensor {
 // template <class DataType>
@@ -80,20 +80,20 @@
 // class SIRE_API MotorForceVirtualSensor final
 //     : public VirtualSensor<MotorForceData> {
 //  public:
-//   auto motorIndex() const -> aris::Size;
-//   auto setMotorIndex(aris::Size index) -> void;
-//   auto frequency() const -> aris::Size;
-//   auto setFrequency(aris::Size frequency) -> void;
-//   auto bufferSize() const -> aris::Size;
-//   auto setBufferSize(aris::Size buffer_size) -> void;
+//   auto motorIndex() const -> sire::Size;
+//   auto setMotorIndex(sire::Size index) -> void;
+//   auto frequency() const -> sire::Size;
+//   auto setFrequency(sire::Size frequency) -> void;
+//   auto bufferSize() const -> sire::Size;
+//   auto setBufferSize(sire::Size buffer_size) -> void;
 //   auto retrieveBufferData(
 //       std::vector<std::unique_ptr<aris::sensor::SensorData>>& vec,
-//       aris::Size& count) -> void;
+//       sire::Size& count) -> void;
 //   void virtual init(aris::server::ControlServer* cs) override;
 //   virtual ~MotorForceVirtualSensor();
 //   MotorForceVirtualSensor(
 //       const std::string& name = "motor_force_virtual_sensor",
-//       aris::Size frequency = 10, aris::Size moter_index = 0);
+//       sire::Size frequency = 10, sire::Size moter_index = 0);
 //   MotorForceVirtualSensor(MotorForceVirtualSensor& other);
 //   MotorForceVirtualSensor(MotorForceVirtualSensor&& other) = delete;
 //   MotorForceVirtualSensor& operator=(const MotorForceVirtualSensor& other);

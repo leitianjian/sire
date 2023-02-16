@@ -1,5 +1,5 @@
-#ifndef COLLISION_FILTER_H
-#define COLLISION_FILTER_H
+#ifndef SIRE_COLLISION_FILTER_HPP
+#define SIRE_COLLISION_FILTER_HPP
 
 #include <map>
 #include <string>

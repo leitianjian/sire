@@ -1,5 +1,5 @@
-#ifndef MODULE_BASE_H_
-#define MODULE_BASE_H_
+#ifndef SIRE_MODULE_BASE_HPP_
+#define SIRE_MODULE_BASE_HPP_
 
 #include <sire_lib_export.h>
 

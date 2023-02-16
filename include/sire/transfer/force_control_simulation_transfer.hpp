@@ -3,8 +3,9 @@
 
 #include <sire_lib_export.h>
 
-#include <aris.hpp>
+#include <aris/server/control_server.hpp>
 
+#include "sire/core/constants.hpp"
 #include "sire/simulator/integrator.hpp"
 
 namespace sire::transfer {
@@ -28,9 +29,9 @@ class SIRE_API ForceControlSimulationTransfer
 
  private:
   std::unique_ptr<simulator::Integrator> integrator_;
-  aris::Size part_pool_length_;
-  aris::Size motion_pool_length_;
-  aris::Size general_motion_pool_length_;
+  sire::Size part_pool_length_;
+  sire::Size motion_pool_length_;
+  sire::Size general_motion_pool_length_;
   double dt_seconds_;
   std::vector<double> motion_force_;
   std::array<std::vector<double>, 2> parts_ps_array_;

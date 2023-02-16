@@ -100,7 +100,7 @@ auto ForceControlSimulationTransfer::integrateAs2Ps(double* vs_in[3],
                                                     double* ps_out) -> void {
   std::swap(vs_in[0], vs_in[2]);
   std::swap(vs_in[0], vs_in[1]);
-  for (aris::Size i = 0; i < part_pool_length_; ++i) {
+  for (sire::Size i = 0; i < part_pool_length_; ++i) {
     double* as[3] = {as_in[0] + i * 6, as_in[1] + i * 6, as_in[2] + i * 6};
     integrator_->integrate(as, vs_in[1] + i * 6, vs_in[2] + i * 6);
     double* vs[3] = {vs_in[0] + i * 6, vs_in[1] + i * 6, vs_in[2] + i * 6};

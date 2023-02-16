@@ -14,6 +14,7 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/collision/collision_filter.hpp"
+#include "sire/core/constants.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 
 namespace sire::cam_backend {
@@ -35,9 +36,9 @@ auto vectorCross(double* in_1, double* in_2, double* out) -> void {
   return;
 }
 
-auto vectorNormalize(aris::Size n, double* in) -> void {
+auto vectorNormalize(sire::Size n, double* in) -> void {
   double temp = aris::dynamic::s_norm(n, in);
-  for (aris::Size i = 0; i < n; ++i) {
+  for (sire::Size i = 0; i < n; ++i) {
     in[i] /= temp;
   }
   return;
@@ -117,9 +118,9 @@ auto CamBackend::cptCollisionByEEPose(
   imp_->robot_model_ptr_->setOutputPos(ee_pe);
   if (imp_->robot_model_ptr_->inverseKinematics()) return;
   imp_->robot_model_ptr_->forwardKinematics();
-  aris::Size partSize = imp_->robot_model_ptr_->partPool().size();
+  sire::Size partSize = imp_->robot_model_ptr_->partPool().size();
   vector<double> part_pq(partSize * 7);
-  for (aris::Size i = 0; i < partSize; ++i) {
+  for (sire::Size i = 0; i < partSize; ++i) {
     imp_->robot_model_ptr_->partPool().at(i).getPq(part_pq.data() + i * 7);
   }
   imp_->collision_engine_ptr_->updateLocation(part_pq.data());
@@ -218,8 +219,8 @@ auto CamBackend::init() -> void {
 //  tool_z_vec在不设置侧倾的时候与normal一致，但是设置侧倾之后就不一样了，需要传入给AxisA6的旋转使用
 //  单位 m
 void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
-                                 int cpt_option, aris::Size resolution,
-                                 aris::Size pSize, double* points,
+                                 int cpt_option, sire::Size resolution,
+                                 sire::Size pSize, double* points,
                                  double* tool_axis_angles,
                                  double* side_tilt_angles,
                                  double* forward_tilt_angles, double* normal,
@@ -232,8 +233,8 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
   } else {
     step_angle = aris::PI / resolution;
   }
-  for (aris::Size i = 0; i < resolution; ++i) {
-    for (aris::Size j = 0; j < pSize; ++j) {
+  for (sire::Size i = 0; i < resolution; ++i) {
+    for (sire::Size j = 0; j < pSize; ++j) {
       // 1. 加工点坐标系( normal tangent)
       double* point = points + j * 3;
       double* forward_vec = tangent + j * 3;
@@ -281,8 +282,8 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
 }
 
 void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
-                                 int cpt_option, aris::Size resolution,
-                                 aris::Size pSize, double* points_pm,
+                                 int cpt_option, sire::Size resolution,
+                                 sire::Size pSize, double* points_pm,
                                  double* tool_axis_angles,
                                  double* side_tilt_angles,
                                  double* forward_tilt_angles) {
@@ -294,8 +295,8 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
   } else {
     step_angle = aris::PI / resolution;
   }
-  for (aris::Size i = 0; i < resolution; ++i) {
-    for (aris::Size j = 0; j < pSize; ++j) {
+  for (sire::Size i = 0; i < resolution; ++i) {
+    for (sire::Size j = 0; j < pSize; ++j) {
       // 1. 加工点坐标系( normal tangent)
       double forward_tilt_angle = forward_tilt_angles[j];
       double side_tilt_angle = side_tilt_angles[j];
@@ -323,8 +324,8 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
 auto CamBackend::getCollisionEngine() -> collision::CollisionEngine& {
   return *imp_->collision_engine_ptr_;
 }
-auto CamBackend::resetCollisionEngine(
-    collision::CollisionEngine* engine) -> void {
+auto CamBackend::resetCollisionEngine(collision::CollisionEngine* engine)
+    -> void {
   imp_->collision_engine_ptr_.reset(engine);
 }
 

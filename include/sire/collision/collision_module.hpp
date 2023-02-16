@@ -1,5 +1,5 @@
-#ifndef COLLISION_MODULE_H_
-#define COLLISION_MODULE_H_
+#ifndef SIRE_COLLISION_MODULE_HPP_
+#define SIRE_COLLISION_MODULE_HPP_
 
 #include <sire_lib_export.h>
 

@@ -35,7 +35,7 @@ class ForceControlTest
   aris::core::ImpPtr<Imp> imp_;
 };
 
-/// \brief 将机器人从轴空间移动到某个位姿。
+/// @brief 将机器人从轴空间移动到某个位姿。
 ///
 ///
 /// ### 参数定义 ###

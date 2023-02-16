@@ -2,8 +2,8 @@
 // Created by ZHOUYC on 2022/8/5.
 //
 
-#ifndef COLLISION_H
-#define COLLISION_H
+#ifndef SIRE_COLLISION_HPP_
+#define SIRE_COLLISION_HPP_
 
 #include <array>
 #include <iostream>

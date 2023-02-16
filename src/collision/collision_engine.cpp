@@ -18,6 +18,7 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/collision/collided_objects_callback.hpp"
+#include "sire/core/constants.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
 namespace sire::collision {
 struct CollisionEngine::Imp {
@@ -38,7 +39,7 @@ struct CollisionEngine::Imp {
   aris::server::ControlServer* server_;
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_;
-  aris::Size part_size_;
+  sire::Size part_size_;
 };
 auto CollisionEngine::resetCollisionFilter(CollisionFilter* filter) -> void {
   imp_->collision_filter_.reset(filter);
@@ -157,6 +158,7 @@ auto CollisionEngine::hasCollisions(fcl::CollisionCallBackBase& callback)
   imp_->dynamic_tree_.collide(&callback_casted);
   imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback_casted);
 }
+
 auto CollisionEngine::init() -> void {
   for (auto& anchored_geometry : *imp_->anchored_geometry_pool_) {
     anchored_geometry.init();

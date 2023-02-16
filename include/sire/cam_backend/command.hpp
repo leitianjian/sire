@@ -1,5 +1,5 @@
-#ifndef SIRE_CAM_BACKEND_COMMAND_H_
-#define SIRE_CAM_BACKEND_COMMAND_H_
+#ifndef SIRE_CAM_BACKEND_COMMAND_HPP_
+#define SIRE_CAM_BACKEND_COMMAND_HPP_
 
 #include <aris.hpp>
 

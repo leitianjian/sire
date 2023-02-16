@@ -1,5 +1,5 @@
-#ifndef COLLISION_GEOMETRY_H_
-#define COLLISION_GEOMETRY_H_
+#ifndef SIRE_COLLISION_GEOMETRY_HPP_
+#define SIRE_COLLISION_GEOMETRY_HPP_
 
 #include <atomic>
 #include <string>

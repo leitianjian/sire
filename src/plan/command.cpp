@@ -160,7 +160,7 @@ auto Get::prepareNrt() -> void {
           auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
           std::vector<double> temp_pq(7, 0.0);
           std::vector<double> temp_vs(6, 0.0);
-          for (aris::Size i(0); i < m->partPool().size(); ++i) {
+          for (sire::Size i(0); i < m->partPool().size(); ++i) {
             // par.tool->getPq(*par.wobj, std::any_cast<GetParam
             // &>(data).part_pq.data() + i * 7);
             m->partPool().at(i).getPq(temp_pq.data());
@@ -168,7 +168,7 @@ auto Get::prepareNrt() -> void {
             get_param.part_pq[i].assign(temp_pq.begin(), temp_pq.end());
             get_param.part_vs[i].assign(temp_vs.begin(), temp_vs.end());
           }
-          for (aris::Size i(0); i < m->motionPool().size(); ++i) {
+          for (sire::Size i(0); i < m->motionPool().size(); ++i) {
             get_param.motors_a[i] = m->motionPool()[i].ma();
             get_param.motors_f[i] = m->motionPool()[i].mf();
             get_param.motors_v[i] = m->motionPool()[i].mv();
@@ -257,7 +257,7 @@ struct ForceDataConfig {};
 struct ForceDataContainer {
   std::vector<std::vector<std::unique_ptr<aris::control::SensorData>>>
       data_sensor_force_;
-  ForceDataContainer(aris::Size sensor_size = 6)
+  ForceDataContainer(sire::Size sensor_size = 6)
       : data_sensor_force_(sensor_size) {}
 };
 struct DataProperty {
@@ -297,15 +297,15 @@ auto GetForceSensorData::prepareNrt() -> void {
     }
   }
   auto& sensor_pool = controller()->sensorPool();
-  aris::Size sensor_pool_size = sensor_pool.size();
-  aris::Size num_sensor_data_field = 1;
+  sire::Size sensor_pool_size = sensor_pool.size();
+  sire::Size num_sensor_data_field = 1;
   if (show_info) {
     ForceDataContainer param;
     param.data_sensor_force_.resize(sensor_pool_size);
     std::vector<std::vector<double>> result_force(sensor_pool_size);
     for (int i = 0; i < sensor_pool_size; ++i) {
       try {
-        aris::Size data_count = 0;
+        sire::Size data_count = 0;
         auto& virtual_force_sensor =
             dynamic_cast<controller::BufferedMotorForceVirtualSensor&>(
                 sensor_pool.at(i));
@@ -577,7 +577,7 @@ auto find_pq(const std::map<std::string_view, std::string_view>& params,
 struct SireMoveJParam {
   std::vector<double> joint_vel, joint_acc, joint_dec, ee_pq, joint_pos_begin,
       joint_pos_end;
-  std::vector<aris::Size> total_count;
+  std::vector<sire::Size> total_count;
 };
 struct SireMoveJ::Imp {};
 auto SireMoveJ::prepareNrt() -> void {
@@ -613,7 +613,7 @@ auto SireMoveJ::prepareNrt() -> void {
         mvj_param.joint_acc[i] *= controller()->motorPool()[i].maxAcc();
 
       // check value validity //
-      for (aris::Size i = 0;
+      for (sire::Size i = 0;
            i < std::min(model()->motionPool().size(), c->motorPool().size());
            ++i)
         if (mvj_param.joint_acc[i] <= 0 ||
@@ -636,7 +636,7 @@ auto SireMoveJ::prepareNrt() -> void {
         mvj_param.joint_vel[i] *= controller()->motorPool()[i].maxVel();
 
       // check value validity //
-      for (aris::Size i = 0;
+      for (sire::Size i = 0;
            i < std::min(model()->motionPool().size(), c->motorPool().size());
            ++i)
         if (mvj_param.joint_vel[i] <= 0 ||
@@ -659,7 +659,7 @@ auto SireMoveJ::prepareNrt() -> void {
         mvj_param.joint_dec[i] *= controller()->motorPool()[i].maxAcc();
 
       // check value validity //
-      for (aris::Size i = 0;
+      for (sire::Size i = 0;
            i < std::min(model()->motionPool().size(), c->motorPool().size());
            ++i)
         if (mvj_param.joint_dec[i] <= 0 ||
@@ -681,7 +681,7 @@ auto SireMoveJ::executeRT() -> int {
 
   // 取得起始位置 //
   double p, v, a;
-  static aris::Size max_total_count;
+  static sire::Size max_total_count;
   if (count() == 1) {
     // begin pos //
     model()->getInputPos(mvj_param->joint_pos_begin.data());
@@ -695,7 +695,7 @@ auto SireMoveJ::executeRT() -> int {
     if (model()->solverPool().at(0).kinPos()) return -1;
 
     // compute max count //
-    for (aris::Size i = 0; i < std::min(controller()->motorPool().size(),
+    for (sire::Size i = 0; i < std::min(controller()->motorPool().size(),
                                         model()->motionPool().size());
          ++i) {
       mvj_param->joint_pos_end[i] = *model()->motionPool()[i].p();
@@ -711,7 +711,7 @@ auto SireMoveJ::executeRT() -> int {
                                         mvj_param->total_count.end());
   }
 
-  for (aris::Size i = 0; i < std::min(controller()->motorPool().size(),
+  for (sire::Size i = 0; i < std::min(controller()->motorPool().size(),
                                       model()->motionPool().size());
        ++i) {
     aris::plan::moveAbsolute(

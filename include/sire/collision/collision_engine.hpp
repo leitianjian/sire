@@ -1,5 +1,5 @@
-#ifndef COLLISION_ENGINE_H
-#define COLLISION_ENGINE_H
+#ifndef SIRE_COLLISION_ENGINE_HPP_
+#define SIRE_COLLISION_ENGINE_HPP_
 
 #include <map>
 #include <string>

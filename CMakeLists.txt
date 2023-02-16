@@ -64,8 +64,13 @@ target_compile_features(sire_core PUBLIC cxx_std_17)
 target_sources(sire_core 
 	PRIVATE 
 		"src/core/module_base.cpp"
+		"src/core/sire_assert_and_throw.cpp"
 	PUBLIC 
 		"include/sire/core/module_base.hpp"
+		"include/sire/core/constants.hpp"
+		"include/sire/core/sire_assert.hpp"
+		"include/sire/core/sire_throw.hpp"
+		"include/sire/core/sire_assertion_error.hpp"
 	)
 target_include_directories(sire_core
 	PUBLIC
@@ -118,7 +123,6 @@ target_sources(sire_collision
 		"src/collision/collision.cpp"
 		"src/collision/collision_engine.cpp"
 		"src/collision/collision_module.cpp"
-		
 		"src/collision/collision_filter.cpp"
 		"src/collision/collision_exists_callback.cpp"
 		"src/collision/collided_objects_callback.cpp"
@@ -127,7 +131,6 @@ target_sources(sire_collision
 		"include/sire/collision/collision.hpp"
 		"include/sire/collision/collision_engine.hpp"
 		"include/sire/collision/collision_module.hpp"
-		"include/sire/collision/collision_calculator.hpp"
 		"include/sire/collision/collision_filter.hpp"
 		"include/sire/collision/collision_exists_callback.hpp"
 		"include/sire/collision/collided_objects_callback.hpp"

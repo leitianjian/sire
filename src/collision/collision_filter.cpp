@@ -14,12 +14,14 @@
 
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
+
+#include "sire/core/constants.hpp"
 namespace sire::collision {
 struct CollisionFilter::Imp {
   FilterState filter_state_;
   unordered_map<fcl::CollisionGeometry*, geometry::GeometryId> geometry_map_;
   aris::core::Matrix state_mat_;
-  aris::Size geo_size_{0};
+  sire::Size geo_size_{0};
 };
 auto CollisionFilter::addGeometry(geometry::CollisionGeometry& geo) -> bool {
   addGeometry(geo.geometryId(), geo.getCollisionObject());
