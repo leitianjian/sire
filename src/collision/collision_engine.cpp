@@ -105,7 +105,6 @@ auto CollisionEngine::updateLocation() -> bool {
   double* ptr = parts_pq_ref.load();
   if (ptr) {
     std::vector<double> buffer_pq(ptr, ptr + imp_->part_size_ * 7);
-    parts_pq_ref.exchange(nullptr);
     for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
       double temp_pm[16];
       aris::dynamic::s_pq2pm(buffer_pq.data() + 7 * dynamic_geometry.partId(),
@@ -113,6 +112,7 @@ auto CollisionEngine::updateLocation() -> bool {
       dynamic_geometry.updateLocation(temp_pm);
     }
     imp_->dynamic_tree_.update();
+    parts_pq_ref.exchange(nullptr);
     return true;
   }
   return false;
