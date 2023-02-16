@@ -1153,7 +1153,7 @@
   <SireMiddleware __prop_name__="pro_middle_ware">
     <SireModulesPoolObject __prop_name__="modules_pool">
       <SireCamBackend __prop_name__="collision_module">
-        <CollisionCalculator __prop_name__="collision_calculator">
+        <CollisionEngine __prop_name__="collision_calculator">
           <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
             <MeshGeometry id="1" part_id="1" is_dynamic="true" resource_path=""/>
             <MeshGeometry id="2" part_id="2" is_dynamic="true" resource_path=""/>
@@ -1167,7 +1167,7 @@
             <SphereGeometry id="7" part_id="0" is_dynamic="false" radius="0.030" pm="{1,0,0,0.560,0,1,0,0,0,0,0,0.642,0,0,0,1}"/>
           </GeometryPoolObject>
           <CollisionFilter __prop_name__="collision_filter" filter_state="{1,1,1,1,0,1,0,1, 1,1,1,1,0,1,0,1, 1,1,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,0,1,0,1,1,0, 1,1,0,0,0,0,0,1}"/>
-        </CollisionCalculator>
+        </CollisionEngine>
       </SireCamBackend>
     </SireModulesPoolObject>
   </SireMiddleware>

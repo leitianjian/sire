@@ -48,7 +48,8 @@ class SIRE_API CollisionEngine {
   auto clearDynamicGeometry() -> bool;
   auto clearAnchoredGeometry() -> bool;
   auto updateLocation() -> bool;
-  auto hasCollisions(CollisionExistsCallback& callback) -> void;
+  auto updateLocation(double* part_pq) -> bool;
+  auto hasCollisions(fcl::CollisionCallBackBase& callback) -> void;
   auto init() -> void;
   CollisionEngine();
   virtual ~CollisionEngine();

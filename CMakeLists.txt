@@ -118,7 +118,7 @@ target_sources(sire_collision
 		"src/collision/collision.cpp"
 		"src/collision/collision_engine.cpp"
 		"src/collision/collision_module.cpp"
-		"src/collision/collision_calculator.cpp"
+		
 		"src/collision/collision_filter.cpp"
 		"src/collision/collision_exists_callback.cpp"
 		"src/collision/collided_objects_callback.cpp"

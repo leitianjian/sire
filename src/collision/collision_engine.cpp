@@ -13,11 +13,11 @@
 #include <hpp/fcl/mesh_loader/assimp.h>
 #include <hpp/fcl/mesh_loader/loader.h>
 #include <hpp/fcl/shape/geometric_shapes.h>
-#include <io.h>
 
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
 
+#include "sire/collision/collided_objects_callback.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
 namespace sire::collision {
 struct CollisionEngine::Imp {
@@ -34,10 +34,7 @@ struct CollisionEngine::Imp {
   unordered_map<geometry::GeometryId, geometry::CollisionGeometry*>
       anchored_objects_map_;
   unique_ptr<CollisionFilter> collision_filter_;
-  // aris::core::Matrix part_pq_buffer_;
-  // thread retrieve_part_pq_;
-  atomic_bool collision_detection_running_;
-  thread collision_detection_;
+
   aris::server::ControlServer* server_;
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_;
@@ -137,12 +134,28 @@ auto CollisionEngine::updateLocation() -> bool {
   // imp_->dynamic_tree_.update();
   // return true;
 }
-auto CollisionEngine::hasCollisions(CollisionExistsCallback& callback) -> void {
-  callback.data.request.num_max_contacts = 10;
-  callback.data.request.enable_contact = false;
-  callback.data.request.gjk_tolerance = 2e-12;
-  imp_->dynamic_tree_.collide(&callback);
-  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
+auto CollisionEngine::updateLocation(double* part_pq) -> bool {
+  if (!part_pq) {
+    return true;
+  }
+  for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
+    double temp_pm[16];
+    aris::dynamic::s_pq2pm(part_pq + 7 * dynamic_geometry.partId(), temp_pm);
+    dynamic_geometry.updateLocation(temp_pm);
+  }
+  imp_->dynamic_tree_.update();
+  return true;
+}
+
+auto CollisionEngine::hasCollisions(fcl::CollisionCallBackBase& callback)
+    -> void {
+  CollidedObjectsCallback& callback_casted =
+      dynamic_cast<CollidedObjectsCallback&>(callback);
+  callback_casted.data.request.num_max_contacts = 10;
+  callback_casted.data.request.enable_contact = false;
+  callback_casted.data.request.gjk_tolerance = 2e-12;
+  imp_->dynamic_tree_.collide(&callback_casted);
+  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback_casted);
 }
 auto CollisionEngine::init() -> void {
   for (auto& anchored_geometry : *imp_->anchored_geometry_pool_) {
@@ -160,48 +173,25 @@ auto CollisionEngine::init() -> void {
   imp_->part_pool_ptr_ =
       &dynamic_cast<aris::dynamic::Model*>(&imp_->server_->model())->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
-  imp_->collision_detection_running_.store(true);
-  imp_->collision_detection_ = std::thread([this]() {
-    int64_t count = 1;
-    auto& time_start = chrono::system_clock::now();
-    while (imp_->collision_detection_running_) {
-      if (imp_->server_->running()) {
-        if (count % 100 == 0) {
-          auto& time_now = chrono::system_clock::now();
-          auto& duration = chrono::duration_cast<chrono::milliseconds>(
-              time_now - time_start);
-          cout << "cost: " << duration.count() << "ms" << endl;
-          time_start = chrono::system_clock::now();
-          count = 1;
-        }
-        if (this->updateLocation()) {
-          CollisionExistsCallback callback(imp_->collision_filter_.get());
-          this->hasCollisions(callback);
-          ++count;
-        }
-        // cout << "has collision number: " <<
-        // callback.data.result.numContacts() << endl;
-        // if (callback.collidedObjectMap().size() != 0) {
-        //   cout << callback.collidedObjectMap().size() << endl;
-        // }
-        // for (auto& obj_pair : callback.collidedObjectMap()) {
-        //   cout << "collided object of "
-        //        // << imp_->collision_filter_->queryGeometryIdByPtr(c.o1) << "
-        //        "
-        //        << obj_pair.first
-        //        << " "
-        //        //<< imp_->collision_filter_->queryGeometryIdByPtr(c.o2) <<
-        //        endl;
-        //        << obj_pair.second << endl;
-        // }
-      }
-    }
-  });
 }
+// callback print
+// cout << "has collision number: " <<
+// callback.data.result.numContacts() << endl;
+// if (callback.collidedObjectMap().size() != 0) {
+//   cout << callback.collidedObjectMap().size() << endl;
+// }
+// for (auto& obj_pair : callback.collidedObjectMap()) {
+//   cout << "collided object of "
+//        // << imp_->collision_filter_->queryGeometryIdByPtr(c.o1) << "
+//        "
+//        << obj_pair.first
+//        << " "
+//        //<< imp_->collision_filter_->queryGeometryIdByPtr(c.o2) <<
+//        endl;
+//        << obj_pair.second << endl;
+// }
 CollisionEngine::CollisionEngine() : imp_(new Imp) {}
-CollisionEngine::~CollisionEngine() {
-  imp_->collision_detection_running_.store(false);
-};
+CollisionEngine::~CollisionEngine(){};
 
 ARIS_REGISTRATION {
   aris::core::class_<aris::core::PointerArray<geometry::CollisionGeometry,
