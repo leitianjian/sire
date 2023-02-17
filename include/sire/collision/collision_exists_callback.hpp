@@ -16,16 +16,32 @@
 namespace sire::collision {
 using namespace std;
 using namespace hpp;
+namespace has_collisions {
+struct CallbackData {
+  /* Constructs the fully-specified callback data. The values are as described
+     in the class documentation. The parameters are all aliased in the data and
+     must remain valid at least as long as the CallbackData instance.
+
+     @param collision_filter_in     The collision filter system. Aliased.  */
+  explicit CallbackData(CollisionFilter* collision_filter_in);
+
+  /* The collision filter system.  */
+  CollisionFilter& collision_filter_;
+
+  /* The parameters for the fcl object-object collision function.  */
+  fcl::CollisionData collision_data_;
+
+  /* The result of the collisions exist query.  */
+  bool collision_exist_{false};
+};
+}  // namespace has_collisions
 // drake-based implementation
 class SIRE_API CollisionExistsCallback : public fcl::CollisionCallBackBase {
  public:
-  fcl::CollisionData data;
-  bool collide(fcl::CollisionObject* o1, fcl::CollisionObject* o2);
-  CollisionExistsCallback(CollisionFilter* filter);
+  has_collisions::CallbackData data;
+  auto collide(fcl::CollisionObject* o1, fcl::CollisionObject* o2) -> bool override;
+  CollisionExistsCallback(CollisionFilter* filter_in);
   virtual ~CollisionExistsCallback() = default;
-
- private:
-  CollisionFilter* filter_;
 };
 }  // namespace sire::collision
 #endif

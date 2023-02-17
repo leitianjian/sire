@@ -13,7 +13,7 @@
 
 #include <aris/core/expression_calculator.hpp>
 
-#include "sire/collision/collision_exists_callback.hpp"
+#include "sire/collision/collided_objects_callback.hpp"
 #include "sire/collision/collision_filter.hpp"
 #include "sire/collision/geometry/collision_geometry.hpp"
 
@@ -49,7 +49,8 @@ class SIRE_API CollisionEngine {
   auto clearAnchoredGeometry() -> bool;
   auto updateLocation() -> bool;
   auto updateLocation(double* part_pq) -> bool;
-  auto hasCollisions(fcl::CollisionCallBackBase& callback) -> void;
+  auto hasCollisions() -> bool;
+  auto collidedObjects(CollidedObjectsCallback& callback) -> bool;
   auto init() -> void;
   CollisionEngine();
   virtual ~CollisionEngine();

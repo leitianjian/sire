@@ -61,8 +61,10 @@ auto CollidedObjectsCallback::queryCollidedObject(fcl::CollisionObject* o1,
            collidedObjectMap_.end();
   }
 }
-CollidedObjectsCallback::CollidedObjectsCallback(CollisionFilter* filter)
-    : fcl::CollisionCallBackBase() {
-  filter_ = filter;
+CollidedObjectsCallback::CollidedObjectsCallback(CollisionFilter* filter_in)
+    : fcl::CollisionCallBackBase(), filter_(filter_in) {
+  data.request.num_max_contacts = 10;
+  data.request.enable_contact = false;
+  data.request.gjk_tolerance = 2e-12;
 };
 }  // namespace sire::collision

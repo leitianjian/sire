@@ -84,8 +84,7 @@ class CamBackend : public core::SireModuleBase {
   auto resetCollisionEngine(collision::CollisionEngine* engine) -> void;
   auto getCollisionMapResult() -> const vector<bool>&;
   auto getCollidedObjectsResult()
-      -> const vector<set<std::pair<collision::geometry::GeometryId,
-                                    collision::geometry::GeometryId>>>&;
+      -> const vector<set<collision::CollisionObjectsPair>>&;
   // initial CAM backend by two config file
   auto init(string model_xml_path = ".", string collision_xml_path = ".")
       -> void;

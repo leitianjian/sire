@@ -10,13 +10,11 @@
 /// unmet.  This is similar to an assertion, but uses exceptions instead of
 /// ::abort(), and cannot be disabled.
 
-namespace sire {
-namespace core {
+namespace sire::core {
 // Throw an error message.
 [[noreturn]] void Throw(const char* condition, const char* func,
                         const char* file, int line);
-}  // namespace core
-}  // namespace sire
+}  // namespace sire::core
 
 /// Evaluates @p condition and iff. the value is false will throw an exception
 /// with a message showing at least the condition text, function name, file,
@@ -34,7 +32,7 @@ namespace core {
 /// clear that a null pointer is the proximate cause of the problem.
 #define SIRE_THROW_UNLESS(condition)                                         \
   do {                                                                       \
-    typedef ::sire::assert::ConditionTraits<                                 \
+    typedef ::sire::core::assert::ConditionTraits<                                 \
         typename std::remove_cv_t<decltype(condition)>>                      \
         Trait;                                                               \
     static_assert(Trait::is_valid, "Condition should be bool-convertible."); \

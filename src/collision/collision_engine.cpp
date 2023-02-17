@@ -17,7 +17,7 @@
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
 
-#include "sire/collision/collided_objects_callback.hpp"
+#include "sire/collision/collision_exists_callback.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
 namespace sire::collision {
@@ -148,15 +148,18 @@ auto CollisionEngine::updateLocation(double* part_pq) -> bool {
   return true;
 }
 
-auto CollisionEngine::hasCollisions(fcl::CollisionCallBackBase& callback)
-    -> void {
-  CollidedObjectsCallback& callback_casted =
-      dynamic_cast<CollidedObjectsCallback&>(callback);
-  callback_casted.data.request.num_max_contacts = 10;
-  callback_casted.data.request.enable_contact = false;
-  callback_casted.data.request.gjk_tolerance = 2e-12;
-  imp_->dynamic_tree_.collide(&callback_casted);
-  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback_casted);
+auto CollisionEngine::hasCollisions() -> bool {
+  CollisionExistsCallback callback(imp_->collision_filter_.get());
+  imp_->dynamic_tree_.collide(&callback);
+  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
+  return callback.data.collision_exist_;
+}
+
+auto CollisionEngine::collidedObjects(CollidedObjectsCallback& callback)
+    -> bool {
+  imp_->dynamic_tree_.collide(&callback);
+  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
+  return callback.data.result.isCollision();
 }
 
 auto CollisionEngine::init() -> void {

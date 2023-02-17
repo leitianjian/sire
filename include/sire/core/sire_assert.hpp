@@ -105,7 +105,7 @@ struct ConditionTraits {
 
 #define SIRE_DEMAND(condition)                                                 \
   do {                                                                         \
-    typedef ::sire::assert::ConditionTraits<                                   \
+    typedef ::sire::core::assert::ConditionTraits<                                   \
         typename std::remove_cv_t<decltype(condition)>>                        \
         Trait;                                                                 \
     static_assert(Trait::is_valid, "Condition should be bool-convertible.");   \
@@ -139,7 +139,7 @@ constexpr bool kSireAssertIsDisarmed = true;
 }  // namespace sire
 #define SIRE_ASSERT(condition)                                              \
   do {                                                                       \
-    typedef ::sire::assert::ConditionTraits<                                \
+    typedef ::sire::core::assert::ConditionTraits<                                \
         typename std::remove_cv_t<decltype(condition)>>                      \
         Trait;                                                               \
     static_assert(Trait::is_valid, "Condition should be bool-convertible."); \

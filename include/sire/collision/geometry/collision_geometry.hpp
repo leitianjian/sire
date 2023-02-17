@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <string>
+#include <utility>
 
 #include <sire_lib_export.h>
 
@@ -86,5 +87,7 @@ class SIRE_API MeshGeometry : public CollisionGeometry {
   aris::core::ImpPtr<Imp> imp_;
 };
 }  // namespace geometry
+
+using CollisionObjectsPair = std::pair<geometry::GeometryId, geometry::GeometryId>;
 }  // namespace sire::collision
 #endif

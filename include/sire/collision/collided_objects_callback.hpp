@@ -23,14 +23,13 @@ class SIRE_API CollidedObjectsCallback : public fcl::CollisionCallBackBase {
       -> void;
   auto queryCollidedObject(fcl::CollisionObject* o1, fcl::CollisionObject* o2)
       -> bool;
-  auto collidedObjectMap()
-      -> set<std::pair<geometry::GeometryId, geometry::GeometryId>>&;
+  auto collidedObjectMap() -> set<CollisionObjectsPair>&;
   CollidedObjectsCallback(CollisionFilter* filter);
   virtual ~CollidedObjectsCallback() = default;
 
  private:
   CollisionFilter* filter_;
-  set<std::pair<geometry::GeometryId, geometry::GeometryId>> collidedObjectMap_;
+  set<CollisionObjectsPair> collidedObjectMap_;
 };
 }  // namespace sire::collision
 #endif

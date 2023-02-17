@@ -104,9 +104,7 @@ auto tiltAngle2pm(double side_tilt_angle, double forward_tilt_angle,
 
 struct CamBackend::Imp {
   vector<bool> collision_result_;
-  vector<set<std::pair<collision::geometry::GeometryId,
-                       collision::geometry::GeometryId>>>
-      collided_objects_result_;
+  vector<set<collision::CollisionObjectsPair>> collided_objects_result_;
 
   shared_ptr<aris::dynamic::Model> robot_model_ptr_;
   unique_ptr<collision::CollisionEngine> collision_engine_ptr_;
@@ -124,7 +122,7 @@ auto CamBackend::cptCollisionByEEPose(
     imp_->robot_model_ptr_->partPool().at(i).getPq(part_pq.data() + i * 7);
   }
   imp_->collision_engine_ptr_->updateLocation(part_pq.data());
-  imp_->collision_engine_ptr_->hasCollisions(callback);
+  imp_->collision_engine_ptr_->collidedObjects(callback);
 }
 
 auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
@@ -333,8 +331,7 @@ auto CamBackend::getCollisionMapResult() -> const vector<bool>& {
   return imp_->collision_result_;
 }
 auto CamBackend::getCollidedObjectsResult()
-    -> const vector<set<std::pair<collision::geometry::GeometryId,
-                                  collision::geometry::GeometryId>>>& {
+    -> const vector<set<collision::CollisionObjectsPair>>& {
   return imp_->collided_objects_result_;
 }
 
