@@ -1,9 +1,9 @@
-﻿#ifndef SIRE_MIDDLE_WARE_HPP_
-#define SIRE_MIDDLE_WARE_HPP_
+﻿#ifndef SIRE_MIDDLEWARE_HPP_
+#define SIRE_MIDDLEWARE_HPP_
 
 #include <functional>
-#include <string_view>
 #include <iostream>
+#include <string_view>
 
 #include <sire_lib_export.h>
 
@@ -35,6 +35,6 @@ class SIRE_API SireMiddleware : public aris::server::MiddleWare {
   std::unique_ptr<Imp> imp_;
 };
 
-}  // namespace sire::server
+}  // namespace sire::middleware
 
-#endif  // ARIS_SERVER_MIDDLE_WARE_HPP_
+#endif  // SIRE_MIDDLEWARE_HPP_

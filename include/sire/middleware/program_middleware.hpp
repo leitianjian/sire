@@ -1,5 +1,5 @@
-﻿#ifndef SIRE_PROGRAM_MIDDLE_WARE_HPP_
-#define SIRE_PROGRAM_MIDDLE_WARE_HPP_
+﻿#ifndef SIRE_PROGRAM_MIDDLEWARE_HPP_
+#define SIRE_PROGRAM_MIDDLEWARE_HPP_
 
 #include <functional>
 #include <string_view>
@@ -40,4 +40,4 @@ class SIRE_API ProgramMiddleware : public aris::server::MiddleWare {
 };
 }  // namespace sire::server
 
-#endif  // SIRE_PROGRAM_MIDDLE_WARE_HPP_
+#endif  // SIRE_PROGRAMMIDDLE_WARE_HPP_

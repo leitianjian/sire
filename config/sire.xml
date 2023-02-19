@@ -1030,6 +1030,6 @@
   </PlanRoot>
   <TransferModelController __prop_name__="model_controller_transfer"/>
   <InterfacePoolObject __prop_name__="interface"/>
-  <MiddleWare __prop_name__="middle_ware"/>
+  <MiddleWare __prop_name__="middleware"/>
   <CustomModule __prop_name__="custom_module"/>
 </ControlServer>

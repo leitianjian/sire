@@ -1118,7 +1118,7 @@
     </SireProgramWebInterface>
     <SireHttpInterface name="http_interface" document_root="D:\leitianjian\Documents\code\RobotControllerHMI\client\build" port="8003"/>
   </InterfacePoolObject>
-  <SireProgramMiddleware __prop_name__="pro_middle_ware"/>
+  <SireProgramMiddleware __prop_name__="pro_middleware"/>
   <CustomModule __prop_name__="custom_module"/>
   <SensorRoot __prop_name__="sensor_root">
     <SensorPoolObject __prop_name__="sensor_pool_object">
