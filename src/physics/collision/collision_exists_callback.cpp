@@ -1,4 +1,4 @@
-#include "sire/collision/collision_exists_callback.hpp"
+#include "sire/physics/collision/collision_exists_callback.hpp"
 
 #include <stdio.h>
 

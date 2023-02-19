@@ -1,5 +1,5 @@
-#ifndef SIRE_COLLISION_ENGINE_HPP_
-#define SIRE_COLLISION_ENGINE_HPP_
+#ifndef SIRE_COLLISION_DETECTION_ENGINE_HPP_
+#define SIRE_COLLISION_DETECTION_ENGINE_HPP_
 
 #include <map>
 #include <string>
@@ -13,18 +13,18 @@
 
 #include <aris/core/expression_calculator.hpp>
 
-#include "sire/collision/collided_objects_callback.hpp"
-#include "sire/collision/collision_filter.hpp"
-#include "sire/collision/geometry/collision_geometry.hpp"
+#include "sire/physics/collision/collided_objects_callback.hpp"
+#include "sire/physics/collision/collision_filter.hpp"
+#include "sire/physics/collision/geometry/collision_geometry.hpp"
 
 namespace sire::collision {
 using namespace std;
 using namespace hpp;
 /* drake-based implementation
  * filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
- * 需要修改位姿更新方式，使用无锁数据同步从transfer中取数据
+ * 使用无锁数据同步从transfer中取数据
  */
-class SIRE_API CollisionEngine {
+class SIRE_API CollisionDetectionEngine {
  public:
   auto resetCollisionFilter(CollisionFilter* filter) -> void;
   auto collisionFilter() -> CollisionFilter&;
@@ -52,12 +52,14 @@ class SIRE_API CollisionEngine {
   auto hasCollisions() -> bool;
   auto collidedObjects(CollidedObjectsCallback& callback) -> bool;
   auto init() -> void;
-  CollisionEngine();
-  virtual ~CollisionEngine();
-  CollisionEngine(const CollisionEngine& other) = delete;
-  CollisionEngine(CollisionEngine&& other) = delete;
-  CollisionEngine& operator=(const CollisionEngine& other) = delete;
-  CollisionEngine& operator=(CollisionEngine&& other) = delete;
+  CollisionDetectionEngine();
+  virtual ~CollisionDetectionEngine();
+  CollisionDetectionEngine(const CollisionDetectionEngine& other) = delete;
+  CollisionDetectionEngine(CollisionDetectionEngine&& other) = delete;
+  CollisionDetectionEngine& operator=(const CollisionDetectionEngine& other) =
+      delete;
+  CollisionDetectionEngine& operator=(CollisionDetectionEngine&& other) =
+      delete;
 
  private:
   struct Imp;

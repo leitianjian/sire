@@ -13,7 +13,7 @@
 
 #include <aris/core/expression_calculator.hpp>
 
-#include "sire/collision/geometry/collision_geometry.hpp"
+#include "sire/physics/collision/geometry/collision_geometry.hpp"
 
 namespace sire::collision {
 using namespace std;

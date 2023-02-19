@@ -13,7 +13,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-#include "sire/collision/collision_filter.hpp"
+#include "sire/physics/collision/collision_filter.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 
@@ -107,7 +107,7 @@ struct CamBackend::Imp {
   vector<set<collision::CollisionObjectsPair>> collided_objects_result_;
 
   shared_ptr<aris::dynamic::Model> robot_model_ptr_;
-  unique_ptr<collision::CollisionEngine> collision_engine_ptr_;
+  unique_ptr<collision::CollisionDetectionEngine> collision_detection_engine_ptr_;
 };
 
 auto CamBackend::cptCollisionByEEPose(
@@ -121,8 +121,8 @@ auto CamBackend::cptCollisionByEEPose(
   for (sire::Size i = 0; i < partSize; ++i) {
     imp_->robot_model_ptr_->partPool().at(i).getPq(part_pq.data() + i * 7);
   }
-  imp_->collision_engine_ptr_->updateLocation(part_pq.data());
-  imp_->collision_engine_ptr_->collidedObjects(callback);
+  imp_->collision_detection_engine_ptr_->updateLocation(part_pq.data());
+  imp_->collision_detection_engine_ptr_->collidedObjects(callback);
 }
 
 auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
@@ -191,19 +191,19 @@ auto CamBackend::init(string model_xml_path, string collision_xml_path)
 
   const string collision_config_name = "collision_calculator.xml";
   auto collision_config_path = config_path / collision_config_name;
-  imp_->collision_engine_ptr_.reset(new collision::CollisionEngine());
-  aris::core::fromXmlFile(&(imp_->collision_engine_ptr_),
+  imp_->collision_detection_engine_ptr_.reset(new collision::CollisionDetectionEngine());
+  aris::core::fromXmlFile(&(imp_->collision_detection_engine_ptr_),
                           collision_config_path);
 
   imp_->robot_model_ptr_->init();
-  imp_->collision_engine_ptr_->init();
+  imp_->collision_detection_engine_ptr_->init();
 }
 
 // initial CAM backend by control server
 auto CamBackend::init() -> void {
   imp_->robot_model_ptr_.reset(&dynamic_cast<aris::dynamic::Model&>(
       aris::server::ControlServer::instance().model()));
-  imp_->collision_engine_ptr_->init();
+  imp_->collision_detection_engine_ptr_->init();
 }
 
 // 未考虑周全的问题：
@@ -267,7 +267,7 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
                 target_ee_pe);
       // 5. 设置末端位姿并反解
       collision::CollidedObjectsCallback callback(
-          &imp_->collision_engine_ptr_->collisionFilter());
+          &imp_->collision_detection_engine_ptr_->collisionFilter());
       cptCollisionByEEPose(target_ee_pe, callback);
       if (callback.collidedObjectMap().size() != 0) {
         imp_->collision_result_[i * pSize + j] = true;
@@ -307,7 +307,7 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
                 target_ee_pe);
       // 5. 设置末端位姿并反解
       collision::CollidedObjectsCallback callback(
-          &imp_->collision_engine_ptr_->collisionFilter());
+          &imp_->collision_detection_engine_ptr_->collisionFilter());
       cptCollisionByEEPose(target_ee_pe, callback);
       if (callback.collidedObjectMap().size() != 0) {
         imp_->collision_result_[i * pSize + j] = true;
@@ -319,12 +319,12 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
   return;
 }
 
-auto CamBackend::getCollisionEngine() -> collision::CollisionEngine& {
-  return *imp_->collision_engine_ptr_;
+auto CamBackend::getCollisionDetectionEngine() -> collision::CollisionDetectionEngine& {
+  return *imp_->collision_detection_engine_ptr_;
 }
-auto CamBackend::resetCollisionEngine(collision::CollisionEngine* engine)
+auto CamBackend::resetCollisionDetectionEngine(collision::CollisionDetectionEngine* engine)
     -> void {
-  imp_->collision_engine_ptr_.reset(engine);
+  imp_->collision_detection_engine_ptr_.reset(engine);
 }
 
 auto CamBackend::getCollisionMapResult() -> const vector<bool>& {
@@ -341,7 +341,7 @@ CamBackend::~CamBackend() = default;
 ARIS_REGISTRATION {
   aris::core::class_<CamBackend>("SireCamBackend")
       .inherit<core::SireModuleBase>()
-      .prop("collision_calculator", &CamBackend::resetCollisionEngine,
-            &CamBackend::getCollisionEngine);
+      .prop("collision_calculator", &CamBackend::resetCollisionDetectionEngine,
+            &CamBackend::getCollisionDetectionEngine);
 }
 }  // namespace sire::cam_backend

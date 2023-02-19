@@ -1,4 +1,4 @@
-#include "sire/collision/geometry/collision_geometry.hpp"
+#include "sire/physics/collision/geometry/collision_geometry.hpp"
 
 #include <aris/core/reflection.hpp>
 #include <aris/dynamic/model.hpp>

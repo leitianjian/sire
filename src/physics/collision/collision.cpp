@@ -1,7 +1,7 @@
 //
 // Created by ZHOUYC on 2022/8/5.
 //
-#include "sire/collision/collision.hpp"
+#include "sire/physics/collision/collision.hpp"
 
 #include <stdio.h>
 

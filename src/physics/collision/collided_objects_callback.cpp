@@ -1,4 +1,4 @@
-#include "sire/collision/collided_objects_callback.hpp"
+#include "sire/physics/collision/collided_objects_callback.hpp"
 
 #include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
 #include <hpp/fcl/distance.h>

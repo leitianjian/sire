@@ -108,34 +108,37 @@ target_include_directories(sire_simulator
 	)
 install(DIRECTORY include/sire/simulator DESTINATION include/sire)
 
-# Build lib collision of sire
-add_library(sire_collision OBJECT)
-target_compile_features(sire_collision PRIVATE cxx_std_17)
-target_compile_definitions(sire_collision PRIVATE sire_lib_EXPORTS)
-target_compile_options(sire_collision
+# TODO(ltj)  Physics cmakelist to sub-directory
+# Build lib physics of sire
+add_library(sire_physics OBJECT)
+target_compile_features(sire_physics PRIVATE cxx_std_17)
+target_compile_definitions(sire_physics PRIVATE sire_lib_EXPORTS)
+target_compile_options(sire_physics
 	PRIVATE 
 		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
 		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
 	)
-target_sources(sire_collision 
+target_sources(sire_physics 
 	PRIVATE 
-		"src/collision/geometry/collision_geometry.cpp"
-		"src/collision/collision.cpp"
-		"src/collision/collision_engine.cpp"
-		"src/collision/collision_module.cpp"
-		"src/collision/collision_filter.cpp"
-		"src/collision/collision_exists_callback.cpp"
-		"src/collision/collided_objects_callback.cpp"
+		"src/physics/collision/geometry/collision_geometry.cpp"
+		"src/physics/collision/collision.cpp"
+		"src/physics/collision/collision_detection_engine.cpp"
+		"src/physics/collision/collision_module.cpp"
+		"src/physics/collision/collision_filter.cpp"
+		"src/physics/collision/collision_exists_callback.cpp"
+		"src/physics/collision/collided_objects_callback.cpp"
+		"src/physics/physics_engine.cpp"
 	PUBLIC 
-		"include/sire/collision/geometry/collision_geometry.hpp"
-		"include/sire/collision/collision.hpp"
-		"include/sire/collision/collision_engine.hpp"
-		"include/sire/collision/collision_module.hpp"
-		"include/sire/collision/collision_filter.hpp"
-		"include/sire/collision/collision_exists_callback.hpp"
-		"include/sire/collision/collided_objects_callback.hpp"
+		"include/sire/physics/collision/geometry/collision_geometry.hpp"
+		"include/sire/physics/collision/collision.hpp"
+		"include/sire/physics/collision/collision_detection_engine.hpp"
+		"include/sire/physics/collision/collision_module.hpp"
+		"include/sire/physics/collision/collision_filter.hpp"
+		"include/sire/physics/collision/collision_exists_callback.hpp"
+		"include/sire/physics/collision/collided_objects_callback.hpp"
+		"include/sire/physics/physics_engine.hpp"
 	)
-target_include_directories(sire_collision
+target_include_directories(sire_physics
 	PUBLIC
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -146,7 +149,7 @@ target_include_directories(sire_collision
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 		${ASSIMP_INCLUDE_DIRS}
 	)
-install(DIRECTORY include/sire/collision DESTINATION include/sire)
+install(DIRECTORY include/sire/physics DESTINATION include/sire)
 
 add_library(sire_server OBJECT)
 target_compile_definitions(sire_server PRIVATE sire_lib_EXPORTS)
@@ -283,7 +286,7 @@ add_library(sire_lib
 	SHARED 
 		$<TARGET_OBJECTS:sire_core>
 		$<TARGET_OBJECTS:sire_middleware>
-		$<TARGET_OBJECTS:sire_collision>
+		$<TARGET_OBJECTS:sire_physics>
 		$<TARGET_OBJECTS:sire_simulator>
 		$<TARGET_OBJECTS:sire_server>
 		$<TARGET_OBJECTS:sire_controller>

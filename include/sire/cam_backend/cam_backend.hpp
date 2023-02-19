@@ -13,9 +13,9 @@
 
 #include <aris/core/expression_calculator.hpp>
 
-#include "sire/collision/collided_objects_callback.hpp"
-#include "sire/collision/collision_engine.hpp"
-#include "sire/collision/geometry/collision_geometry.hpp"
+#include "sire/physics/collision/collided_objects_callback.hpp"
+#include "sire/physics/collision/collision_detection_engine.hpp"
+#include "sire/physics/collision/geometry/collision_geometry.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/core/module_base.hpp"
 
@@ -80,8 +80,8 @@ class CamBackend : public core::SireModuleBase {
                        double* points_pm, double* tool_axis_angles,
                        double* side_tilt_angles, double* forward_tilt_angles)
       -> void;
-  auto getCollisionEngine() -> collision::CollisionEngine&;
-  auto resetCollisionEngine(collision::CollisionEngine* engine) -> void;
+  auto getCollisionDetectionEngine() -> collision::CollisionDetectionEngine&;
+  auto resetCollisionDetectionEngine(collision::CollisionDetectionEngine* engine) -> void;
   auto getCollisionMapResult() -> const vector<bool>&;
   auto getCollidedObjectsResult()
       -> const vector<set<collision::CollisionObjectsPair>>&;

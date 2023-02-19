@@ -1,4 +1,4 @@
-#include "sire/collision/collision_engine.hpp"
+#include "sire/physics/collision/collision_detection_engine.hpp"
 
 #include <stdio.h>
 
@@ -17,11 +17,11 @@
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
 
-#include "sire/collision/collision_exists_callback.hpp"
 #include "sire/core/constants.hpp"
+#include "sire/physics/collision/collision_exists_callback.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
 namespace sire::collision {
-struct CollisionEngine::Imp {
+struct CollisionDetectionEngine::Imp {
   unique_ptr<aris::core::PointerArray<geometry::CollisionGeometry,
                                       aris::dynamic::Geometry>>
       dynamic_geometry_pool_;
@@ -41,33 +41,34 @@ struct CollisionEngine::Imp {
       part_pool_ptr_;
   sire::Size part_size_;
 };
-auto CollisionEngine::resetCollisionFilter(CollisionFilter* filter) -> void {
+auto CollisionDetectionEngine::resetCollisionFilter(CollisionFilter* filter)
+    -> void {
   imp_->collision_filter_.reset(filter);
 }
-auto CollisionEngine::collisionFilter() -> CollisionFilter& {
+auto CollisionDetectionEngine::collisionFilter() -> CollisionFilter& {
   return *imp_->collision_filter_;
 }
-auto CollisionEngine::resetDynamicGeometryPool(
+auto CollisionDetectionEngine::resetDynamicGeometryPool(
     aris::core::PointerArray<geometry::CollisionGeometry,
                              aris::dynamic::Geometry>* pool) -> void {
   imp_->dynamic_geometry_pool_.reset(pool);
 }
-auto CollisionEngine::dynamicGeometryPool()
+auto CollisionDetectionEngine::dynamicGeometryPool()
     -> aris::core::PointerArray<geometry::CollisionGeometry,
                                 aris::dynamic::Geometry>& {
   return *imp_->dynamic_geometry_pool_;
 }
-auto CollisionEngine::resetAnchoredGeometryPool(
+auto CollisionDetectionEngine::resetAnchoredGeometryPool(
     aris::core::PointerArray<geometry::CollisionGeometry,
                              aris::dynamic::Geometry>* pool) -> void {
   imp_->anchored_geometry_pool_.reset(pool);
 }
-auto CollisionEngine::anchoredGeometryPool()
+auto CollisionDetectionEngine::anchoredGeometryPool()
     -> aris::core::PointerArray<geometry::CollisionGeometry,
                                 aris::dynamic::Geometry>& {
   return *imp_->anchored_geometry_pool_;
 }
-auto CollisionEngine::addDynamicGeometry(
+auto CollisionDetectionEngine::addDynamicGeometry(
     geometry::CollisionGeometry& dynamic_geometry) -> bool {
   dynamic_geometry.updateLocation(nullptr);
   dynamic_geometry.getCollisionObject()->computeAABB();
@@ -76,7 +77,7 @@ auto CollisionEngine::addDynamicGeometry(
   imp_->dynamic_objects_map_[dynamic_geometry.geometryId()] = &dynamic_geometry;
   return true;
 }
-auto CollisionEngine::addAnchoredGeometry(
+auto CollisionDetectionEngine::addAnchoredGeometry(
     geometry::CollisionGeometry& anchored_geometry) -> bool {
   anchored_geometry.updateLocation(nullptr);
   anchored_geometry.getCollisionObject()->computeAABB();
@@ -86,16 +87,16 @@ auto CollisionEngine::addAnchoredGeometry(
       &anchored_geometry;
   return false;
 }
-auto CollisionEngine::removeGeometry() -> bool { return false; }
-auto CollisionEngine::clearDynamicGeometry() -> bool {
+auto CollisionDetectionEngine::removeGeometry() -> bool { return false; }
+auto CollisionDetectionEngine::clearDynamicGeometry() -> bool {
   imp_->dynamic_tree_.clear();
   return true;
 }
-auto CollisionEngine::clearAnchoredGeometry() -> bool {
+auto CollisionDetectionEngine::clearAnchoredGeometry() -> bool {
   imp_->anchored_tree_.clear();
   return true;
 }
-auto CollisionEngine::updateLocation() -> bool {
+auto CollisionDetectionEngine::updateLocation() -> bool {
   sire::transfer::PartPQTransfer& transfer =
       dynamic_cast<sire::transfer::PartPQTransfer&>(
           imp_->server_->transferModelController());
@@ -135,7 +136,7 @@ auto CollisionEngine::updateLocation() -> bool {
   // imp_->dynamic_tree_.update();
   // return true;
 }
-auto CollisionEngine::updateLocation(double* part_pq) -> bool {
+auto CollisionDetectionEngine::updateLocation(double* part_pq) -> bool {
   if (!part_pq) {
     return true;
   }
@@ -148,21 +149,21 @@ auto CollisionEngine::updateLocation(double* part_pq) -> bool {
   return true;
 }
 
-auto CollisionEngine::hasCollisions() -> bool {
+auto CollisionDetectionEngine::hasCollisions() -> bool {
   CollisionExistsCallback callback(imp_->collision_filter_.get());
   imp_->dynamic_tree_.collide(&callback);
   imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
   return callback.data.collision_exist_;
 }
 
-auto CollisionEngine::collidedObjects(CollidedObjectsCallback& callback)
-    -> bool {
-  imp_->dynamic_tree_.collide(&callback);
-  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
-  return callback.data.result.isCollision();
+auto CollisionDetectionEngine::collidedObjects(
+    CollidedObjectsCallback& callback_out) -> bool {
+  imp_->dynamic_tree_.collide(&callback_out);
+  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback_out);
+  return callback_out.data.result.isCollision();
 }
 
-auto CollisionEngine::init() -> void {
+auto CollisionDetectionEngine::init() -> void {
   for (auto& anchored_geometry : *imp_->anchored_geometry_pool_) {
     anchored_geometry.init();
     addAnchoredGeometry(anchored_geometry);
@@ -195,8 +196,8 @@ auto CollisionEngine::init() -> void {
 //        endl;
 //        << obj_pair.second << endl;
 // }
-CollisionEngine::CollisionEngine() : imp_(new Imp) {}
-CollisionEngine::~CollisionEngine(){};
+CollisionDetectionEngine::CollisionDetectionEngine() : imp_(new Imp) {}
+CollisionDetectionEngine::~CollisionDetectionEngine(){};
 
 ARIS_REGISTRATION {
   aris::core::class_<aris::core::PointerArray<geometry::CollisionGeometry,
@@ -206,16 +207,18 @@ ARIS_REGISTRATION {
 
   typedef aris::core::PointerArray<geometry::CollisionGeometry,
                                    aris::dynamic::Geometry>& (
-      CollisionEngine::*GeometryPoolFunc)();
+      CollisionDetectionEngine::*GeometryPoolFunc)();
   typedef sire::collision::CollisionFilter& (
-      CollisionEngine::*CollisionFilterPoolFunc)();
-  aris::core::class_<CollisionEngine>("CollisionEngine")
-      .prop("dynamic_geometry_pool", &CollisionEngine::resetDynamicGeometryPool,
-            GeometryPoolFunc(&CollisionEngine::dynamicGeometryPool))
+      CollisionDetectionEngine::*CollisionFilterPoolFunc)();
+  aris::core::class_<CollisionDetectionEngine>("CollisionDetectionEngine")
+      .prop("dynamic_geometry_pool",
+            &CollisionDetectionEngine::resetDynamicGeometryPool,
+            GeometryPoolFunc(&CollisionDetectionEngine::dynamicGeometryPool))
       .prop("anchored_geometry_pool",
-            &CollisionEngine::resetAnchoredGeometryPool,
-            GeometryPoolFunc(&CollisionEngine::anchoredGeometryPool))
-      .prop("collision_filter", &CollisionEngine::resetCollisionFilter,
-            CollisionFilterPoolFunc(&CollisionEngine::collisionFilter));
+            &CollisionDetectionEngine::resetAnchoredGeometryPool,
+            GeometryPoolFunc(&CollisionDetectionEngine::anchoredGeometryPool))
+      .prop(
+          "collision_filter", &CollisionDetectionEngine::resetCollisionFilter,
+          CollisionFilterPoolFunc(&CollisionDetectionEngine::collisionFilter));
 }
 }  // namespace sire::collision

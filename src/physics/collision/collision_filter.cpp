@@ -1,4 +1,4 @@
-#include "sire/collision/collision_filter.hpp"
+#include "sire/physics/collision/collision_filter.hpp"
 
 #include <stdio.h>
 
