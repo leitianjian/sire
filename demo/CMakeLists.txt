@@ -1,0 +1,6 @@
+add_subdirectory(demo_duan_cam_backend)
+add_subdirectory(demo_middleware_collision)
+add_subdirectory(demo_server_controller_sensor)
+add_subdirectory(demo_server_integrator_dynamics)
+add_subdirectory(demo_server_sensor_root)
+add_subdirectory(demo_simulation)

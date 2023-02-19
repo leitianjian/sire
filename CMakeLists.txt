@@ -355,64 +355,65 @@ install(FILES ${PROJECT_BINARY_DIR}/sire-config.cmake
 # ---------------------- build demos ---------------------------
 option(BUILD_DEMOS "build sire demos" OFF)
 if(BUILD_DEMOS)
-	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics demo_middle_ware_collision demo_duan_cam_backend)
-	foreach(sire_demo ${SIRE_DEMOS})
-		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
-		add_executable(${sire_demo} ${SOURCES})
-		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR} ${hpp-fcl_INCLUDE_DIRS})
-		target_link_libraries(${sire_demo} sire_core sire_server sire_middleware sire_controller sire_transfer sire_simulator sire_collision sire_cam_backend ${PUB_RELY_LINK_LIB})
-		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
-		install(
-			TARGETS 
-				sire_lib 
-				${sire_demo} 
-			CONFIGURATIONS
-				Debug
-			DESTINATION 
-				demo/debug/${sire_demo}
-			)
-		install(
-			TARGETS 
-				sire_lib 
-				${sire_demo} 
-			CONFIGURATIONS
-				Release
-			DESTINATION 
-				demo/release/${sire_demo}
-			)
-		install(
-			FILES 
-				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
-				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
-				"${assimp_DIR}/../../debug/bin/assimp-vc${MSVC_TOOLSET_VERSION}-mtd.dll"
-				"${assimp_DIR}/../../debug/bin/zlibd1.dll"
-				"${assimp_DIR}/../../debug/bin/pugixml.dll"
-			CONFIGURATIONS
-				Debug
-			DESTINATION 
-				demo/debug/${sire_demo}
-			)
-		install(
-			FILES 
-				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
-				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
-				"${assimp_DIR}/../../bin/assimp-vc${MSVC_TOOLSET_VERSION}-mt.dll"
-				"${assimp_DIR}/../../bin/zlib1.dll"
-				"${assimp_DIR}/../../bin/pugixml.dll"
-			CONFIGURATIONS
-				Release
-			DESTINATION 
-				demo/release/${sire_demo}
-			)
-		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/config)
-			install(DIRECTORY demo/${sire_demo}/config/ CONFIGURATIONS Release DESTINATION demo/release/${sire_demo})
-			install(DIRECTORY demo/${sire_demo}/config/ CONFIGURATIONS Debug DESTINATION demo/debug/${sire_demo})
-		endif()
-		# if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/resource)
-		# 	install(DIRECTORY demo/${sire_demo}/resource/ DESTINATION demo/${sire_demo})
-		# 	install(DIRECTORY demo/${sire_demo}/resource/ DESTINATION resource/${sire_demo})
-		# endif()
-	endforeach(sire_demo)
+	add_subdirectory(demo)
+#	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics demo_middleware_collision demo_duan_cam_backend)
+#	foreach(sire_demo ${SIRE_DEMOS})
+#		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
+#		add_executable(${sire_demo} ${SOURCES})
+#		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR} ${hpp-fcl_INCLUDE_DIRS})
+#		target_link_libraries(${sire_demo} sire_core sire_server sire_middleware sire_controller sire_transfer sire_simulator sire_physics sire_cam_backend ${PUB_RELY_LINK_LIB})
+#		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
+#		install(
+#			TARGETS 
+#				sire_lib 
+#				${sire_demo} 
+#			CONFIGURATIONS
+#				Debug
+#			DESTINATION 
+#				demo/debug/${sire_demo}
+#			)
+#		install(
+#			TARGETS 
+#				sire_lib 
+#				${sire_demo} 
+#			CONFIGURATIONS
+#				Release
+#			DESTINATION 
+#				demo/release/${sire_demo}
+#			)
+#		install(
+#			FILES 
+#				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
+#				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+#				"${assimp_DIR}/../../debug/bin/assimp-vc${MSVC_TOOLSET_VERSION}-mtd.dll"
+#				"${assimp_DIR}/../../debug/bin/zlibd1.dll"
+#				"${assimp_DIR}/../../debug/bin/pugixml.dll"
+#			CONFIGURATIONS
+#				Debug
+#			DESTINATION 
+#				demo/debug/${sire_demo}
+#			)
+#		install(
+#			FILES 
+#				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
+#				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+#				"${assimp_DIR}/../../bin/assimp-vc${MSVC_TOOLSET_VERSION}-mt.dll"
+#				"${assimp_DIR}/../../bin/zlib1.dll"
+#				"${assimp_DIR}/../../bin/pugixml.dll"
+#			CONFIGURATIONS
+#				Release
+#			DESTINATION 
+#				demo/release/${sire_demo}
+#			)
+#		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/config)
+#			install(DIRECTORY config CONFIGURATIONS Release DESTINATION demo/release/${sire_demo})
+#			install(DIRECTORY config CONFIGURATIONS Debug DESTINATION demo/debug/${sire_demo})
+#		endif()
+#		# if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/resource)
+#		# 	install(DIRECTORY resource DESTINATION demo/${sire_demo})
+#		# 	install(DIRECTORY resource DESTINATION resource/${sire_demo})
+#		# endif()
+#	endforeach(sire_demo)
 endif(BUILD_DEMOS)
 
 # ---------------------- build tests ---------------------------
