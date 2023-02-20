@@ -18,7 +18,6 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/sire_assert.hpp"
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
 
 namespace sire::collision {
 namespace has_collisions {

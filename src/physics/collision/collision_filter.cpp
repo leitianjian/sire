@@ -19,16 +19,16 @@
 namespace sire::collision {
 struct CollisionFilter::Imp {
   FilterState filter_state_;
-  unordered_map<fcl::CollisionGeometry*, geometry::GeometryId> geometry_map_;
+  unordered_map<fcl::CollisionGeometry*, GeometryId> geometry_map_;
   aris::core::Matrix state_mat_;
   sire::Size geo_size_{0};
 };
-auto CollisionFilter::addGeometry(geometry::CollisionGeometry& geo) -> bool {
+auto CollisionFilter::addGeometry(geometry::CollidableGeometry& geo) -> bool {
   addGeometry(geo.geometryId(), geo.getCollisionObject());
   return true;
 }
-auto CollisionFilter::addGeometry(geometry::GeometryId id,
-                                  fcl::CollisionObject* obj_ptr) -> bool {
+auto CollisionFilter::addGeometry(GeometryId id, fcl::CollisionObject* obj_ptr)
+    -> bool {
   if (!containsGeometry(id)) {
     GeometryMap map;
     for (auto& geoMap : imp_->filter_state_) {
@@ -48,7 +48,7 @@ auto CollisionFilter::addGeometry(geometry::GeometryId id,
     return true;
   }
 }
-auto CollisionFilter::updateGeometry(geometry::GeometryId id,
+auto CollisionFilter::updateGeometry(GeometryId id,
                                      fcl::CollisionObject* obj_ptr) -> bool {
   if (containsGeometry(id)) {
     imp_->geometry_map_[obj_ptr->collisionGeometry().get()] = id;
@@ -57,7 +57,7 @@ auto CollisionFilter::updateGeometry(geometry::GeometryId id,
     return true;
   }
 }
-auto CollisionFilter::removeGeometry(geometry::GeometryId id) -> bool {
+auto CollisionFilter::removeGeometry(GeometryId id) -> bool {
   if (containsGeometry(id)) {
     for (auto& geoMap : imp_->filter_state_[id]) {
       if (id > geoMap.first) {
@@ -77,8 +77,7 @@ auto CollisionFilter::removeGeometry(geometry::GeometryId id) -> bool {
     return true;
   }
 }
-auto CollisionFilter::canCollideWith(geometry::GeometryId id_1,
-                                     geometry::GeometryId id_2) -> bool {
+auto CollisionFilter::canCollideWith(GeometryId id_1, GeometryId id_2) -> bool {
   if (id_1 == id_2) return false;
   return id_1 < id_2 ? imp_->filter_state_[id_1][id_2] ==
                            CollisionRelationship::kUnfiltered
@@ -89,10 +88,8 @@ auto CollisionFilter::canCollideWith(fcl::CollisionObject* o1,
                                      fcl::CollisionObject* o2) -> bool {
   if (o1 == o2) return false;
   try {
-    geometry::GeometryId id_1 =
-        imp_->geometry_map_.at(o1->collisionGeometry().get());
-    geometry::GeometryId id_2 =
-        imp_->geometry_map_.at(o2->collisionGeometry().get());
+    GeometryId id_1 = imp_->geometry_map_.at(o1->collisionGeometry().get());
+    GeometryId id_2 = imp_->geometry_map_.at(o2->collisionGeometry().get());
 
     return canCollideWith(id_1, id_2);
   } catch (std::out_of_range& err) {
@@ -100,14 +97,14 @@ auto CollisionFilter::canCollideWith(fcl::CollisionObject* o1,
   }
 }
 auto CollisionFilter::queryGeometryIdByPtr(const fcl::CollisionGeometry* ptr)
-    -> geometry::GeometryId {
+    -> GeometryId {
   return queryGeometryIdByPtr(const_cast<fcl::CollisionGeometry*>(ptr));
 }
 auto CollisionFilter::queryGeometryIdByPtr(fcl::CollisionGeometry* ptr)
-    -> geometry::GeometryId {
+    -> GeometryId {
   return imp_->geometry_map_.at(ptr);
 }
-auto CollisionFilter::containsGeometry(geometry::GeometryId id) -> bool {
+auto CollisionFilter::containsGeometry(GeometryId id) -> bool {
   return imp_->filter_state_.find(id) != imp_->filter_state_.end();
 }
 auto CollisionFilter::setStateMat(aris::core::Matrix mat) -> void {

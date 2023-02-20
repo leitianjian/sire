@@ -1148,7 +1148,7 @@
           </GeometryPoolObject>
           <GeometryPoolObject __prop_name__="anchored_geometry_pool">
             <MeshGeometry id="0" part_id="0" is_dynamic="false" resource_path=""/>
-            <SphereGeometry id="7" part_id="0" is_dynamic="false" radius="0.030" pm="{1,0,0,0.560,0,1,0,0,0,0,0,0.642,0,0,0,1}"/>
+            <SphereGeometry id="7" part_id="0" is_dynamic="false" radius="0.030" pm="{1,0,0,0.560,0,1,0,0,0,0,1,0.642,0,0,0,1}"/>
           </GeometryPoolObject>
           <CollisionFilter __prop_name__="collision_filter" filter_state="{1,1,1,1,0,1,0,1, 1,1,1,1,0,1,0,1, 1,1,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,0,1,0,1,1,0, 1,1,0,0,0,0,0,1}"/>
         </CollisionDetectionEngine>

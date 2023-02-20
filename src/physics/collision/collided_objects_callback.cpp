@@ -7,7 +7,7 @@
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
 
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
+#include "sire/physics/collision/geometry/collidable_geometry.hpp"
 
 namespace sire::collision {
 auto CollidedObjectsCallback::collide(fcl::CollisionObject* o1,
@@ -29,16 +29,16 @@ auto CollidedObjectsCallback::collide(fcl::CollisionObject* o1,
   return false;
 }
 auto CollidedObjectsCallback::collidedObjectMap()
-    -> set<std::pair<geometry::GeometryId, geometry::GeometryId>>& {
+    -> set<std::pair<GeometryId, GeometryId>>& {
   return collidedObjectMap_;
 }
 auto CollidedObjectsCallback::addCollidedObject(fcl::CollisionObject* o1,
                                                 fcl::CollisionObject* o2)
     -> void {
   if (o1 == o2) return;
-  geometry::GeometryId id_1 =
+  GeometryId id_1 =
       filter_->queryGeometryIdByPtr(o1->collisionGeometry().get());
-  geometry::GeometryId id_2 =
+  GeometryId id_2 =
       filter_->queryGeometryIdByPtr(o2->collisionGeometry().get());
   if (id_1 == id_2) return;
   if (id_1 < id_2) {
@@ -51,9 +51,9 @@ auto CollidedObjectsCallback::queryCollidedObject(fcl::CollisionObject* o1,
                                                   fcl::CollisionObject* o2)
     -> bool {
   if (o1 == o2) return true;
-  geometry::GeometryId id_1 =
+  GeometryId id_1 =
       filter_->queryGeometryIdByPtr(o1->collisionGeometry().get());
-  geometry::GeometryId id_2 =
+  GeometryId id_2 =
       filter_->queryGeometryIdByPtr(o2->collisionGeometry().get());
   if (id_1 == id_2) return true;
   if (id_1 < id_2) {

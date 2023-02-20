@@ -37,14 +37,14 @@ auto MeshGeometry::init() -> void {
   fcl::loadPolyhedronFromResource(imp_->resource_path_,
                                   fcl::Vec3f(imp_->scale_), bvh_model);
   fcl::Transform3f trans(
-      fcl::Matrix3f{{prtPm()[0][0], prtPm()[0][1], prtPm()[0][2]},
-                    {prtPm()[1][0], prtPm()[1][1], prtPm()[1][2]},
-                    {prtPm()[2][0], prtPm()[2][1], prtPm()[2][2]}},
-      fcl::Vec3f{prtPm()[0][3], prtPm()[1][3], prtPm()[2][3]});
+      fcl::Matrix3f{{partPm()[0][0], partPm()[0][1], partPm()[0][2]},
+                    {partPm()[1][0], partPm()[1][1], partPm()[1][2]},
+                    {partPm()[2][0], partPm()[2][1], partPm()[2][2]}},
+      fcl::Vec3f{partPm()[0][3], partPm()[1][3], partPm()[2][3]});
   resetCollisionObject(new fcl::CollisionObject(bvh_model, trans));
 }
 MeshGeometry::MeshGeometry(const string& resource_path, const double* prt_pm)
-    : CollisionGeometry(prt_pm), imp_(new Imp) {
+    : CollidableGeometry(prt_pm), imp_(new Imp) {
   if (!resource_path.empty()) {
     imp_->resource_path_ = resource_path;
   }
@@ -59,7 +59,7 @@ ARIS_REGISTRATION {
     geo->setScale(scale.data());
   };
   aris::core::class_<MeshGeometry>("MeshGeometry")
-      .inherit<CollisionGeometry>()
+      .inherit<CollidableGeometry>()
       .prop("resource_path", &MeshGeometry::setResourcePath,
             &MeshGeometry::resourcePath)
       .prop("scale", &setMeshGeometryScale, &getMeshGeometryScale);

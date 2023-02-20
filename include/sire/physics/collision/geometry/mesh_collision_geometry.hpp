@@ -12,15 +12,16 @@
 #include <aris/dynamic/model_basic.hpp>
 #include <aris/dynamic/model_coordinate.hpp>
 
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
+#include "sire/core/geometry/geometry_on_part.hpp"
+#include "sire/physics/collision/geometry/collidable_geometry.hpp"
 
 namespace sire::collision {
 namespace geometry {
 /* unique geometry id for every added collision geometry */
 using namespace std;
 using namespace hpp;
-using GeometryId = int64_t;
-class SIRE_API MeshGeometry : public CollisionGeometry {
+using GeometryId = sire::geometry::GeometryId;
+class SIRE_API MeshGeometry : public CollidableGeometry {
  public:
   auto resourcePath() const -> const string&;
   auto setResourcePath(string_view resource_path) -> void;

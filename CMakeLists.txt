@@ -65,12 +65,20 @@ target_sources(sire_core
 	PRIVATE 
 		"src/core/module_base.cpp"
 		"src/core/sire_assert_and_throw.cpp"
+		"src/core/geometry/sphere_shape.cpp"
+		"src/core/geometry/sphere_geometry.cpp"
+		"src/core/geometry/geometry_base.cpp"
+		"src/core/geometry/geometry_on_part.cpp"
 	PUBLIC 
 		"include/sire/core/module_base.hpp"
 		"include/sire/core/constants.hpp"
 		"include/sire/core/sire_assert.hpp"
 		"include/sire/core/sire_throw.hpp"
 		"include/sire/core/sire_assertion_error.hpp"
+		"include/sire/core/geometry/sphere_shape.hpp"
+		"include/sire/core/geometry/sphere_geometry.hpp"
+		"include/sire/core/geometry/geometry_base.hpp"
+		"include/sire/core/geometry/geometry_on_part.hpp"
 	)
 target_include_directories(sire_core
 	PUBLIC
@@ -120,7 +128,10 @@ target_compile_options(sire_physics
 	)
 target_sources(sire_physics 
 	PRIVATE 
-		"src/physics/collision/geometry/collision_geometry.cpp"
+		"src/physics/collision/geometry/collidable.cpp"
+		"src/physics/collision/geometry/collidable_geometry.cpp"
+		"src/physics/collision/geometry/sphere_collision_geometry.cpp"
+		"src/physics/collision/geometry/mesh_collision_geometry.cpp"
 		"src/physics/collision/collision.cpp"
 		"src/physics/collision/collision_detection_engine.cpp"
 		"src/physics/collision/collision_module.cpp"
@@ -129,7 +140,10 @@ target_sources(sire_physics
 		"src/physics/collision/collided_objects_callback.cpp"
 		"src/physics/physics_engine.cpp"
 	PUBLIC 
-		"include/sire/physics/collision/geometry/collision_geometry.hpp"
+		"include/sire/physics/collision/geometry/collidable.hpp"
+		"include/sire/physics/collision/geometry/collidable_geometry.hpp"
+		"include/sire/physics/collision/geometry/sphere_collision_geometry.hpp"
+		"include/sire/physics/collision/geometry/mesh_collision_geometry.hpp"
 		"include/sire/physics/collision/collision.hpp"
 		"include/sire/physics/collision/collision_detection_engine.hpp"
 		"include/sire/physics/collision/collision_module.hpp"

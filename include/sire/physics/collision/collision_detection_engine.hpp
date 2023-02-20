@@ -15,7 +15,7 @@
 
 #include "sire/physics/collision/collided_objects_callback.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
+#include "sire/physics/collision/geometry/collidable_geometry.hpp"
 
 namespace sire::collision {
 using namespace std;
@@ -29,20 +29,20 @@ class SIRE_API CollisionDetectionEngine {
   auto resetCollisionFilter(CollisionFilter* filter) -> void;
   auto collisionFilter() -> CollisionFilter&;
   auto resetDynamicGeometryPool(
-      aris::core::PointerArray<geometry::CollisionGeometry,
+      aris::core::PointerArray<geometry::CollidableGeometry,
                                aris::dynamic::Geometry>* pool) -> void;
   auto dynamicGeometryPool()
-      -> aris::core::PointerArray<geometry::CollisionGeometry,
+      -> aris::core::PointerArray<geometry::CollidableGeometry,
                                   aris::dynamic::Geometry>&;
   auto resetAnchoredGeometryPool(
-      aris::core::PointerArray<geometry::CollisionGeometry,
+      aris::core::PointerArray<geometry::CollidableGeometry,
                                aris::dynamic::Geometry>* pool) -> void;
   auto anchoredGeometryPool()
-      -> aris::core::PointerArray<geometry::CollisionGeometry,
+      -> aris::core::PointerArray<geometry::CollidableGeometry,
                                   aris::dynamic::Geometry>&;
-  auto addDynamicGeometry(geometry::CollisionGeometry& dynamic_geometry)
+  auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
       -> bool;
-  auto addAnchoredGeometry(geometry::CollisionGeometry& anchored_geometry)
+  auto addAnchoredGeometry(geometry::CollidableGeometry& anchored_geometry)
       -> bool;
   auto removeGeometry() -> bool;
   auto clearDynamicGeometry() -> bool;

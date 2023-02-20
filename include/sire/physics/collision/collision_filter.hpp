@@ -13,11 +13,12 @@
 
 #include <aris/core/expression_calculator.hpp>
 
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
+#include "sire/physics/collision/geometry/collidable_geometry.hpp"
 
 namespace sire::collision {
 using namespace std;
 using namespace hpp;
+using GeometryId = sire::geometry::GeometryId;
 // drake-based implementation
 enum CollisionRelationship {
   kUnfiltered = 0,
@@ -25,23 +26,19 @@ enum CollisionRelationship {
 };
 class SIRE_API CollisionFilter {
  public:
-  using GeometryMap = map<geometry::GeometryId, CollisionRelationship>;
-  using FilterState = map<geometry::GeometryId, GeometryMap>;
-  auto addGeometry(geometry::CollisionGeometry& geo) -> bool;
-  auto addGeometry(geometry::GeometryId id, fcl::CollisionObject* obj_ptr)
-      -> bool;
-  auto updateGeometry(geometry::GeometryId id, fcl::CollisionObject* obj_ptr)
-      -> bool;
-  auto removeGeometry(geometry::GeometryId id) -> bool;
-  auto canCollideWith(geometry::GeometryId id_1, geometry::GeometryId id_2)
-      -> bool;
+  using GeometryMap = map<GeometryId, CollisionRelationship>;
+  using FilterState = map<GeometryId, GeometryMap>;
+  auto addGeometry(geometry::CollidableGeometry& geo) -> bool;
+  auto addGeometry(GeometryId id, fcl::CollisionObject* obj_ptr) -> bool;
+  auto updateGeometry(GeometryId id, fcl::CollisionObject* obj_ptr) -> bool;
+  auto removeGeometry(GeometryId id) -> bool;
+  auto canCollideWith(GeometryId id_1, GeometryId id_2) -> bool;
   auto canCollideWith(fcl::CollisionObject* o1, fcl::CollisionObject* o2)
       -> bool;
   inline auto queryGeometryIdByPtr(const fcl::CollisionGeometry* ptr)
-      -> geometry::GeometryId;
-  inline auto queryGeometryIdByPtr(fcl::CollisionGeometry* ptr)
-      -> geometry::GeometryId;
-  auto containsGeometry(geometry::GeometryId id) -> bool;
+      -> GeometryId;
+  inline auto queryGeometryIdByPtr(fcl::CollisionGeometry* ptr) -> GeometryId;
+  auto containsGeometry(GeometryId id) -> bool;
   auto setStateMat(aris::core::Matrix mat) -> void;
   auto stateMat() -> aris::core::Matrix;
   auto loadMatConfig() -> void;

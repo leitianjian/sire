@@ -15,7 +15,6 @@
 
 #include "sire/physics/collision/collided_objects_callback.hpp"
 #include "sire/physics/collision/collision_detection_engine.hpp"
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/core/module_base.hpp"
 

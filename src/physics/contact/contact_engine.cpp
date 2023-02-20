@@ -23,17 +23,17 @@
 #include "sire/transfer/part_pq_transfer.hpp"
 namespace sire::contact {
 struct ContactEngine::Imp {
-  unique_ptr<aris::core::PointerArray<geometry::CollisionGeometry,
+  unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
                                       aris::dynamic::Geometry>>
       dynamic_geometry_pool_;
-  unique_ptr<aris::core::PointerArray<geometry::CollisionGeometry,
+  unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
                                       aris::dynamic::Geometry>>
       anchored_geometry_pool_;
   fcl::DynamicAABBTreeCollisionManager dynamic_tree_;
-  unordered_map<geometry::GeometryId, geometry::CollisionGeometry*>
+  unordered_map<geometry::GeometryId, geometry::CollidableGeometry*>
       dynamic_objects_map_;
   fcl::DynamicAABBTreeCollisionManager anchored_tree_;
-  unordered_map<geometry::GeometryId, geometry::CollisionGeometry*>
+  unordered_map<geometry::GeometryId, geometry::CollidableGeometry*>
       anchored_objects_map_;
   unique_ptr<CollisionFilter> collision_filter_;
 
@@ -80,7 +80,7 @@ ContactEngine::ContactEngine() : imp_(new Imp) {}
 ContactEngine::~ContactEngine(){};
 
 ARIS_REGISTRATION {
-  typedef aris::core::PointerArray<geometry::CollisionGeometry,
+  typedef aris::core::PointerArray<geometry::ColliableGeometry,
                                    aris::dynamic::Geometry>& (
       ContactEngine::*GeometryPoolFunc)();
   typedef sire::collision::CollisionFilter& (
