@@ -6,6 +6,9 @@
 
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
+
+#include "sire/physics/collision/geometry/collision_geometry.hpp"
+
 namespace sire::collision {
 auto CollidedObjectsCallback::collide(fcl::CollisionObject* o1,
                                       fcl::CollisionObject* o2) -> bool {

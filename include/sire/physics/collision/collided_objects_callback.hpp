@@ -9,7 +9,6 @@
 #include <hpp/fcl/collision_object.h>
 
 #include "sire/physics/collision/collision_filter.hpp"
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
 
 namespace sire::collision {
 using namespace std;

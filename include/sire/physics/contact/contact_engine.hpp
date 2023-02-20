@@ -15,7 +15,6 @@
 
 #include "sire/physics/collision/collided_objects_callback.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
-#include "sire/physics/collision/geometry/collision_geometry.hpp"
 
 namespace sire::contact {
 using namespace std;
