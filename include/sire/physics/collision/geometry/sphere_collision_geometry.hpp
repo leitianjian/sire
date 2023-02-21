@@ -22,7 +22,7 @@ namespace geometry {
 /* unique geometry id for every added collision geometry */
 using namespace std;
 using namespace hpp;
-using GeometryId = int64_t;
+using GeometryId = sire::geometry::GeometryId;
 class SIRE_API SphereCollisionGeometry : public CollidableGeometry,
                                          public sire::geometry::SphereShape {
  public:

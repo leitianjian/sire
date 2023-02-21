@@ -15,8 +15,6 @@ int main(int argc, char* argv[]) {
   // 开启控制器服务
   try {
     cs.start();
-    cs.executeCmd("md");
-    cs.executeCmd("rc");
   } catch (const std::exception& err) {
     std::cout << "failed to start system, please reboot" << std::endl;
   }

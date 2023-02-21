@@ -1,0 +1,6 @@
+--vcs git
+--fullpath
+--by-file
+v      # verbose level 1
+exclude-ext xml
+--not-match-d=config|server|ext
