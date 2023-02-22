@@ -3,8 +3,6 @@
 #include "aris/core/pipe.hpp"
 #include "aris/core/reflection.hpp"
 
-#include "sire/ext/json.hpp"
-
 namespace sire::controller {
 struct NrtSensor::Imp {
   std::atomic_bool is_stopping_;
@@ -276,14 +274,13 @@ BufferedRtSensor::BufferedRtSensor(
   imp_->buffer_.reset(new SensorDataBuffer(buffer_size));
 };
 
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MotorForceData, force_);
 auto MotorForceData::to_json_string(std::string& str) -> void {
   nlohmann::json j;
-  controller::to_json(j, *this);
+  to_json(j, *this);
   str = j.dump();
 };
 auto MotorForceData::from_json_string(const std::string& str) -> void {
-  controller::from_json(nlohmann::json::parse(str), *this);
+  from_json(nlohmann::json::parse(str), *this);
 };
 
 struct BufferedMotorForceVirtualSensor::Imp {

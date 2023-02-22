@@ -11,32 +11,31 @@
 #include <aris/server/control_server.hpp>
 
 namespace sire::geometry {
-auto BoxGeometry::setHalfSide(double* side_in) -> void override {
-  BoxShape::setHalfSide(side_in);
+SIRE_DEFINE_TO_JSON_HEAD(BoxGeometry) {
+  j = json{{"shape_type", shapeType()},
+           {"length", length()},
+           {"width", width()},
+           {"height", height()}};
 }
-auto BoxGeometry::setHalfSide(double x_in, double y_in, double z_in)
-    -> void override {
-  BoxShape::setHalfSide(x_in, y_in, z_in);
-}
-auto BoxGeometry::halfSidePtr() -> const double* override {
-  return BoxShape::halfSidePtr();
-}
-auto BoxGeometry::halfSide() -> std::array<double, 3> override {
-  return BoxShape::halfSide();
+
+SIRE_DEFINE_FROM_JSON_HEAD(BoxGeometry) {
+  j.at("shape_type").get_to(shapeType());
+  j.at("length").get_to(length());
+  j.at("width").get_to(width());
+  j.at("height").get_to(height());
 }
 BoxGeometry::BoxGeometry(double x, double y, double z, const double* prt_pm)
-    : GeometryOnPart(), BoxShape(x, y, z) {}
+    : GeometryOnPart(prt_pm), BoxShape(x, y, z) {}
+
 BoxGeometry::~BoxGeometry() = default;
 
+ARIS_DEFINE_BIG_FOUR_CPP(BoxGeometry)
+
+SIRE_DEFINE_JSON_OUTER_TWO(BoxGeometry)
+
 ARIS_REGISTRATION {
-  auto setHalfSize = [](BoxGeometry* box, aris::core::Matrix mat) -> void {
-    box->setHalfSide(mat.data());
-  };
-  auto getHalfSize = [](BoxGeometry* box) -> aris::core::Matrix {
-    return aris::core::Matrix(1, 3, box->halfSidePtr())
-  };
   aris::core::class_<BoxGeometry>("BoxGeometry")
       .inherit<GeometryOnPart>()
-      .prop("half_size", &setHalfSize, &getHalfSize);
+      .inherit<BoxShape>();
 }
 }  // namespace sire::geometry

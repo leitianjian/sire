@@ -3,6 +3,8 @@
 
 #include <atomic>
 
+#include <sire_lib_export.h>
+
 #include <aris/core/object.hpp>
 #include <aris/dynamic/model_basic.hpp>
 #include <aris/dynamic/model_coordinate.hpp>
@@ -10,7 +12,7 @@
 #include "sire/core/geometry/geometry_base.hpp"
 
 namespace sire::geometry {
-class GeometryOnPart : public GeometryBase {
+class SIRE_API GeometryOnPart : public GeometryBase {
  public:
   auto partPm() const -> const aris::dynamic::double4x4&;
   auto isDynamic() -> bool;
@@ -18,8 +20,10 @@ class GeometryOnPart : public GeometryBase {
   auto partId() -> int;
   auto part() -> aris::dynamic::Part*;
   auto setPart(aris::dynamic::Part* part, int part_id) -> void;
-  explicit GeometryOnPart(const double* pm_in = nullptr);
+  explicit GeometryOnPart(const double* pm_in = default_pm);
   virtual ~GeometryOnPart();
+  ARIS_DECLARE_BIG_FOUR(GeometryOnPart)
+  SIRE_DECLARE_JSON_INTER_VIRTUAL_INTERFACE_TWO
 
  private:
   struct Imp;

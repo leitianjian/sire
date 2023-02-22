@@ -11,6 +11,19 @@
 #include <aris/core/reflection.hpp>
 
 namespace sire::collision::geometry {
+SIRE_DEFINE_TO_JSON_HEAD(BoxCollisionGeometry) {
+  j = json{{"shape_type", shapeType()},
+           {"length", length()},
+           {"width", width()},
+           {"height", height()}};
+}
+
+SIRE_DEFINE_FROM_JSON_HEAD(BoxCollisionGeometry) {
+  j.at("shape_type").get_to(shapeType());
+  j.at("length").get_to(length());
+  j.at("width").get_to(width());
+  j.at("height").get_to(height());
+}
 auto BoxCollisionGeometry::init() -> void {
   fcl::Transform3f trans(
       fcl::Matrix3f{{partPm()[0][0], partPm()[0][1], partPm()[0][2]},
@@ -26,16 +39,11 @@ BoxCollisionGeometry::BoxCollisionGeometry(double x, double y, double z,
     : CollidableGeometry(prt_pm), BoxShape(x, y, z) {}
 BoxCollisionGeometry::~BoxCollisionGeometry() = default;
 
+SIRE_DEFINE_JSON_OUTER_TWO(BoxCollisionGeometry)
+
 ARIS_REGISTRATION {
-  auto setHalfSize = [](BoxCollisionGeometry* box,
-                        aris::core::Matrix mat) -> void {
-    box->setHalfSide(mat.data());
-  };
-  auto getHalfSize = [](BoxCollisionGeometry* box) -> aris::core::Matrix {
-    return aris::core::Matrix(1, 3, box->halfSidePtr());
-  };
   aris::core::class_<BoxCollisionGeometry>("BoxCollisionGeometry")
       .inherit<CollidableGeometry>()
-      .prop("half_side", &setHalfSize, &getHalfSize);
+      .inherit<sire::geometry::BoxShape>();
 }
 }  // namespace sire::collision::geometry

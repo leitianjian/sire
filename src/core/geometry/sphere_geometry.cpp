@@ -10,17 +10,29 @@
 #include <aris/server/control_server.hpp>
 
 namespace sire::geometry {
-auto SphereGeometry::radius() -> double { return SphereShape::radius(); }
-auto SphereGeometry::setRadius(double radius_in) -> void {
-  SphereShape::setRadius(radius_in);
+SIRE_DEFINE_TO_JSON_HEAD(SphereGeometry) {
+  j = json{{"shape_type", shapeType()}, {"radius", radius()}};
 }
+
+SIRE_DEFINE_FROM_JSON_HEAD(SphereGeometry) {
+  j.at("shape_type").get_to(shapeType());
+  j.at("radius").get_to(radius());
+}
+
 SphereGeometry::SphereGeometry(double radius, const double* prt_pm)
     : GeometryOnPart(), SphereShape(radius) {}
+
 SphereGeometry::~SphereGeometry() = default;
+
+ARIS_DEFINE_BIG_FOUR_CPP(SphereGeometry)
+
+// 借助类内部的from_json to_json定义，
+// 使用宏定义完成用于json类型转换的from_json to_json的方法定义
+SIRE_DEFINE_JSON_OUTER_TWO(SphereGeometry)
 
 ARIS_REGISTRATION {
   aris::core::class_<SphereGeometry>("SphereGeometry")
       .inherit<GeometryOnPart>()
-      .prop("radius", &SphereGeometry::setRadius, &SphereGeometry::radius);
+      .inherit<SphereShape>();
 }
 }  // namespace sire::geometry

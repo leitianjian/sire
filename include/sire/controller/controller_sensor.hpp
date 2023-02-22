@@ -6,6 +6,7 @@
 #include <aris/control/controller_motion.hpp>
 
 #include "sire/core/constants.hpp"
+#include "sire/ext/json.hpp"
 
 namespace sire::controller {
 class NrtSensor;
@@ -190,6 +191,8 @@ class SIRE_API MotorForceData : public aris::control::SensorData {
   virtual ~MotorForceData() = default;
   MotorForceData(double force = 0)
       : aris::control::SensorData(), force_(force){};
+  NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MotorForceData, force_);
+
   auto virtual to_json_string(std::string& j) -> void override;
   auto virtual from_json_string(const std::string& j) -> void override;
 };

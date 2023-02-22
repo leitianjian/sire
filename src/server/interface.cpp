@@ -16,39 +16,37 @@
 #include <aris/server/control_server.hpp>
 #include <aris/server/interface.hpp>
 
+#include "sire/core/sire_log.hpp"
 #include "sire/ext/fifo_map.hpp"
 #include "sire/ext/json.hpp"
-#include "sire/server/api.hpp"
 #include "sire/middleware/program_middleware.hpp"
+#include "sire/server/api.hpp"
 
 namespace sire::server {
 auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)
     -> std::string {
-  nlohmann::json js;
-  for (auto& key_value : ret) {
-    if (auto value = std::any_cast<std::string>(&key_value.second))
-      std::cout << key_value.first << ":" << *value << std::endl;
-
-#define ARIS_SET_TYPE(TYPE)                                \
-  if (auto value = std::any_cast<TYPE>(&key_value.second)) \
-    js[key_value.first] = *value;                          \
+#define APPEND_PAIR_TO_JSON(VALUE_TYPE)                          \
+  if (auto value = std::any_cast<VALUE_TYPE>(&key_value.second)) \
+    js[key_value.first] = *value;                                \
   else
 
-    ARIS_SET_TYPE(bool)
-    ARIS_SET_TYPE(int)
-    ARIS_SET_TYPE(double)
-    ARIS_SET_TYPE(std::string)
-    ARIS_SET_TYPE(std::vector<bool>)
-    ARIS_SET_TYPE(std::vector<int>)
-    ARIS_SET_TYPE(std::vector<double>)
-    ARIS_SET_TYPE(std::vector<std::string>)
-    ARIS_SET_TYPE(nlohmann::json) {
-      ARIS_COUT << "unrecognized return value1" << std::endl;
+  nlohmann::json js;
+  for (auto& key_value : ret) {
+    // if (auto value = std::any_cast<std::string>(&key_value.second))
+    // std::cout << key_value.first << ":" << *value << std::endl;
+    APPEND_PAIR_TO_JSON(bool)
+    APPEND_PAIR_TO_JSON(int)
+    APPEND_PAIR_TO_JSON(double)
+    APPEND_PAIR_TO_JSON(std::string)
+    APPEND_PAIR_TO_JSON(std::vector<bool>)
+    APPEND_PAIR_TO_JSON(std::vector<int>)
+    APPEND_PAIR_TO_JSON(std::vector<double>)
+    APPEND_PAIR_TO_JSON(std::vector<std::string>)
+    APPEND_PAIR_TO_JSON(nlohmann::json) {
+      SIRE_DEBUG_LOG << "unrecognized return value" << std::endl;
     }
-
-#undef ARIS_SET_TYPE
   }
-  ARIS_COUT << js.dump(2) << std::endl;
+#undef APPEND_PAIR_TO_JSON
   return js.dump(2);
 }
 auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
@@ -533,9 +531,9 @@ struct HttpInterface::Imp {
           break;
       }
     } catch (std::exception& e) {
-      std::cout << "http error:" << e.what() << std::endl;
+      SIRE_DEBUG_LOG << "http error:" << e.what() << std::endl;
     } catch (...) {
-      std::cout << "http error: unknown" << std::endl;
+      SIRE_DEBUG_LOG << "http error: unknown" << std::endl;
     }
   }
 };

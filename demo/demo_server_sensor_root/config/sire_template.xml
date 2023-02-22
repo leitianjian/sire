@@ -1116,7 +1116,7 @@
     <SireProgramWebInterface name="sire_program_websock_interface">
       <Socket __prop_name__="socket" connect_type="WEB" port="5868"/>
     </SireProgramWebInterface>
-    <SireHttpInterface name="http_interface" document_root="D:\leitianjian\Documents\code\RobotControllerHMI\client\build" port="8003"/>
+    <SireHttpInterface name="http_interface" document_root="D:\Documents\code\RobotControllerHMI\client\build" port="8003"/>
   </InterfacePoolObject>
   <SireProgramMiddleware __prop_name__="pro_middleware"/>
   <CustomModule __prop_name__="custom_module"/>

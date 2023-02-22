@@ -27,6 +27,10 @@ auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
   getCollisionObject()->computeAABB();
 }
 auto CollidableGeometry::init() -> void {}
+CollidableGeometry::CollidableGeometry() : sire::geometry::GeometryOnPart() {
+  aris::dynamic::s_vc(16, sire::geometry::default_pm,
+                      const_cast<double*>(*partPm()));
+}
 CollidableGeometry::CollidableGeometry(const double* prt_pm)
     : sire::geometry::GeometryOnPart() {
   prt_pm = prt_pm ? prt_pm : sire::geometry::default_pm;

@@ -11,11 +11,13 @@
 #include <aris/core/reflection.hpp>
 
 namespace sire::collision::geometry {
-auto SphereCollisionGeometry::radius() -> double {
-  return SphereShape::radius();
+SIRE_DEFINE_TO_JSON_HEAD(SphereCollisionGeometry) {
+  j = json{{"shape_type", shapeType()}, {"radius", radius()}};
 }
-auto SphereCollisionGeometry::setRadius(double radius_in) -> void {
-  SphereShape::setRadius(radius_in);
+
+SIRE_DEFINE_FROM_JSON_HEAD(SphereCollisionGeometry) {
+  j.at("shape_type").get_to(shapeType());
+  j.at("radius").get_to(radius());
 }
 auto SphereCollisionGeometry::init() -> void {
   fcl::Transform3f trans(
@@ -31,10 +33,13 @@ SphereCollisionGeometry::SphereCollisionGeometry(double radius,
     : CollidableGeometry(prt_pm), SphereShape(radius) {}
 SphereCollisionGeometry::~SphereCollisionGeometry() = default;
 
+// 借助类内部的from_json to_json定义，
+// 使用宏定义完成用于json类型转换的from_json to_json的方法定义
+SIRE_DEFINE_JSON_OUTER_TWO(SphereCollisionGeometry)
+
 ARIS_REGISTRATION {
   aris::core::class_<SphereCollisionGeometry>("SphereCollisionGeometry")
       .inherit<CollidableGeometry>()
-      .prop("radius", &SphereCollisionGeometry::setRadius,
-            &SphereCollisionGeometry::radius);
+      .inherit<sire::geometry::SphereShape>();
 }
 }  // namespace sire::collision::geometry

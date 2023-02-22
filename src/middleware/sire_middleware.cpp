@@ -30,11 +30,12 @@ auto SireMiddleware::executeCmd(std::string_view str,
   std::cout << "      CMD -- " << cmd << std::endl;
   std::cout << std::endl;
 
-  auto send_and_print = [cmd_id, send_ret](std::string ret) -> void {
-    std::cout << "    ID -- " << cmd_id << std::endl;
-    std::cout << "RETURN -- " << ret << std::endl;
-    std::cout << std::endl;
-
+  auto send_and_print = [cmd_id, cmd, send_ret](std::string ret) -> void {
+    if (cmd != "get") {
+      std::cout << "    ID -- " << cmd_id << std::endl;
+      std::cout << "RETURN -- " << ret << std::endl;
+      std::cout << std::endl;
+    }
     send_ret(ret);
   };
 
@@ -52,14 +53,14 @@ auto SireMiddleware::executeCmd(std::string_view str,
               "return_code", plan.executeRetCode()));
           js->push_back(std::make_pair<std::string, std::any>(
               "return_message", std::string(plan.executeRetMsg())));
-          send_and_print(aris::server::parse_ret_value(*js));
+          send_and_print(sire::server::parse_ret_value(*js));
         } else {
           std::vector<std::pair<std::string, std::any>> ret_js;
           ret_js.push_back(std::make_pair<std::string, std::any>(
               "return_code", plan.executeRetCode()));
           ret_js.push_back(std::make_pair<std::string, std::any>(
               "return_message", std::string(plan.executeRetMsg())));
-          send_and_print(aris::server::parse_ret_value(ret_js));
+          send_and_print(sire::server::parse_ret_value(ret_js));
         }
       });
 

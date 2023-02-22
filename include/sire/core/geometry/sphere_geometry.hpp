@@ -7,25 +7,29 @@
 
 #include <sire_lib_export.h>
 
+#include <aris/core/object.hpp>
 #include <aris/dynamic/model_basic.hpp>
 #include <aris/dynamic/model_coordinate.hpp>
 
 #include "sire/core/geometry/geometry_on_part.hpp"
 #include "sire/core/geometry/sphere_shape.hpp"
+#include "sire/core/sire_decl_def_macro.hpp"
+#include "sire/ext/json.hpp"
 
 namespace sire::geometry {
 using namespace std;
-class SIRE_API SphereGeometry : public GeometryOnPart,
-                                public SphereShape {
+using json = nlohmann::json;
+class SIRE_API SphereGeometry : public GeometryOnPart, public SphereShape {
  public:
-  auto radius() -> double override;
-  auto setRadius(double radius_in) -> void override;
   explicit SphereGeometry(double radius = 0.1, const double* prt_pm = nullptr);
   virtual ~SphereGeometry();
-  SphereGeometry(const SphereGeometry& other) = delete;
-  SphereGeometry(SphereGeometry&& other) = delete;
-  SphereGeometry& operator=(const SphereGeometry& other) = delete;
-  SphereGeometry& operator=(SphereGeometry&& other) = delete;
+  ARIS_DECLARE_BIG_FOUR(SphereGeometry)
+
+  // 类内部使用的to_json from_json的声明
+  SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
+
+  // nlohammn::json j = o;的时候会自动调用的to_json from_json的声明
+  SIRE_DECLARE_JSON_FRIEND_TWO(SphereGeometry)
 };
 }  // namespace sire::geometry
 #endif

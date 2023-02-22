@@ -16,7 +16,8 @@ class CollidableGeometry : public sire::geometry::GeometryOnPart,
  public:
   auto virtual updateLocation(const double* prt_pm) -> void override;
   auto virtual init() -> void override;
-  explicit CollidableGeometry(const double* pm_in = nullptr);
+  explicit CollidableGeometry();
+  explicit CollidableGeometry(const double* pm_in);
   virtual ~CollidableGeometry();
 };
 

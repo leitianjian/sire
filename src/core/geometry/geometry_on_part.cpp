@@ -34,6 +34,8 @@ GeometryOnPart::GeometryOnPart(const double* pm_in)
   pm_in = pm_in ? pm_in : default_pm;
   aris::dynamic::s_vc(16, pm_in, *imp_->prt_pm_);
 }
+ARIS_DEFINE_BIG_FOUR_CPP(GeometryOnPart)
+
 GeometryOnPart::~GeometryOnPart() = default;
 
 ARIS_REGISTRATION {

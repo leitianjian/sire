@@ -68,6 +68,8 @@ target_sources(sire_core
 		"src/core/geometry/sphere_shape.cpp"
 		"src/core/geometry/box_shape.cpp"
 		"src/core/geometry/sphere_geometry.cpp"
+		"src/core/geometry/box_geometry.cpp"
+		"src/core/geometry/shape_base.cpp"
 		"src/core/geometry/geometry_base.cpp"
 		"src/core/geometry/geometry_on_part.cpp"
 	PUBLIC 
@@ -76,9 +78,13 @@ target_sources(sire_core
 		"include/sire/core/sire_assert.hpp"
 		"include/sire/core/sire_throw.hpp"
 		"include/sire/core/sire_assertion_error.hpp"
+		"include/sire/core/sire_log.hpp"
+		"include/sire/core/sire_decl_def_macro.hpp"
 		"include/sire/core/geometry/sphere_shape.hpp"
 		"include/sire/core/geometry/box_shape.hpp"
+		"include/sire/core/geometry/shape_base.hpp"
 		"include/sire/core/geometry/sphere_geometry.hpp"
+		"include/sire/core/geometry/box_geometry.hpp"
 		"include/sire/core/geometry/geometry_base.hpp"
 		"include/sire/core/geometry/geometry_on_part.hpp"
 	)
@@ -178,6 +184,7 @@ target_sources(sire_server
 		"src/server/interface.cpp"
 		"src/plan/get_force_sensor_data_cmd.cpp"
 		"src/plan/get_cmd.cpp"
+		"src/plan/get_geometry_cmd.cpp"
 		"src/plan/fce_control_test_cmd.cpp"
 		"src/plan/execute_real_time_test_cmd.cpp"
 		"src/plan/mvj_cmd.cpp"
@@ -191,6 +198,7 @@ target_sources(sire_server
 		"include/sire/server/interface.hpp"
 		"include/sire/plan/get_force_sensor_data_cmd.hpp"
 		"include/sire/plan/get_cmd.hpp"
+		"include/sire/plan/get_geometry_cmd.hpp"
 		"include/sire/plan/fce_control_test_cmd.hpp"
 		"include/sire/plan/execute_real_time_test_cmd.hpp"
 		"include/sire/plan/mvj_cmd.hpp"
@@ -215,9 +223,11 @@ target_sources(sire_middleware
 	PRIVATE 
 		"src/middleware/program_middleware.cpp"
 		"src/middleware/sire_middleware.cpp"
+		"src/middleware/sire_program_middleware.cpp"
 	PUBLIC 
 		"include/sire/middleware/program_middleware.hpp"
 		"include/sire/middleware/sire_middleware.hpp"
+		"include/sire/middleware/sire_program_middleware.hpp"
 		"include/sire/ext/json.hpp"
 	)
 target_include_directories(sire_middleware

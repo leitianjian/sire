@@ -33,6 +33,7 @@ GeometryBase::GeometryBase(const double* pm_in)
   pm_in = pm_in ? pm_in : default_pm;
   aris::dynamic::s_vc(16, pm_in, *imp_->pm_);
 }
+ARIS_DEFINE_BIG_FOUR_CPP(GeometryBase)
 GeometryBase::~GeometryBase() = default;
 
 ARIS_REGISTRATION {
