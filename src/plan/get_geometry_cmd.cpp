@@ -9,8 +9,8 @@
 
 namespace sire::plan {
 auto GetGeometry::prepareNrt() -> void {
-  option() |=
-      NOT_RUN_EXECUTE_FUNCTION | NOT_PRINT_CMD_INFO | NOT_RUN_COLLECT_FUNCTION;
+  option() |= NOT_RUN_EXECUTE_FUNCTION | NOT_RUN_COLLECT_FUNCTION;
+  //option() |= NOT_PRINT_CMD_INFO;
   for (auto& m : motorOptions()) m = aris::plan::Plan::NOT_CHECK_ENABLE;
   // get control server config of geometry in part pool
   aris::dynamic::Model& model =

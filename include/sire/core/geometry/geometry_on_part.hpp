@@ -18,8 +18,7 @@ class SIRE_API GeometryOnPart : public GeometryBase {
   auto isDynamic() -> bool;
   auto setDynamic(bool is_dynamic) -> void;
   auto partId() -> int;
-  auto part() -> aris::dynamic::Part*;
-  auto setPart(aris::dynamic::Part* part, int part_id) -> void;
+  auto setPartId(int part_id) -> void;
   explicit GeometryOnPart(const double* pm_in = default_pm);
   virtual ~GeometryOnPart();
   ARIS_DECLARE_BIG_FOUR(GeometryOnPart)

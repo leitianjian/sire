@@ -24,10 +24,8 @@ auto GeometryOnPart::setDynamic(bool is_dynamic) -> void {
   imp_->is_dynamic_ = is_dynamic;
 }
 auto GeometryOnPart::partId() -> int { return imp_->part_id_; }
-auto GeometryOnPart::part() -> aris::dynamic::Part* { return imp_->part_ptr_; }
-auto GeometryOnPart::setPart(aris::dynamic::Part* part, int part_id) -> void {
+auto GeometryOnPart::setPartId(int part_id) -> void {
   imp_->part_id_ = part_id;
-  imp_->part_ptr_ = part;
 }
 GeometryOnPart::GeometryOnPart(const double* pm_in)
     : GeometryBase(), imp_(new Imp) {
@@ -47,18 +45,14 @@ ARIS_REGISTRATION {
   auto setPartPm = [](GeometryOnPart* g, aris::core::Matrix pm) -> void {
     std::copy_n(pm.data(), 16, const_cast<double*>(*g->partPm()));
   };
-  auto setPart = [](GeometryOnPart* geometry, int part_id) {
-    geometry->setPart(&dynamic_cast<aris::dynamic::Model&>(
-                           aris::server::ControlServer::instance().model())
-                           .partPool()
-                           .at(part_id),
-                      part_id);
+  auto setPartId = [](GeometryOnPart* geometry, int part_id) {
+    geometry->setPartId(part_id);
   };
-  auto getPart = [](GeometryOnPart* geometry) { return geometry->partId(); };
+  auto getPartId = [](GeometryOnPart* geometry) { return geometry->partId(); };
   aris::core::class_<GeometryOnPart>("GeometryOnPart")
       .inherit<GeometryBase>()
       .prop("prt_pm", &setPartPm, &getPartPm)
-      .prop("part_id", &setPart, &getPart)
+      .prop("part_id", &setPartId, &getPartId)
       .prop("is_dynamic", &GeometryOnPart::setDynamic,
             &GeometryOnPart::isDynamic);
 }

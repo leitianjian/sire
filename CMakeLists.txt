@@ -205,6 +205,10 @@ target_sources(sire_server
 		"include/sire/ext/tinyxml2.h"
 		"include/sire/ext/json.hpp"
 	)
+option(INTERFACE_DEBUG "switch to debug interface" OFF)
+if(INTERFACE_DEBUG)
+	target_compile_definitions(sire_server PUBLIC INTERFACE_DEBUG)
+endif(INTERFACE_DEBUG)
 target_include_directories(sire_server
 	PUBLIC
 		$<INSTALL_INTERFACE:include> 
