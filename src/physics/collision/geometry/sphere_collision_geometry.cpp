@@ -12,13 +12,11 @@
 
 namespace sire::collision::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(SphereCollisionGeometry) {
-  j = json{{"shape_type", shapeType()}, {"radius", radius()}};
+  GeometryOnPart::to_json(j);
+  j["shape_type"] = shapeType();
+  j["radius"] = radius();
 }
 
-SIRE_DEFINE_FROM_JSON_HEAD(SphereCollisionGeometry) {
-  j.at("shape_type").get_to(shapeType());
-  j.at("radius").get_to(radius());
-}
 auto SphereCollisionGeometry::init() -> void {
   fcl::Transform3f trans(
       fcl::Matrix3f{{partPm()[0][0], partPm()[0][1], partPm()[0][2]},

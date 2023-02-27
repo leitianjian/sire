@@ -11,17 +11,18 @@
       <Part name="ground" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,1,1,1,0,0,0}">
         <MarkerPoolElement __prop_name__="marker_pool">
           <Marker name="joint_0_j" active="true" pe="{0,0,0.342,0.785398163397448,0,0.785398163397448}"/>
+          <Marker name="ground" active="true" pe="{0,0,0,0,0,0}"/>
         </MarkerPoolElement>
         <GeometryPoolElement __prop_name__="geometry_pool">
-          <BoxGeometry id="0" part_id="1" is_dynamic="false" half_size="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+          <BoxGeometry id="0" part_id="1" is_dynamic="false" side="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
         </GeometryPoolElement>
       </Part>
-      <Part name="L1" active="true" pe="{0,0,0.3,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+      <Part name="L1" active="true" pe="{0,0,0,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
         <MarkerPoolElement __prop_name__="marker_pool">
-          <Marker name="sphere_center" active="true" pe="{0,0,0.3,0,0,0}"/>
+          <Marker name="sphere_center" active="true" pe="{0,0,0,0,0,0}"/>
         </MarkerPoolElement>
         <GeometryPoolElement __prop_name__="geometry_pool">
-          <SphereGeometry id="1" part_id="0" is_dynamic="true" radius="0.030" pm="{1,0,0,0.3,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+          <SphereGeometry id="1" part_id="0" is_dynamic="true" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
         </GeometryPoolElement>
       </Part>
     </PartPoolElement>
@@ -165,6 +166,9 @@
           <Param name="count" abbreviation="c" default="5000"/>
         </Command>
       </ExecuteRTTest>
+      <Display3dInit name="Display3dInit_plan">
+        <Command __prop_name__="command" name="display3d_init"/>
+      </Display3dInit>
     </PlanPoolObject>
   </PlanRoot>
   <ForceControlSimulationTransfer __prop_name__="model_controller_transfer">

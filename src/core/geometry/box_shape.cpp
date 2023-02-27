@@ -63,14 +63,14 @@ BoxShape::BoxShape(double* side_in) {
 BoxShape::~BoxShape() = default;
 
 ARIS_REGISTRATION {
-  auto setHalfSize = [](BoxShape* shape, aris::core::Matrix mat) -> void {
+  auto setSide = [](BoxShape* shape, aris::core::Matrix mat) -> void {
     shape->setSide(mat.data());
   };
-  auto getHalfSize = [](BoxShape* shape) -> aris::core::Matrix {
+  auto getSide = [](BoxShape* shape) -> aris::core::Matrix {
     return aris::core::Matrix(1, 3, shape->sidePtr());
   };
   aris::core::class_<BoxShape>("BoxShape")
       .inherit<ShapeBase>()
-      .prop("half_size", &setHalfSize, &getHalfSize);
+      .prop("side", &setSide, &getSide);
 }
 }  // namespace sire::geometry

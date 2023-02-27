@@ -8,8 +8,8 @@
 
 namespace sire::plan {
 struct GetParam {
-  std::vector<std::vector<double>> part_pq;  // 怎么获得 body_pq?
-  std::vector<std::vector<double>> part_vs;  // 怎么获得 body_pq?
+  std::vector<std::vector<double>> part_pq;      // 怎么获得 body_pq?
+  std::vector<std::vector<double>> part_vs;      // 怎么获得 body_pq?
   std::vector<double> motors_a;
   std::vector<double> motors_f;
   std::vector<double> motors_v;
@@ -101,9 +101,8 @@ auto Get::prepareNrt() -> void {
         param);
   }
   auto out_data = std::any_cast<GetParam&>(param);
-
-  auto& inter = dynamic_cast<server::ProgramWebInterface&>(cs.interfacePool().at(0));
-
+  auto& inter =
+      dynamic_cast<server::ProgramWebInterface&>(cs.interfacePool().at(0));
   std::vector<std::pair<std::string, std::any>> out_param;
   out_data.state_code = get_state_code(cs, inter);
   out_data.is_cs_started = cs.running();

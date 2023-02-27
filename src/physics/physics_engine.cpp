@@ -36,7 +36,9 @@ auto PhysicsEngine::instance() noexcept -> PhysicsEngine& {
   return instance;
 }
 
-auto PhysicsEngine::init() -> void {}
+auto PhysicsEngine::init() -> void {
+
+}
 
 PhysicsEngine::PhysicsEngine() : imp_(new Imp) {}
 PhysicsEngine::~PhysicsEngine() = default;

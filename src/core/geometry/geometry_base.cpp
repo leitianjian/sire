@@ -14,7 +14,7 @@ struct GeometryBase::Imp {
   GeometryId id_{generate_new_id()};
   double pm_[4][4]{{0}};
 };
-auto GeometryBase::geometryId() -> GeometryId { return imp_->id_; }
+auto GeometryBase::geometryId() const -> GeometryId { return imp_->id_; }
 auto GeometryBase::setGeometryId(GeometryId id) -> void {
   if (id > geometry::geometry_id_flag) {
     geometry_id_flag = id;
@@ -32,6 +32,10 @@ GeometryBase::GeometryBase(const double* pm_in)
     : aris::dynamic::Geometry(), imp_(new Imp) {
   pm_in = pm_in ? pm_in : default_pm;
   aris::dynamic::s_vc(16, pm_in, *imp_->pm_);
+}
+SIRE_DEFINE_TO_JSON_HEAD(GeometryBase) {
+  j = nlohmann::json{
+      {"geometry_id", geometryId()}};
 }
 ARIS_DEFINE_BIG_FOUR_CPP(GeometryBase)
 GeometryBase::~GeometryBase() = default;

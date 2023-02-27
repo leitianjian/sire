@@ -58,7 +58,7 @@ ARIS_REGISTRATION {
   auto setMeshGeometryScale = [](MeshGeometry* geo, aris::core::Matrix scale) {
     geo->setScale(scale.data());
   };
-  aris::core::class_<MeshGeometry>("MeshGeometry")
+  aris::core::class_<MeshGeometry>("MeshCollisionGeometry")
       .inherit<CollidableGeometry>()
       .prop("resource_path", &MeshGeometry::setResourcePath,
             &MeshGeometry::resourcePath)

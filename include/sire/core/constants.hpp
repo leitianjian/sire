@@ -23,6 +23,8 @@ constexpr int kHomogeneousTransformSize = 16;
 
 const int kRotmatSize = kSpaceDimension * kSpaceDimension;
 
+const int kPosQuatSize = kSpaceDimension + kQuaternionSize;
+
 enum class ToleranceType { kAbsolute, kRelative };
 
 }  // namespace sire

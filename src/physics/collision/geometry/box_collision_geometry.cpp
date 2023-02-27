@@ -12,18 +12,13 @@
 
 namespace sire::collision::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(BoxCollisionGeometry) {
-  j = json{{"shape_type", shapeType()},
-           {"length", length()},
-           {"width", width()},
-           {"height", height()}};
-}
+  GeometryOnPart::to_json(j);
+  j["shape_type"] = shapeType();
+  j["length"] = length();
+  j["width"] = width();
+  j["height"] = height();
+  }
 
-SIRE_DEFINE_FROM_JSON_HEAD(BoxCollisionGeometry) {
-  j.at("shape_type").get_to(shapeType());
-  j.at("length").get_to(length());
-  j.at("width").get_to(width());
-  j.at("height").get_to(height());
-}
 auto BoxCollisionGeometry::init() -> void {
   fcl::Transform3f trans(
       fcl::Matrix3f{{partPm()[0][0], partPm()[0][1], partPm()[0][2]},

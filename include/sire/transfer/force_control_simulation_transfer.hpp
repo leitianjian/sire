@@ -20,6 +20,13 @@ class SIRE_API ForceControlSimulationTransfer
                                   const aris::dynamic::ModelBase* model,
                                   aris::control::Controller* controller)
       -> void override;
+  // Semi-implicit RK4 method      ¡Ì
+  // Explicit(Forward) RK4 method  ¡Á
+  // implicit(Backward) RK4 method ¡Á
+  // 
+  // Using acceleration screw at current time step, integrate 
+  // acceleration to get velocity screw of next time step. Integrate
+  // time velocity screw by RK4.
   auto integrateAs2Ps(double* vs_in[3], double* as_in[3], double* old_ps,
                       double* ps_out) -> void;
   auto resetIntegrator(simulator::Integrator* integrator) -> void;

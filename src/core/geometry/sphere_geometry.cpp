@@ -11,12 +11,9 @@
 
 namespace sire::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(SphereGeometry) {
-  j = json{{"shape_type", shapeType()}, {"radius", radius()}};
-}
-
-SIRE_DEFINE_FROM_JSON_HEAD(SphereGeometry) {
-  j.at("shape_type").get_to(shapeType());
-  j.at("radius").get_to(radius());
+  GeometryOnPart::to_json(j);
+  j["shape_type"] = shapeType();
+  j["radius"] = radius();
 }
 
 SphereGeometry::SphereGeometry(double radius, const double* prt_pm)

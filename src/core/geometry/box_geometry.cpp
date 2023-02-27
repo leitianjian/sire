@@ -12,18 +12,13 @@
 
 namespace sire::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(BoxGeometry) {
-  j = json{{"shape_type", shapeType()},
-           {"length", length()},
-           {"width", width()},
-           {"height", height()}};
+  GeometryOnPart::to_json(j);
+  j["shape_type"] = shapeType();
+  j["length"] = length();
+  j["width"] = width();
+  j["height"] = height();
 }
 
-SIRE_DEFINE_FROM_JSON_HEAD(BoxGeometry) {
-  j.at("shape_type").get_to(shapeType());
-  j.at("length").get_to(length());
-  j.at("width").get_to(width());
-  j.at("height").get_to(height());
-}
 BoxGeometry::BoxGeometry(double x, double y, double z, const double* prt_pm)
     : GeometryOnPart(prt_pm), BoxShape(x, y, z) {}
 

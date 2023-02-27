@@ -47,9 +47,7 @@ auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)
     }
   }
 #undef APPEND_PAIR_TO_JSON
-#ifdef INTERFACE_DEBUG
   SIRE_LOG << js.dump(2) << std::endl;
-#endif
   return js.dump(2);
 }
 auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {

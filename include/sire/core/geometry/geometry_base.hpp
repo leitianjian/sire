@@ -21,14 +21,14 @@ static const double default_pm[16] = {1, 0, 0, 0, 0, 1, 0, 0,
 
 class SIRE_API GeometryBase : public aris::dynamic::Geometry {
  public:
-  auto geometryId() -> GeometryId;
+  auto geometryId() const -> GeometryId;
   auto setGeometryId(GeometryId id) -> void;
   auto pm() const -> const aris::dynamic::double4x4&;
   auto setPm(const double* pm_in) -> void;
   explicit GeometryBase(const double* pm_in = default_pm);
   virtual ~GeometryBase();
   ARIS_DECLARE_BIG_FOUR(GeometryBase)
-  SIRE_DECLARE_JSON_INTER_VIRTUAL_INTERFACE_TWO
+  SIRE_DECLARE_JSON_INTER_VIRTUAL_TWO
  private:
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
