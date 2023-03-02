@@ -12,7 +12,7 @@
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/ext/json.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 using GeometryId = int64_t;
 static std::atomic<GeometryId> geometry_id_flag = 0;
 static auto generate_new_id() -> GeometryId { return ++geometry_id_flag; }

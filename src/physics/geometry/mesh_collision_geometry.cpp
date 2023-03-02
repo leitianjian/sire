@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/mesh_collision_geometry.hpp"
+#include "sire/physics/geometry/mesh_collision_geometry.hpp"
 
 #include <array>
 #include <memory>
@@ -14,7 +14,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
 struct MeshGeometry::Imp {
   aris::dynamic::double3 scale_{1, 1, 1};
   string resource_path_;
@@ -64,4 +64,4 @@ ARIS_REGISTRATION {
             &MeshGeometry::resourcePath)
       .prop("scale", &setMeshGeometryScale, &getMeshGeometryScale);
 }
-}  // namespace sire::collision::geometry
+}  // namespace sire::physics::geometry

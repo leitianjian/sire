@@ -41,9 +41,9 @@ auto PhysicsEngine::init() -> void {}
 PhysicsEngine::PhysicsEngine() : imp_(new Imp) {}
 PhysicsEngine::~PhysicsEngine() = default;
 ARIS_REGISTRATION {
-  typedef sire::collision::CollisionDetectionEngine& (
+  typedef sire::physics::collision::CollisionDetectionEngine& (
       PhysicsEngine::*CollisionDetectionEngineFunc)();
-  typedef sire::contact::ContactEngine& (PhysicsEngine::*ContactEngineFunc)();
+  typedef sire::physics::contact::ContactEngine& (PhysicsEngine::*ContactEngineFunc)();
   aris::core::class_<PhysicsEngine>("PhysicsEngine")
       .prop("CollisionDetectionEngine",
             &PhysicsEngine::resetCollisionDetectionEngine,

@@ -13,12 +13,13 @@
 
 #include <aris/core/expression_calculator.hpp>
 
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/core/geometry/geometry_base.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 using namespace std;
 using namespace hpp;
-using GeometryId = sire::geometry::GeometryId;
+using GeometryId = sire::core::geometry::GeometryId;
 // drake-based implementation
 enum CollisionRelationship {
   kUnfiltered = 0,
@@ -28,7 +29,7 @@ class SIRE_API CollisionFilter {
  public:
   using GeometryMap = map<GeometryId, CollisionRelationship>;
   using FilterState = map<GeometryId, GeometryMap>;
-  auto addGeometry(geometry::CollidableGeometry& geo) -> bool;
+  auto addGeometry(sire::physics::geometry::CollidableGeometry& geo) -> bool;
   auto addGeometry(GeometryId id, fcl::CollisionObject* obj_ptr) -> bool;
   auto updateGeometry(GeometryId id, fcl::CollisionObject* obj_ptr) -> bool;
   auto removeGeometry(GeometryId id) -> bool;
@@ -52,5 +53,5 @@ class SIRE_API CollisionFilter {
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision
 #endif

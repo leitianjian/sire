@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/box_collision_geometry.hpp"
+#include "sire/physics/geometry/box_collision_geometry.hpp"
 
 #include <array>
 #include <memory>
@@ -10,7 +10,7 @@
 
 #include <aris/core/reflection.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(BoxCollisionGeometry) {
   j = json{{"shape_type", shapeType()},
            {"length", length()},
@@ -44,6 +44,6 @@ SIRE_DEFINE_JSON_OUTER_TWO(BoxCollisionGeometry)
 ARIS_REGISTRATION {
   aris::core::class_<BoxCollisionGeometry>("BoxCollisionGeometry")
       .inherit<CollidableGeometry>()
-      .inherit<sire::geometry::BoxShape>();
+      .inherit<sire::core::geometry::BoxShape>();
 }
-}  // namespace sire::collision::geometry
+}  // namespace sire::physics::geometry

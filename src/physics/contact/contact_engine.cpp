@@ -21,7 +21,7 @@
 #include "sire/physics/collision/collision_detection_engine.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
-namespace sire::contact {
+namespace sire::physics::contact {
 struct ContactEngine::Imp {
   unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
                                       aris::dynamic::Geometry>>
@@ -30,18 +30,74 @@ struct ContactEngine::Imp {
                                       aris::dynamic::Geometry>>
       anchored_geometry_pool_;
   fcl::DynamicAABBTreeCollisionManager dynamic_tree_;
-  unordered_map<geometry::GeometryId, geometry::CollidableGeometry*>
+  unordered_map<core::geometry::GeometryId, geometry::CollidableGeometry*>
       dynamic_objects_map_;
   fcl::DynamicAABBTreeCollisionManager anchored_tree_;
-  unordered_map<geometry::GeometryId, geometry::CollidableGeometry*>
+  unordered_map<core::geometry::GeometryId, geometry::CollidableGeometry*>
       anchored_objects_map_;
-  unique_ptr<CollisionFilter> collision_filter_;
+  unique_ptr<collision::CollisionFilter> collision_filter_;
 
   aris::server::ControlServer* server_;
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_;
   sire::Size part_size_;
 };
+
+auto ContactEngine::resetCollisionFilter(collision::CollisionFilter* filter)
+    -> void {
+  imp_->collision_filter_.reset(filter);
+}
+auto ContactEngine::collisionFilter() -> collision::CollisionFilter& {
+  return *imp_->collision_filter_;
+}
+auto ContactEngine::resetDynamicGeometryPool(
+    aris::core::PointerArray<geometry::CollidableGeometry,
+                             aris::dynamic::Geometry>* pool) -> void {
+  imp_->dynamic_geometry_pool_.reset(pool);
+}
+auto ContactEngine::dynamicGeometryPool()
+    -> aris::core::PointerArray<geometry::CollidableGeometry,
+                                aris::dynamic::Geometry>& {
+  return *imp_->dynamic_geometry_pool_;
+}
+auto ContactEngine::resetAnchoredGeometryPool(
+    aris::core::PointerArray<geometry::CollidableGeometry,
+                             aris::dynamic::Geometry>* pool) -> void {
+  imp_->anchored_geometry_pool_.reset(pool);
+}
+auto ContactEngine::anchoredGeometryPool()
+    -> aris::core::PointerArray<geometry::CollidableGeometry,
+                                aris::dynamic::Geometry>& {
+  return *imp_->anchored_geometry_pool_;
+}
+auto ContactEngine::addDynamicGeometry(
+    geometry::CollidableGeometry& dynamic_geometry) -> bool {
+  dynamic_geometry.updateLocation(nullptr);
+  dynamic_geometry.getCollisionObject()->computeAABB();
+  imp_->dynamic_tree_.registerObject(dynamic_geometry.getCollisionObject());
+  imp_->dynamic_tree_.update();
+  imp_->dynamic_objects_map_[dynamic_geometry.geometryId()] = &dynamic_geometry;
+  return true;
+}
+auto ContactEngine::addAnchoredGeometry(
+    geometry::CollidableGeometry& anchored_geometry) -> bool {
+  anchored_geometry.updateLocation(nullptr);
+  anchored_geometry.getCollisionObject()->computeAABB();
+  imp_->anchored_tree_.registerObject(anchored_geometry.getCollisionObject());
+  imp_->anchored_tree_.update();
+  imp_->anchored_objects_map_[anchored_geometry.geometryId()] =
+      &anchored_geometry;
+  return false;
+}
+auto ContactEngine::removeGeometry() -> bool { return false; }
+auto ContactEngine::clearDynamicGeometry() -> bool {
+  imp_->dynamic_tree_.clear();
+  return true;
+}
+auto ContactEngine::clearAnchoredGeometry() -> bool {
+  imp_->anchored_tree_.clear();
+  return true;
+}
 
 auto ContactEngine::init() -> void {
   for (auto& anchored_geometry : *imp_->anchored_geometry_pool_) {
@@ -80,10 +136,10 @@ ContactEngine::ContactEngine() : imp_(new Imp) {}
 ContactEngine::~ContactEngine(){};
 
 ARIS_REGISTRATION {
-  typedef aris::core::PointerArray<geometry::ColliableGeometry,
+  typedef aris::core::PointerArray<geometry::CollidableGeometry,
                                    aris::dynamic::Geometry>& (
       ContactEngine::*GeometryPoolFunc)();
-  typedef sire::collision::CollisionFilter& (
+  typedef sire::physics::collision::CollisionFilter& (
       ContactEngine::*CollisionFilterPoolFunc)();
   aris::core::class_<ContactEngine>("ContactEngine")
       .prop("dynamic_geometry_pool", &ContactEngine::resetDynamicGeometryPool,

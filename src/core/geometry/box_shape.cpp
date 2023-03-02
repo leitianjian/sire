@@ -5,7 +5,7 @@
 
 #include "sire/core/sire_assert.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 auto BoxShape::setSide(double* side_in) -> void {
   SIRE_ASSERT(side_in != nullptr);
   SIRE_DEMAND(side_in[0] > 0);

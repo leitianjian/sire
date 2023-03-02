@@ -2,6 +2,6 @@
 
 #include <aris/core/reflection.hpp>
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 ARIS_REGISTRATION { aris::core::class_<ShapeBase>("ShapeBase"); }
 }  // namespace sire::geometry

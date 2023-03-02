@@ -16,13 +16,35 @@
 #include "sire/physics/collision/collided_objects_callback.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
 
-namespace sire::contact {
+namespace sire::physics::contact {
 using namespace std;
 using namespace hpp;
 /* contact-based implementation
  */
 class SIRE_API ContactEngine {
  public:
+  auto resetCollisionFilter(collision::CollisionFilter* filter) -> void;
+  auto collisionFilter() -> collision::CollisionFilter&;
+  auto resetDynamicGeometryPool(
+      aris::core::PointerArray<geometry::CollidableGeometry,
+                               aris::dynamic::Geometry>* pool) -> void;
+  auto dynamicGeometryPool()
+      -> aris::core::PointerArray<geometry::CollidableGeometry,
+                                  aris::dynamic::Geometry>&;
+  auto resetAnchoredGeometryPool(
+      aris::core::PointerArray<geometry::CollidableGeometry,
+                               aris::dynamic::Geometry>* pool) -> void;
+  auto anchoredGeometryPool()
+      -> aris::core::PointerArray<geometry::CollidableGeometry,
+                                  aris::dynamic::Geometry>&;
+  auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
+      -> bool;
+  auto addAnchoredGeometry(geometry::CollidableGeometry& anchored_geometry)
+      -> bool;
+  auto removeGeometry() -> bool;
+  auto clearDynamicGeometry() -> bool;
+  auto clearAnchoredGeometry() -> bool;
+
   auto init() -> void;
   ContactEngine();
   virtual ~ContactEngine();

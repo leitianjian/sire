@@ -14,7 +14,7 @@
 
 #include "sire/core/geometry/geometry_base.hpp"
 
-namespace sire::collision {
+namespace sire::physics{
 namespace geometry {
 /* unique geometry id for every added collision geometry */
 using namespace std;
@@ -41,6 +41,7 @@ class SIRE_API Collidable {
 }  // namespace geometry
 
 using CollisionObjectsPair =
-    std::pair<sire::geometry::GeometryId, sire::geometry::GeometryId>;
-}  // namespace sire::collision
+    std::pair<sire::core::geometry::GeometryId, sire::core::geometry::GeometryId>;
+
+}  // namespace  sire::physics
 #endif

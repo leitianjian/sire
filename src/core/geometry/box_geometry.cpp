@@ -10,7 +10,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(BoxGeometry) {
   j = json{{"shape_type", shapeType()},
            {"length", length()},

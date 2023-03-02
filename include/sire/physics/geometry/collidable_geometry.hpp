@@ -8,10 +8,10 @@
 #include <aris/dynamic/model_coordinate.hpp>
 
 #include "sire/core/geometry/geometry_on_part.hpp"
-#include "sire/physics/collision/geometry/collidable.hpp"
+#include "sire/physics/geometry/collidable.hpp"
 
-namespace sire::collision::geometry {
-class CollidableGeometry : public sire::geometry::GeometryOnPart,
+namespace sire::physics::geometry {
+class CollidableGeometry : public sire::core::geometry::GeometryOnPart,
                            public Collidable {
  public:
   auto virtual updateLocation(const double* prt_pm) -> void override;

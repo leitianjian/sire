@@ -7,7 +7,7 @@
 
 #include "sire/core/geometry/shape_base.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 class SIRE_API BoxShape : public ShapeBase {
  private:
   std::array<double, 3> side_{0.1, 0.1, 0.1};

@@ -3,7 +3,7 @@
 
 #include "sire/core/geometry/shape_base.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 class SphereShape : public ShapeBase {
  private:
   double radius_;

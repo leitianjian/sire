@@ -79,11 +79,11 @@ class CamBackend : public core::SireModuleBase {
                        double* points_pm, double* tool_axis_angles,
                        double* side_tilt_angles, double* forward_tilt_angles)
       -> void;
-  auto getCollisionDetectionEngine() -> collision::CollisionDetectionEngine&;
-  auto resetCollisionDetectionEngine(collision::CollisionDetectionEngine* engine) -> void;
+  auto getCollisionDetectionEngine() -> physics::collision::CollisionDetectionEngine&;
+  auto resetCollisionDetectionEngine(physics::collision::CollisionDetectionEngine* engine) -> void;
   auto getCollisionMapResult() -> const vector<bool>&;
   auto getCollidedObjectsResult()
-      -> const vector<set<collision::CollisionObjectsPair>>&;
+      -> const vector<set<physics::CollisionObjectsPair>>&;
   // initial CAM backend by two config file
   auto init(string model_xml_path = ".", string collision_xml_path = ".")
       -> void;
@@ -95,7 +95,7 @@ class CamBackend : public core::SireModuleBase {
  private:
   // @param[in] ee_pe  end effector pose with [position, EULER321] in double[6]
   auto cptCollisionByEEPose(double* ee_pe,
-                            collision::CollidedObjectsCallback& callback)
+                            physics::collision::CollidedObjectsCallback& callback)
       -> void;
   // @param[in] install_method  wobj/tool install method
   //

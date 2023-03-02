@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
 #include <array>
 #include <memory>
@@ -14,9 +14,9 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
 auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
-  prt_pm = prt_pm ? prt_pm : sire::geometry::default_pm;
+  prt_pm = prt_pm ? prt_pm : sire::core::geometry::default_pm;
   double res[16];
   aris::dynamic::s_pm_dot_pm(prt_pm, *partPm(), res);
   getCollisionObject()->setTransform(
@@ -27,19 +27,20 @@ auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
   getCollisionObject()->computeAABB();
 }
 auto CollidableGeometry::init() -> void {}
-CollidableGeometry::CollidableGeometry() : sire::geometry::GeometryOnPart() {
-  aris::dynamic::s_vc(16, sire::geometry::default_pm,
+
+CollidableGeometry::CollidableGeometry() : sire::core::geometry::GeometryOnPart() {
+  aris::dynamic::s_vc(16, sire::core::geometry::default_pm,
                       const_cast<double*>(*partPm()));
 }
 CollidableGeometry::CollidableGeometry(const double* prt_pm)
-    : sire::geometry::GeometryOnPart() {
-  prt_pm = prt_pm ? prt_pm : sire::geometry::default_pm;
+    : sire::core::geometry::GeometryOnPart() {
+  prt_pm = prt_pm ? prt_pm : sire::core::geometry::default_pm;
   aris::dynamic::s_vc(16, prt_pm, const_cast<double*>(*partPm()));
 }
 CollidableGeometry::~CollidableGeometry() = default;
 
 ARIS_REGISTRATION {
   aris::core::class_<CollidableGeometry>("CollidableGeometry")
-      .inherit<sire::geometry::GeometryOnPart>();
+      .inherit<sire::core::geometry::GeometryOnPart>();
 }
 }  // namespace sire::collision::geometry

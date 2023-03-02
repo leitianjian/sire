@@ -15,9 +15,9 @@
 
 #include "sire/physics/collision/collided_objects_callback.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 using namespace std;
 using namespace hpp;
 /* drake-based implementation
@@ -65,5 +65,5 @@ class SIRE_API CollisionDetectionEngine {
   struct Imp;
   unique_ptr<Imp> imp_;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision
 #endif

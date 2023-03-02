@@ -9,7 +9,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 struct GeometryOnPart::Imp {
   double prt_pm_[4][4]{{0}};
   bool is_dynamic_{false};

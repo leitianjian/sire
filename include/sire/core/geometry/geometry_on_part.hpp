@@ -11,7 +11,7 @@
 
 #include "sire/core/geometry/geometry_base.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 class SIRE_API GeometryOnPart : public GeometryBase {
  public:
   auto partPm() const -> const aris::dynamic::double4x4&;

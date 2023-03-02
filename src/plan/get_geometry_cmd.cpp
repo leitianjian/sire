@@ -20,7 +20,7 @@ auto GetGeometry::prepareNrt() -> void {
     nlohmann::json json;
     aris::dynamic::Part& part = model.partPool().at(i);
     for (sire::Size j = 0; j < part.geometryPool().size(); ++j) {
-      dynamic_cast<geometry::GeometryBase&>(part.geometryPool().at(j))
+      dynamic_cast<core::geometry::GeometryBase&>(part.geometryPool().at(j))
           .to_json(json);
       geo_pool.push_back(json);
     }

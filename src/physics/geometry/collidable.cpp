@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/collidable.hpp"
+#include "sire/physics/geometry/collidable.hpp"
 
 #include <array>
 #include <memory>
@@ -14,7 +14,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
 struct Collidable::Imp {
   unique_ptr<fcl::CollisionObject> fcl_object_ptr_{nullptr};
 };
@@ -29,4 +29,4 @@ Collidable::Collidable()
     : imp_(new Imp) {
 }
 Collidable::~Collidable() = default;
-}  // namespace sire::collision::geometry
+}  // namespace sire::physics::geometry

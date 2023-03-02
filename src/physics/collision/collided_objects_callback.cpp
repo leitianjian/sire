@@ -7,9 +7,9 @@
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
 
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 auto CollidedObjectsCallback::collide(fcl::CollisionObject* o1,
                                       fcl::CollisionObject* o2) -> bool {
   if (!filter_->canCollideWith(o1, o2)) {
@@ -70,4 +70,4 @@ CollidedObjectsCallback::CollidedObjectsCallback(CollisionFilter* filter_in)
   data.request.enable_contact = false;
   data.request.gjk_tolerance = 2e-12;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision

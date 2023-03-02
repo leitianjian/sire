@@ -9,7 +9,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 struct GeometryBase::Imp {
   GeometryId id_{generate_new_id()};
   double pm_[4][4]{{0}};

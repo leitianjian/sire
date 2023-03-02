@@ -2,7 +2,7 @@
 
 #include <aris/core/reflection.hpp>
 
-namespace sire::collision {
+namespace sire::physics::collision {
 struct CollisionModule::Imp {
   unique_ptr<CollisionDetectionEngine> collision_detection_engine_;
 };
@@ -22,4 +22,4 @@ ARIS_REGISTRATION {
       .prop("collision_detection_engine", &CollisionModule::resetCollisionDetectionEngine,
             &CollisionModule::getCollisionDetectionEngine);
 }
-}  // namespace sire::modules
+}  // namespace sire::physics::collision

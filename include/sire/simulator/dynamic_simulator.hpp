@@ -8,7 +8,7 @@
 #include <aris.hpp>
 #include <array>
 
-namespace sire {
+namespace sire::simulator {
 class SIRE_API Simulator {
  private:
   struct Imp;
@@ -31,6 +31,6 @@ class SIRE_API Simulator {
   auto SimPlan(std::vector<std::array<double, 6>>) -> void;
   auto executeCmd(std::string cmd) -> void;
 };
-}  // namespace sire
+}  // namespace sire::simulator
 
 #endif // DYNAMIC_H_

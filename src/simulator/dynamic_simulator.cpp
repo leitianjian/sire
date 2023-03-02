@@ -13,7 +13,7 @@
 
 #include <aris.hpp>
 
-namespace sire {
+namespace sire::simulator {
 struct Simulator::Imp {
   Simulator* simulator_;
   aris::server::ControlServer& cs_;
@@ -219,4 +219,4 @@ auto Simulator::executeCmd(std::string cmd) -> void {
 }
 
 // ARIS_REGISTRATION { aris::core::class_<Simulator>("Simulator"); }
-}  // namespace sire
+}  // namespace sire::simulator

@@ -17,18 +17,17 @@
 #include "sire/core/geometry/sphere_shape.hpp"
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/ext/json.hpp"
-#include "sire/physics/collision/geometry/collidable.hpp"
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
-namespace geometry {
+namespace sire::physics::geometry {
 using json = nlohmann::json;
 /* unique geometry id for every added collision geometry */
 using namespace std;
 using namespace hpp;
-using GeometryId = sire::geometry::GeometryId;
-class SIRE_API SphereCollisionGeometry : public CollidableGeometry,
-                                         public sire::geometry::SphereShape {
+using GeometryId = sire::core::geometry::GeometryId;
+class SIRE_API SphereCollisionGeometry : public sire::physics::geometry::CollidableGeometry,
+                                         public sire::core::geometry::SphereShape {
  public:
   auto init() -> void override;
   explicit SphereCollisionGeometry(double radius = 0.1, const double* prt_pm = nullptr);
@@ -36,6 +35,5 @@ class SIRE_API SphereCollisionGeometry : public CollidableGeometry,
   ARIS_DELETE_BIG_FOUR(SphereCollisionGeometry)
   SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
 };
-}  // namespace geometry
-}  // namespace sire::collision
+}  // namespace sire::physics::geometry
 #endif

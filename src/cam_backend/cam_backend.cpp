@@ -104,14 +104,14 @@ auto tiltAngle2pm(double side_tilt_angle, double forward_tilt_angle,
 
 struct CamBackend::Imp {
   vector<bool> collision_result_;
-  vector<set<collision::CollisionObjectsPair>> collided_objects_result_;
+  vector<set<physics::CollisionObjectsPair>> collided_objects_result_;
 
   shared_ptr<aris::dynamic::Model> robot_model_ptr_;
-  unique_ptr<collision::CollisionDetectionEngine> collision_detection_engine_ptr_;
+  unique_ptr<physics::collision::CollisionDetectionEngine> collision_detection_engine_ptr_;
 };
 
 auto CamBackend::cptCollisionByEEPose(
-    double* ee_pe, collision::CollidedObjectsCallback& callback) -> void {
+    double* ee_pe, physics::collision::CollidedObjectsCallback& callback) -> void {
   // aris generalMotion末端默认表示是Euler321 ZYX
   imp_->robot_model_ptr_->setOutputPos(ee_pe);
   if (imp_->robot_model_ptr_->inverseKinematics()) return;
@@ -191,7 +191,7 @@ auto CamBackend::init(string model_xml_path, string collision_xml_path)
 
   const string collision_config_name = "collision_calculator.xml";
   auto collision_config_path = config_path / collision_config_name;
-  imp_->collision_detection_engine_ptr_.reset(new collision::CollisionDetectionEngine());
+  imp_->collision_detection_engine_ptr_.reset(new physics::collision::CollisionDetectionEngine());
   aris::core::fromXmlFile(&(imp_->collision_detection_engine_ptr_),
                           collision_config_path);
 
@@ -266,7 +266,7 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
                 tool_axis_angle, side_tilt_angle, forward_tilt_angle,
                 target_ee_pe);
       // 5. 设置末端位姿并反解
-      collision::CollidedObjectsCallback callback(
+      physics::collision::CollidedObjectsCallback callback(
           &imp_->collision_detection_engine_ptr_->collisionFilter());
       cptCollisionByEEPose(target_ee_pe, callback);
       if (callback.collidedObjectMap().size() != 0) {
@@ -306,7 +306,7 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
                 tool_axis_angle, side_tilt_angle, forward_tilt_angle,
                 target_ee_pe);
       // 5. 设置末端位姿并反解
-      collision::CollidedObjectsCallback callback(
+      physics::collision::CollidedObjectsCallback callback(
           &imp_->collision_detection_engine_ptr_->collisionFilter());
       cptCollisionByEEPose(target_ee_pe, callback);
       if (callback.collidedObjectMap().size() != 0) {
@@ -319,10 +319,10 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
   return;
 }
 
-auto CamBackend::getCollisionDetectionEngine() -> collision::CollisionDetectionEngine& {
+auto CamBackend::getCollisionDetectionEngine() -> physics::collision::CollisionDetectionEngine& {
   return *imp_->collision_detection_engine_ptr_;
 }
-auto CamBackend::resetCollisionDetectionEngine(collision::CollisionDetectionEngine* engine)
+auto CamBackend::resetCollisionDetectionEngine(physics::collision::CollisionDetectionEngine* engine)
     -> void {
   imp_->collision_detection_engine_ptr_.reset(engine);
 }
@@ -331,7 +331,7 @@ auto CamBackend::getCollisionMapResult() -> const vector<bool>& {
   return imp_->collision_result_;
 }
 auto CamBackend::getCollidedObjectsResult()
-    -> const vector<set<collision::CollisionObjectsPair>>& {
+    -> const vector<set<physics::CollisionObjectsPair>>& {
   return imp_->collided_objects_result_;
 }
 

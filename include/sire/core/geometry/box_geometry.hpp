@@ -16,7 +16,7 @@
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/ext/json.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 using namespace std;
 using json = nlohmann::json;
 class SIRE_API BoxGeometry : public GeometryOnPart, public BoxShape {

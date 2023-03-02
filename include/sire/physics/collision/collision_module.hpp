@@ -6,7 +6,7 @@
 #include "sire/physics/collision/collision_detection_engine.hpp"
 #include "sire/core/module_base.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 using namespace std;
 class SIRE_API CollisionModule : public core::SireModuleBase {
  public:
@@ -20,5 +20,5 @@ class SIRE_API CollisionModule : public core::SireModuleBase {
   struct Imp;
   unique_ptr<Imp> imp_;
 };
-}  // namespace sire::modules
+}  // namespace sire::physics::collision
 #endif

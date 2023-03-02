@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/sphere_collision_geometry.hpp"
+#include "sire/physics/geometry/sphere_collision_geometry.hpp"
 
 #include <array>
 #include <memory>
@@ -10,7 +10,7 @@
 
 #include <aris/core/reflection.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(SphereCollisionGeometry) {
   j = json{{"shape_type", shapeType()}, {"radius", radius()}};
 }
@@ -40,6 +40,6 @@ SIRE_DEFINE_JSON_OUTER_TWO(SphereCollisionGeometry)
 ARIS_REGISTRATION {
   aris::core::class_<SphereCollisionGeometry>("SphereCollisionGeometry")
       .inherit<CollidableGeometry>()
-      .inherit<sire::geometry::SphereShape>();
+      .inherit<sire::core::geometry::SphereShape>();
 }
-}  // namespace sire::collision::geometry
+}  // namespace sire::physics::geometry

@@ -20,7 +20,8 @@
 #include "sire/core/constants.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
-namespace sire::collision {
+
+namespace sire::physics::collision {
 struct CollisionDetectionEngine::Imp {
   unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
                                       aris::dynamic::Geometry>>
@@ -207,7 +208,7 @@ ARIS_REGISTRATION {
   typedef aris::core::PointerArray<geometry::CollidableGeometry,
                                    aris::dynamic::Geometry>& (
       CollisionDetectionEngine::*GeometryPoolFunc)();
-  typedef sire::collision::CollisionFilter& (
+  typedef sire::physics::collision::CollisionFilter& (
       CollisionDetectionEngine::*CollisionFilterPoolFunc)();
   aris::core::class_<CollisionDetectionEngine>("CollisionDetectionEngine")
       .prop("dynamic_geometry_pool",
@@ -220,4 +221,4 @@ ARIS_REGISTRATION {
           "collision_filter", &CollisionDetectionEngine::resetCollisionFilter,
           CollisionFilterPoolFunc(&CollisionDetectionEngine::collisionFilter));
 }
-}  // namespace sire::collision
+}  // namespace sire::physics::collision

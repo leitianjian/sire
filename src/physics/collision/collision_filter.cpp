@@ -16,7 +16,8 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
-namespace sire::collision {
+
+namespace sire::physics::collision {
 struct CollisionFilter::Imp {
   FilterState filter_state_;
   unordered_map<fcl::CollisionGeometry*, GeometryId> geometry_map_;
@@ -157,4 +158,4 @@ ARIS_REGISTRATION {
   aris::core::class_<CollisionFilter>("CollisionFilter")
       .prop("filter_state", &setFilterState, &getFilterState);
 }
-}  // namespace sire::collision
+}  // namespace sire::physics::collision

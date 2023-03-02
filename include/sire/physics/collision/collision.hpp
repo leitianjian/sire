@@ -13,7 +13,7 @@
 
 #include <sire_lib_export.h>
 
-namespace sire::collision {
+namespace sire::physics::collision {
 // using namespace hpp;
 class SIRE_API Collision {
  public:
@@ -32,5 +32,5 @@ class SIRE_API Collision {
   Collision(const Collision&) = delete;
   Collision& operator=(const Collision&) = delete;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision
 #endif  // COLLISION_H

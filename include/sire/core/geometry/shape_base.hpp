@@ -5,7 +5,7 @@
 
 #include "sire/ext/json.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 enum ShapeType {
   GEOM_GENERAL,
   GEOM_BOX,

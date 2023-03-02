@@ -13,15 +13,14 @@
 #include <aris/dynamic/model_coordinate.hpp>
 
 #include "sire/core/geometry/geometry_on_part.hpp"
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
-namespace geometry {
+namespace sire::physics::geometry {
 /* unique geometry id for every added collision geometry */
 using namespace std;
 using namespace hpp;
-using GeometryId = sire::geometry::GeometryId;
-class SIRE_API MeshGeometry : public CollidableGeometry {
+using GeometryId = sire::core::geometry::GeometryId;
+class SIRE_API MeshGeometry : public sire::physics::geometry::CollidableGeometry {
  public:
   auto resourcePath() const -> const string&;
   auto setResourcePath(string_view resource_path) -> void;
@@ -40,6 +39,5 @@ class SIRE_API MeshGeometry : public CollidableGeometry {
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
 };
-}  // namespace geometry
-}  // namespace sire::collision
+}  // namespace sire::physics::geometry
 #endif

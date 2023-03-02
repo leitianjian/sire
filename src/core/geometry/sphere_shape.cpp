@@ -4,7 +4,7 @@
 
 #include "sire/core/sire_assert.hpp"
 
-namespace sire::geometry {
+namespace sire::core::geometry {
 auto SphereShape::setRadius(double radius_in) -> void {
   SIRE_DEMAND(radius_in > 0);
   radius_ = radius_in;
