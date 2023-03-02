@@ -18,12 +18,12 @@ struct Simulator::Imp {
   Simulator* simulator_;
   aris::server::ControlServer& cs_;
   std::thread retrieve_rt_pm_thead_;
-  std::array<double, 7 * 16> link_pm_;
-  std::array<double, 7 * 7> link_pq_;
-  std::array<double, 7 * 6> link_pe_;
+  std::array<double, 7 * 16> link_pm_{};
+  std::array<double, 7 * 7> link_pq_{};
+  std::array<double, 7 * 6> link_pe_{};
   std::mutex mu_link_pm_;
 
-  Imp(Simulator* simulator)
+  explicit Imp(Simulator* simulator)
       : simulator_(simulator), cs_(aris::server::ControlServer::instance()) {
     link_pm_ = {
         1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0,
@@ -64,7 +64,6 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
               [&link_pm](aris::server::ControlServer& cs,
                          const aris::plan::Plan* p, std::any& data) -> void {
                 auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
-                // 获取杆件位姿
                 int geoCount = 1;
                 for (int i = 1; i < m->partPool().size(); ++i) {
                   auto& part = m->partPool().at(i);
@@ -151,27 +150,9 @@ auto Simulator::SimPlan() -> void {
       cs.executeCmd("ds");
       cs.executeCmd("md");
       cs.executeCmd("en");
-      cs.executeCmd("sire_mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
-      cs.executeCmd("sire_mvj --pe={0.480, 0, 0.700, 0, 1.5708, 0}");
-      cs.executeCmd("sire_mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
-      cs.executeCmd(
-          "sire_mvj "
-          "--pe={0.412470,-0.011717,0.481322,1.570796,-1.570796,0.350983}");
-      cs.executeCmd(
-          "sire_mvj "
-          "--pe={0.408609,-0.005380,0.481783,1.570796,-1.570796,0.201510}");
-      cs.executeCmd(
-          "sire_mvj "
-          "--pe={0.403391,-0.000154,0.482324,1.570796,-1.570796,-0.027216}");
-      cs.executeCmd(
-          "sire_mvj --pe = "
-          "{0.396442,0.002176,0.482930,1.570796,-1.570796,-0.329585}");
-      cs.executeCmd(
-          "sire_mvj --pe = {0.389133, 0.001068, 0.483480, 1.570796, -1.570796, "
-          "-0.522616}");
-
-      cs.executeCmd("sire_mvj --pe={0.580, 0, 0.642, 0, 1.2, 0}");
-      cs.executeCmd("sire_mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
+      cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
+      cs.executeCmd("mvj --pe={0.480, 0, 0.700, 0, 1.5708, 0}");
+      cs.executeCmd("mvj --pe={0.393, 0, 0.642, 0, 1.5708, 0}");
     } catch (std::exception& e) {
       std::cout << "cs:" << e.what() << std::endl;
     }

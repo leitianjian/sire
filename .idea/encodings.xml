@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/demo/demo_server/main.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/include/sire/server/api.hpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/src/collision/collision.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/src/server/api.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/src/server/command.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/src/server/middle_ware.cpp" charset="GBK" />
+    <file url="file://$PROJECT_DIR$/src/simulator/dynamic_simulator.cpp" charset="GBK" />
+  </component>
+</project>

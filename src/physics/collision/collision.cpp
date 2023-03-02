@@ -40,9 +40,7 @@ struct Collision::Imp {
   std::array<double, 7 * 7> link_pq;
   size_t num_contacts;
 
-  Imp(Collision* collision)
-      : collision_(collision),
-        dynamic_tree_(new fcl::DynamicAABBTreeCollisionManager()) {
+  explicit Imp(Collision* collision) : collision_(collision) {
     num_contacts = 0;
     link_pq = {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
                0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0,
@@ -55,13 +53,12 @@ Collision::Collision(const std::string& robot_stl_path) : imp_(new Imp(this)) {
   std::vector<std::string> robot_stl_names;
   // 获取该路径下的所有文件
   GetFileName(robot_stl_path, robot_stl_names);
-
   std::vector<std::unique_ptr<fcl::CollisionObject>> co_robot;
-  for (int i = 0; i < robot_stl_names.size(); ++i) {
-    std::cout << robot_stl_names[i] << std::endl;
+  for (auto& robot_stl_name : robot_stl_names) {
+    std::cout << robot_stl_name << std::endl;
     // Configure robot geometry.
     fcl::internal::Loader loader;
-    loader.load(robot_stl_names[i]);
+    loader.load(robot_stl_name);
     typedef fcl::BVHModel<fcl::OBBRSS> Model;
     std::shared_ptr<Model> bvhmodel = std::make_shared<Model>();
     fcl::Vec3f scale{1, 1, 1};
@@ -152,7 +149,7 @@ Collision::Collision(const std::string& robot_stl_path) : imp_(new Imp(this)) {
       std::ref(imp_->num_contacts), std::ref(imp_->link_pq),
       std::move(co_robot), std::move(sphere), imp_->dynamic_tree_);
 }
-Collision::~Collision() {}
+Collision::~Collision() = default;
 
 auto Collision::instance(const std::string& robot_stl_path) -> Collision& {
   static Collision instance(robot_stl_path);
@@ -163,8 +160,8 @@ auto Collision::GetFileName(const std::string& path,
                             std::vector<std::string>& files) -> void {
   // 文件句柄
   intptr_t hFile;
-  // 文件信息
-  struct _finddata_t fileinfo;
+  //文件信息
+  struct _finddata_t fileinfo{};
   std::string p;
   if ((hFile = _findfirst(p.assign(path).append("/*.STL").c_str(),
                           &fileinfo)) == -1) {
