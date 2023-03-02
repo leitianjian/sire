@@ -45,7 +45,7 @@ if(EXISTS ${TARGET_ASSIMP_PATH})
 else()
 	message(WARNING "File/Directory at variable TARGET_ASSIMP_PATH not exists!")
 endif()
-find_package(assimp REQUIRED  )
+find_package(assimp REQUIRED)
 
 set(TARGET_HPP_FCL_PATH "" CACHE PATH "Hpp-fcl install path")
 # find Hpp-fcl
@@ -106,18 +106,11 @@ target_compile_features(sire_simulator PUBLIC cxx_std_17)
 target_sources(sire_simulator
 	PRIVATE
 		"src/simulator/dynamic_simulator.cpp"
-<<<<<<< HEAD
 		"src/simulator/integrator.cpp"
 	PUBLIC 
 		"include/sire/simulator/simulator.hpp"
 		"include/sire/simulator/dynamic_simulator.hpp"
 		"include/sire/simulator/integrator.hpp"
-=======
-		"src/simulator/force.cpp"
-	PUBLIC
-		"include/sire/simulator/dynamic_simulator.hpp"
-		"include/sire/simulator/force.hpp"
->>>>>>> 1bea11becbf8d22b1d216c442fe621d101ab306e
 	)
 
 target_include_directories(sire_simulator
