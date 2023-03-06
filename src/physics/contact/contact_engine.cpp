@@ -21,6 +21,7 @@
 #include "sire/physics/collision/collision_detection_engine.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
+
 namespace sire::physics::contact {
 struct ContactEngine::Imp {
   unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
@@ -41,8 +42,15 @@ struct ContactEngine::Imp {
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_;
   sire::Size part_size_;
+
+  unique_ptr<collision::CollisionDetectionEngine> collision_detection_;
+
 };
 
+//TODO
+auto ContactEngine::velocityNormal(const double* v, const double* n) -> double* {
+  return nullptr;
+};
 auto ContactEngine::resetCollisionFilter(collision::CollisionFilter* filter)
     -> void {
   imp_->collision_filter_.reset(filter);

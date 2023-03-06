@@ -23,6 +23,9 @@ using namespace hpp;
  */
 class SIRE_API ContactEngine {
  public:
+  auto velocityNormal(const double* v, const double* n) -> double*;
+  auto velocityTangential(const double* v, const double* n) -> double*;
+
   auto resetCollisionFilter(collision::CollisionFilter* filter) -> void;
   auto collisionFilter() -> collision::CollisionFilter&;
   auto resetDynamicGeometryPool(
