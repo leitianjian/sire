@@ -10,6 +10,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <cmath>
 
 #include <hpp/fcl/BV/AABB.h>
 #include <hpp/fcl/BV/OBBRSS.h>
@@ -51,9 +52,10 @@ struct BallRebound::Imp {
 
 BallRebound::BallRebound(const std::string& robot_stl_path) : imp_(new Imp(this)) {
   // Configure box geometry.
-  const fcl::FCL_REAL x = 20, y = 10, z = 0.5;
+  const fcl::FCL_REAL x = 20, y = 10, z = /*0.5*/ 20;
   auto box_geometry = std::make_shared<fcl::Box>(x, y, z);
-  fcl::CollisionObject box(box_geometry);
+  fcl::Transform3f X_WB( fcl::Vec3f(0, 0, -9.75));
+  fcl::CollisionObject box(box_geometry,X_WB);
   // Configure sphere geometry.
   const fcl::FCL_REAL r = 0.300;//m
   auto sphere_geometry = std::make_shared<fcl::Sphere>(r);
@@ -72,21 +74,7 @@ BallRebound::BallRebound(const std::string& robot_stl_path) : imp_(new Imp(this)
     // thread
     while (1) {
       auto start = std::chrono::steady_clock::now();
-      //falling
-      static double m = 1;
-      if (num_contacts == 0) {
-        sphere_vs[2] += -9.8 * delta_t;
-        sphere_pq[2] += sphere_vs[2] * delta_t;
-      } else {
-        sphere_vs[2] += (/*-9.8 + */(-2 * sphere_vs[2]) / delta_t) * delta_t;
-        //sphere_vs[2] = -sphere_vs[2];
-        sphere_pq[2] += sphere_vs[2] * delta_t;
-      }
-      std::cout << "position:"
-                << "x " << sphere_pq[0] << " y " << sphere_pq[1] << " z "
-                << sphere_pq[2] << std::endl;
-      std::cout << "velocity:"
-                << sphere_vs[2]<< std::endl;
+      
       // collision input
       sphere.setTranslation(fcl::Vec3f(sphere_pq[0],sphere_pq[1],sphere_pq[2]));
       sphere.computeAABB();
@@ -94,26 +82,89 @@ BallRebound::BallRebound(const std::string& robot_stl_path) : imp_(new Imp(this)
       fcl::DistanceCallBackDefault distance_data;
       fcl::CollisionResult co_res;
       fcl::CollisionRequest co_req(fcl::CollisionRequestFlag::CONTACT, 10);
+      fcl::DistanceResult dis_res;
+      fcl::DistanceRequest dis_req;
       co_req.security_margin = fcl::FCL_REAL(1e-10);
       collision_data.data.request = co_req;
       fcl::collide(&sphere,&box,co_req,co_res);
-      //fcl::distance(&sphere, &box, dis_req, dis_res);
+      fcl::distance(&sphere, &box, dis_req, dis_res);
       //output
       num_contacts = co_res.numContacts();
+      double min_distance = dis_res.min_distance;
       std::vector<fcl::Contact> contacts;
       co_res.getContacts(contacts);
-      //collision_data.data.result.getContacts(contacts);
       if (num_contacts) {
         std::cout << "num " << contacts.size() << " contacts found"
             << std::endl;
         for (const fcl::Contact& contact : contacts) {
           std::cout << "collision position at : " << contact.pos[0] << " "
                       << contact.pos[1] << " " << contact.pos[2] << std::endl;
-          //std::cout << "min_distance: " << min_distance << std::endl;
+          std::cout << "min_distance: " << min_distance << std::endl;
         }
       }
+
+      // falling
+      if (num_contacts == 0) {
+        sphere_vs[2] += -9.8 * delta_t;
+        sphere_pq[2] += sphere_vs[2] * delta_t;
+      } else {
+        // impluse
+        //sphere_vs[2] += (/*-9.8 + */ (-2 * sphere_vs[2]) / delta_t) * delta_t;
+        //// sphere_vs[2] = -sphere_vs[2];
+        //sphere_pq[2] += sphere_vs[2] * delta_t;
+
+        // penalty method
+        // static double k = 0.99, m = 0.001;
+        // //static double k = 4e4, m = 1;
+        ////sphere_vs[2] += -9.8 * delta_t +
+        ////               k * (-sphere_vs[2]) * delta_t * delta_t / (m * 2);//state
+        // sphere_vs[2] += -9.8 * delta_t + k * (-min_distance) * delta_t / m;// min_dis
+        // sphere_pq[2] += sphere_vs[2] * delta_t;
+        // std::cout << " force "<< k * (-min_distance) * delta_t / m <<
+        // std::endl;
+
+        // penalty method with ODE
+        //static double m = 1, k = 1e3, d = 1e1;
+        //static double r = -d / (2 * m),
+        //              w = std::sqrt(4 * k * m - d * d) / (2 * m);
+        ////x_0 x_0'
+        //static double x_init = sphere_pq[2],v_init=sphere_vs[2];
+        //double F_ext = m*9.8;
+        //double A=x_init-F_ext/k, B=(v_init-r*x_init+r*F_ext/k) / w;
+        ////velocity
+        //double temp_velocity =
+        //    (A * r + B * w) * std::exp(r * delta_t) * std::cos(w * delta_t) +
+        //    (B * r - A * w) * std::exp(r * delta_t) * std::sin(w * delta_t);
+        ////contact force 
+        //double contact_force = m * (sphere_pq[2] - temp_velocity ) / delta_t;
+        //sphere_vs[2] +=( -9.8 + (contact_force/m)) * delta_t;
+        //sphere_pq[2] += sphere_vs[2] * delta_t;
+        //std::cout << " force " << contact_force << " spring" << k*(sphere_pq[2]-x_init) << std::endl;
+        //std::cout << " temp_velocity " << temp_velocity << std::endl;
+        //std::cout << " sphere_vs " << sphere_vs[2] << std::endl;
+
+        // penalty method Maxwell
+        static double k = 1e3, m = 1, cr = 1;
+        static double d =
+            2 * std::abs(std::log(cr)) *
+            std::sqrt(k * m /
+                      (aris::PI * aris::PI + std::log(cr) * std::log(cr)));
+        double force = k * (-min_distance) + d * (-sphere_vs[2]);
+         sphere_vs[2] += (-9.8 + force/m )* delta_t ;
+         sphere_pq[2] += sphere_vs[2] * delta_t; 
+         std::cout << " force Maxwell " << force << std::endl;
+         std::cout << " sphere_vs " << sphere_vs[2] << std::endl;
+         std::cout << " min_distance " << min_distance << std::endl;
+
+      }
+      std::cout << "position:"
+                << "x " << sphere_pq[0] << " y " << sphere_pq[1] << " z "
+                << sphere_pq[2] << std::endl;
+      std::cout << "velocity:" << sphere_vs[2] << std::endl;
       std::this_thread::sleep_until(
           start + std::chrono::duration<double, std::milli>(delta_t * 1000));
+
+
     }  // thread_while
   },
   std::ref(imp_->num_contacts), std::ref(imp_->sphere_pq),

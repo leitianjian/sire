@@ -11,12 +11,14 @@
 #include <string>
 #include <vector>
 
+#include <aris.hpp>
 #include <sire_lib_export.h>
 
 namespace sire::physics::contact {
 // using namespace hpp;
 class SIRE_API BallRebound {
  public:
+  //auto CalImpulse(const double& dt,)
   static auto instance(const std::string& robot_stl_path = "./")
       -> BallRebound&;
   auto CalContact(std::array<double, 7>&, size_t&) -> void;
