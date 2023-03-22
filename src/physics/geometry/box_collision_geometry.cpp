@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/box_collision_geometry.hpp"
+#include "sire/physics/geometry/box_collision_geometry.hpp"
 
 #include <array>
 #include <memory>

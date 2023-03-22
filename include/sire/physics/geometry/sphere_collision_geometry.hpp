@@ -17,8 +17,8 @@
 #include "sire/core/geometry/sphere_shape.hpp"
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/ext/json.hpp"
-#include "sire/physics/collision/geometry/collidable.hpp"
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
 namespace sire::collision {
 namespace geometry {

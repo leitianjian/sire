@@ -3,8 +3,6 @@
 //
 #include "sire/physics/collision/collision.hpp"
 
-#include <stdio.h>
-
 #include <fstream>
 #include <mutex>
 #include <string>

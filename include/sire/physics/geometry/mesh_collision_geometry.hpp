@@ -13,7 +13,7 @@
 #include <aris/dynamic/model_coordinate.hpp>
 
 #include "sire/core/geometry/geometry_on_part.hpp"
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
 namespace sire::collision {
 namespace geometry {

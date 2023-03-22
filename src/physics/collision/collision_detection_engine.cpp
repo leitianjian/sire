@@ -175,8 +175,11 @@ auto CollisionDetectionEngine::init() -> void {
   }
   imp_->collision_filter_->loadMatConfig();
   imp_->server_ = &aris::server::ControlServer::instance();
-  imp_->part_pool_ptr_ =
-      &dynamic_cast<aris::dynamic::Model*>(&imp_->server_->model())->partPool();
+  //imp_->part_pool_ptr_ =
+  //    &dynamic_cast<aris::dynamic::MultiModel*>(&imp_->server_->model())
+  //         ->subModels()
+  //         .at(0)
+  //         ->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
 }
 // callback print

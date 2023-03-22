@@ -291,6 +291,19 @@ auto SireMoveJ::prepareNrt() -> void {
 
   SireMoveJParam mvj_param;
 
+  // find model index
+  int model_index;
+  auto model_index_found = cmdParams().find("model_index");
+  if (model_index_found != cmdParams().end())
+    model_index = int32Param("model_index");
+  else
+    model_index = 0;
+  auto m = dynamic_cast<aris::dynamic::MultiModel*>(modelBase());
+  if (m != nullptr) {
+    model_index = model_index < m->subModels().size() ? model_index : 0;
+    this->setModelBase(&m->subModels().at(model_index)); 
+  }
+
   // find ee pq //
   mvj_param.ee_pq.resize(7);
   find_pq(cmdParams(), *this, mvj_param.ee_pq.data());
@@ -444,6 +457,7 @@ SireMoveJ::SireMoveJ(const std::string& name) : imp_(new Imp) {
       command(),
       "<Command name=\"sire_mvj\">"
       "	<GroupParam>"
+      "		<Param name=\"model_index\" default=\"0\"/>"
       "		<Param name=\"pos_unit\" default=\"m\"/>"
       "		<UniqueParam default=\"pq\">"
       "			<Param name=\"pq\" default=\"{0,0,0,0,0,0,1}\"/>"

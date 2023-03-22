@@ -136,15 +136,16 @@ target_compile_definitions(sire_physics PRIVATE sire_lib_EXPORTS)
 target_compile_options(sire_physics
 	PRIVATE 
 		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+		$<$<CXX_COMPILER_ID:MSVC>:/Zc:preprocessor>
 		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
 	)
 target_sources(sire_physics 
 	PRIVATE 
-		"src/physics/collision/geometry/collidable.cpp"
-		"src/physics/collision/geometry/collidable_geometry.cpp"
-		"src/physics/collision/geometry/sphere_collision_geometry.cpp"
-		"src/physics/collision/geometry/box_collision_geometry.cpp"
-		"src/physics/collision/geometry/mesh_collision_geometry.cpp"
+		"src/physics/geometry/collidable.cpp"
+		"src/physics/geometry/collidable_geometry.cpp"
+		"src/physics/geometry/sphere_collision_geometry.cpp"
+		"src/physics/geometry/box_collision_geometry.cpp"
+		"src/physics/geometry/mesh_collision_geometry.cpp"
 		"src/physics/collision/collision.cpp"
 		"src/physics/collision/collision_detection_engine.cpp"
 		"src/physics/collision/collision_module.cpp"
@@ -153,11 +154,11 @@ target_sources(sire_physics
 		"src/physics/collision/collided_objects_callback.cpp"
 		"src/physics/physics_engine.cpp"
 	PUBLIC 
-		"include/sire/physics/collision/geometry/collidable.hpp"
-		"include/sire/physics/collision/geometry/collidable_geometry.hpp"
-		"include/sire/physics/collision/geometry/sphere_collision_geometry.hpp"
-		"include/sire/physics/collision/geometry/box_collision_geometry.hpp"
-		"include/sire/physics/collision/geometry/mesh_collision_geometry.hpp"
+		"include/sire/physics/geometry/collidable.hpp"
+		"include/sire/physics/geometry/collidable_geometry.hpp"
+		"include/sire/physics/geometry/sphere_collision_geometry.hpp"
+		"include/sire/physics/geometry/box_collision_geometry.hpp"
+		"include/sire/physics/geometry/mesh_collision_geometry.hpp"
 		"include/sire/physics/collision/collision.hpp"
 		"include/sire/physics/collision/collision_detection_engine.hpp"
 		"include/sire/physics/collision/collision_module.hpp"

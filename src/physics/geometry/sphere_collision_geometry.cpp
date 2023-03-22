@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/sphere_collision_geometry.hpp"
+#include "sire/physics/geometry/sphere_collision_geometry.hpp"
 
 #include <array>
 #include <memory>

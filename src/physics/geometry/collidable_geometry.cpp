@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collidable_geometry.hpp"
 
 #include <array>
 #include <memory>

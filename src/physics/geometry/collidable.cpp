@@ -1,4 +1,4 @@
-#include "sire/physics/collision/geometry/collidable.hpp"
+#include "sire/physics/geometry/collidable.hpp"
 
 #include <array>
 #include <memory>
@@ -17,6 +17,7 @@
 namespace sire::collision::geometry {
 struct Collidable::Imp {
   unique_ptr<fcl::CollisionObject> fcl_object_ptr_{nullptr};
+
 };
 auto Collidable::getCollisionObject() -> fcl::CollisionObject* {
   return imp_->fcl_object_ptr_.get();

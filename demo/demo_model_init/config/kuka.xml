@@ -1,0 +1,190 @@
+	<MultiModel name="object" tools="{PumaModel.EE.tool0,PumaModel.EE.tool1,PumaModel.EE.tool2,PumaModel.EE.tool3,PumaModel.EE.tool4,PumaModel.EE.tool5,PumaModel.EE.tool6,PumaModel.EE.tool7,PumaModel.EE.tool8,PumaModel.EE.tool9,PumaModel.EE.tool10,PumaModel.EE.tool11,PumaModel.EE.tool12,PumaModel.EE.tool13,PumaModel.EE.tool14,PumaModel.EE.tool15,PumaModel.EE.tool16,PumaModel.ground.ex_tool1,PumaModel.ground.ex_tool2,PumaModel.ground.ex_tool3,PumaModel.ground.ex_tool4,PumaModel.ground.ex_tool5,PumaModel.ground.ex_tool6,PumaModel.ground.ex_tool7,PumaModel.ground.ex_tool8,PumaModel.ground.ex_tool9,PumaModel.ground.ex_tool10,PumaModel.ground.ex_tool11,PumaModel.ground.ex_tool12,PumaModel.ground.ex_tool13,PumaModel.ground.ex_tool14,PumaModel.ground.ex_tool15,PumaModel.ground.ex_tool16}" wobjs="{PumaModel.ground.wobj0,PumaModel.ground.wobj1,PumaModel.ground.wobj2,PumaModel.ground.wobj3,PumaModel.ground.wobj4,PumaModel.ground.wobj5,PumaModel.ground.wobj6,PumaModel.ground.wobj7,PumaModel.ground.wobj8,PumaModel.ground.wobj9,PumaModel.ground.wobj10,PumaModel.ground.wobj11,PumaModel.ground.wobj12,PumaModel.ground.wobj13,PumaModel.ground.wobj14,PumaModel.ground.wobj15,PumaModel.ground.wobj16,PumaModel.ground.wobj17,PumaModel.ground.wobj18,PumaModel.ground.wobj19,PumaModel.ground.wobj20,PumaModel.ground.wobj21,PumaModel.ground.wobj22,PumaModel.ground.wobj23,PumaModel.ground.wobj24,PumaModel.ground.wobj25,PumaModel.ground.wobj26,PumaModel.ground.wobj27,PumaModel.ground.wobj28,PumaModel.ground.wobj29,PumaModel.ground.wobj30,PumaModel.ground.wobj31,PumaModel.ground.wobj32,PumaModel.EE.hd_wobj1,PumaModel.EE.hd_wobj2,PumaModel.EE.hd_wobj3,PumaModel.EE.hd_wobj4,PumaModel.EE.hd_wobj5,PumaModel.EE.hd_wobj6,PumaModel.EE.hd_wobj7,PumaModel.EE.hd_wobj8,PumaModel.EE.hd_wobj9,PumaModel.EE.hd_wobj10,PumaModel.EE.hd_wobj11,PumaModel.EE.hd_wobj12,PumaModel.EE.hd_wobj13,PumaModel.EE.hd_wobj14,PumaModel.EE.hd_wobj15,PumaModel.EE.hd_wobj16,PumaModel.EE.hd_wobj17,PumaModel.EE.hd_wobj18,PumaModel.EE.hd_wobj19,PumaModel.EE.hd_wobj20,PumaModel.EE.hd_wobj21,PumaModel.EE.hd_wobj22,PumaModel.EE.hd_wobj23,PumaModel.EE.hd_wobj24,PumaModel.EE.hd_wobj25,PumaModel.EE.hd_wobj26,PumaModel.EE.hd_wobj27,PumaModel.EE.hd_wobj28,PumaModel.EE.hd_wobj29,PumaModel.EE.hd_wobj30,PumaModel.EE.hd_wobj31,PumaModel.EE.hd_wobj32}">
+		<ModelBasePool __prop_name__="submodel_pool">
+			<Model name="PumaModel" time="0">
+				<Environment __prop_name__="environment" gravity="{0,0,-9.8,0,0,0}" />
+				<VariablePoolElement __prop_name__="variable_pool">
+					<MatrixVariable name="dh">{0.55,0.23,0.85,0,0.17,1.016}</MatrixVariable>
+					<MatrixVariable name="tool0_pe">{0,0,0.19,0,0,0}</MatrixVariable>
+					<StringVariable name="tool0_pe_type">321</StringVariable>
+					<MatrixVariable name="base_pe">{0,0,0,0,0,0}</MatrixVariable>
+					<StringVariable name="base_pe_type">321</StringVariable>
+					<MatrixVariable name="axis_range">{nan,nan,nan,nan,nan,nan}</MatrixVariable>
+					<MatrixVariable name="install_method">{0}</MatrixVariable>
+				</VariablePoolElement>
+				<PartPoolElement __prop_name__="part_pool">
+					<Part name="ground" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,1,1,1,0,0,0}">
+						<MarkerPoolElement __prop_name__="marker_pool">
+							<Marker name="joint_0_j" active="true" pe="{0,0,0.55,0.785398163397448,0,0.785398163397448}" />
+							<Marker name="wobj0" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj1" active="true" pe="{1.11155,1.85475,0.412884,6.1583279868734158,1.5559033227323011,0.022813103766412976}" />
+							<Marker name="wobj2" active="true" pe="{1.2,0,1.2,1.57079632675,0,-0}" />
+							<Marker name="wobj3" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj4" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj5" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj6" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj7" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj8" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj9" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj10" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj11" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj12" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj13" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj14" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj15" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj16" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj17" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj18" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj19" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj20" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj21" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj22" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj23" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj24" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj25" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj26" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj27" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj28" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj29" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj30" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj31" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="wobj32" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool1" active="true" pe="{-0.513,1.228,0.435,1.5707963267948966,1.5707963267948966,4.7123889803846897}" />
+							<Marker name="ex_tool2" active="true" pe="{1.449,-0.566,0.582,4.1547200838548122,0.0079417329817543687,1.5985345897300252}" />
+							<Marker name="ex_tool3" active="true" pe="{1.449,-0.566,0.582,4.1544997397817829,1.5985337147685268,6.2752405181173598}" />
+							<Marker name="ex_tool4" active="true" pe="{1.449,-0.566,0.582,4.1544997397817829,1.5985337147685268,6.2752405181173598}" />
+							<Marker name="ex_tool5" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool6" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool7" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool8" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool9" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool10" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool11" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool12" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool13" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool14" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool15" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="ex_tool16" active="true" pe="{0,0,0,-0,0,-0}" />
+						</MarkerPoolElement>
+						<GeometryPoolElement __prop_name__="geometry_pool" />
+					</Part>
+					<Part name="L1" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+						<MarkerPoolElement __prop_name__="marker_pool">
+							<Marker name="joint_0_i" active="true" pe="{0,0,0.55,0.785398163397448,0,0.785398163397448}" />
+							<Marker name="joint_1_j" active="true" pe="{0.23,0,0.55,3.14159265358979,1.5707963267949,4.71238898038469}" />
+						</MarkerPoolElement>
+						<GeometryPoolElement __prop_name__="geometry_pool" />
+					</Part>
+					<Part name="L2" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+						<MarkerPoolElement __prop_name__="marker_pool">
+							<Marker name="joint_1_i" active="true" pe="{0.23,0,0.55,3.14159265358979,1.5707963267949,4.71238898038469}" />
+							<Marker name="joint_2_j" active="true" pe="{0.23,0,1.4,3.14159265358979,1.5707963267949,4.71238898038469}" />
+						</MarkerPoolElement>
+						<GeometryPoolElement __prop_name__="geometry_pool" />
+					</Part>
+					<Part name="L3" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+						<MarkerPoolElement __prop_name__="marker_pool">
+							<Marker name="joint_2_i" active="true" pe="{0.23,0,1.4,3.14159265358979,1.5707963267949,4.71238898038469}" />
+							<Marker name="joint_3_j" active="true" pe="{1.246,0,1.57,1.5707963267949,1.5707963267949,1.5707963267949}" />
+						</MarkerPoolElement>
+						<GeometryPoolElement __prop_name__="geometry_pool" />
+					</Part>
+					<Part name="L4" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+						<MarkerPoolElement __prop_name__="marker_pool">
+							<Marker name="joint_3_i" active="true" pe="{1.246,0,1.57,1.5707963267949,1.5707963267949,1.5707963267949}" />
+							<Marker name="joint_4_j" active="true" pe="{1.246,0,1.57,3.14159265358979,1.5707963267949,4.71238898038469}" />
+						</MarkerPoolElement>
+						<GeometryPoolElement __prop_name__="geometry_pool" />
+					</Part>
+					<Part name="L5" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+						<MarkerPoolElement __prop_name__="marker_pool">
+							<Marker name="joint_4_i" active="true" pe="{1.246,0,1.57,3.14159265358979,1.5707963267949,4.71238898038469}" />
+							<Marker name="joint_5_j" active="true" pe="{1.246,0,1.57,1.5707963267949,1.5707963267949,1.5707963267949}" />
+						</MarkerPoolElement>
+						<GeometryPoolElement __prop_name__="geometry_pool" />
+					</Part>
+					<Part name="EE" active="true" pe="{1.436,0,1.57,1.5707963267949,1.5707963267949,4.71238898038469}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+						<MarkerPoolElement __prop_name__="marker_pool">
+							<Marker name="joint_5_i" active="true" pe="{-1.16341445918999e-17,0,-0.19,1.5707963267949,6.12323399573677e-17,1.5707963267949}" />
+							<Marker name="tool0" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool1" active="true" pe="{0.1642399,-0.390637,0.404567,0.0,1.5707963267948966,0.0}" />
+							<Marker name="tool2" active="true" pe="{0,0,0.1,1.57079632675,0,-0}" />
+							<Marker name="tool3" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool4" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool5" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool6" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool7" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool8" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool9" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool10" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool11" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool12" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool13" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool14" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool15" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="tool16" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj1" active="true" pe="{0.009,-0.017,0.366,4.7123889803846897,3.0630528372500483,4.4505895925855405}" />
+							<Marker name="hd_wobj2" active="true" pe="{-0.00523,-0.00444,0.411,4.0485422799522093,0.0086109191085838727,1.8030525036077698}" />
+							<Marker name="hd_wobj3" active="true" pe="{-0.00523,-0.00444,0.411,4.0465056146721858,1.8030437347705675,6.2743368140403621}" />
+							<Marker name="hd_wobj4" active="true" pe="{-0.00523,-0.00444,0.411,4.0465056146721858,1.8030437347705675,6.2743368140403621}" />
+							<Marker name="hd_wobj5" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj6" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj7" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj8" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj9" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj10" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj11" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj12" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj13" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj14" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj15" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj16" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj17" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj18" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj19" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj20" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj21" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj22" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj23" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj24" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj25" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj26" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj27" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj28" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj29" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj30" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj31" active="true" pe="{0,0,0,-0,0,-0}" />
+							<Marker name="hd_wobj32" active="true" pe="{0,0,0,-0,0,-0}" />
+						</MarkerPoolElement>
+						<GeometryPoolElement __prop_name__="geometry_pool" />
+					</Part>
+				</PartPoolElement>
+				<MotionPoolElement __prop_name__="motion_pool">
+					<Motion name="motion_0" active="true" prt_m="L1" prt_n="ground" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0}" component="5" pitch="0" rotate_range="nan" mp_offset="0" mp_factor="1" mp="{0}" mv="0" ma="0" frc_coe="{0,0,0}" />
+					<Motion name="motion_1" active="true" prt_m="L2" prt_n="L1" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0}" component="5" pitch="0" rotate_range="nan" mp_offset="0" mp_factor="1" mp="{0}" mv="0" ma="0" frc_coe="{0,0,0}" />
+					<Motion name="motion_2" active="true" prt_m="L3" prt_n="L2" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0}" component="5" pitch="0" rotate_range="nan" mp_offset="0" mp_factor="1" mp="{0}" mv="0" ma="0" frc_coe="{0,0,0}" />
+					<Motion name="motion_3" active="true" prt_m="L4" prt_n="L3" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0}" component="5" pitch="0" rotate_range="nan" mp_offset="0" mp_factor="1" mp="{0}" mv="0" ma="0" frc_coe="{0,0,0}" />
+					<Motion name="motion_4" active="true" prt_m="L5" prt_n="L4" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0}" component="5" pitch="0" rotate_range="nan" mp_offset="0" mp_factor="1" mp="{0}" mv="0" ma="0" frc_coe="{0,0,0}" />
+					<Motion name="motion_5" active="true" prt_m="EE" prt_n="L5" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0}" component="5" pitch="0" rotate_range="nan" mp_offset="0" mp_factor="1" mp="{0}" mv="0" ma="0" frc_coe="{0,0,0}" />
+				</MotionPoolElement>
+				<JointPoolElement __prop_name__="joint_pool">
+					<RevoluteJoint name="joint_0" active="true" prt_m="L1" prt_n="ground" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0,0,0,0,0}" />
+					<RevoluteJoint name="joint_1" active="true" prt_m="L2" prt_n="L1" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0,0,0,0,0}" />
+					<RevoluteJoint name="joint_2" active="true" prt_m="L3" prt_n="L2" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0,0,0,0,0}" />
+					<RevoluteJoint name="joint_3" active="true" prt_m="L4" prt_n="L3" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0,0,0,0,0}" />
+					<RevoluteJoint name="joint_4" active="true" prt_m="L5" prt_n="L4" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0,0,0,0,0}" />
+					<RevoluteJoint name="joint_5" active="true" prt_m="EE" prt_n="L5" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0,0,0,0,0}" />
+				</JointPoolElement>
+				<GeneralMotionPoolElement __prop_name__="general_motion_pool">
+					<GeneralMotion name="ee" active="false" prt_m="EE" prt_n="ground" mak_i="tool0" mak_j="wobj0" cf="{0,0,0,0,0,0}" pose_type="EULER321" />
+				</GeneralMotionPoolElement>
+				<ForcePoolElement __prop_name__="force_pool" />
+				<SolverPoolElement __prop_name__="solver_pool">
+					<PumaInverseKinematicSolver max_iter_count="1" max_error="0" which_root="8" />
+					<ForwardKinematicSolver max_iter_count="100" max_error="1e-10" />
+					<InverseDynamicSolver max_iter_count="100" max_error="1e-10" />
+					<ForwardDynamicSolver max_iter_count="100" max_error="1e-10" />
+				</SolverPoolElement>
+				<CalibratorPoolElement __prop_name__="calibrator_pool" />
+			</Model>
+		</ModelBasePool>
+	</MultiModel>
