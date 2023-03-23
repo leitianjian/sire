@@ -221,6 +221,8 @@ target_include_directories(sire_server
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 	)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
+install(DIRECTORY include/sire/ext DESTINATION include/sire)
+install(DIRECTORY include/sire/plan DESTINATION include/sire)
 
 add_library(sire_middleware OBJECT)
 target_compile_definitions(sire_middleware PRIVATE sire_lib_EXPORTS)
