@@ -33,9 +33,12 @@ auto ForceControlSimulationTransfer::updateDataController2Model(
     const std::vector<std::uint64_t>& options,
     const aris::control::Controller* controller,
     aris::dynamic::ModelBase* model) -> void {
+  // 根据电机力输入model的force pool
   for (std::size_t i = 0; i < controller->motorPool().size(); ++i) {
     auto& cm = controller->motorPool()[i];
-    model->setInputFceAt(cm.targetToq(), i);
+    dynamic_cast<aris::dynamic::SingleComponentForce&>(
+        dynamic_cast<aris::dynamic::Model*>(model)->forcePool().at(i))
+        .setFce(cm.targetToq());
   }
   // 根据读取到的力做动力学正解
   aris::dynamic::Model* csModel = dynamic_cast<aris::dynamic::Model*>(model);

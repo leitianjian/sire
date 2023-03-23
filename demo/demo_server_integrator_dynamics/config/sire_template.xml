@@ -130,7 +130,14 @@
     <GeneralMotionPoolElement __prop_name__="general_motion_pool">
       <GeneralMotion name="ee" active="false" prt_m="EE" prt_n="ground" mak_i="tool0" mak_j="wobj0" cf="{0,0,0,0,0,0}" pose_type="EULER321"/>
     </GeneralMotionPoolElement>
-    <ForcePoolElement __prop_name__="force_pool"/>
+    <ForcePoolElement __prop_name__="force_pool">
+      <SingleComponentForce name="motor_f1" active="true" prt_m="L1" prt_n="ground" mak_i="joint_0_i" mak_j="joint_0_j" component="5"/>
+      <SingleComponentForce name="motor_f2" active="true" prt_m="L2" prt_n="L1" mak_i="joint_1_i" mak_j="joint_1_j" component="5"/>
+      <SingleComponentForce name="motor_f3" active="true" prt_m="L3" prt_n="L2" mak_i="joint_2_i" mak_j="joint_2_j" component="5"/>
+      <SingleComponentForce name="motor_f4" active="true" prt_m="L4" prt_n="L3" mak_i="joint_3_i" mak_j="joint_3_j" component="5"/>
+      <SingleComponentForce name="motor_f5" active="true" prt_m="L5" prt_n="L4" mak_i="joint_4_i" mak_j="joint_4_j" component="5"/>
+      <SingleComponentForce name="motor_f6" active="true" prt_m="EE" prt_n="L5" mak_i="joint_5_i" mak_j="joint_5_j" component="5"/>
+    </ForcePoolElement>
     <SolverPoolElement __prop_name__="solver_pool">
       <PumaInverseKinematicSolver max_iter_count="1" max_error="0" which_root="8"/>
       <ForwardKinematicSolver max_iter_count="100" max_error="1e-10"/>
