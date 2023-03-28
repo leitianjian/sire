@@ -18,13 +18,35 @@ namespace sire::physics::contact {
 // using namespace hpp;
 class SIRE_API BallRebound {
  public:
-  //auto CalImpulse(const double& dt,)
   static auto instance(const std::string& robot_stl_path = "./")
       -> BallRebound&;
   auto CalContact(std::array<double, 7>&, size_t&) -> void;
   auto GetFileName(const std::string& path, std::vector<std::string>& files)
       -> void;
   auto ContactSolver(std::array<double,7>,std::array<double,7>) -> std::array<double, 7>;
+  auto CalImpulse(std::array<double, 7>& sphere_pq,
+                  std::array<double, 7>& sphere_vs, 
+                  const double& delta_t = 1e-2) -> void;
+  auto CalPenalty(std::array<double, 7>& sphere_pq,
+                  std::array<double, 7>& sphere_vs,
+                  const double& min_distance,
+                  const double& m = 1, 
+                  const double& k = 1e3, 
+                  const double& delta_t = 1e-2) -> void;
+  auto CalPenaltyODE(const double& contact_time, 
+                     std::array<double, 7>& sphere_pq,
+                     std::array<double, 7>& sphere_vs, 
+                     const double& cr = 1,
+                     const double& m = 1,
+                     const double& k = 1e3, 
+                     const double& delta_t = 1e-2) -> void;
+  auto CalPenaltyMaxwell(std::array<double, 7>& sphere_pq,
+                         std::array<double, 7>& sphere_vs,
+                         const double& min_distance, 
+                         const double& cr = 1,
+                         const double& m = 1, 
+                         const double& k = 1e3, 
+                         const double& delta_t = 1e-2) -> void;
 
  private:
   struct Imp;
