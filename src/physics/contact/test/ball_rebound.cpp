@@ -17,10 +17,18 @@ struct BallRebound::Imp {
   size_t num_contacts;
   double contact_x_init;
   double contact_v_init;
+  double m, k, cr;
+  double delta_t;
+  double contact_time;
   
   explicit Imp(BallRebound* ball_rebound) : ball_rebound_(ball_rebound) {
     g = 9.8;// m/s
     r = 0.3;// m
+    m = 1;
+    k = 1e3;
+    cr = 1;
+    delta_t = 0.01;
+    contact_time = 0;
     num_contacts = 0;
     sphere_pq = {0, 0, 2, 0, 0, 0, 1};
     sphere_vs = {0, 0, 0, 0, 0, 0, 0};
@@ -75,17 +83,19 @@ auto BallRebound::CalPenaltyODE(const double& contact_time,
    double delta_v =
        (A * r + B * w) * std::exp(r * contact_time) * std::cos(w * contact_time) +
        (B * r - A * w) * std::exp(r * contact_time) * std::sin(w * contact_time);
+   double next_t = contact_time/* + dt*/;
    double delta_x =
-       A * std::exp(r * contact_time) * std::cos(w * contact_time) +
-       B * std::exp(r * contact_time) * std::sin(w * contact_time) + F_ext/k;
+       A * std::exp(r * next_t) * std::cos(w * next_t) +
+                    B * std::exp(r * next_t) * std::sin(w * next_t) + F_ext / k;
   // contact force
    double contact_force = m * (delta_v - sphere_vs[2]) / dt;
    std::cout << "contact_time: " << contact_time << std::endl;
    std::cout << " sphere_vs[2]0 " << sphere_vs[2] << std::endl;
    std::cout << " sphere_pq[2]0 " << sphere_pq[2] << std::endl;
+   //TODO: 位置是下一时刻的，速度是这一时刻的
    sphere_vs[2] = delta_v;
-   //sphere_pq[2] = imp_->contact_x_init - delta_x; 
-   sphere_pq[2] += sphere_vs[2] * dt;
+   sphere_pq[2] = imp_->contact_x_init + delta_x; 
+   //sphere_pq[2] += sphere_vs[2] * dt;
    std::cout << " sphere_vs[2]1 " << sphere_vs[2] << std::endl;
    std::cout << " sphere_pq[2]1 " << sphere_pq[2] << std::endl;
    std::cout << " delta_x " << delta_x << std::endl;
@@ -100,6 +110,7 @@ auto BallRebound::CalPenaltyODE(const double& contact_time,
              << d * sphere_vs[2]
              << std::endl;
    //if (sphere_pq[2] > imp_->contact_x_init) {
+   // //用速度回退到初始碰撞面
    //  double temp_x = sphere_pq[2];
    //  double temp_v = sphere_vs[2];
    //  double temp_a = contact_force / m;
@@ -152,12 +163,15 @@ auto BallRebound::ModifyContactPosition(contact_state state,
   std::cout << " sphere_pq[2] " << sphere_pq[2] << std::endl;
   double iteration = max_iteration;
   while (max_iteration > 0) {
-    std::cout << "max_iteration" << delta_t * (1 - max_iteration / iteration)
-              << std::endl;
     --max_iteration;
+    std::cout << "max_iteration" << delta_t * (1 - max_iteration / iteration) << std::endl;
+    if (state == in) {
+      Fall(sphere_pq, sphere_vs, delta_t / iteration);
+    } else {
+      CalPenaltyODE(imp_->contact_time + delta_t * (-max_iteration/iteration), sphere_pq, sphere_vs, imp_->cr, imp_->m, imp_->k, imp_->delta_t/iteration);
+    }
     std::cout << " sphere_vs[2] " << sphere_vs[2] << std::endl;
     std::cout << " sphere_pq[2] " << sphere_pq[2] << std::endl;
-    Fall(sphere_pq, sphere_vs, delta_t * 1 / iteration);
     sphere->setTranslation(
         fcl::Vec3f(sphere_pq[0], sphere_pq[1], sphere_pq[2]));
     sphere->computeAABB();
@@ -197,14 +211,14 @@ BallRebound::BallRebound(const std::string& robot_stl_path)
          fcl::CollisionObject box,
          fcl::BroadPhaseCollisionManager* dynamic_tree) {
         // std::lock_guard<std::mutex> guard(imp_->collision_mutex_);
-        const double delta_t = 0.01;  // s
-        const double k = 1e3, m = 1, cr = 1;
-        double contact_time = 0;
-        static double d = 2 * std::abs(std::log(cr)) * std::sqrt(k * m /
-                      (aris::PI * aris::PI + std::log(cr) * std::log(cr)));
-        static double r = -d / (2 * m),
-                      w = std::sqrt((4 * k * m - d * d)) / (2 * m);
-        static double t_max = aris::PI / w;
+        //const double delta_t = 0.01;  // s
+        //const double k = 1e3, m = 1, cr = 1;
+        //double contact_time = 0;
+        static double d = 2 * std::abs(std::log(imp_->cr)) * std::sqrt(imp_->k * imp_->m /
+                      (aris::PI * aris::PI + std::log(imp_->cr) * std::log(imp_->cr)));
+        static double r = - d / (2 * imp_->m),
+                      w = std::sqrt((4 * imp_->k * imp_->m - d * d)) / (2 * imp_->m);
+        static double contact_time_max = aris::PI / w;
         std::array<double, 7> sphere_vs_old = sphere_vs;
         std::array<double, 7> sphere_pq_old = sphere_pq;
 
@@ -244,27 +258,32 @@ BallRebound::BallRebound(const std::string& robot_stl_path)
 
           // falling
           if (num_contacts == 0 ) {
-            if (contact_time != 0) {
-            //TODO 侵出：修复回到接触初始位置
-              //bool res = ModifyContactPosition(out, sphere_pq, sphere_vs,
-              //                                 sphere_pq_old, sphere_vs_old,
-              //                                 &sphere, &box, delta_t, 100);
+            //if (imp_->contact_time != 0) {
+            ////侵出：修复回到接触初始位置
+            //  std::cout << "contact out============================== " << std::endl;
+            //  bool res = ModifyContactPosition(out, sphere_pq, sphere_vs, sphere_pq_old, sphere_vs_old, &sphere, &box, imp_->delta_t, 100);
+            //}
+            sphere_vs_old = sphere_vs;
+            sphere_pq_old = sphere_pq;
+            imp_->contact_time = 0;
+            Fall(sphere_pq, sphere_vs, imp_->delta_t);
+          } else {
+            
+            if (imp_->contact_time == 0) {
+              //侵入：修复回到接触初始位置
+              std::cout << "contact in============================== " << std::endl;
+              bool res = ModifyContactPosition(in,sphere_pq, sphere_vs, sphere_pq_old, sphere_vs_old, &sphere, &box, imp_->delta_t, 10);
+            }
+
+            imp_->contact_time += imp_->delta_t;
+            if (imp_->contact_time > contact_time_max/*-imp_->delta_t*/) {
+              //侵出：修复最多的碰撞时间
+              imp_->contact_time = contact_time_max/* - imp_->delta_t*/;
+              std::cout << "modify contact_time" << std::endl;
             }
             sphere_vs_old = sphere_vs;
             sphere_pq_old = sphere_pq;
-            contact_time = 0;
-            Fall(sphere_pq, sphere_vs, delta_t);
-          } else {
-            if (contact_time == 0) {
-              //侵入：修复回到接触初始位置
-              bool res = ModifyContactPosition(in,sphere_pq, sphere_vs,
-                                               sphere_pq_old, sphere_vs_old,
-                                               &sphere, &box, delta_t, 100);
-              std::cout << " modify" << res << std::endl;
-            }
-            contact_time += delta_t;
-
-            CalPenaltyODE(contact_time, sphere_pq, sphere_vs, cr, m, k, delta_t);  // F = kx + dv
+            CalPenaltyODE(imp_->contact_time, sphere_pq, sphere_vs, imp_->cr, imp_->m, imp_->k, imp_->delta_t);  // F = kx + dv
              //CalImpulse(sphere_pq, sphere_vs,delta_t);// v = -v
              //CalPenalty(sphere_pq, sphere_vs, min_distance, m, k,delta_t);// F = kx
              //CalPenaltyMaxwell(sphere_pq,sphere_vs, min_distance, cr, m, k,delta_t);// F = kx + d(cr)v
@@ -275,7 +294,7 @@ BallRebound::BallRebound(const std::string& robot_stl_path)
                     << sphere_pq[2] << std::endl;
           std::cout << "velocity:" << sphere_vs[2] << std::endl;
           std::this_thread::sleep_until(
-              start + std::chrono::duration<double, std::milli>(delta_t * 1000));
+              start + std::chrono::duration<double, std::milli>(imp_->delta_t * 1000));
         }  // thread_while
       },
       std::ref(imp_->num_contacts), std::ref(imp_->sphere_pq),
@@ -288,8 +307,8 @@ BallRebound::~BallRebound() = default;
 // falling
 auto BallRebound::Fall(std::array<double, 7>& sphere_pq,
                        std::array<double, 7>& sphere_vs, const double& delta_t)-> void {
+  sphere_pq[2] += sphere_vs[2] * delta_t + 0.5 * -imp_->g * delta_t * delta_t;
   sphere_vs[2] += -imp_->g * delta_t;
-  sphere_pq[2] += sphere_vs[2] * delta_t;
 }
 
 auto BallRebound::instance(const std::string& robot_stl_path)
