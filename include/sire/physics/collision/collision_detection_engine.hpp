@@ -28,16 +28,10 @@ class SIRE_API CollisionDetectionEngine {
  public:
   auto resetCollisionFilter(CollisionFilter* filter) -> void;
   auto collisionFilter() -> CollisionFilter&;
-  auto resetDynamicGeometryPool(
+  auto resetGeometryPool(
       aris::core::PointerArray<geometry::CollidableGeometry,
                                aris::dynamic::Geometry>* pool) -> void;
-  auto dynamicGeometryPool()
-      -> aris::core::PointerArray<geometry::CollidableGeometry,
-                                  aris::dynamic::Geometry>&;
-  auto resetAnchoredGeometryPool(
-      aris::core::PointerArray<geometry::CollidableGeometry,
-                               aris::dynamic::Geometry>* pool) -> void;
-  auto anchoredGeometryPool()
+  auto geometryPool()
       -> aris::core::PointerArray<geometry::CollidableGeometry,
                                   aris::dynamic::Geometry>&;
   auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
