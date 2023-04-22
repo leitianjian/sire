@@ -1040,14 +1040,6 @@
       <SireForceControlTest name="fc_test">
         <Command __prop_name__="command" name="FCTest"/>
       </SireForceControlTest>
-      <SireGetForceSensorData name="get_force">
-        <Command __prop_name__="command" name="get_force">
-          <UniqueParam default="info">
-            <Param name="info" abbreviation="i"/>
-            <Param name="config" abbreviation="c"/>
-          </UniqueParam>
-        </Command>
-      </SireGetForceSensorData>
       <SireMoveJ name="plan">
         <Command __prop_name__="command" name="sire_mvj">
           <GroupParam name="group_param">

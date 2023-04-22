@@ -1,5 +1,5 @@
-#ifndef FORCE_CONTROL_SIMULATION_TRANSFER_HPP_
-#define FORCE_CONTROL_SIMULATION_TRANSFER_HPP_
+#ifndef SIMULATION_TRANSFER_HPP_
+#define SIMULATION_TRANSFER_HPP_
 
 #include <sire_lib_export.h>
 
@@ -9,7 +9,7 @@
 #include "sire/integrator/integrator.hpp"
 
 namespace sire::transfer {
-class SIRE_API ForceControlSimulationTransfer
+class SIRE_API SimulationTransfer
     : public aris::server::TransferModelController {
  public:
   auto updateDataController2Model(const std::vector<std::uint64_t>& options,
@@ -32,7 +32,7 @@ class SIRE_API ForceControlSimulationTransfer
   auto resetIntegrator(simulator::Integrator* integrator) -> void;
   auto integrator() -> simulator::Integrator&;
   auto integrator() const -> const simulator::Integrator&;
-  ForceControlSimulationTransfer();
+  SimulationTransfer();
 
  private:
   std::unique_ptr<simulator::Integrator> integrator_;

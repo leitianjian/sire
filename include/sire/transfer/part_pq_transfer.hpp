@@ -6,7 +6,7 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
-#include "sire/simulator/integrator.hpp"
+#include "sire/integrator/integrator.hpp"
 
 namespace sire::transfer {
 class SIRE_API PartPQTransfer : public aris::server::TransferModelController {

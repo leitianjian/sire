@@ -1,7 +1,6 @@
 #include "sire/cam_backend/command.hpp"
 
 #include "sire/cam_backend/cam_backend.hpp"
-#include "sire/controller/controller_sensor.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/middleware/sire_middleware.hpp"

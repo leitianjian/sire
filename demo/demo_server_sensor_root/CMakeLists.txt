@@ -13,9 +13,8 @@ target_link_libraries(${sire_demo}
 		sire_core 
 		sire_server 
 		sire_middleware 
-		sire_controller 
 		sire_transfer 
-		sire_simulator 
+		sire_integrator
 		${PUB_RELY_LINK_LIB}
 	)
 # DEBUG INSTALL 

@@ -419,14 +419,7 @@
     </MotorPoolObject>
     <DigitalIoPoolObject __prop_name__="digital_io_pool"/>
     <FtSensorPoolObject __prop_name__="ft_sensor_pool"/>
-    <SensorPoolObject __prop_name__="sensor_pool">
-      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="0" description="test virtual sensor" frequency="0"/>
-      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="1" description="test virtual sensor" frequency="0"/>
-      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="2" description="test virtual sensor" frequency="0"/>
-      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="3" description="test virtual sensor" frequency="0"/>
-      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="4" description="test virtual sensor" frequency="0"/>
-      <MotorForceControllerVirtualSensor is_activate="true" is_virtual="true" motor_index="5" description="test virtual sensor" frequency="0"/>
-    </SensorPoolObject>
+    <SensorPoolObject __prop_name__="sensor_pool"/>
   </Controller>
   <PlanRoot __prop_name__="plan_root">
     <PlanPoolObject __prop_name__="plan_pool_object">
@@ -1047,14 +1040,6 @@
       <SireForceControlTest name="fc_test">
         <Command __prop_name__="command" name="FCTest"/>
       </SireForceControlTest>
-      <SireGetForceSensorData name="get_force">
-        <Command __prop_name__="command" name="get_force">
-          <UniqueParam default="info">
-            <Param name="info" abbreviation="i"/>
-            <Param name="config" abbreviation="c"/>
-          </UniqueParam>
-        </Command>
-      </SireGetForceSensorData>
       <SireMoveJ name="plan">
         <Command __prop_name__="command" name="sire_mvj">
           <GroupParam name="group_param">

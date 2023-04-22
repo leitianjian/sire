@@ -1,33 +1,44 @@
 #include "sire/sensor/sensor.hpp"
 
-// namespace sire::sensor {
-// template <class DataType>
-// SensorBase<DataType>::~SensorBase() = default;
-// template <class DataType>
-// SensorBase<DataType>::SensorBase(const std::string& name, bool is_virtual,
-//                                  bool activate, const std::string&
-//                                  description)
-//     : aris::sensor::SensorTemplate<DataType>(name),
-//       is_virtual_(is_virtual),
-//       activate_(activate),
-//       description_(description){};
-// template <class DataType>
-// auto SensorBase<DataType>::isVirtual() const -> bool {
-//   return is_virtual_;
-// }
-// template <class DataType>
-// auto SensorBase<DataType>::setVirtual(bool is_virtual) -> void {
-//   is_virtual_ = is_virtual;
-// }
-// template <class DataType>
-// auto SensorBase<DataType>::activate() const -> bool {
-//   return activate_;
-// }
-// template <class DataType>
-// auto SensorBase<DataType>::setActivate(bool is_activate) -> void {
-//   activate_ = is_activate;
-// }
-//
+#include <aris/core/object.hpp>
+#include <aris/core/reflection.hpp>
+
+namespace sire::sensor {
+struct SensorBase::Imp {
+  std::string name_;
+  std::string description_;
+  bool activate_;
+  bool is_virtual_;
+  aris::Size frequency_;
+  std::function<SensorData*()> sensor_data_ctor_;
+};
+auto SensorBase::isVirtual() const -> bool { return imp_->is_virtual_; }
+auto SensorBase::setVirtual(bool is_virtual) -> void {
+  imp_->is_virtual_ = is_virtual;
+}
+auto SensorBase::activate() const -> bool { return imp_->activate_; }
+auto SensorBase::setActivate(bool is_activate) -> void {
+  imp_->activate_ = is_activate;
+}
+auto SensorBase::frequency() const -> aris::Size { return imp_->frequency_; }
+auto SensorBase::setFrequency(aris::Size frequency) -> void {
+  imp_->frequency_ = frequency;
+}
+auto SensorBase::name() -> std::string& { return imp_->name_; }
+auto SensorBase::description() -> std::string& { return imp_->description_; }
+SensorBase::~SensorBase() = default;
+SensorBase::SensorBase(std::function<SensorData*()> sensor_data_ctor,
+                       const std::string& name, const std::string& desc,
+                       bool is_virtual, bool activate, aris::Size frequency)
+    : imp_(new Imp) {
+  imp_->sensor_data_ctor_ = sensor_data_ctor;
+  imp_->name_ = name;
+  imp_->description_ = desc;
+  imp_->activate_ = activate;
+  imp_->is_virtual_ = is_virtual;
+  imp_->frequency_ = frequency;
+}
+
 // template <class DataType>
 // auto VirtualSensor<DataType>::setControlServer(
 //     aris::server::ControlServer* cs) noexcept -> void {
@@ -204,20 +215,8 @@
 //   imp_->frequency_ = frequency;
 //   imp_->motor_index_ = motor_index;
 // }
-//
-// ARIS_REGISTRATION {
-//   aris::core::class_<MotorForceVirtualSensor>("MotorForceVirtualSensor")
-//       .inherit<aris::sensor::Sensor>()
-//       .prop("is_activate", &MotorForceVirtualSensor::setActivate,
-//             &MotorForceVirtualSensor::activate)
-//       .prop("is_virtual", &MotorForceVirtualSensor::setVirtual,
-//             &MotorForceVirtualSensor::isVirtual)
-//       .prop("motor_index", &MotorForceVirtualSensor::setMotorIndex,
-//             &MotorForceVirtualSensor::motorIndex)
-//       .prop("description", &MotorForceVirtualSensor::description)
-//       .prop("frequency", &MotorForceVirtualSensor::setFrequency,
-//             &MotorForceVirtualSensor::frequency)
-//       .prop("buffer_size", &MotorForceVirtualSensor::setBufferSize,
-//             &MotorForceVirtualSensor::bufferSize);
-// }
-// };  // namespace sire::sensor
+
+ARIS_REGISTRATION {
+
+}
+};  // namespace sire::sensor

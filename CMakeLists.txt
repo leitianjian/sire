@@ -103,31 +103,6 @@ target_include_directories(sire_core
 	)
 install(DIRECTORY include/sire/core DESTINATION include/sire)
 
-# Build lib simulator of sire
-add_library(sire_simulator OBJECT)
-target_compile_definitions(sire_simulator PRIVATE sire_lib_EXPORTS)
-target_compile_features(sire_simulator PUBLIC cxx_std_17)
-target_sources(sire_simulator 
-	PRIVATE 
-		"src/simulator/dynamic_simulator.cpp"
-		"src/simulator/integrator.cpp"
-	PUBLIC 
-		"include/sire/simulator/simulator.hpp"
-		"include/sire/simulator/dynamic_simulator.hpp"
-		"include/sire/simulator/integrator.hpp"
-	)
-
-target_include_directories(sire_simulator
-	PUBLIC
-		$<INSTALL_INTERFACE:include> 
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-		${aris_INCLUDE_DIRS}
-	PRIVATE
-		${PROJECT_SOURCE_DIR}/src
-		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-	)
-install(DIRECTORY include/sire/simulator DESTINATION include/sire)
-
 # TODO(ltj)  Physics cmakelist to sub-directory
 # Build lib physics of sire
 add_library(sire_physics OBJECT)
@@ -180,6 +155,60 @@ target_include_directories(sire_physics
 	)
 install(DIRECTORY include/sire/physics DESTINATION include/sire)
 
+# Build lib integrator of sire
+add_library(sire_integrator OBJECT)
+target_compile_definitions(sire_integrator PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_integrator PUBLIC cxx_std_17)
+target_sources(sire_integrator 
+	PRIVATE 
+		"src/integrator/integrator.cpp"
+	PUBLIC 
+		"include/sire/integrator/integrator.hpp"
+	)
+
+target_include_directories(sire_integrator
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+	)
+install(DIRECTORY include/sire/integrator DESTINATION include/sire)
+
+# Build lib simulator of sire
+add_library(sire_simulator OBJECT)
+target_compile_definitions(sire_simulator PRIVATE sire_lib_EXPORTS)
+target_compile_options(sire_simulator
+	PRIVATE 
+		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+		$<$<CXX_COMPILER_ID:MSVC>:/Zc:preprocessor>
+		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
+	)
+target_compile_features(sire_simulator PUBLIC cxx_std_17)
+target_sources(sire_simulator 
+	PRIVATE 
+		"src/simulator/simulator.cpp"
+		"src/simulator/dynamic_simulator.cpp"
+	PUBLIC 
+		"include/sire/simulator/simulator.hpp"
+		"include/sire/simulator/dynamic_simulator.hpp"
+	)
+
+target_include_directories(sire_simulator
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
+	)
+install(DIRECTORY include/sire/simulator DESTINATION include/sire)
+
 add_library(sire_server OBJECT)
 target_compile_definitions(sire_server PRIVATE sire_lib_EXPORTS)
 target_compile_features(sire_server PUBLIC cxx_std_17)
@@ -187,7 +216,7 @@ target_sources(sire_server
 	PRIVATE 
 		"src/server/api.cpp"
 		"src/server/interface.cpp"
-		"src/plan/get_force_sensor_data_cmd.cpp"
+#		"src/plan/get_force_sensor_data_cmd.cpp"
 		"src/plan/get_cmd.cpp"
 		"src/plan/display3d_init_cmd.cpp"
 		"src/plan/fce_control_test_cmd.cpp"
@@ -201,7 +230,7 @@ target_sources(sire_server
 	PUBLIC 
 		"include/sire/server/api.hpp"
 		"include/sire/server/interface.hpp"
-		"include/sire/plan/get_force_sensor_data_cmd.hpp"
+#		"include/sire/plan/get_force_sensor_data_cmd.hpp"
 		"include/sire/plan/get_cmd.hpp"
 		"include/sire/plan/display3d_init_cmd.hpp"
 		"include/sire/plan/fce_control_test_cmd.hpp"
@@ -249,27 +278,27 @@ target_include_directories(sire_middleware
 	)
 install(DIRECTORY include/sire/middleware DESTINATION include/sire)
 
-add_library(sire_controller OBJECT)
-target_compile_definitions(sire_controller PRIVATE sire_lib_EXPORTS)
-target_compile_features(sire_controller PUBLIC cxx_std_17)
-target_sources(sire_controller 
-	PRIVATE 
-		"src/controller/controller_sensor.cpp"
-	PUBLIC 
-		"include/sire/controller/controller_sensor.hpp"
-		"include/sire/controller/controller.hpp"
-		"include/sire/ext/json.hpp"
-	)
-target_include_directories(sire_controller
-	PUBLIC
-		$<INSTALL_INTERFACE:include> 
-		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-		${aris_INCLUDE_DIRS}
-	PRIVATE
-		${PROJECT_SOURCE_DIR}/src
-		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-	)
-install(DIRECTORY include/sire/controller DESTINATION include/sire)
+# add_library(sire_controller OBJECT)
+# target_compile_definitions(sire_controller PRIVATE sire_lib_EXPORTS)
+# target_compile_features(sire_controller PUBLIC cxx_std_17)
+# target_sources(sire_controller 
+# 	PRIVATE 
+# 		"src/controller/controller_sensor.cpp"
+# 	PUBLIC 
+# 		"include/sire/controller/controller_sensor.hpp"
+# 		"include/sire/controller/controller.hpp"
+# 		"include/sire/ext/json.hpp"
+# 	)
+# target_include_directories(sire_controller
+# 	PUBLIC
+# 		$<INSTALL_INTERFACE:include> 
+# 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+# 		${aris_INCLUDE_DIRS}
+# 	PRIVATE
+# 		${PROJECT_SOURCE_DIR}/src
+# 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+# 	)
+# install(DIRECTORY include/sire/controller DESTINATION include/sire)
 
 add_library(sire_transfer OBJECT)
 target_compile_definitions(sire_transfer PRIVATE sire_lib_EXPORTS)
@@ -277,12 +306,14 @@ target_compile_features(sire_transfer PUBLIC cxx_std_17)
 target_sources(sire_transfer 
 	PRIVATE 
 		"src/transfer/force_control_simulation_transfer.cpp"
+		"src/transfer/simulation_transfer.cpp"
 		"src/transfer/part_pq_transfer.cpp"
-		"src/transfer/virtual_force_sensor_transfer.cpp"
+#		"src/transfer/virtual_force_sensor_transfer.cpp"
 	PUBLIC 
 		"include/sire/transfer/force_control_simulation_transfer.hpp"
+		"include/sire/transfer/simulation_transfer.hpp"
 		"include/sire/transfer/part_pq_transfer.hpp"
-		"include/sire/transfer/virtual_force_sensor_transfer.hpp"
+#		"include/sire/transfer/virtual_force_sensor_transfer.hpp"
 	)
 target_include_directories(sire_transfer
 	PUBLIC
@@ -295,6 +326,26 @@ target_include_directories(sire_transfer
 	)
 install(DIRECTORY include/sire/transfer DESTINATION include/sire)
 
+add_library(sire_sensor OBJECT)
+target_compile_definitions(sire_sensor PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_sensor PUBLIC cxx_std_17)
+target_sources(sire_sensor 
+	PRIVATE 
+		"src/sensor/sensor.cpp"
+	PUBLIC 
+		"include/sire/sensor/sensor.hpp"
+	)
+target_include_directories(sire_sensor
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+	)
+install(DIRECTORY include/sire/sensor DESTINATION include/sire)
+
 # Build lib CAM backend of sire
 add_library(sire_cam_backend OBJECT)
 target_compile_features(sire_cam_backend PRIVATE cxx_std_17)
@@ -302,6 +353,7 @@ target_compile_definitions(sire_cam_backend PRIVATE sire_lib_EXPORTS)
 target_compile_options(sire_cam_backend
 	PRIVATE 
 		$<$<CXX_COMPILER_ID:MSVC>:/bigobj>
+		$<$<CXX_COMPILER_ID:MSVC>:/Zc:preprocessor>
 		$<$<NOT:$<CXX_COMPILER_ID:MSVC>>:-Wa,-mbig-obj>
 	)
 target_sources(sire_cam_backend 
@@ -331,10 +383,11 @@ add_library(sire_lib
 		$<TARGET_OBJECTS:sire_core>
 		$<TARGET_OBJECTS:sire_middleware>
 		$<TARGET_OBJECTS:sire_physics>
+		$<TARGET_OBJECTS:sire_integrator>
 		$<TARGET_OBJECTS:sire_simulator>
 		$<TARGET_OBJECTS:sire_server>
-		$<TARGET_OBJECTS:sire_controller>
 		$<TARGET_OBJECTS:sire_transfer>
+		$<TARGET_OBJECTS:sire_sensor>
 	)
 generate_export_header(sire_lib EXPORT_MACRO_NAME SIRE_API)
 target_compile_features(sire_lib PUBLIC cxx_std_17)
@@ -403,64 +456,6 @@ install(FILES ${PROJECT_BINARY_DIR}/sire-config.cmake
 option(BUILD_DEMOS "build sire demos" OFF)
 if(BUILD_DEMOS)
 	add_subdirectory(demo)
-#	set(SIRE_DEMOS demo_server_controller_sensor demo_server_integrator_dynamics demo_middleware_collision demo_duan_cam_backend)
-#	foreach(sire_demo ${SIRE_DEMOS})
-#		file(GLOB SOURCES demo/${sire_demo}/*.h demo/${sire_demo}/*.cpp)
-#		add_executable(${sire_demo} ${SOURCES})
-#		target_include_directories(${sire_demo} PRIVATE ${aris_INCLUDE_DIRS} ${PROJECT_BINARY_DIR} ${hpp-fcl_INCLUDE_DIRS})
-#		target_link_libraries(${sire_demo} sire_core sire_server sire_middleware sire_controller sire_transfer sire_simulator sire_physics sire_cam_backend ${PUB_RELY_LINK_LIB})
-#		target_compile_features(${sire_demo} PUBLIC cxx_std_17)
-#		install(
-#			TARGETS 
-#				sire_lib 
-#				${sire_demo} 
-#			CONFIGURATIONS
-#				Debug
-#			DESTINATION 
-#				demo/debug/${sire_demo}
-#			)
-#		install(
-#			TARGETS 
-#				sire_lib 
-#				${sire_demo} 
-#			CONFIGURATIONS
-#				Release
-#			DESTINATION 
-#				demo/release/${sire_demo}
-#			)
-#		install(
-#			FILES 
-#				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
-#				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
-#				"${assimp_DIR}/../../debug/bin/assimp-vc${MSVC_TOOLSET_VERSION}-mtd.dll"
-#				"${assimp_DIR}/../../debug/bin/zlibd1.dll"
-#				"${assimp_DIR}/../../debug/bin/pugixml.dll"
-#			CONFIGURATIONS
-#				Debug
-#			DESTINATION 
-#				demo/debug/${sire_demo}
-#			)
-#		install(
-#			FILES 
-#				"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
-#				"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
-#				"${assimp_DIR}/../../bin/assimp-vc${MSVC_TOOLSET_VERSION}-mt.dll"
-#				"${assimp_DIR}/../../bin/zlib1.dll"
-#				"${assimp_DIR}/../../bin/pugixml.dll"
-#			CONFIGURATIONS
-#				Release
-#			DESTINATION 
-#				demo/release/${sire_demo}
-#			)
-#		if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/config)
-#			install(DIRECTORY config CONFIGURATIONS Release DESTINATION demo/release/${sire_demo})
-#			install(DIRECTORY config CONFIGURATIONS Debug DESTINATION demo/debug/${sire_demo})
-#		endif()
-#		# if(EXISTS ${PROJECT_SOURCE_DIR}/demo/${sire_demo}/resource)
-#		# 	install(DIRECTORY resource DESTINATION demo/${sire_demo})
-#		# 	install(DIRECTORY resource DESTINATION resource/${sire_demo})
-#		# endif()
-#	endforeach(sire_demo)
 endif(BUILD_DEMOS)
 
 # ---------------------- build tests ---------------------------

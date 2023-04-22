@@ -2,7 +2,6 @@
 
 #include <tuple>
 
-#include "sire/controller/controller_sensor.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/core/geometry/geometry_base.hpp"
 #include "sire/core/sire_log.hpp"

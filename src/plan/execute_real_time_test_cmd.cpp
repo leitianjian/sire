@@ -1,6 +1,6 @@
 #include "sire/plan/execute_real_time_test_cmd.hpp"
 
-#include "sire/controller/controller_sensor.hpp"
+#include "sire/core/constants.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/server/interface.hpp"
 

@@ -1029,9 +1029,6 @@
       <SireGet name="get">
         <Command __prop_name__="command" name="get"/>
       </SireGet>
-      <SireGetForceSensorData name="get_force">
-        <Command __prop_name__="command" name="get_force"/>
-      </SireGetForceSensorData>
       <SireMoveJ name="plan">
         <Command __prop_name__="command" name="sire_mvj">
           <GroupParam name="group_param">

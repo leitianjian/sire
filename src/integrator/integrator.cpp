@@ -1,4 +1,4 @@
-#include "sire/simulator/integrator.hpp"
+#include "sire/integrator/integrator.hpp"
 
 #include <aris/core/reflection.hpp>
 

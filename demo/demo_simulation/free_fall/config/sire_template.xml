@@ -14,7 +14,7 @@
           <Marker name="ground" active="true" pe="{0,0,0,0,0,0}"/>
         </MarkerPoolElement>
         <GeometryPoolElement __prop_name__="geometry_pool">
-          <BoxGeometry id="0" part_id="1" is_dynamic="false" side="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+          <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
         </GeometryPoolElement>
       </Part>
       <Part name="L1" active="true" pe="{0,0,0,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
@@ -22,7 +22,7 @@
           <Marker name="sphere_center" active="true" pe="{0,0,0,0,0,0}"/>
         </MarkerPoolElement>
         <GeometryPoolElement __prop_name__="geometry_pool">
-          <SphereGeometry id="1" part_id="0" is_dynamic="true" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+          <SphereGeometry id="1" part_id="1" is_dynamic="true" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
         </GeometryPoolElement>
       </Part>
     </PartPoolElement>
@@ -148,19 +148,20 @@
         <Command __prop_name__="command" name="cs_stop"/>
       </Stop>
       <SireGet name="get">
-        <Command __prop_name__="command" name="get"/>
+        <Command __prop_name__="command" name="get">
+          <GroupParam>
+            <Param name="tool" default="tool0"/>
+            <Param name="wobj" default="wobj0"/>
+            <UniqueParam default="all">
+              <Param name="all"/>
+              <Param name="part_pq"/>
+            </UniqueParam>
+          </GroupParam>
+        </Command>
       </SireGet>
       <SireForceControlTest name="fc_test">
         <Command __prop_name__="command" name="FCTest"/>
       </SireForceControlTest>
-      <SireGetForceSensorData name="get_force">
-        <Command __prop_name__="command" name="get_force">
-          <UniqueParam default="info">
-            <Param name="info" abbreviation="i"/>
-            <Param name="config" abbreviation="c"/>
-          </UniqueParam>
-        </Command>
-      </SireGetForceSensorData>
       <ExecuteRTTest name="ExecuteRTTest_plan">
         <Command __prop_name__="command" name="executeRT_test">
           <Param name="count" abbreviation="c" default="5000"/>
@@ -185,10 +186,8 @@
       <SireCollisionModule __prop_name__="collision_module">
         <CollisionDetectionEngine __prop_name__="collision_detection_engine">
           <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
-            <SphereCollisionGeometry id="1" part_id="0" is_dynamic="true" radius="0.030" pm="{1,0,0,0.3,0,1,0,0,0,0,1,0,0,0,0,1}"/>
-          </GeometryPoolObject>
-          <GeometryPoolObject __prop_name__="anchored_geometry_pool">
-            <BoxCollisionGeometry id="0" part_id="1" is_dynamic="false" half_size="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+            <BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" half_size="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+            <SphereCollisionGeometry id="1" part_id="1" is_dynamic="true" radius="0.030" pm="{1,0,0,0.3,0,1,0,0,0,0,1,0,0,0,0,1}"/>
           </GeometryPoolObject>
           <CollisionFilter __prop_name__="collision_filter" filter_state="{1,0, 0,1}"/>
         </CollisionDetectionEngine>

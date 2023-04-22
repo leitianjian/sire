@@ -1,42 +1,57 @@
 #ifndef SIRE_SENSOR_HPP_
 #define SIRE_SENSOR_HPP_
 
-// #include <sire_lib_export.h>
-// #include "sire/core/constants"
-//
-// namespace sire::sensor {
-// template <class DataType>
-// class SIRE_API SensorBase : public aris::sensor::SensorTemplate<DataType> {
-//  public:
-//   using UpdateDataCallback = aris::sensor::Sensor::UpdateDataCallback;
-//   auto isVirtual() const -> bool;
-//   auto setVirtual(bool is_virtual) -> void;
-//   auto activate() const -> bool;
-//   auto setActivate(bool is_activate = true) -> void;
-//   auto description() -> std::string& { return description_; };
-//
-//   virtual ~SensorBase();
-//   SensorBase(const std::string& name = "sensor_base", bool is_virtual =
-//   false,
-//              bool activate = false,
-//              const std::string& description = "Virtual sensor base");
-//   SensorBase(SensorBase& other);
-//   SensorBase(SensorBase&& other) = delete;
-//   SensorBase& operator=(const SensorBase& other);
-//   SensorBase& operator=(SensorBase&& other) = delete;
-//
-//  protected:
-//   auto virtual init() -> void{};
-//   auto virtual release() -> void{};
-//   auto virtual updateData(aris::sensor::SensorData& data,
-//                           UpdateDataCallback callback = nullptr) -> void{};
-//
-//  private:
-//   bool is_virtual_;
-//   bool activate_;
-//   std::string description_;
-// };
-//
+#include <functional>
+#include <memory>
+#include <string>
+
+#include <sire_lib_export.h>
+
+#include <aris/core/basic_type.hpp>
+#include <aris/core/object.hpp>
+
+#include "sire/core/constants.hpp"
+
+namespace sire::sensor {
+class SIRE_API SensorData {
+ public:
+  virtual ~SensorData() = default;
+  SensorData() = default;
+  auto virtual to_json_string(std::string& str) -> void{};
+  auto virtual from_json_string(const std::string& j) -> void{};
+};
+
+class SIRE_API SensorBase {
+ public:
+  auto virtual copiedDataPtr() -> std::unique_ptr<SensorData> = 0;
+  auto virtual init() -> void = 0;
+  auto virtual start() -> void = 0;
+  auto virtual stop() -> void = 0;
+  auto isVirtual() const -> bool;
+  auto setVirtual(bool is_virtual) -> void;
+  auto activate() const -> bool;
+  auto setActivate(bool is_activate) -> void;
+  auto frequency() const -> aris::Size;
+  auto setFrequency(aris::Size frequency) -> void;
+  auto name() -> std::string&;
+  auto description() -> std::string&;
+
+  virtual ~SensorBase();
+  SensorBase(std::function<SensorData*()> sensor_data_ctor,
+             const std::string& name = "sensor_base",
+             const std::string& desc = "base class of all sensor",
+             bool is_virtual = true, bool activate = true,
+             aris::Size frequency = 0);
+  SensorBase(const SensorBase& other) = delete;
+  SensorBase(SensorBase&& other) = delete;
+  SensorBase& operator=(const SensorBase& other) = delete;
+  SensorBase& operator=(SensorBase&& other) = delete;
+
+ private:
+  struct Imp;
+  aris::core::ImpPtr<Imp> imp_;
+};
+
 // template <class DataType>
 // class SIRE_API VirtualSensor : public SensorBase<DataType> {
 //  public:
@@ -109,7 +124,7 @@
 //   auto updateBufferData(std::unique_ptr<aris::sensor::SensorData> data) ->
 //   void; struct Imp; std::unique_ptr<Imp> imp_;
 // };
-//
-// };  // namespace sire::sensor
+
+};  // namespace sire::sensor
 
 #endif

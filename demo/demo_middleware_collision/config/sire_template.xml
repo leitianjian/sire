@@ -1040,14 +1040,6 @@
       <SireForceControlTest name="fc_test">
         <Command __prop_name__="command" name="FCTest"/>
       </SireForceControlTest>
-      <SireGetForceSensorData name="get_force">
-        <Command __prop_name__="command" name="get_force">
-          <UniqueParam default="info">
-            <Param name="info" abbreviation="i"/>
-            <Param name="config" abbreviation="c"/>
-          </UniqueParam>
-        </Command>
-      </SireGetForceSensorData>
       <SireMoveJ name="plan">
         <Command __prop_name__="command" name="sire_mvj">
           <GroupParam name="group_param">
@@ -1139,15 +1131,13 @@
       <SireCollisionModule __prop_name__="collision_module">
         <CollisionDetectionEngine __prop_name__="collision_detection_engine">
           <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
+            <MeshGeometry id="0" part_id="0" is_dynamic="false" resource_path=""/>
             <MeshGeometry id="1" part_id="1" is_dynamic="true" resource_path=""/>
             <MeshGeometry id="2" part_id="2" is_dynamic="true" resource_path=""/>
             <MeshGeometry id="3" part_id="3" is_dynamic="true" resource_path=""/>
             <MeshGeometry id="4" part_id="4" is_dynamic="true" resource_path=""/>
             <MeshGeometry id="5" part_id="5" is_dynamic="true" resource_path=""/>
             <MeshGeometry id="6" part_id="6" is_dynamic="true" pm="{0,0,-1,0.642,0,1,0,0,1,0,0,-0.393,0,0,0,1}" resource_path=""/>
-          </GeometryPoolObject>
-          <GeometryPoolObject __prop_name__="anchored_geometry_pool">
-            <MeshGeometry id="0" part_id="0" is_dynamic="false" resource_path=""/>
             <SphereGeometry id="7" part_id="0" is_dynamic="false" radius="0.030" pm="{1,0,0,0.560,0,1,0,0,0,0,1,0.642,0,0,0,1}"/>
           </GeometryPoolObject>
           <CollisionFilter __prop_name__="collision_filter" filter_state="{1,1,1,1,0,1,0,1, 1,1,1,1,0,1,0,1, 1,1,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,1,1,1,1,0,0, 1,1,1,1,1,1,1,0, 0,0,0,1,0,1,1,0, 1,1,0,0,0,0,0,1}"/>
