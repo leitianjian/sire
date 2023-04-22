@@ -15,7 +15,6 @@
 
 #include "sire/physics/collision/collision_filter.hpp"
 #include "sire/core/constants.hpp"
-#include "sire/middleware/sire_middleware.hpp"
 
 namespace sire::cam_backend {
 auto mapAngleToSymRange(double angle, double range) -> double {

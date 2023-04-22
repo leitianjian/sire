@@ -42,7 +42,7 @@ class SIRE_API ProgramWebInterface : public aris::server::Interface {
   std::unique_ptr<Imp> imp_;
 };
 auto SIRE_API parse_ret_value(
-    std::vector<std::pair<std::string, std::any>>& ret) -> std::string;
+    std::vector<std::pair<std::string, std::any>>& ret, bool print_flag) -> std::string;
 class SIRE_API HttpInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;

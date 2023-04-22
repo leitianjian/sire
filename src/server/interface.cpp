@@ -23,7 +23,7 @@
 #include "sire/server/api.hpp"
 
 namespace sire::server {
-auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)
+auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret, bool print_flag)
     -> std::string {
 #define APPEND_PAIR_TO_JSON(VALUE_TYPE)                          \
   if (auto value = std::any_cast<VALUE_TYPE>(&key_value.second)) \
@@ -47,7 +47,9 @@ auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)
     }
   }
 #undef APPEND_PAIR_TO_JSON
-  SIRE_LOG << js.dump(2) << std::endl;
+  if (print_flag) {
+    SIRE_LOG << js.dump(2) << std::endl; 
+  }
   return js.dump(2);
 }
 auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
@@ -81,7 +83,7 @@ auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
                 "return_code", plan.executeRetCode()));
             js->push_back(std::make_pair<std::string, std::any>(
                 "return_message", std::string(plan.executeRetMsg())));
-            ret_msg.copy(parse_ret_value(*js));
+            ret_msg.copy(parse_ret_value(*js, true));
           }
 
           // return back to source
@@ -98,7 +100,7 @@ auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
         "return_code", int(aris::plan::Plan::PARSE_EXCEPTION)));
     ret_pair.push_back(std::make_pair<std::string, std::any>(
         "return_message", std::string(e.what())));
-    std::string ret_str = parse_ret_value(ret_pair);
+    std::string ret_str = parse_ret_value(ret_pair, true);
 
     ARIS_COUT << ret_str << std::endl;
     // LOG_ERROR << ret_str << std::endl;

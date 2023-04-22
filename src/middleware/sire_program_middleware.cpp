@@ -4,6 +4,7 @@
 #include <aris/core/object.hpp>
 #include <aris/server/control_server.hpp>
 
+#include "sire/core/sire_log.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/server/api.hpp"
 
@@ -73,6 +74,7 @@ auto SireProgramMiddleware::executeCmd(
   try {
     std::tie(cmd, params) = imp_->command_parser_.parse(str);
   } catch (std::exception&) {
+    SIRE_DEBUG_LOG << "cannot parse command in interface" << std::endl;
   };
 
   if (cmd == "program") {
@@ -619,6 +621,27 @@ auto SireProgramMiddleware::executeCmd(
                                  "invalid program option");
       }
     }
+  } else if (cmd == "get") {
+    aris::server::ControlServer::instance().executeCmdInCmdLine(
+        std::string(str), [send_ret](aris::plan::Plan& plan) -> void {
+          // only copy if it is a str
+          if (auto js =
+                  std::any_cast<std::vector<std::pair<std::string, std::any>>>(
+                      &plan.ret())) {
+            js->push_back(std::make_pair<std::string, std::any>(
+                "return_code", plan.executeRetCode()));
+            js->push_back(std::make_pair<std::string, std::any>(
+                "return_message", std::string(plan.executeRetMsg())));
+            send_ret(sire::server::parse_ret_value(*js, false));
+          } else {
+            std::vector<std::pair<std::string, std::any>> ret_js;
+            ret_js.push_back(std::make_pair<std::string, std::any>(
+                "return_code", plan.executeRetCode()));
+            ret_js.push_back(std::make_pair<std::string, std::any>(
+                "return_message", std::string(plan.executeRetMsg())));
+            send_ret(sire::server::parse_ret_value(ret_js, false));
+          }
+        });
   } else {
     aris::server::ControlServer::instance().executeCmdInCmdLine(
         std::string(str), [send_ret](aris::plan::Plan& plan) -> void {
@@ -630,14 +653,14 @@ auto SireProgramMiddleware::executeCmd(
                 "return_code", plan.executeRetCode()));
             js->push_back(std::make_pair<std::string, std::any>(
                 "return_message", std::string(plan.executeRetMsg())));
-            send_ret(sire::server::parse_ret_value(*js));
+            send_ret(sire::server::parse_ret_value(*js, true));
           } else {
             std::vector<std::pair<std::string, std::any>> ret_js;
             ret_js.push_back(std::make_pair<std::string, std::any>(
                 "return_code", plan.executeRetCode()));
             ret_js.push_back(std::make_pair<std::string, std::any>(
                 "return_message", std::string(plan.executeRetMsg())));
-            send_ret(sire::server::parse_ret_value(ret_js));
+            send_ret(sire::server::parse_ret_value(ret_js, true));
           }
         });
   }
@@ -653,8 +676,8 @@ auto SireProgramMiddleware::resetModulesPool(
   imp_->modules_pool_.reset(pool);
 }
 SireProgramMiddleware::SireProgramMiddleware() : imp_(new Imp) {
-  aris::core::Command cmd;
-  aris::core::fromXmlString(cmd,
+  aris::core::Command cmd1;
+  aris::core::fromXmlString(cmd1,
                             "<Command name=\"program\">"
                             "	<Param name=\"set_auto\"/>"
                             "	<Param name=\"set_manual\"/>"
@@ -667,9 +690,9 @@ SireProgramMiddleware::SireProgramMiddleware() : imp_(new Imp) {
                             "	<Param name=\"clear_error\"/>"
                             "	<Param name=\"forward\"/>"
                             "</Command>");
-  imp_->command_parser_.commandPool().push_back(cmd);
-
-  aris::core::fromXmlString(cmd,
+  imp_->command_parser_.commandPool().push_back(cmd1);
+  aris::core::Command cmd2;
+  aris::core::fromXmlString(cmd2,
                             "<Command name=\"program_file\">"
                             "	<Param name=\"get\"/>"
                             "	<Param name=\"post\"/>"
@@ -677,6 +700,12 @@ SireProgramMiddleware::SireProgramMiddleware() : imp_(new Imp) {
                             "	<Param name=\"delete\"/>"
                             "	<Param name=\"patch\"/>"
                             "</Command>");
+  imp_->command_parser_.commandPool().push_back(cmd2);
+  aris::core::Command cmd3;
+  aris::core::fromXmlString(cmd3, "<Command name=\"get\">"
+                            "	<Param name=\"part_pq\"/>"
+                            "</Command>");
+  imp_->command_parser_.commandPool().push_back(cmd3);
 
   imp_->command_parser_.init();
 }

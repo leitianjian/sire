@@ -627,14 +627,14 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
                 "return_code", plan.executeRetCode()));
             js->push_back(std::make_pair<std::string, std::any>(
                 "return_message", std::string(plan.executeRetMsg())));
-            send_ret(sire::server::parse_ret_value(*js));
+            send_ret(sire::server::parse_ret_value(*js, true));
           } else {
             std::vector<std::pair<std::string, std::any>> ret_js;
             ret_js.push_back(std::make_pair<std::string, std::any>(
                 "return_code", plan.executeRetCode()));
             ret_js.push_back(std::make_pair<std::string, std::any>(
                 "return_message", std::string(plan.executeRetMsg())));
-            send_ret(sire::server::parse_ret_value(ret_js));
+            send_ret(sire::server::parse_ret_value(ret_js, true));
           }
         });
   }

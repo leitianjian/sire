@@ -246,10 +246,10 @@ auto BufferedRtSensor::start() -> void {
     while (imp_->is_update_buffer_data_thread_running_) {
       if (imp_->data_pipe_.recvMsg(msg)) {
         if (!msg.empty()) {
-          MotorForceData data;
+          aris::control::SensorData data;
           try {
             data.from_json_string(msg.toString());
-            updateData(std::make_unique<MotorForceData>(data));
+            updateData(std::make_unique<aris::control::SensorData>(data));
           } catch (nlohmann::json::parse_error& err) {
             continue;
             // std::cout << "not json and skip with msg: " << msg.toString()
