@@ -148,6 +148,7 @@ target_sources(sire_physics
 		"src/physics/collision/collision_exists_callback.cpp"
 		"src/physics/collision/collided_objects_callback.cpp"
 		"src/physics/contact/contact_engine.cpp"
+		"src/physics/contact/contact_force.cpp"
 		"src/physics/physics_engine.cpp"
 
 		"src/physics/contact/test/ball_rebound.cpp"
@@ -164,6 +165,7 @@ target_sources(sire_physics
 		"include/sire/physics/collision/collision_exists_callback.hpp"
 		"include/sire/physics/collision/collided_objects_callback.hpp"
 		"include/sire/physics/contact/contact_engine.hpp"
+		"include/sire/physics/contact/contact_force.hpp"
 		"include/sire/physics/physics_engine.hpp"
 
 		"include/sire/physics/contact/test/ball_rebound.hpp"
