@@ -14,7 +14,8 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
+// This prt_pm should be the part pose in world coordinate.
 auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
   prt_pm = prt_pm ? prt_pm : sire::geometry::default_pm;
   double res[16];
@@ -27,19 +28,14 @@ auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
   getCollisionObject()->computeAABB();
 }
 auto CollidableGeometry::init() -> void {}
-CollidableGeometry::CollidableGeometry() : sire::geometry::GeometryOnPart() {
-  aris::dynamic::s_vc(16, sire::geometry::default_pm,
-                      const_cast<double*>(*partPm()));
-}
-CollidableGeometry::CollidableGeometry(const double* prt_pm)
-    : sire::geometry::GeometryOnPart() {
-  prt_pm = prt_pm ? prt_pm : sire::geometry::default_pm;
-  aris::dynamic::s_vc(16, prt_pm, const_cast<double*>(*partPm()));
-}
+CollidableGeometry::CollidableGeometry(const double* prt_pm, int part_id,
+                                       bool is_dyanmic)
+    : sire::geometry::GeometryOnPart(prt_pm, part_id, is_dyanmic) {}
 CollidableGeometry::~CollidableGeometry() = default;
+SIRE_DEFINE_MOVE_CTOR_CPP(CollidableGeometry);
 
 ARIS_REGISTRATION {
   aris::core::class_<CollidableGeometry>("CollidableGeometry")
       .inherit<sire::geometry::GeometryOnPart>();
 }
-}  // namespace sire::collision::geometry
+}  // namespace sire::physics::geometry

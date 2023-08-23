@@ -16,6 +16,9 @@ namespace sire::middleware {
 using namespace std;
 // middleware可以在controlserver中调用init，所以有需要的可以放这里，而不是custom_module
 class SIRE_API SireProgramMiddleware : public aris::server::MiddleWare {
+  using ModulesPool =
+      aris::core::PointerArray<core::SireModuleBase, aris::core::NamedObject>;
+
  public:
   auto isAutoMode() -> bool;
   auto isAutoRunning() -> bool;
@@ -28,9 +31,21 @@ class SIRE_API SireProgramMiddleware : public aris::server::MiddleWare {
   auto executeCmd(std::string_view str,
                   std::function<void(std::string)> send_ret,
                   aris::server::Interface* interface) -> int override;
-  auto modulesPool() -> aris::core::PointerArray<core::SireModuleBase>&;
-  auto resetModulesPool(aris::core::PointerArray<core::SireModuleBase>* pool)
-      -> void;
+
+  auto modulesPool() const -> const ModulesPool&;
+  auto modulesPool() -> ModulesPool& {
+    return const_cast<ModulesPool&>(
+        static_cast<const SireProgramMiddleware&>(*this).modulesPool());
+  }
+  auto resetModulesPool(ModulesPool* pool) -> void;
+
+  auto physicsEngine() const -> const core::SireModuleBase&;
+  auto physicsEngine() -> core::SireModuleBase& {
+    return const_cast<core::SireModuleBase&>(
+        static_cast<const SireProgramMiddleware&>(*this).physicsEngine());
+  }
+  auto resetPhysicsEngine(core::SireModuleBase* engine) -> void;
+
   virtual ~SireProgramMiddleware();
 
   SireProgramMiddleware();
@@ -39,7 +54,7 @@ class SIRE_API SireProgramMiddleware : public aris::server::MiddleWare {
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 };
 }  // namespace sire::middleware
 

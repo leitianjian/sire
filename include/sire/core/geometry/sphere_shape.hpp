@@ -1,10 +1,12 @@
 #ifndef SIRE_SPHERE_SHAPE_HPP_
 #define SIRE_SPHERE_SHAPE_HPP_
 
+#include <sire_lib_export.h>
+
 #include "sire/core/geometry/shape_base.hpp"
 
 namespace sire::geometry {
-class SphereShape : public ShapeBase {
+class SIRE_API SphereShape : public ShapeBase {
  private:
   double radius_;
 

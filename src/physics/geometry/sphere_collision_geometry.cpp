@@ -10,7 +10,7 @@
 
 #include <aris/core/reflection.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(SphereCollisionGeometry) {
   GeometryOnPart::to_json(j);
   j["shape_type"] = shapeType();
@@ -26,9 +26,10 @@ auto SphereCollisionGeometry::init() -> void {
   resetCollisionObject(
       new fcl::CollisionObject(make_shared<fcl::Sphere>(radius()), trans));
 }
-SphereCollisionGeometry::SphereCollisionGeometry(double radius,
-                                                 const double* prt_pm)
-    : CollidableGeometry(prt_pm), SphereShape(radius) {}
+SphereCollisionGeometry::SphereCollisionGeometry(double radius, int part_id,
+                                                 const double* prt_pm,
+                                                 bool is_dynamic)
+    : CollidableGeometry(prt_pm, part_id, is_dynamic), SphereShape(radius) {}
 SphereCollisionGeometry::~SphereCollisionGeometry() = default;
 
 // 借助类内部的from_json to_json定义，
@@ -40,4 +41,4 @@ ARIS_REGISTRATION {
       .inherit<CollidableGeometry>()
       .inherit<sire::geometry::SphereShape>();
 }
-}  // namespace sire::collision::geometry
+}  // namespace sire::physics::geometry

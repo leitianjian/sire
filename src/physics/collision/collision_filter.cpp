@@ -1,7 +1,5 @@
 #include "sire/physics/collision/collision_filter.hpp"
 
-#include <stdio.h>
-
 #include <fstream>
 #include <mutex>
 #include <string>
@@ -16,7 +14,8 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
-namespace sire::collision {
+
+namespace sire::physics::collision {
 struct CollisionFilter::Imp {
   FilterState filter_state_;
   unordered_map<fcl::CollisionGeometry*, GeometryId> geometry_map_;
@@ -84,12 +83,14 @@ auto CollisionFilter::canCollideWith(GeometryId id_1, GeometryId id_2) -> bool {
                      : imp_->filter_state_[id_2][id_1] ==
                            CollisionRelationship::kUnfiltered;
 }
-auto CollisionFilter::canCollideWith(fcl::CollisionObject* o1,
-                                     fcl::CollisionObject* o2) -> bool {
+auto CollisionFilter::canCollideWith(const fcl::CollisionObject* o1,
+                                     const fcl::CollisionObject* o2) -> bool {
   if (o1 == o2) return false;
   try {
-    GeometryId id_1 = imp_->geometry_map_.at(o1->collisionGeometry().get());
-    GeometryId id_2 = imp_->geometry_map_.at(o2->collisionGeometry().get());
+    GeometryId id_1 = imp_->geometry_map_.at(
+        const_cast<fcl::CollisionObject*>(o1)->collisionGeometry().get());
+    GeometryId id_2 = imp_->geometry_map_.at(
+        const_cast<fcl::CollisionObject*>(o2)->collisionGeometry().get());
 
     return canCollideWith(id_1, id_2);
   } catch (std::out_of_range& err) {
@@ -157,4 +158,4 @@ ARIS_REGISTRATION {
   aris::core::class_<CollisionFilter>("CollisionFilter")
       .prop("filter_state", &setFilterState, &getFilterState);
 }
-}  // namespace sire::collision
+}  // namespace sire::physics::collision

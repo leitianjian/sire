@@ -39,7 +39,7 @@ class SIRE_API ProgramWebInterface : public aris::server::Interface {
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 };
 auto SIRE_API parse_ret_value(
     std::vector<std::pair<std::string, std::any>>& ret, bool print_flag) -> std::string;

@@ -9,18 +9,20 @@
 
 #include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 auto CollidedObjectsCallback::collide(fcl::CollisionObject* o1,
                                       fcl::CollisionObject* o2) -> bool {
+  // NOTE: Here and below, false is returned regardless of whether collision
+  // is detected or not because true tells the broadphase manager to terminate.
+  // Since we want *all* collisions, we return false.
   if (!filter_->canCollideWith(o1, o2)) {
     return false;
   }
   if (queryCollidedObject(o1, o2)) {
     return false;
   }
-  auto* collision_data = static_cast<fcl::CollisionData*>(&data);
-  const fcl::CollisionRequest& request = collision_data->request;
-  fcl::CollisionResult& result = collision_data->result;
+  const fcl::CollisionRequest& request = (&data)->request;
+  fcl::CollisionResult& result = (&data)->result;
 
   fcl::collide(o1, o2, request, result);
   if (result.isCollision()) {
@@ -65,9 +67,9 @@ auto CollidedObjectsCallback::queryCollidedObject(fcl::CollisionObject* o1,
   }
 }
 CollidedObjectsCallback::CollidedObjectsCallback(CollisionFilter* filter_in)
-    : fcl::CollisionCallBackBase(), filter_(filter_in) {
+    : fcl::CollisionCallBackBase(), filter_(filter_in), collidedObjectMap_() {
   data.request.num_max_contacts = 10;
   data.request.enable_contact = false;
   data.request.gjk_tolerance = 2e-12;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision

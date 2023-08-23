@@ -31,7 +31,7 @@ auto PartPQTransfer::updateDataController2Model(
   }
 }
 auto PartPQTransfer::updateDataModel2Controller(
-    const std::vector<std::uint64_t>& options,
+    const std::vector<std::uint64_t>&  options,
     const aris::dynamic::ModelBase* model,
     aris::control::Controller* controller) -> void {
   if (!parts_pq_atomic_ptr_.load()) {
@@ -76,7 +76,7 @@ inline double* PartPQTransfer::exchange(double* ptr) {
 }
 
 ARIS_REGISTRATION {
-  typedef sire::simulator::Integrator& (PartPQTransfer::*IntegratorFunc)();
+  typedef sire::simulator::IntegratorBase& (PartPQTransfer::*IntegratorFunc)();
   aris::core::class_<PartPQTransfer>("PartPQTransfer")
       .inherit<aris::server::TransferModelController>();
 }

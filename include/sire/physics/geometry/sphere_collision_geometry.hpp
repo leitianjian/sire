@@ -20,7 +20,7 @@
 #include "sire/physics/geometry/collidable.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
+namespace sire::physics {
 namespace geometry {
 using json = nlohmann::json;
 /* unique geometry id for every added collision geometry */
@@ -31,11 +31,13 @@ class SIRE_API SphereCollisionGeometry : public CollidableGeometry,
                                          public sire::geometry::SphereShape {
  public:
   auto init() -> void override;
-  explicit SphereCollisionGeometry(double radius = 0.1, const double* prt_pm = nullptr);
+  explicit SphereCollisionGeometry(double radius = 0.1, int part_id = 0,
+                                   const double* prt_pm = nullptr,
+                                   bool is_dynamic = false);
   virtual ~SphereCollisionGeometry();
   ARIS_DELETE_BIG_FOUR(SphereCollisionGeometry)
   SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
 };
 }  // namespace geometry
-}  // namespace sire::collision
+}  // namespace sire::physics
 #endif

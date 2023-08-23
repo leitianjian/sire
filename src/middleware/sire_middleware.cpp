@@ -9,12 +9,19 @@
 
 namespace sire::middleware {
 struct SireMiddleware::Imp {
-  unique_ptr<aris::core::PointerArray<core::SireModuleBase>> modules_pool_;
+  unique_ptr<simulator::Simulator> simulator_;
+  unique_ptr<physics::PhysicsEngine> physics_engine_;
+  unique_ptr<simulator::SimulatorModules> simulator_modules_;
 };
+SireMiddleware::SireMiddleware() : imp_(new Imp) {}
+SireMiddleware::~SireMiddleware() = default;
+SireMiddleware::SireMiddleware(SireMiddleware&& other) = default;
+SireMiddleware& SireMiddleware::operator=(SireMiddleware&& other) = default;
+
 auto SireMiddleware::init() -> void {
-  for (auto& sire_module : *imp_->modules_pool_) {
-    sire_module.init();
-  }
+  imp_->physics_engine_->init();
+  imp_->simulator_modules_->init(this);
+  imp_->simulator_->init(this);
 }
 auto SireMiddleware::executeCmd(std::string_view str,
                                 std::function<void(std::string)> send_ret,
@@ -25,14 +32,16 @@ auto SireMiddleware::executeCmd(std::string_view str,
 
   auto cmd_id = MiddleWare::cmd_id_++;
 
-  std::cout << "INTERFACE -- " << interface->name() << std::endl;
-  std::cout << "       ID -- " << cmd_id << std::endl;
-  std::cout << "      CMD -- " << cmd << std::endl;
-  std::cout << std::endl;
+  // std::cout << "INTERFACE -- " << interface->name() << std::endl;
+  // std::cout << "       ID -- " << cmd_id << std::endl;
+  // std::cout << "      CMD -- " << cmd << std::endl;
+  // std::cout << std::endl;
 
   auto send_and_print = [cmd_id, cmd, send_ret](std::string ret) -> void {
-    if (cmd != "get") {
+    const std::string pre = "get";
+    if (cmd.compare(0, pre.size(), pre) != 0) {
       std::cout << "    ID -- " << cmd_id << std::endl;
+      std::cout << "   CMD -- " << cmd << std::endl;
       std::cout << "RETURN -- " << ret << std::endl;
       std::cout << std::endl;
     }
@@ -53,41 +62,53 @@ auto SireMiddleware::executeCmd(std::string_view str,
               "return_code", plan.executeRetCode()));
           js->push_back(std::make_pair<std::string, std::any>(
               "return_message", std::string(plan.executeRetMsg())));
-          send_and_print(sire::server::parse_ret_value(*js, true));
+          send_and_print(sire::server::parse_ret_value(*js, false));
         } else {
           std::vector<std::pair<std::string, std::any>> ret_js;
           ret_js.push_back(std::make_pair<std::string, std::any>(
               "return_code", plan.executeRetCode()));
           ret_js.push_back(std::make_pair<std::string, std::any>(
               "return_message", std::string(plan.executeRetMsg())));
-          send_and_print(sire::server::parse_ret_value(ret_js, true));
+          send_and_print(sire::server::parse_ret_value(ret_js, false));
         }
       });
 
   return 0;
 }
-auto SireMiddleware::modulesPool()
-    -> aris::core::PointerArray<core::SireModuleBase>& {
-  return *imp_->modules_pool_;
+auto SireMiddleware::resetSimulator(simulator::Simulator* simulator) -> void {
+  imp_->simulator_.reset(simulator);
 }
-auto SireMiddleware::resetModulesPool(
-    aris::core::PointerArray<core::SireModuleBase>* pool) -> void {
-  imp_->modules_pool_.reset(pool);
+auto SireMiddleware::simulator() const -> const simulator::Simulator& {
+  return *imp_->simulator_;
 }
-SireMiddleware::SireMiddleware() : imp_(new Imp) {}
-SireMiddleware::SireMiddleware(SireMiddleware&& other) = default;
-SireMiddleware& SireMiddleware::operator=(SireMiddleware&& other) = default;
-SireMiddleware::~SireMiddleware() = default;
+auto SireMiddleware::resetPhysicsEngine(physics::PhysicsEngine* engine)
+    -> void {
+  imp_->physics_engine_.reset(engine);
+}
+auto SireMiddleware::physicsEngine() const -> const physics::PhysicsEngine& {
+  return *imp_->physics_engine_;
+}
+auto SireMiddleware::resetSimulatorModules(simulator::SimulatorModules* pool)
+    -> void {
+  imp_->simulator_modules_.reset(pool);
+}
+auto SireMiddleware::simulatorModules() const
+    -> const simulator::SimulatorModules& {
+  return *imp_->simulator_modules_;
+}
 
 ARIS_REGISTRATION {
-  aris::core::class_<aris::core::PointerArray<core::SireModuleBase>>(
-      "SireModulesPoolObject")
-      .asRefArray();
-  typedef aris::core::PointerArray<core::SireModuleBase>& (
-      SireMiddleware::*ModulesPoolFunc)();
+  typedef simulator::Simulator& (SireMiddleware::*SimulatorFunc)();
+  typedef physics::PhysicsEngine& (SireMiddleware::*PhysicsEngineFunc)();
+  typedef simulator::SimulatorModules& (
+      SireMiddleware::*SimulatorMudulesFunc)();
   aris::core::class_<SireMiddleware>("SireMiddleware")
       .inherit<aris::server::MiddleWare>()
-      .prop("modules_pool", &SireMiddleware::resetModulesPool,
-            ModulesPoolFunc(&SireMiddleware::modulesPool));
+      .prop("simulator", &SireMiddleware::resetSimulator,
+            SimulatorFunc(&SireMiddleware::simulator))
+      .prop("physics_engine", &SireMiddleware::resetPhysicsEngine,
+            PhysicsEngineFunc(&SireMiddleware::physicsEngine))
+      .prop("simulator_modules", &SireMiddleware::resetSimulatorModules,
+            SimulatorMudulesFunc(&SireMiddleware::simulatorModules));
 }
 }  // namespace sire::middleware

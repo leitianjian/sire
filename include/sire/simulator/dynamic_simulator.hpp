@@ -12,7 +12,7 @@ namespace sire {
 class SIRE_API Simulator {
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 
  private:
   Simulator();

@@ -200,6 +200,6 @@ Get::Get(const std::string& name) {
 }
 
 ARIS_REGISTRATION {
-  aris::core::class_<Get>("SireGet").inherit<aris::plan::Plan>();
+  aris::core::class_<Get>("ArisGet").inherit<aris::plan::Plan>();
 }
 }  // namespace sire::plan

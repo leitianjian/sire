@@ -6,7 +6,7 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
-#include "sire/integrator/integrator.hpp"
+#include "sire/integrator/integrator_base.hpp"
 
 namespace sire::transfer {
 class SIRE_API SimulationTransfer
@@ -20,22 +20,22 @@ class SIRE_API SimulationTransfer
                                   const aris::dynamic::ModelBase* model,
                                   aris::control::Controller* controller)
       -> void override;
-  // Semi-implicit RK4 method      √
-  // Explicit(Forward) RK4 method  ×
+  // Explicit(Forward) RK4 method  √
   // implicit(Backward) RK4 method ×
-  // 
-  // Using acceleration screw at current time step, integrate 
+  // RK4应该没有semi-implicit的说法，因为本身就要用到中值
+  //
+  // Using acceleration screw at current time step, integrate
   // acceleration to get velocity screw of next time step. Integrate
   // time velocity screw by RK4.
   auto integrateAs2Ps(double* vs_in[3], double* as_in[3], double* old_ps,
                       double* ps_out) -> void;
-  auto resetIntegrator(simulator::Integrator* integrator) -> void;
-  auto integrator() -> simulator::Integrator&;
-  auto integrator() const -> const simulator::Integrator&;
+  auto resetIntegrator(simulator::IntegratorBase* integrator) -> void;
+  auto integrator() -> simulator::IntegratorBase&;
+  auto integrator() const -> const simulator::IntegratorBase&;
   SimulationTransfer();
 
  private:
-  std::unique_ptr<simulator::Integrator> integrator_;
+  std::unique_ptr<simulator::IntegratorBase> integrator_;
   sire::Size part_pool_length_;
   sire::Size motion_pool_length_;
   sire::Size general_motion_pool_length_;

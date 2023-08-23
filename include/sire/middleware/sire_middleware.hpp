@@ -11,8 +11,13 @@
 #include <aris/server/middle_ware.hpp>
 
 #include "sire/core/module_base.hpp"
+#include "sire/integrator/integrator_base.hpp"
+#include "sire/physics/physics_engine.hpp"
+#include "sire/sensor/sensor.hpp"
 #include "sire/server/interface.hpp"
+#include "sire/simulator/simulator_modules.hpp"
 
+// TODO(leitianjian): SireMiddleware和Programming middleware功能上需要合并
 namespace sire::middleware {
 using namespace std;
 class SIRE_API SireMiddleware : public aris::server::MiddleWare {
@@ -21,18 +26,38 @@ class SIRE_API SireMiddleware : public aris::server::MiddleWare {
   auto virtual executeCmd(std::string_view str,
                           std::function<void(std::string)> send_ret,
                           aris::server::Interface* interface) -> int override;
-  auto modulesPool() -> aris::core::PointerArray<core::SireModuleBase>&;
-  auto resetModulesPool(aris::core::PointerArray<core::SireModuleBase>* pool)
-      -> void;
+  // Simulator
+  auto resetSimulator(simulator::Simulator* simulator) -> void;
+  auto simulator() const -> const simulator::Simulator&;
+  auto simulator() -> simulator::Simulator& {
+    return const_cast<simulator::Simulator&>(
+        static_cast<const SireMiddleware&>(*this).simulator());
+  }
 
-  virtual ~SireMiddleware();
+  // Physics Engine
+  auto resetPhysicsEngine(physics::PhysicsEngine* engine) -> void;
+  auto physicsEngine() const -> const physics::PhysicsEngine&;
+  auto physicsEngine() -> physics::PhysicsEngine& {
+    return const_cast<physics::PhysicsEngine&>(
+        static_cast<const SireMiddleware&>(*this).physicsEngine());
+  }
+
+  // Simulator Modules
+  auto resetSimulatorModules(simulator::SimulatorModules* pool) -> void;
+  auto simulatorModules() const -> const simulator::SimulatorModules&;
+  auto simulatorModules() -> simulator::SimulatorModules& {
+    return const_cast<simulator::SimulatorModules&>(
+        static_cast<const SireMiddleware&>(*this).simulatorModules());
+  }
+
   SireMiddleware();
+  virtual ~SireMiddleware();
   SireMiddleware(SireMiddleware&& other);
   SireMiddleware& operator=(SireMiddleware&& other);
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 };
 
 }  // namespace sire::middleware

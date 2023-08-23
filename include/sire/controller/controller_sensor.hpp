@@ -4,6 +4,7 @@
 #include <sire_lib_export.h>
 
 #include <aris/control/controller_motion.hpp>
+#include <aris/core/object.hpp>
 
 #include "sire/core/constants.hpp"
 #include "sire/ext/json.hpp"
@@ -224,7 +225,7 @@ class SIRE_API BufferedMotorForceVirtualSensor
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 };
 class SIRE_API MotorForceVirtualSensor
     : public RtSensorTemplate<MotorForceData> {
@@ -250,7 +251,7 @@ class SIRE_API MotorForceVirtualSensor
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 };
 
 };  // namespace sire::controller

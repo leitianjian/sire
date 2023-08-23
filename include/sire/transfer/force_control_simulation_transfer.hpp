@@ -6,7 +6,7 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
-#include "sire/integrator/integrator.hpp"
+#include "sire/integrator/integrator_base.hpp"
 
 namespace sire::transfer {
 class SIRE_API ForceControlSimulationTransfer
@@ -29,13 +29,13 @@ class SIRE_API ForceControlSimulationTransfer
   // time velocity screw by RK4.
   auto integrateAs2Ps(double* vs_in[3], double* as_in[3], double* old_ps,
                       double* ps_out) -> void;
-  auto resetIntegrator(simulator::Integrator* integrator) -> void;
-  auto integrator() -> simulator::Integrator&;
-  auto integrator() const -> const simulator::Integrator&;
+  auto resetIntegrator(simulator::IntegratorBase* integrator) -> void;
+  auto integrator() -> simulator::IntegratorBase&;
+  auto integrator() const -> const simulator::IntegratorBase&;
   ForceControlSimulationTransfer();
 
  private:
-  std::unique_ptr<simulator::Integrator> integrator_;
+  std::unique_ptr<simulator::IntegratorBase> integrator_;
   sire::Size part_pool_length_;
   sire::Size motion_pool_length_;
   sire::Size general_motion_pool_length_;

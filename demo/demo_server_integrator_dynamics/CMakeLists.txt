@@ -7,12 +7,14 @@ target_include_directories(${sire_demo}
 	PRIVATE 
 		${aris_INCLUDE_DIRS} 
 		${PROJECT_BINARY_DIR} 
+		${hpp-fcl_INCLUDE_DIRS}
 	)
 target_link_libraries(${sire_demo}
 	PRIVATE
 		sire_core 
 		sire_server 
 		sire_middleware 
+		sire_simulator
 		sire_transfer 
 		sire_physics
 		sire_integrator

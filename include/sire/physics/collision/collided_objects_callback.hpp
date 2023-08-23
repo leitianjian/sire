@@ -10,7 +10,7 @@
 
 #include "sire/physics/collision/collision_filter.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 using namespace std;
 using namespace hpp;
 // Stored collided object when collision detected
@@ -30,5 +30,5 @@ class SIRE_API CollidedObjectsCallback : public fcl::CollisionCallBackBase {
   CollisionFilter* filter_;
   set<CollisionObjectsPair> collidedObjectMap_;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision
 #endif

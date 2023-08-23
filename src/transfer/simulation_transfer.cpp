@@ -1,8 +1,7 @@
 #include "sire/transfer/simulation_transfer.hpp"
 
 namespace sire::transfer {
-SimulationTransfer::SimulationTransfer()
-    : parts_vs_ptrs_(), parts_as_ptrs_() {
+SimulationTransfer::SimulationTransfer() : parts_vs_ptrs_(), parts_as_ptrs_() {
   part_pool_length_ = dynamic_cast<aris::dynamic::Model&>(
                           aris::server::ControlServer::instance().model())
                           .partPool()
@@ -97,10 +96,9 @@ auto SimulationTransfer::updateDataModel2Controller(
       cm.setOffsetToq(model->inputFceAt(i));
   }
 }
-auto SimulationTransfer::integrateAs2Ps(double* vs_in[3],
-                                                    double* as_in[3],
-                                                    double* old_ps,
-                                                    double* ps_out) -> void {
+auto SimulationTransfer::integrateAs2Ps(double* vs_in[3], double* as_in[3],
+                                        double* old_ps, double* ps_out)
+    -> void {
   std::swap(vs_in[0], vs_in[2]);
   std::swap(vs_in[0], vs_in[1]);
   for (sire::Size i = 0; i < part_pool_length_; ++i) {
@@ -111,22 +109,22 @@ auto SimulationTransfer::integrateAs2Ps(double* vs_in[3],
   }
 }
 
-auto SimulationTransfer::resetIntegrator(
-    simulator::Integrator* integrator) -> void {
+auto SimulationTransfer::resetIntegrator(simulator::IntegratorBase* integrator)
+    -> void {
   integrator_.reset(integrator);
 }
-auto SimulationTransfer::integrator() -> simulator::Integrator& {
+auto SimulationTransfer::integrator() -> simulator::IntegratorBase& {
   return *integrator_;
 }
 auto SimulationTransfer::integrator() const
-    -> const simulator::Integrator& {
+    -> const simulator::IntegratorBase& {
   return const_cast<SimulationTransfer*>(this)->integrator();
 }
 
 ARIS_REGISTRATION {
-  typedef sire::simulator::Integrator& (SimulationTransfer::*IntegratorFunc)();
-  aris::core::class_<SimulationTransfer>(
-      "SimulationTransfer")
+  typedef sire::simulator::IntegratorBase& (
+      SimulationTransfer::*IntegratorFunc)();
+  aris::core::class_<SimulationTransfer>("SimulationTransfer")
       .inherit<aris::server::TransferModelController>()
       .prop("integrator", &SimulationTransfer::resetIntegrator,
             IntegratorFunc(&SimulationTransfer::integrator));

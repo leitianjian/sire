@@ -24,7 +24,12 @@ struct SireProgramMiddleware::Imp {
   int last_error_code_{0}, last_error_line_{0};
 
   std::atomic_bool is_stop_{false}, is_pause_{false};
-  unique_ptr<aris::core::PointerArray<core::SireModuleBase>> modules_pool_;
+  // 重要的模块单独列出来
+  unique_ptr<core::SireModuleBase> physics_engine_;
+  // 不那么重要的就放pool里面
+  unique_ptr<
+      aris::core::PointerArray<core::SireModuleBase, aris::core::NamedObject>>
+      modules_pool_;
 };
 
 #define ARIS_PRO_COUT ARIS_COUT << "pro "
@@ -667,13 +672,19 @@ auto SireProgramMiddleware::executeCmd(
 
   return 0;
 }
-auto SireProgramMiddleware::modulesPool()
-    -> aris::core::PointerArray<core::SireModuleBase>& {
+auto SireProgramMiddleware::modulesPool() const -> const ModulesPool& {
   return *imp_->modules_pool_;
 }
-auto SireProgramMiddleware::resetModulesPool(
-    aris::core::PointerArray<core::SireModuleBase>* pool) -> void {
+auto SireProgramMiddleware::resetModulesPool(ModulesPool* pool) -> void {
   imp_->modules_pool_.reset(pool);
+}
+auto SireProgramMiddleware::resetPhysicsEngine(core::SireModuleBase* engine)
+    -> void {
+  imp_->physics_engine_.reset(engine);
+}
+auto SireProgramMiddleware::physicsEngine() const
+    -> const core::SireModuleBase& {
+  return *imp_->physics_engine_;
 }
 SireProgramMiddleware::SireProgramMiddleware() : imp_(new Imp) {
   aris::core::Command cmd1;
@@ -702,7 +713,8 @@ SireProgramMiddleware::SireProgramMiddleware() : imp_(new Imp) {
                             "</Command>");
   imp_->command_parser_.commandPool().push_back(cmd2);
   aris::core::Command cmd3;
-  aris::core::fromXmlString(cmd3, "<Command name=\"get\">"
+  aris::core::fromXmlString(cmd3,
+                            "<Command name=\"get\">"
                             "	<Param name=\"part_pq\"/>"
                             "</Command>");
   imp_->command_parser_.commandPool().push_back(cmd3);
@@ -716,7 +728,8 @@ SireProgramMiddleware& SireProgramMiddleware::operator=(
 SireProgramMiddleware::~SireProgramMiddleware() = default;
 
 ARIS_REGISTRATION {
-  typedef aris::core::PointerArray<core::SireModuleBase>& (
+  typedef aris::core::PointerArray<core::SireModuleBase,
+                                   aris::core::NamedObject>& (
       SireProgramMiddleware::*ModulesPoolFunc)();
   aris::core::class_<SireProgramMiddleware>("SireModuleProgramMiddleware")
       .inherit<aris::server::MiddleWare>()

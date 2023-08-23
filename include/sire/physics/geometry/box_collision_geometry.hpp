@@ -20,7 +20,7 @@
 #include "sire/physics/geometry/collidable.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
 
-namespace sire::collision {
+namespace sire::physics {
 namespace geometry {
 /* unique geometry id for every added collision geometry */
 using json = nlohmann::json;
@@ -34,7 +34,7 @@ class SIRE_API BoxCollisionGeometry : public CollidableGeometry,
   explicit BoxCollisionGeometry(double x = 0.1, double y = 0.1, double z = 0.1,
                                 const double* prt_pm = nullptr);
   virtual ~BoxCollisionGeometry();
-  ARIS_DELETE_BIG_FOUR(BoxCollisionGeometry)
+  SIRE_DECLARE_MOVE_CTOR(BoxCollisionGeometry)
   // 类内部使用的to_json from_json的声明
   SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
 
@@ -42,5 +42,5 @@ class SIRE_API BoxCollisionGeometry : public CollidableGeometry,
   SIRE_DECLARE_JSON_FRIEND_TWO(BoxCollisionGeometry)
 };
 }  // namespace geometry
-}  // namespace sire::collision
+}  // namespace sire::physics
 #endif

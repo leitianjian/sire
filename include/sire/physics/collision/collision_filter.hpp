@@ -14,11 +14,11 @@
 #include <aris/core/expression_calculator.hpp>
 
 #include "sire/physics/geometry/collidable_geometry.hpp"
+#include "sire/physics/physics.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 using namespace std;
 using namespace hpp;
-using GeometryId = sire::geometry::GeometryId;
 // drake-based implementation
 enum CollisionRelationship {
   kUnfiltered = 0,
@@ -26,15 +26,15 @@ enum CollisionRelationship {
 };
 class SIRE_API CollisionFilter {
  public:
-  using GeometryMap = map<GeometryId, CollisionRelationship>;
-  using FilterState = map<GeometryId, GeometryMap>;
+  using GeometryMap = map<physics::GeometryId, CollisionRelationship>;
+  using FilterState = map<physics::GeometryId, GeometryMap>;
   auto addGeometry(geometry::CollidableGeometry& geo) -> bool;
   auto addGeometry(GeometryId id, fcl::CollisionObject* obj_ptr) -> bool;
   auto updateGeometry(GeometryId id, fcl::CollisionObject* obj_ptr) -> bool;
   auto removeGeometry(GeometryId id) -> bool;
   auto canCollideWith(GeometryId id_1, GeometryId id_2) -> bool;
-  auto canCollideWith(fcl::CollisionObject* o1, fcl::CollisionObject* o2)
-      -> bool;
+  auto canCollideWith(const fcl::CollisionObject* o1,
+                      const fcl::CollisionObject* o2) -> bool;
   inline auto queryGeometryIdByPtr(const fcl::CollisionGeometry* ptr)
       -> GeometryId;
   inline auto queryGeometryIdByPtr(fcl::CollisionGeometry* ptr) -> GeometryId;
@@ -52,5 +52,5 @@ class SIRE_API CollisionFilter {
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision
 #endif

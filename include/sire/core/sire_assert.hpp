@@ -105,7 +105,7 @@ struct ConditionTraits {
 
 #define SIRE_DEMAND(condition)                                                 \
   do {                                                                         \
-    typedef ::sire::core::assert::ConditionTraits<                                   \
+    typedef ::sire::core::assert::ConditionTraits<                             \
         typename std::remove_cv_t<decltype(condition)>>                        \
         Trait;                                                                 \
     static_assert(Trait::is_valid, "Condition should be bool-convertible.");   \
@@ -125,7 +125,7 @@ constexpr bool kSireAssertIsArmed = true;
 constexpr bool kSireAssertIsDisarmed = false;
 }  // namespace sire
 #define SIRE_ASSERT(condition) SIRE_DEMAND(condition)
-#define SIRE_ASSERT_VOID(expression)                                \
+#define SIRE_ASSERT_VOID(expression)                                 \
   do {                                                               \
     static_assert(std::is_convertible_v<decltype(expression), void>, \
                   "Expression should be void.");                     \
@@ -137,22 +137,22 @@ namespace sire {
 constexpr bool kSireAssertIsArmed = false;
 constexpr bool kSireAssertIsDisarmed = true;
 }  // namespace sire
-#define SIRE_ASSERT(condition)                                              \
+#define SIRE_ASSERT(condition)                                               \
   do {                                                                       \
-    typedef ::sire::core::assert::ConditionTraits<                                \
+    typedef ::sire::core::assert::ConditionTraits<                           \
         typename std::remove_cv_t<decltype(condition)>>                      \
         Trait;                                                               \
     static_assert(Trait::is_valid, "Condition should be bool-convertible."); \
     static_assert(                                                           \
         !std::is_pointer_v<decltype(condition)>,                             \
-        "When using SIRE_ASSERT on a raw pointer, always write out "        \
-        "SIRE_ASSERT(foo != nullptr), do not write SIRE_ASSERT(foo) "      \
+        "When using SIRE_ASSERT on a raw pointer, always write out "         \
+        "SIRE_ASSERT(foo != nullptr), do not write SIRE_ASSERT(foo) "        \
         "and rely on implicit pointer-to-bool conversion.");                 \
   } while (0)
-#define SIRE_ASSERT_VOID(expression)                              \
+#define SIRE_ASSERT_VOID(expression)                               \
   static_assert(std::is_convertible_v<decltype(expression), void>, \
                 "Expression should be void.")
 #endif
 
-#endif // SIRE_DOXYGEN_CXX
+#endif  // SIRE_DOXYGEN_CXX
 #endif

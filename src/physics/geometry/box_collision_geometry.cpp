@@ -10,14 +10,14 @@
 
 #include <aris/core/reflection.hpp>
 
-namespace sire::collision::geometry {
+namespace sire::physics::geometry {
 SIRE_DEFINE_TO_JSON_HEAD(BoxCollisionGeometry) {
   GeometryOnPart::to_json(j);
   j["shape_type"] = shapeType();
   j["length"] = length();
   j["width"] = width();
   j["height"] = height();
-  }
+}
 
 auto BoxCollisionGeometry::init() -> void {
   fcl::Transform3f trans(
@@ -33,6 +33,7 @@ BoxCollisionGeometry::BoxCollisionGeometry(double x, double y, double z,
                                            const double* prt_pm)
     : CollidableGeometry(prt_pm), BoxShape(x, y, z) {}
 BoxCollisionGeometry::~BoxCollisionGeometry() = default;
+SIRE_DEFINE_MOVE_CTOR_CPP(BoxCollisionGeometry)
 
 SIRE_DEFINE_JSON_OUTER_TWO(BoxCollisionGeometry)
 
@@ -41,4 +42,4 @@ ARIS_REGISTRATION {
       .inherit<CollidableGeometry>()
       .inherit<sire::geometry::BoxShape>();
 }
-}  // namespace sire::collision::geometry
+}  // namespace sire::physics::geometry

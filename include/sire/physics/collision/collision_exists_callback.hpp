@@ -12,7 +12,7 @@
 
 #include "sire/physics/collision/collision_filter.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 using namespace std;
 using namespace hpp;
 namespace has_collisions {

@@ -13,7 +13,9 @@
 
 #include <sire_lib_export.h>
 
-namespace sire::collision {
+#include <aris/core/object.hpp>
+
+namespace sire::physics::collision {
 // using namespace hpp;
 class SIRE_API Collision {
  public:
@@ -25,12 +27,12 @@ class SIRE_API Collision {
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
   Collision();
   ~Collision();
   Collision(const std::string& ee_model_path);
   Collision(const Collision&) = delete;
   Collision& operator=(const Collision&) = delete;
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision
 #endif  // COLLISION_H

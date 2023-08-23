@@ -33,6 +33,9 @@ auto ForceControlSimulationTransfer::updateDataController2Model(
     const std::vector<std::uint64_t>& options,
     const aris::control::Controller* controller,
     aris::dynamic::ModelBase* model) -> void {
+  // 根据当前位置检测碰撞
+  
+
   // 根据电机力输入model的force pool
   for (std::size_t i = 0; i < controller->motorPool().size(); ++i) {
     auto& cm = controller->motorPool()[i];
@@ -112,19 +115,20 @@ auto ForceControlSimulationTransfer::integrateAs2Ps(double* vs_in[3],
 }
 
 auto ForceControlSimulationTransfer::resetIntegrator(
-    simulator::Integrator* integrator) -> void {
+    simulator::IntegratorBase* integrator) -> void {
   integrator_.reset(integrator);
 }
-auto ForceControlSimulationTransfer::integrator() -> simulator::Integrator& {
+auto ForceControlSimulationTransfer::integrator()
+    -> simulator::IntegratorBase& {
   return *integrator_;
 }
 auto ForceControlSimulationTransfer::integrator() const
-    -> const simulator::Integrator& {
+    -> const simulator::IntegratorBase& {
   return const_cast<ForceControlSimulationTransfer*>(this)->integrator();
 }
 
 ARIS_REGISTRATION {
-  typedef sire::simulator::Integrator& (
+  typedef sire::simulator::IntegratorBase& (
       ForceControlSimulationTransfer::*IntegratorFunc)();
   aris::core::class_<ForceControlSimulationTransfer>(
       "ForceControlSimulationTransfer")

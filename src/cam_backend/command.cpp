@@ -9,14 +9,23 @@
 namespace sire::cam_backend {
 struct CptCollisionMapParam {
   WobjToolInstallMethod tool_install;
+  // 计算模式，指计算图显示的是前倾角和侧倾角(-90 - 90)或工具轴角(360度旋转）
   int option;
+  // 和SprutCam的含义相同，即为计算碰撞的分辨率
   sire::Size resolution;
+  // 刀具路径点的数量
   sire::Size point_size;                    // n
+  // 每个路径点的空间位置
   std::vector<double> points;               // n * 3
+  // 工具轴角度，每个点有一个
   std::vector<double> tool_axis_angles;     // n * 1
+  // 侧倾角，每个点有一个
   std::vector<double> side_tilt_angles;     // n * 1
+  // 前倾角，每个点有一个
   std::vector<double> forward_tilt_angles;  // n * 1
+  // 路径点的法向
   std::vector<double> normals;              // n * 3
+  // 路径点的前进方向（切向）
   std::vector<double> tangents;             // n * 3
 };
 
@@ -106,30 +115,31 @@ auto CptCollisionMap::prepareNrt() -> void {
   auto& cs = *controlServer();
   auto& interface =
       dynamic_cast<server::ProgramWebInterface&>(cs.interfacePool().at(0));
-  auto& camBackend = dynamic_cast<CamBackend&>(
-      dynamic_cast<middleware::SireMiddleware&>(cs.middleWare())
-          .modulesPool()
-          .at(0));
-
-  camBackend.cptCollisionMap(
-      WobjToolInstallMethod::EX_WOBJ_HAND_TOOL, cpt_collision_map_param.option,
-      cpt_collision_map_param.resolution, cpt_collision_map_param.point_size,
-      cpt_collision_map_param.points.data(),
-      cpt_collision_map_param.tool_axis_angles.data(),
-      cpt_collision_map_param.side_tilt_angles.data(),
-      cpt_collision_map_param.forward_tilt_angles.data(),
-      cpt_collision_map_param.normals.data(),
-      cpt_collision_map_param.tangents.data());
-
-  std::vector<std::pair<std::string, std::any>> out_param;
-
-  out_param.push_back(std::make_pair<std::string, std::any>(
-      "collision_map_result",
-      nlohmann::json(camBackend.getCollisionMapResult())));
-  out_param.push_back(std::make_pair<std::string, std::any>(
-      "collided_objects_result",
-      nlohmann::json(camBackend.getCollidedObjectsResult())));
-  ret() = out_param;
+  // auto& camBackend = dynamic_cast<CamBackend&>(
+  //     dynamic_cast<middleware::SireMiddleware&>(cs.middleWare())
+  //         .simulatorModules()
+  //         .at(0));
+  //
+  // camBackend.cptCollisionMap(
+  //     WobjToolInstallMethod::EX_WOBJ_HAND_TOOL,
+  //     cpt_collision_map_param.option, cpt_collision_map_param.resolution,
+  //     cpt_collision_map_param.point_size,
+  //     cpt_collision_map_param.points.data(),
+  //     cpt_collision_map_param.tool_axis_angles.data(),
+  //     cpt_collision_map_param.side_tilt_angles.data(),
+  //     cpt_collision_map_param.forward_tilt_angles.data(),
+  //     cpt_collision_map_param.normals.data(),
+  //     cpt_collision_map_param.tangents.data());
+  //
+  // std::vector<std::pair<std::string, std::any>> out_param;
+  //
+  // out_param.push_back(std::make_pair<std::string, std::any>(
+  //     "collision_map_result",
+  //     nlohmann::json(camBackend.getCollisionMapResult())));
+  // out_param.push_back(std::make_pair<std::string, std::any>(
+  //     "collided_objects_result",
+  //     nlohmann::json(camBackend.getCollidedObjectsResult())));
+  // ret() = out_param;
 }
 
 auto CptCollisionMap::collectNrt() -> void {}

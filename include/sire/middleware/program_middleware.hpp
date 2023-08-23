@@ -36,7 +36,7 @@ class SIRE_API ProgramMiddleware : public aris::server::MiddleWare {
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 };
 }  // namespace sire::server
 

@@ -29,7 +29,7 @@
 
 using namespace hpp;
 
-namespace sire::collision {
+namespace sire::physics::collision {
 struct Collision::Imp {
   Collision* collision_;
   std::thread collision_thread_;
@@ -189,4 +189,4 @@ auto Collision::CalCollision(std::array<double, 7 * 7> linpq,
   imp_->link_pq = linpq;
   num_contacts = imp_->num_contacts;
 }
-}  // namespace sire::collision
+}  // namespace sire::physics::collision

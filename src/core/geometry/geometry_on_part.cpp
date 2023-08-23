@@ -11,10 +11,14 @@
 
 namespace sire::geometry {
 struct GeometryOnPart::Imp {
+  // this prt_pm_ indicate the pose of the geometry in
+  // part coordinate. If we want to get the pose of geometry
+  // in world coordinate, we should get the part pose in
+  // world coordinate.
   double prt_pm_[4][4]{{0}};
   bool is_dynamic_{false};
-  int part_id_{0};
-  bool relative_to_part_{false};
+  sire::PartId part_id_{0};
+  bool relative_to_part_{true};
 };
 auto GeometryOnPart::partPm() const -> const aris::dynamic::double4x4& {
   return imp_->prt_pm_;
@@ -30,15 +34,18 @@ auto GeometryOnPart::relativeToPart() -> bool& {
   return imp_->relative_to_part_;
 }
 
-auto GeometryOnPart::partId() const -> int { return imp_->part_id_; }
-auto GeometryOnPart::partId() -> int& { return imp_->part_id_; }
-auto GeometryOnPart::setPartId(int part_id) -> void {
+auto GeometryOnPart::partId() const -> sire::PartId { return imp_->part_id_; }
+auto GeometryOnPart::partId() -> sire::PartId& { return imp_->part_id_; }
+auto GeometryOnPart::setPartId(sire::PartId part_id) -> void {
   imp_->part_id_ = part_id;
 }
-GeometryOnPart::GeometryOnPart(const double* pm_in)
+GeometryOnPart::GeometryOnPart(const double* pm_in, sire::PartId part_id,
+                               bool is_dynamic)
     : GeometryBase(), imp_(new Imp) {
   pm_in = pm_in ? pm_in : default_pm;
   aris::dynamic::s_vc(16, pm_in, *imp_->prt_pm_);
+  imp_->is_dynamic_ = is_dynamic;
+  imp_->part_id_ = part_id;
 }
 SIRE_DEFINE_TO_JSON_HEAD(GeometryOnPart) {
   GeometryBase::to_json(j);
@@ -60,7 +67,7 @@ ARIS_REGISTRATION {
   auto setPartPm = [](GeometryOnPart* g, aris::core::Matrix pm) -> void {
     std::copy_n(pm.data(), 16, const_cast<double*>(*g->partPm()));
   };
-  auto setPartId = [](GeometryOnPart* geometry, int part_id) {
+  auto setPartId = [](GeometryOnPart* geometry, sire::PartId part_id) {
     geometry->setPartId(part_id);
   };
   auto getPartId = [](GeometryOnPart* geometry) { return geometry->partId(); };

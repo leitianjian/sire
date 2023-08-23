@@ -6,15 +6,12 @@
 #include "sire/ext/json.hpp"
 
 namespace sire::geometry {
-enum ShapeType {
-  GEOM_GENERAL,
-  GEOM_BOX,
-  GEOM_SPHERE,
-};
+enum ShapeType { GEOM_GENERAL, GEOM_BOX, GEOM_SPHERE, GEOM_MESH };
 
 NLOHMANN_JSON_SERIALIZE_ENUM(ShapeType, {{GEOM_GENERAL, "general"},
                                          {GEOM_BOX, "box"},
-                                         {GEOM_SPHERE, "sphere"}})
+                                         {GEOM_SPHERE, "sphere"},
+                                         {GEOM_MESH, "mesh"}})
 
 class SIRE_API ShapeBase {
  private:

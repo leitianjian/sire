@@ -10,6 +10,7 @@
 #include <aris/server/control_server.hpp>
 
 namespace sire::geometry {
+GeometryId geometry_id_flag = 0;
 struct GeometryBase::Imp {
   GeometryId id_{generate_new_id()};
   double pm_[4][4]{{0}};

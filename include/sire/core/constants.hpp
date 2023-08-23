@@ -7,6 +7,8 @@ namespace sire {
 
 using Size = std::size_t;
 
+using PartId = std::size_t;
+
 constexpr double PI = 3.141592653589793;
 
 constexpr int kQuaternionSize = 4;

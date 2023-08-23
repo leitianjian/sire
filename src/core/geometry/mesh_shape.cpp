@@ -5,7 +5,7 @@
 #include "sire/core/sire_assert.hpp"
 
 namespace sire::geometry {
-auto MeshShape::setResourcePath(std::string resource_path) -> void {
+auto MeshShape::setResourcePath(const std::string& resource_path) -> void {
   resource_path_ = resource_path;
 }
 auto MeshShape::getResourcePath() const -> std::string {
@@ -16,7 +16,7 @@ auto MeshShape::resourcePath() const -> std::string { return resource_path_; }
 
 MeshShape::MeshShape(std::string resource_path)
     : resource_path_(resource_path) {
-  setShapeType(ShapeType::GEOM_GENERAL);
+  setShapeType(ShapeType::GEOM_MESH);
 }
 
 MeshShape::~MeshShape() = default;

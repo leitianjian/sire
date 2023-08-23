@@ -65,6 +65,7 @@ target_sources(sire_core
 	PRIVATE 
 		"src/core/module_base.cpp"
 		"src/core/sire_assert_and_throw.cpp"
+		"src/core/force_screw.cpp"
 		"src/core/geometry/shape_base.cpp"
 		"src/core/geometry/box_shape.cpp"
 		"src/core/geometry/box_geometry.cpp"
@@ -74,14 +75,18 @@ target_sources(sire_core
 		"src/core/geometry/sphere_geometry.cpp"
 		"src/core/geometry/geometry_base.cpp"
 		"src/core/geometry/geometry_on_part.cpp"
+		#"src/core/geometry/geometry_properties.cpp"
 	PUBLIC 
-		"include/sire/core/module_base.hpp"
 		"include/sire/core/constants.hpp"
+		"include/sire/core/module_base.hpp"
+		"include/sire/core/property_map.hpp"
 		"include/sire/core/sire_assert.hpp"
 		"include/sire/core/sire_throw.hpp"
 		"include/sire/core/sire_assertion_error.hpp"
 		"include/sire/core/sire_log.hpp"
 		"include/sire/core/sire_decl_def_macro.hpp"
+		"include/sire/core/sorted_pair.hpp"
+		"include/sire/core/force_screw.hpp"
 		"include/sire/core/geometry/shape_base.hpp"
 		"include/sire/core/geometry/sphere_shape.hpp"
 		"include/sire/core/geometry/sphere_geometry.hpp"
@@ -91,6 +96,7 @@ target_sources(sire_core
 		"include/sire/core/geometry/mesh_geometry.hpp"
 		"include/sire/core/geometry/geometry_base.hpp"
 		"include/sire/core/geometry/geometry_on_part.hpp"
+		#"include/sire/core/geometry/geometry_properties.hpp"
 	)
 target_include_directories(sire_core
 	PUBLIC
@@ -121,26 +127,37 @@ target_sources(sire_physics
 		"src/physics/geometry/sphere_collision_geometry.cpp"
 		"src/physics/geometry/box_collision_geometry.cpp"
 		"src/physics/geometry/mesh_collision_geometry.cpp"
+		"src/physics/contact/contact_pair_manager.cpp"
+		"src/physics/contact/contact_solver.cpp"
 		"src/physics/collision/collision.cpp"
-		"src/physics/collision/collision_detection_engine.cpp"
-		"src/physics/collision/collision_module.cpp"
+		"src/physics/collision/collision_detection.cpp"
 		"src/physics/collision/collision_filter.cpp"
 		"src/physics/collision/collision_exists_callback.cpp"
 		"src/physics/collision/collided_objects_callback.cpp"
+		"src/physics/collision/penetration_as_point_pair_callback.cpp"
+		"src/physics/common/point_pair_contact_info.cpp"
 		"src/physics/physics_engine.cpp"
+		"src/physics/utils.cpp"
 	PUBLIC 
 		"include/sire/physics/geometry/collidable.hpp"
 		"include/sire/physics/geometry/collidable_geometry.hpp"
 		"include/sire/physics/geometry/sphere_collision_geometry.hpp"
 		"include/sire/physics/geometry/box_collision_geometry.hpp"
 		"include/sire/physics/geometry/mesh_collision_geometry.hpp"
+		"include/sire/physics/contact/contact_pair_manager.hpp"
+		"include/sire/physics/contact/contact_solver.hpp"
+		"include/sire/physics/contact/contact_solver_result.hpp"
 		"include/sire/physics/collision/collision.hpp"
-		"include/sire/physics/collision/collision_detection_engine.hpp"
-		"include/sire/physics/collision/collision_module.hpp"
+		"include/sire/physics/collision/collision_detection.hpp"
 		"include/sire/physics/collision/collision_filter.hpp"
 		"include/sire/physics/collision/collision_exists_callback.hpp"
 		"include/sire/physics/collision/collided_objects_callback.hpp"
+		"include/sire/physics/collision/penetration_as_point_pair_callback.hpp"
+		"include/sire/physics/common/penetration_as_point_pair.hpp"
+		"include/sire/physics/common/point_pair_contact_info.hpp"
 		"include/sire/physics/physics_engine.hpp"
+		"include/sire/physics/physics.hpp"
+		"include/sire/physics/utils.hpp"
 	)
 target_include_directories(sire_physics
 	PUBLIC
@@ -161,9 +178,13 @@ target_compile_definitions(sire_integrator PRIVATE sire_lib_EXPORTS)
 target_compile_features(sire_integrator PUBLIC cxx_std_17)
 target_sources(sire_integrator 
 	PRIVATE 
-		"src/integrator/integrator.cpp"
+		"src/integrator/integrator_base.cpp"
+		"src/integrator/explicit_euler_integrator.cpp"
+		"src/integrator/runge_kutta4_integrator.cpp"
 	PUBLIC 
-		"include/sire/integrator/integrator.hpp"
+		"include/sire/integrator/integrator_base.hpp"
+		"include/sire/integrator/explicit_euler_integrator.hpp"
+		"include/sire/integrator/runge_kutta4_integrator.hpp"
 	)
 
 target_include_directories(sire_integrator
@@ -171,9 +192,11 @@ target_include_directories(sire_integrator
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/integrator DESTINATION include/sire)
 
@@ -190,10 +213,16 @@ target_compile_features(sire_simulator PUBLIC cxx_std_17)
 target_sources(sire_simulator 
 	PRIVATE 
 		"src/simulator/simulator.cpp"
+		"src/simulator/event_manager.cpp"
+		"src/simulator/simple_event_manager.cpp"
 		"src/simulator/dynamic_simulator.cpp"
+		"src/simulator/simulator_modules.cpp"
 	PUBLIC 
 		"include/sire/simulator/simulator.hpp"
+		"include/sire/simulator/event_manager.hpp"
+		"include/sire/simulator/simple_event_manager.hpp"
 		"include/sire/simulator/dynamic_simulator.hpp"
+		"include/sire/simulator/simulator_modules.hpp"
 	)
 
 target_include_directories(sire_simulator
@@ -218,6 +247,7 @@ target_sources(sire_server
 		"src/server/interface.cpp"
 #		"src/plan/get_force_sensor_data_cmd.cpp"
 		"src/plan/get_cmd.cpp"
+		"src/plan/sire_get.cpp"
 		"src/plan/display3d_init_cmd.cpp"
 		"src/plan/fce_control_test_cmd.cpp"
 		"src/plan/execute_real_time_test_cmd.cpp"
@@ -232,6 +262,7 @@ target_sources(sire_server
 		"include/sire/server/interface.hpp"
 #		"include/sire/plan/get_force_sensor_data_cmd.hpp"
 		"include/sire/plan/get_cmd.hpp"
+		"include/sire/plan/sire_get.hpp"
 		"include/sire/plan/display3d_init_cmd.hpp"
 		"include/sire/plan/fce_control_test_cmd.hpp"
 		"include/sire/plan/execute_real_time_test_cmd.hpp"
@@ -248,6 +279,8 @@ target_include_directories(sire_server
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
 install(DIRECTORY include/sire/ext DESTINATION include/sire)
@@ -272,9 +305,11 @@ target_include_directories(sire_middleware
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/middleware DESTINATION include/sire)
 
@@ -320,9 +355,11 @@ target_include_directories(sire_transfer
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
+		${hpp-fcl_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/transfer DESTINATION include/sire)
 

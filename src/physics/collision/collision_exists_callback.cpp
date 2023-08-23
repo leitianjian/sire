@@ -19,7 +19,7 @@
 
 #include "sire/core/sire_assert.hpp"
 
-namespace sire::collision {
+namespace sire::physics::collision {
 namespace has_collisions {
 CallbackData::CallbackData(CollisionFilter* collision_filter_in)
     : collision_filter_(*collision_filter_in) {
@@ -50,4 +50,4 @@ CollisionExistsCallback::CollisionExistsCallback(CollisionFilter* filter_in)
     : fcl::CollisionCallBackBase(), data(filter_in) {
   SIRE_DEMAND(filter_in != nullptr);
 };
-}  // namespace sire::collision
+}  // namespace sire::physics::collision

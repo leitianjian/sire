@@ -13,9 +13,20 @@
 #include "sire/ext/json.hpp"
 
 namespace sire::geometry {
+/// <summary>
+///  if using self-defined GeometryId type for this project,
+///   should pay attention to 
+/// </summary>
 using GeometryId = int64_t;
-static std::atomic<GeometryId> geometry_id_flag = 0;
-static auto generate_new_id() -> GeometryId { return ++geometry_id_flag; }
+extern GeometryId geometry_id_flag;
+static auto generate_new_id() -> GeometryId {
+  extern GeometryId geometry_id_flag;
+  return geometry_id_flag++;
+}
+static auto reset_geometry_id() -> void {
+  extern GeometryId geometry_id_flag;
+  geometry_id_flag = 0;
+}
 static const double default_pm[16] = {1, 0, 0, 0, 0, 1, 0, 0,
                                       0, 0, 1, 0, 0, 0, 0, 1};
 
