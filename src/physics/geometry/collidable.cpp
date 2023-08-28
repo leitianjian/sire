@@ -18,6 +18,8 @@
 namespace sire::physics::geometry {
 struct Collidable::Imp {
   unique_ptr<fcl::CollisionObject> fcl_object_ptr_{nullptr};
+
+  // TODO(leitianjian) 需要完成unorder_map的序列化，方便填写属性与配置注入
   unordered_map<string, double> contact_properties_;
 };
 auto Collidable::getCollisionObject() -> fcl::CollisionObject* {

@@ -207,6 +207,10 @@ auto PhysicsEngine::collisionDetection() const
 }
 auto PhysicsEngine::cptContactTime(
     const common::PenetrationAsPointPair& penetration) -> double {
+  return penetration.depth / cptProximityVelocity(penetration);
+}
+auto PhysicsEngine::cptProximityVelocity(
+    const common::PenetrationAsPointPair& penetration) -> double {
   double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
   auto* geometry_A = queryGeometryPoolById(penetration.id_A);
   auto* geometry_B = queryGeometryPoolById(penetration.id_B);
@@ -216,8 +220,7 @@ auto PhysicsEngine::cptContactTime(
   aris::dynamic::s_vs2vp(vs_A, penetration.p_WC.data(), vel_A);
   aris::dynamic::s_vs2vp(vs_B, penetration.p_WC.data(), vel_B);
   aris::dynamic::s_vs(3, vel_A, vel_B);
-  return penetration.depth /
-         aris::dynamic::s_vv(3, vel_B, penetration.nhat_AB_W.data());
+  return aris::dynamic::s_vv(3, vel_B, penetration.nhat_AB_W.data());
 }
 auto PhysicsEngine::cptPointPairPenetration(
     std::vector<common::PenetrationAsPointPair>& pairs) -> void {
@@ -277,8 +280,8 @@ auto PhysicsEngine::cptContactInfo(
                                  "zx");
   }
   solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
-  imp_->contact_solver_->cptContactSolverResult(penetration_pairs, T_C_vec,
-                                                solver_result);
+  imp_->contact_solver_->cptContactSolverResult(
+      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;

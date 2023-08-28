@@ -75,6 +75,10 @@ class PhysicsEngine {
   auto cptContactTime(const common::PenetrationAsPointPair& penetration)
       -> double;
 
+  // compute proximity velocity
+  auto cptProximityVelocity(const common::PenetrationAsPointPair& penetration)
+      -> double;
+
   // engine state getter
   inline auto numGeometries() -> sire::Size { return geometryPool().size(); }
   inline auto numDynamicGeometries() -> sire::Size;

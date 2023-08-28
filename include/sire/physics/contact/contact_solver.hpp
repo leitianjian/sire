@@ -37,6 +37,7 @@ class SIRE_API ContactSolver {
   auto handleContact(const common::PenetrationAsPointPair& pair) -> void{};
 
   virtual auto cptContactSolverResult(
+      const aris::dynamic::Model* current_state,
       const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       const std::vector<std::array<double, 16>>& T_C_vec,
       ContactSolverResult& result) -> void;

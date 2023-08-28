@@ -24,6 +24,9 @@ struct SimpleEventManager::Imp {
 
   double current_time_{0.0};
   double next_time_{0.0};
+  std::chrono::time_point<std::chrono::high_resolution_clock> begin_time_,
+      target_time_;
+
   std::atomic_bool is_event_manager_running_{false};
   std::thread event_thread;
 
@@ -57,6 +60,8 @@ auto SimpleEventManager::init() -> void {
 auto SimpleEventManager::start() -> void {
   imp_->is_event_manager_running_.store(true);
   imp_->event_thread = std::thread([this]() {
+    imp_->begin_time_ = imp_->target_time_ =
+        std::chrono::high_resolution_clock::now();
     while (imp_->is_event_manager_running_ &&
            imp_->header_ != imp_->event_list_.end()) {
       //
@@ -79,6 +84,9 @@ auto SimpleEventManager::start() -> void {
       // Step前Model备份
       simulator_ptr_->backupModel();
       step(imp_->next_time_ - imp_->current_time_);
+      std::this_thread::sleep_until(
+          imp_->begin_time_ +
+          10 * std::chrono::duration<double>(imp_->next_time_));
       engine_ptr_->updateGeometryLocationFromModel();
       // 使用碰撞检测结果求解接触问题
       engine_ptr_->handleContact();

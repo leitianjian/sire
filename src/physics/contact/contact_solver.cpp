@@ -19,6 +19,7 @@
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
+#include "sire/physics/physics_engine.hpp"
 #include "sire/transfer/part_pq_transfer.hpp"
 
 namespace sire::physics::contact {
@@ -67,11 +68,16 @@ auto ContactSolver::init(physics::PhysicsEngine* engine_ptr) -> void {
   imp_->part_size_ = imp_->part_pool_ptr_->size();
 }
 auto ContactSolver::cptContactSolverResult(
+    const aris::dynamic::Model* current_state,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     const std::vector<std::array<double, 16>>& T_C_vec,
     ContactSolverResult& result) -> void {
+  const double k = 1.4e7;
+  const double d = 1000.0;
   for (int i = 0; i < penetration_pairs.size(); ++i) {
-    result.fn[i] = 100;
+    const common::PenetrationAsPointPair& pair = penetration_pairs[i];
+    double vn = imp_->engine_ptr_->cptProximityVelocity(pair);
+    result.fn[i] = k * pair.depth - d * vn;
   }
 }
 auto ContactSolver::cptContactForce(double A, double B, double k, double D,
