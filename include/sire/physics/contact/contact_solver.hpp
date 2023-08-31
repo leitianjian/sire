@@ -3,6 +3,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
@@ -35,7 +36,8 @@ class SIRE_API ContactSolver {
   auto init(physics::PhysicsEngine* engine_ptr) -> void;
 
   auto handleContact(const common::PenetrationAsPointPair& pair) -> void{};
-
+  auto combineContactParameter(double k1, double k2, double d1, double d2)
+      -> std::pair<double, double>;
   virtual auto cptContactSolverResult(
       const aris::dynamic::Model* current_state,
       const std::vector<common::PenetrationAsPointPair>& penetration_pairs,

@@ -7,7 +7,7 @@ using namespace sire::core;
 struct ContactPairManager::Imp {
   std::unordered_map<SortedPair, ContactPairValue> map_;
 
-  // 正在接触的set
+  // 正在接触的Set
   std::unordered_set<SortedPair> contacting_set_;
 };
 auto ContactPairManager::init() -> void {}

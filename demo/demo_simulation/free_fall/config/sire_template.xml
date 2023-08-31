@@ -1,8 +1,8 @@
 <ControlServer>
 	<Model __prop_name__="model" name="FreeFallModel" time="0">
-		<Environment __prop_name__="environment" gravity="{0,0,-9.8,0,0,0}"/>
+		<Environment __prop_name__="environment" gravity="{0,0,-5,0,0,0}"/>
 		<VariablePoolElement __prop_name__="variable_pool">
-			<MatrixVariable name="tool0_pe">{0,0,0.073,0,0,0}</MatrixVariable>
+			<MatrixVariable name="tool0_pe">{0,0,0,0,0,0}</MatrixVariable>
 			<StringVariable name="tool0_pe_type">321</StringVariable>
 			<MatrixVariable name="base_pe">{0,0,0,0,0,0}</MatrixVariable>
 			<StringVariable name="base_pe_type">321</StringVariable>
@@ -10,14 +10,14 @@
 		<PartPoolElement __prop_name__="part_pool">
 			<Part name="ground" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,1,1,1,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
-					<Marker name="joint_0_j" active="true" pe="{0,0,0.342,0.785398163397448,0,0.785398163397448}"/>
+					<Marker name="joint_0_j" active="true" pe="{0,0,0,0,0,0}"/>
 					<Marker name="ground" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>
 				<GeometryPoolElement __prop_name__="geometry_pool">
 					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="L1" active="true" pe="{0,0,0,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+			<Part name="L1" active="true" pe="{0,0,10,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="sphere_center" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>
@@ -150,8 +150,6 @@
 			<SireGet name="get">
 				<Command __prop_name__="command" name="get">
 					<GroupParam>
-						<Param name="tool" default="tool0"/>
-						<Param name="wobj" default="wobj0"/>
 						<UniqueParam default="all">
 							<Param name="all"/>
 							<Param name="part_pq"/>

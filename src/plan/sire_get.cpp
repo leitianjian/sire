@@ -19,18 +19,6 @@ struct GetParam {
   bool is_cs_started;
   std::string currentPlan;
   int currentPlanId;
-
-  // end_pq, end_pe, motion_pos, motion_vel, motion_acc, motion_toq, ai,
-  // forcedata, forceoffset;
-  /*std::vector<bool> digtal_in, digtal_out;
-  std::int32_t state_code;
-  aris::control::EthercatController::SlaveLinkState sls[7];
-  aris::control::EthercatController::MasterLinkState mls{};
-  std::vector<int> motion_state;
-  std::string currentplan;
-  int vel_percent;
-  aris::dynamic::Marker* tool, * wobj;
-  bool is_dragging, teachingmode;*/
 };
 
 // TODO(ltj)解决一下高帧率情况下出现的getRtData方法崩溃的问题，本质不能加锁，需要用无锁数据结构把东西发出来

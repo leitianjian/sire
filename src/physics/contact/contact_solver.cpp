@@ -16,6 +16,7 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
+#include "sire/core/prop_map.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
@@ -26,7 +27,7 @@ namespace sire::physics::contact {
 using PartPool =
     aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>;
 struct ContactSolver::Imp {
-  fcl::BroadPhaseCollisionManager* dynamic_tree_;
+  fcl::BroadPhaseCollisionManager* dynamic_tree_{nullptr};
   double g;
   double r;
   std::array<double, 7> sphere_pq;
@@ -36,10 +37,10 @@ struct ContactSolver::Imp {
   double delta_t;
   double contact_time;
 
-  physics::PhysicsEngine* engine_ptr_;
-  aris::server::ControlServer* server_;
-  PartPool* part_pool_ptr_;
-  sire::Size part_size_;
+  physics::PhysicsEngine* engine_ptr_{nullptr};
+  aris::server::ControlServer* server_{nullptr};
+  PartPool* part_pool_ptr_{nullptr};
+  sire::Size part_size_{0};
 
   explicit Imp()
       : g(9.8),  // m/s
@@ -67,16 +68,33 @@ auto ContactSolver::init(physics::PhysicsEngine* engine_ptr) -> void {
       &dynamic_cast<aris::dynamic::Model*>(&imp_->server_->model())->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
 }
+auto ContactSolver::combineContactParameter(double k1, double k2, double d1,
+                                            double d2)
+    -> std::pair<double, double> {
+  auto safe_div = [](double number, double denominator) -> double {
+    return denominator == 0.0 ? 0.0 : number / denominator;
+  };
+  return std::pair<double, double>(safe_div(k1 * k2, k1 + k2),
+                                   safe_div(d1 * d2, d1 + d2));
+}
 auto ContactSolver::cptContactSolverResult(
     const aris::dynamic::Model* current_state,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     const std::vector<std::array<double, 16>>& T_C_vec,
     ContactSolverResult& result) -> void {
-  const double k = 1.4e7;
-  const double d = 1000.0;
   for (int i = 0; i < penetration_pairs.size(); ++i) {
     const common::PenetrationAsPointPair& pair = penetration_pairs[i];
-    double vn = imp_->engine_ptr_->cptProximityVelocity(pair);
+    core::PropMap& contact_prop_A =
+        imp_->engine_ptr_->queryGeometryPoolById(pair.id_A)->contactProp();
+    core::PropMap& contact_prop_B =
+        imp_->engine_ptr_->queryGeometryPoolById(pair.id_B)->contactProp();
+    auto [k, d] = combineContactParameter(
+        contact_prop_A.getPropValueOrDefault("k", 2.8e7),
+        contact_prop_B.getPropValueOrDefault("k", 2.8e7),
+        contact_prop_A.getPropValueOrDefault("d", 2000.0),
+        contact_prop_B.getPropValueOrDefault("d", 2000.0));
+    double vn =
+        imp_->engine_ptr_->cptProximityVelocity(pair);
     result.fn[i] = k * pair.depth - d * vn;
   }
 }

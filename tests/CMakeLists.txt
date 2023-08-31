@@ -23,6 +23,34 @@ target_link_libraries(sorted_pair_test
 		${PUB_RELY_LINK_LIB}
 )
 
+add_executable(string_utils_test "core/string_utils_test.cpp")
+target_compile_features(string_utils_test PUBLIC cxx_std_17)
+target_include_directories(string_utils_test
+	PRIVATE 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+)
+target_link_libraries(string_utils_test
+	PRIVATE
+		GTest::gtest_main
+		sire_core
+		${PUB_RELY_LINK_LIB}
+)
+
+add_executable(prop_map_test "core/prop_map_test.cpp")
+target_compile_features(prop_map_test PUBLIC cxx_std_17)
+target_include_directories(prop_map_test
+	PRIVATE 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+)
+target_link_libraries(prop_map_test
+	PRIVATE
+		GTest::gtest_main
+		sire_core
+		${PUB_RELY_LINK_LIB}
+)
+
 add_executable(model_data_copy_test "model/model_data_copy_test")
 target_compile_features(model_data_copy_test PUBLIC cxx_std_17)
 target_include_directories(model_data_copy_test
@@ -66,6 +94,33 @@ target_include_directories(collision_detection_test
 	)
 
 target_link_libraries(collision_detection_test
+	PRIVATE
+		GTest::gtest_main
+		sire_physics
+		sire_core
+		sire_simulator
+		sire_middleware
+		sire_server
+		sire_integrator
+		sire_transfer
+		${PUB_RELY_LINK_LIB}
+)
+
+add_executable(geometry_serialization_test
+	"physics/geometry/geometry_serialization_test.cpp")
+target_compile_features(geometry_serialization_test PUBLIC cxx_std_17)
+
+target_include_directories(geometry_serialization_test
+	PRIVATE 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS} 
+		${PROJECT_BINARY_DIR} 
+		${hpp-fcl_INCLUDE_DIRS}
+		${ASSIMP_INCLUDE_DIRS}
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+	)
+
+target_link_libraries(geometry_serialization_test
 	PRIVATE
 		GTest::gtest_main
 		sire_physics

@@ -119,7 +119,7 @@
 					<Marker name="tool16" active="true" pe="{0,0,0,-0,0,-0}"/>
 				</MarkerPoolElement>
 				<GeometryPoolElement __prop_name__="geometry_pool">
-					<MeshGeometry id="6" part_id="6" is_dynamic="true" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l6.data" scale="{1,1,1}"/>
+					<!-- <MeshGeometry id="6" part_id="6" is_dynamic="true" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l6.data" scale="{1,1,1}"/> -->
 				</GeometryPoolElement>
 			</Part>
 		</PartPoolElement>
@@ -300,20 +300,20 @@
 		<SireHttpInterface name="http_interface" document_root="D:\Documents\code\RobotControllerHMI\client\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SireSimulator __prop_name__="simulator" dt="0.001"/>
-		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="false" enable_contact_solver="false">
+		<SireSimulator __prop_name__="simulator" dt="0.0001"/>
+		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
 			<CollisionDetection __prop_name__="collision_detection"/>
 			<ContactSolver __prop_name__="contact_solver"/>
 			<GeometryPoolObject __prop_name__="dynamic_geometry_pool">
-				<MeshCollisionGeometry id="0" part_id="0" is_dynamic="false" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l0.data" scale="{1,1,1}"/>
-				<MeshCollisionGeometry id="1" part_id="1" is_dynamic="true" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l1.data" scale="{1,1,1}"/>
-				<MeshCollisionGeometry id="2" part_id="2" is_dynamic="true" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l2.data" scale="{1,1,1}"/>
-				<MeshCollisionGeometry id="3" part_id="3" is_dynamic="true" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l3.data" scale="{1,1,1}"/>
-				<MeshCollisionGeometry id="4" part_id="4" is_dynamic="true" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l4.data" scale="{1,1,1}"/>
-				<MeshCollisionGeometry id="5" part_id="5" is_dynamic="true" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="/robot/geometry/Rokae/XB4/l5.data" scale="{1,1,1}"/>
-				<MeshCollisionGeometry id="6" part_id="6" is_dynamic="true" pm="{0.0,0.0,1.0,0.393,0.0,1.0,0.0,0.0,-1.0,0.0,0.0,0.642,0.0,0.0,0.0,1.0}" resource_path="/robot/geometry/Rokae/XB4/l6.data" scale="1"/>
+				<MeshCollisionGeometry id="0" part_id="0" is_dynamic="false" contact_prop="{k:2.8e7,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="D:/Documents/code/RobotControllerHMI/client/build/robot/geometry/Rokae/XB4/l0.data" scale="{1,1,1}"/>
+				<MeshCollisionGeometry id="1" part_id="1" is_dynamic="true" contact_prop="{k:2.8e7,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="D:/Documents/code/RobotControllerHMI/client/build/robot/geometry/Rokae/XB4/l1.data" scale="{1,1,1}"/>
+				<MeshCollisionGeometry id="2" part_id="2" is_dynamic="true" contact_prop="{k:2.8e7,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="D:/Documents/code/RobotControllerHMI/client/build/robot/geometry/Rokae/XB4/l2.data" scale="{1,1,1}"/>
+				<MeshCollisionGeometry id="3" part_id="3" is_dynamic="true" contact_prop="{k:2.8e7,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="D:/Documents/code/RobotControllerHMI/client/build/robot/geometry/Rokae/XB4/l3.data" scale="{1,1,1}"/>
+				<MeshCollisionGeometry id="4" part_id="4" is_dynamic="true" contact_prop="{k:2.8e7,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="D:/Documents/code/RobotControllerHMI/client/build/robot/geometry/Rokae/XB4/l4.data" scale="{1,1,1}"/>
+				<MeshCollisionGeometry id="5" part_id="5" is_dynamic="true" contact_prop="{k:2.8e7,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" resource_path="D:/Documents/code/RobotControllerHMI/client/build/robot/geometry/Rokae/XB4/l5.data" scale="{1,1,1}"/>
+				<MeshCollisionGeometry id="6" part_id="6" is_dynamic="true" contact_prop="{k:2.8e7,d:2000}" pm="{0.0,0.0,1.0,0.393,0.0,1.0,0.0,0.0,-1.0,0.0,0.0,0.642,0.0,0.0,0.0,1.0}" resource_path="D:/Documents/code/RobotControllerHMI/client/build/robot/geometry/Rokae/XB4/l6.data" scale="{1,1,1}"/>
 			</GeometryPoolObject>
-			<CollisionFilter __prop_name__="collision_filter" filter_state="{1,1,1,1,0,1,0, 1,1,1,1,0,1,0, 1,1,1,1,1,1,0, 1,1,1,1,1,1,1, 0,0,1,1,1,1,0, 1,1,1,1,1,1,1, 0,0,0,1,0,1,1, 1,1,0,0,0,0,0}"/>
+			<CollisionFilter __prop_name__="collision_filter" filter_state="{1,1,0,0,0,0,0, 1,1,1,0,0,0,0, 0,1,1,1,0,0,0, 0,0,1,1,1,0,0, 0,0,0,1,1,1,0, 0,0,0,0,1,1,1, 0,0,0,0,0,1,1}"/>
 		</PhysicsEngine>
 		<SimulatorModules __prop_name__="simulator_modules">
 			<IntegratorPoolObject __prop_name__="integrator_pool">

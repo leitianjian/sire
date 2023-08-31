@@ -58,28 +58,6 @@ auto CollisionDetection::updateLocation(const aris::dynamic::Model* model_ptr)
   }
   imp_->dynamic_tree_.update();
   return true;
-
-  // aris::core::Matrix buffer_pq(imp_->part_size_, 7);
-  // std::any data;
-  // imp_->server_ptr_->getRtData(
-  //     [this, &buffer_pq](aris::server::ControlServer& cs,
-  //                        const aris::plan::Plan* p, std::any& data) ->
-  // void {
-  //       for (int i = 0; i < imp_->part_size_; ++i) {
-  //         auto& part = imp_->part_pool_ptr_->at(i);
-  //         part.getPq(buffer_pq.data() + 7 * i);
-  //       }
-  //     },
-  //     data);
-  // for (auto& dynamic_geometry : *imp_->dynamic_geometry_pool_) {
-  //   double temp_pm[16];
-  //   aris::dynamic::s_pq2pm(buffer_pq.data() + 7 *
-  //                          dynamic_geometry.partId(),
-  //                          temp_pm);
-  //   dynamic_geometry.updateLocation(temp_pm);
-  // }
-  // imp_->dynamic_tree_.update();
-  // return true;
 }
 auto CollisionDetection::updateLocation(const double* part_pq) -> bool {
   SIRE_DEMAND(part_pq != nullptr);
@@ -183,22 +161,6 @@ auto CollisionDetection::init(physics::PhysicsEngine* engine_ptr) -> void {
     }
   }
 }
-// callback print
-// cout << "has collision number: " <<
-// callback.data.result.numContacts() << endl;
-// if (callback.collidedObjectMap().size() != 0) {
-//   cout << callback.collidedObjectMap().size() << endl;
-// }
-// for (auto& obj_pair : callback.collidedObjectMap()) {
-//   cout << "collided object of "
-//        // << imp_->collision_filter_ptr_->queryGeometryIdByPtr(c.o1) << "
-//        "
-//        << obj_pair.first
-//        << " "
-//        //<< imp_->collision_filter_ptr_->queryGeometryIdByPtr(c.o2) <<
-//        endl;
-//        << obj_pair.second << endl;
-// }
 
 ARIS_REGISTRATION {
   aris::core::class_<CollisionDetection>("CollisionDetection");
