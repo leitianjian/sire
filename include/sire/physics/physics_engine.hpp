@@ -3,14 +3,16 @@
 
 #include <sire_lib_export.h>
 
+#include "sire/core/material_manager.hpp"
 #include "sire/integrator/integrator_base.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
+#include "sire/physics/common/point_pair_contact_info.hpp"
 #include "sire/physics/contact/contact_solver.hpp"
 #include "sire/physics/physics.hpp"
 
 namespace sire {
 namespace physics {
-class PhysicsEngine {
+class SIRE_API PhysicsEngine {
  public:
   // Config get set method
   auto collisionDetectionFlag() const -> bool;
@@ -20,7 +22,6 @@ class PhysicsEngine {
   // collision_detection //
   auto resetCollisionDetection(
       collision::CollisionDetection* collision_detection_in) -> void;
-  ;
   auto collisionDetection() const -> const collision::CollisionDetection&;
   auto collisionDetection() -> collision::CollisionDetection& {
     return const_cast<collision::CollisionDetection&>(
@@ -109,7 +110,7 @@ class PhysicsEngine {
   auto cptContactInfo(
       const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       std::vector<common::PointPairContactInfo>& contact_info) -> bool;
-  auto cptContactForceByPenaltyMethod(
+  auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
 
   auto handleContact() -> void;

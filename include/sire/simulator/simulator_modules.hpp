@@ -4,9 +4,9 @@
 #include <aris/core/object.hpp>
 
 #include "sire/core/module_base.hpp"
+#include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/integrator/integrator_base.hpp"
 #include "sire/sensor/sensor.hpp"
-#include "sire/simulator/simulator.hpp"
 
 namespace sire {
 namespace middleware {

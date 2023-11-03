@@ -12,7 +12,6 @@
 
 #include "sire/core/sorted_pair.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
-#include "sire/physics/contact/contact_pair_manager.hpp"
 #include "sire/physics/physics_engine.hpp"
 
 namespace sire::simulator {

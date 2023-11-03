@@ -21,7 +21,6 @@ SphereShape::SphereShape(double radius_in) : radius_(radius_in) {
 SphereShape::~SphereShape() = default;
 ARIS_REGISTRATION {
   aris::core::class_<SphereShape>("SphereShape")
-      .inherit<ShapeBase>()
       .prop("radius", &SphereShape::setRadius, &SphereShape::getRadius);
 }
 }  // namespace sire::geometry

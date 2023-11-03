@@ -89,6 +89,7 @@ auto CollisionDetection::updateLocation(const double* part_pq,
 }
 auto CollisionDetection::addDynamicGeometry2FCL(
     geometry::CollidableGeometry& dynamic_geometry) -> bool {
+  dynamic_geometry.init();
   dynamic_geometry.updateLocation(nullptr);
   dynamic_geometry.getCollisionObject()->computeAABB();
   imp_->dynamic_tree_.registerObject(dynamic_geometry.getCollisionObject());
@@ -97,6 +98,7 @@ auto CollisionDetection::addDynamicGeometry2FCL(
 }
 auto CollisionDetection::addAnchoredGeometry2FCL(
     geometry::CollidableGeometry& anchored_geometry) -> bool {
+  anchored_geometry.init();
   anchored_geometry.updateLocation(nullptr);
   anchored_geometry.getCollisionObject()->computeAABB();
   imp_->anchored_tree_.registerObject(anchored_geometry.getCollisionObject());
@@ -147,19 +149,6 @@ auto CollisionDetection::init(physics::PhysicsEngine* engine_ptr) -> void {
   imp_->anchored_objects_map_ptr_ = &engine_ptr->anchoredObjectsMap();
   imp_->collision_filter_ptr_ = &engine_ptr->collisionFilter();
   imp_->geometry_pool_ptr_ = &engine_ptr->geometryPool();
-
-  for (auto& geometry : *imp_->geometry_pool_ptr_) {
-    geometry.init();
-    geometry.updateLocation(nullptr);
-    geometry.getCollisionObject()->computeAABB();
-    if (geometry.isDynamic()) {
-      imp_->dynamic_tree_.registerObject(geometry.getCollisionObject());
-      imp_->dynamic_tree_.update();
-    } else {
-      imp_->anchored_tree_.registerObject(geometry.getCollisionObject());
-      imp_->anchored_tree_.update();
-    }
-  }
 }
 
 ARIS_REGISTRATION {

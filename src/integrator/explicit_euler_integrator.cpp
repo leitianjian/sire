@@ -1,6 +1,6 @@
 #include "sire/integrator/explicit_euler_integrator.hpp"
 
-#include <aris/core/reflection.hpp>
+#include <aris/core/serialization.hpp>
 #include <aris/dynamic/model.hpp>
 
 #include "sire/core/constants.hpp"
@@ -25,10 +25,10 @@ auto ExplicitEulerIntegrator::doStep(double dt) -> bool {
     part.getVs(vs_buffer);
     part.getPm(pm_buffer);
     aris::dynamic::s_pm2ps(pm_buffer, ps_buffer);
-    //aris::dynamic::dsp(1, 6, as_buffer);
+    // aris::dynamic::dsp(1, 6, as_buffer);
     for (sire::Size j = 0; j < kTwistSize; ++j) {
-      vs_buffer[j] += dt * as_buffer[j];
       ps_buffer[j] += dt * vs_buffer[j];
+      vs_buffer[j] += dt * as_buffer[j];
     }
     aris::dynamic::s_ps2pm(ps_buffer, pm_buffer);
     part.setVs(vs_buffer);

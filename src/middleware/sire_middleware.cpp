@@ -9,7 +9,7 @@
 
 namespace sire::middleware {
 struct SireMiddleware::Imp {
-  unique_ptr<simulator::Simulator> simulator_;
+  unique_ptr<simulator::SimulatorBase> simulator_;
   unique_ptr<physics::PhysicsEngine> physics_engine_;
   unique_ptr<simulator::SimulatorModules> simulator_modules_;
 };
@@ -75,10 +75,11 @@ auto SireMiddleware::executeCmd(std::string_view str,
 
   return 0;
 }
-auto SireMiddleware::resetSimulator(simulator::Simulator* simulator) -> void {
-  imp_->simulator_.reset(simulator);
+auto SireMiddleware::resetSimulatorBase(simulator::SimulatorBase* simulator_base)
+    -> void {
+  imp_->simulator_.reset(simulator_base);
 }
-auto SireMiddleware::simulator() const -> const simulator::Simulator& {
+auto SireMiddleware::simulatorBase() const -> const simulator::SimulatorBase& {
   return *imp_->simulator_;
 }
 auto SireMiddleware::resetPhysicsEngine(physics::PhysicsEngine* engine)
@@ -98,14 +99,14 @@ auto SireMiddleware::simulatorModules() const
 }
 
 ARIS_REGISTRATION {
-  typedef simulator::Simulator& (SireMiddleware::*SimulatorFunc)();
+  typedef simulator::SimulatorBase& (SireMiddleware::*SimulatorBaseFunc)();
   typedef physics::PhysicsEngine& (SireMiddleware::*PhysicsEngineFunc)();
   typedef simulator::SimulatorModules& (
       SireMiddleware::*SimulatorMudulesFunc)();
   aris::core::class_<SireMiddleware>("SireMiddleware")
       .inherit<aris::server::MiddleWare>()
-      .prop("simulator", &SireMiddleware::resetSimulator,
-            SimulatorFunc(&SireMiddleware::simulator))
+      .prop("simulator_base", &SireMiddleware::resetSimulatorBase,
+            SimulatorBaseFunc(&SireMiddleware::simulatorBase))
       .prop("physics_engine", &SireMiddleware::resetPhysicsEngine,
             PhysicsEngineFunc(&SireMiddleware::physicsEngine))
       .prop("simulator_modules", &SireMiddleware::resetSimulatorModules,

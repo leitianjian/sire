@@ -1,6 +1,6 @@
 <ControlServer>
 	<Model __prop_name__="model" name="FreeFallModel" time="0">
-		<Environment __prop_name__="environment" gravity="{0,0,-5,0,0,0}"/>
+		<Environment __prop_name__="environment" gravity="{0,0,-9.8,0,0,0}"/>
 		<VariablePoolElement __prop_name__="variable_pool">
 			<MatrixVariable name="tool0_pe">{0,0,0,0,0,0}</MatrixVariable>
 			<StringVariable name="tool0_pe_type">321</StringVariable>
@@ -17,7 +17,7 @@
 					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="L1" active="true" pe="{0,0,10,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+			<Part name="L1" active="true" pe="{0,0,5,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="sphere_center" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>
@@ -178,13 +178,26 @@
 		<SireHttpInterface name="http_interface" document_root="D:\Documents\code\RobotControllerHMI\client\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SireSimulator __prop_name__="simulator" dt="0.001"/>
-		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="false" enable_contact_solver="false">
+		<SimulatorBase __prop_name__="simulator" dt="0.001" global_variable_pool="{impact_threshold_insert:50000,impact_threshold_remove:10000,shrink_dt:0.0000001}">
+			<EventManager __prop_name__="event_manager">
+				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
+					<EventHandlerIdPair event_id="0" handler_id="0"/>
+					<EventHandlerIdPair event_id="1" handler_id="1"/>
+				</EventHandlerPairPool>
+			</EventManager>
+		</SimulatorBase>
+		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
 			<CollisionDetection __prop_name__="collision_detection"/>
-			<ContactSolver __prop_name__="contact_solver"/>
+			<ContinuousForceContactSolver __prop_name__="contact_solver" default_k="2.8e14" default_cr="0.5">
+				<MaterialManager default_prop="{k:1.4e14,d:1500,cr:0.2}">
+					<MaterialPairPropPool>
+						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:1e14,d:1000,cr:0.2}"/>
+					</MaterialPairPropPool>
+				</MaterialManager>
+			</ContinuousForceContactSolver>
 			<GeometryPoolObject __prop_name__="dynamic_geometry_pool">
-				<BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" half_size="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
-				<SphereCollisionGeometry id="1" part_id="1" is_dynamic="true" radius="0.030" pm="{1,0,0,0.3,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="steel" contact_prop="{k:2.8e14,d:2000}" side="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<SphereCollisionGeometry id="1" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2.8e14,d:2000}" radius="0.30" pm="{1,0,0,0.3,0,1,0,0,0,0,1,0,0,0,0,1}"/>
 			</GeometryPoolObject>
 			<CollisionFilter __prop_name__="collision_filter" filter_state="{1,0, 0,1}"/>
 		</PhysicsEngine>

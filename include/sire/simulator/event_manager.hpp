@@ -12,7 +12,6 @@
 
 #include "sire/core/sorted_pair.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
-#include "sire/physics/contact/contact_pair_manager.hpp"
 #include "sire/physics/physics_engine.hpp"
 
 namespace sire::simulator {
@@ -26,13 +25,13 @@ enum class EventFeature {
 };
 
 using CollisionResultMap =
-    std::unordered_map<core::SortedPair,
+    std::unordered_map<core::SortedPair<double>,
                        std::vector<physics::common::PenetrationAsPointPair>>;
 // TODO(leitianjian): 应该用一个工厂类实现Event的产生更好一些
 struct Event {
   std::unordered_set<EventFeature> functionalities_;
   CollisionResultMap contact_start_pair_;
-  std::unordered_set<core::SortedPair> contact_end_pair_;
+  std::unordered_set<core::SortedPair<double>> contact_end_pair_;
   double time_;
 };
 /// <summary>
@@ -83,7 +82,6 @@ class EventManager {
                                   bool reverse = false) -> void;
 
   // init ptr from parent object Simulator
-  physics::contact::ContactPairManager* contact_pair_manager_ptr_;
   physics::PhysicsEngine* engine_ptr_;
   Simulator* simulator_ptr_;
   // config from simulator

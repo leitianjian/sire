@@ -70,7 +70,6 @@ ARIS_REGISTRATION {
     return aris::core::Matrix(1, 3, shape->sidePtr());
   };
   aris::core::class_<BoxShape>("BoxShape")
-      .inherit<ShapeBase>()
       .prop("side", &setSide, &getSide);
 }
 }  // namespace sire::geometry

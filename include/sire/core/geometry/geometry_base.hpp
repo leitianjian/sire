@@ -17,7 +17,7 @@ namespace sire::geometry {
 ///  if using self-defined GeometryId type for this project,
 ///   should pay attention to 
 /// </summary>
-using GeometryId = int64_t;
+using GeometryId = std::size_t;
 extern GeometryId geometry_id_flag;
 static auto generate_new_id() -> GeometryId {
   extern GeometryId geometry_id_flag;

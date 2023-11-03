@@ -9,7 +9,6 @@
 #include "sire/core/module_base.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/middleware/sire_middleware.hpp"
-#include "sire/physics/contact/contact_pair_manager.hpp"
 #include "sire/sensor/sensor.hpp"
 #include "sire/simulator/simple_event_manager.hpp"
 #include "sire/simulator/simulator_modules.hpp"

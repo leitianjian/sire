@@ -9,6 +9,21 @@ FetchContent_MakeAvailable(googletest)
 
 enable_testing()
 
+add_executable(base_factory_test "core/base_factory_test.cpp")
+target_compile_features(base_factory_test PUBLIC cxx_std_17)
+target_include_directories(base_factory_test
+	PRIVATE 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS} 
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+)
+target_link_libraries(base_factory_test
+	PRIVATE
+		GTest::gtest_main
+		sire_core
+		${PUB_RELY_LINK_LIB}
+)
+
 add_executable(sorted_pair_test "core/sorted_pair_test.cpp")
 target_compile_features(sorted_pair_test PUBLIC cxx_std_17)
 target_include_directories(sorted_pair_test
@@ -45,6 +60,36 @@ target_include_directories(prop_map_test
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
 target_link_libraries(prop_map_test
+	PRIVATE
+		GTest::gtest_main
+		sire_core
+		${PUB_RELY_LINK_LIB}
+)
+
+add_executable(material_pair_prop_test "core/material_pair_prop_test.cpp")
+target_compile_features(material_pair_prop_test PUBLIC cxx_std_17)
+target_include_directories(material_pair_prop_test
+	PRIVATE 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS} 
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+)
+target_link_libraries(material_pair_prop_test
+	PRIVATE
+		GTest::gtest_main
+		sire_core
+		${PUB_RELY_LINK_LIB}
+)
+
+add_executable(material_manager_test "core/material_manager_test.cpp")
+target_compile_features(material_manager_test PUBLIC cxx_std_17)
+target_include_directories(material_manager_test
+	PRIVATE 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS} 
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+)
+target_link_libraries(material_manager_test
 	PRIVATE
 		GTest::gtest_main
 		sire_core

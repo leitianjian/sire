@@ -28,6 +28,9 @@ auto PropMap::updProp(const string& name, double new_value) -> void {
   imp_->map_[name] = new_value;
 }
 auto PropMap::clear() -> void { imp_->map_.clear(); }
+auto PropMap::contains(const string& name) const -> bool {
+  return imp_->map_.find(name) != imp_->map_.end();
+}
 auto PropMap::getPropValue(const string& name) const -> double {
   return imp_->map_.at(name);
 }
@@ -84,7 +87,11 @@ auto PropMap::swap(PropMap& other) noexcept -> PropMap& {
   std::swap(this->imp_->map_, other.imp_->map_);
   return *this;
 }
+auto PropMap::compare(const PropMap& other) const noexcept -> bool {
+  return imp_->map_ == other.imp_->map_;
+}
 PropMap::PropMap() : imp_(new Imp) {}
+PropMap::PropMap(std::string s) : imp_(new Imp) { fromString(s); }
 PropMap::~PropMap() = default;
 PropMap::PropMap(const PropMap& other) = default;
 PropMap::PropMap(PropMap&& other) { this->swap(other); }

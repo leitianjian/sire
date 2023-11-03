@@ -80,11 +80,11 @@ auto PenetrationAsPointPairCallback::collide(
   // Since we want *all* collisions, we return false.
   if (!filter_->canCollideWith(fcl_object_A_ptr, fcl_object_B_ptr))
     return false;
-
   common::PenetrationAsPointPair penetration;
   calcDistance(fcl_object_A_ptr, fcl_object_B_ptr, request, &penetration);
   if (penetration.depth >= 0) {
-    point_pairs->push_back(std::move(penetration));
+    point_pairs->push_back(penetration);
+    //std::cout << penetration.depth << std::endl;
   }
   return false;
 }
@@ -95,7 +95,7 @@ PenetrationAsPointPairCallback::PenetrationAsPointPairCallback(
       filter_(filter_in),
       point_pairs(point_pairs_in) {
   request.num_max_contacts = 1;
-  request.enable_contact = false;
+  request.enable_contact = true;
   request.gjk_tolerance = 2e-12;
 };
 }  // namespace sire::physics::collision

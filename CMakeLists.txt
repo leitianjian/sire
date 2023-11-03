@@ -56,6 +56,7 @@ else()
 	message(WARNING "File/Directory at variable TARGET_HPP_FCL_PATH not exists!")
 endif()
 find_package(hpp-fcl REQUIRED)
+message(${hpp-fcl_INCLUDE_DIRS})
 
 include(GenerateExportHeader)
 add_library(sire_core OBJECT)
@@ -63,10 +64,21 @@ target_compile_definitions(sire_core PRIVATE sire_lib_EXPORTS)
 target_compile_features(sire_core PUBLIC cxx_std_17)
 target_sources(sire_core 
 	PRIVATE 
+		"src/core/contact_pair_manager.cpp"
 		"src/core/module_base.cpp"
 		"src/core/sire_assert_and_throw.cpp"
 		"src/core/force_screw.cpp"
 		"src/core/prop_map.cpp"
+		"src/core/material_manager.cpp"
+		"src/core/material_pair_prop.cpp"
+		"src/core/sorted_pair.cpp"
+		"src/core/base_factory.cpp"
+		"src/core/trigger_base.cpp"
+		"src/core/event_base.cpp"
+		"src/core/handler_base.cpp"
+		"src/core/event_manager.cpp"
+		#"src/core/init_trigger.cpp"
+		"src/core/timer.cpp"
 		"src/core/geometry/shape_base.cpp"
 		"src/core/geometry/box_shape.cpp"
 		"src/core/geometry/box_geometry.cpp"
@@ -79,16 +91,27 @@ target_sources(sire_core
 		#"src/core/geometry/geometry_properties.cpp"
 	PUBLIC 
 		"include/sire/core/constants.hpp"
+		"include/sire/core/contact_pair_manager.hpp"
 		"include/sire/core/module_base.hpp"
+		"include/sire/core/is_less_than_comparable.hpp"
 		"include/sire/core/sire_assert.hpp"
 		"include/sire/core/sire_throw.hpp"
 		"include/sire/core/sire_assertion_error.hpp"
 		"include/sire/core/sire_log.hpp"
 		"include/sire/core/sire_decl_def_macro.hpp"
 		"include/sire/core/sorted_pair.hpp"
+		"include/sire/core/string_utils.hpp"
 		"include/sire/core/force_screw.hpp"
 		"include/sire/core/prop_map.hpp"
-		"include/sire/core/string_utils.hpp"
+		"include/sire/core/base_factory.hpp"
+		"include/sire/core/trigger_base.hpp"
+		"include/sire/core/event_base.hpp"
+		"include/sire/core/handler_base.hpp"
+		"include/sire/core/event_manager.hpp"
+		#"include/sire/core/init_trigger.hpp"
+		"include/sire/core/timer.hpp"
+		"include/sire/core/material_pair_prop.hpp"
+		"include/sire/core/material_manager.hpp"
 		"include/sire/core/geometry/shape_base.hpp"
 		"include/sire/core/geometry/sphere_shape.hpp"
 		"include/sire/core/geometry/sphere_geometry.hpp"
@@ -129,8 +152,9 @@ target_sources(sire_physics
 		"src/physics/geometry/sphere_collision_geometry.cpp"
 		"src/physics/geometry/box_collision_geometry.cpp"
 		"src/physics/geometry/mesh_collision_geometry.cpp"
-		"src/physics/contact/contact_pair_manager.cpp"
 		"src/physics/contact/contact_solver.cpp"
+		"src/physics/contact/stiffness_damping_contact_solver.cpp"
+		"src/physics/contact/continuous_force_contact_solver.cpp"
 		"src/physics/collision/collision.cpp"
 		"src/physics/collision/collision_detection.cpp"
 		"src/physics/collision/collision_filter.cpp"
@@ -146,8 +170,9 @@ target_sources(sire_physics
 		"include/sire/physics/geometry/sphere_collision_geometry.hpp"
 		"include/sire/physics/geometry/box_collision_geometry.hpp"
 		"include/sire/physics/geometry/mesh_collision_geometry.hpp"
-		"include/sire/physics/contact/contact_pair_manager.hpp"
 		"include/sire/physics/contact/contact_solver.hpp"
+		"include/sire/physics/contact/stiffness_damping_contact_solver.hpp"
+		"include/sire/physics/contact/continuous_force_contact_solver.hpp"
 		"include/sire/physics/contact/contact_solver_result.hpp"
 		"include/sire/physics/collision/collision.hpp"
 		"include/sire/physics/collision/collision_detection.hpp"
@@ -215,13 +240,17 @@ target_compile_features(sire_simulator PUBLIC cxx_std_17)
 target_sources(sire_simulator 
 	PRIVATE 
 		"src/simulator/simulator.cpp"
-		"src/simulator/event_manager.cpp"
+		"src/simulator/simulator_base.cpp"
+		#"src/simulator/event_manager.cpp"
+		"src/simulator/events.cpp"
 		"src/simulator/simple_event_manager.cpp"
 		"src/simulator/dynamic_simulator.cpp"
 		"src/simulator/simulator_modules.cpp"
 	PUBLIC 
 		"include/sire/simulator/simulator.hpp"
-		"include/sire/simulator/event_manager.hpp"
+		"include/sire/simulator/simulator_base.hpp"
+		#"include/sire/simulator/event_manager.hpp"
+		"include/sire/simulator/events.hpp"
 		"include/sire/simulator/simple_event_manager.hpp"
 		"include/sire/simulator/dynamic_simulator.hpp"
 		"include/sire/simulator/simulator_modules.hpp"

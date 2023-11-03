@@ -12,8 +12,8 @@
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 #include "sire/physics/common/point_pair_contact_info.hpp"
-#include "sire/physics/contact/contact_solver.hpp"
 #include "sire/physics/contact/contact_solver_result.hpp"
+#include "sire/physics/contact/stiffness_damping_contact_solver.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
 #include "sire/physics/geometry/sphere_collision_geometry.hpp"
 
@@ -55,7 +55,8 @@ struct PhysicsEngine::Imp {
             std::make_unique<aris::core::PointerArray<
                 geometry::CollidableGeometry, aris::dynamic::Geometry>>()),
         collision_detection_(std::make_unique<collision::CollisionDetection>()),
-        contact_solver_(std::make_unique<contact::ContactSolver>()),
+        contact_solver_(
+            std::make_unique<contact::StiffnessDampingContactSolver>()),
         collision_filter_(std::make_unique<collision::CollisionFilter>()),
         model_ptr_(nullptr),
         server_(nullptr),
@@ -161,7 +162,7 @@ auto PhysicsEngine::addDynamicGeometry(
 }
 auto PhysicsEngine::addAnchoredGeometry(
     geometry::CollidableGeometry& anchored_geometry) -> bool {
-  imp_->collision_detection_->addDynamicGeometry2FCL(anchored_geometry);
+  imp_->collision_detection_->addAnchoredGeometry2FCL(anchored_geometry);
   imp_->anchored_objects_map_[anchored_geometry.geometryId()] =
       &anchored_geometry;
   return true;
@@ -209,6 +210,9 @@ auto PhysicsEngine::cptContactTime(
     const common::PenetrationAsPointPair& penetration) -> double {
   return penetration.depth / cptProximityVelocity(penetration);
 }
+// vn 为V_b - V_a在接触法线上的投影
+// - vn > 0: 两个物体正在靠近，
+// vn < 0: 两个物体正在远离
 auto PhysicsEngine::cptProximityVelocity(
     const common::PenetrationAsPointPair& penetration) -> double {
   double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
@@ -220,7 +224,7 @@ auto PhysicsEngine::cptProximityVelocity(
   aris::dynamic::s_vs2vp(vs_A, penetration.p_WC.data(), vel_A);
   aris::dynamic::s_vs2vp(vs_B, penetration.p_WC.data(), vel_B);
   aris::dynamic::s_vs(3, vel_A, vel_B);
-  return aris::dynamic::s_vv(3, vel_B, penetration.nhat_AB_W.data());
+  return -aris::dynamic::s_vv(3, vel_B, penetration.nhat_AB_W.data());
 }
 auto PhysicsEngine::cptPointPairPenetration(
     std::vector<common::PenetrationAsPointPair>& pairs) -> void {
@@ -243,7 +247,7 @@ auto PhysicsEngine::handleContact() -> void {
   this->resetPartContactForce();
   std::vector<common::PointPairContactInfo> contact_info;
   this->cptContactInfo(pairs, contact_info);
-  this->cptContactForceByPenaltyMethod(contact_info);
+  this->cptGlbForceByContactInfo(contact_info);
 }
 auto PhysicsEngine::updateGeometryLocationFromModel() -> void {
   if (imp_->collision_detection_flag_) {
@@ -293,6 +297,7 @@ auto PhysicsEngine::cptContactInfo(
   SIRE_DEMAND(vn.size() >= num_contacts);
   SIRE_DEMAND(vt.size() >= 2 * num_contacts);
   for (int i = 0; i < num_contacts; ++i) {
+    // std::cout << "fn=" << fn[i] << " ";
     const auto& pair = penetration_pairs[i];
     const geometry::CollidableGeometry* geometry_A_ptr =
         this->queryGeometryPoolById(pair.id_A);
@@ -333,14 +338,15 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
   force_pool.clear();
   for (int i = 0; i < motion_size; ++i) {
     auto& force = force_pool.add<SingleComponentForce>(
-        std::string("motion_force" + i), motion_pool.at(i).makI(),
+        std::string("mf_" + std::to_string(i)), motion_pool.at(i).makI(),
         motion_pool.at(i).makJ(), 5);
     force.setFce(0);
   }
   for (int i = 0; i < part_size; ++i) {
     auto& force = force_pool.add<GeneralForce>(
-        std::string("contact_force" + i), &part_pool.at(i).markerPool().at(0),
-        &part_pool.at(0).markerPool().at(1));
+        std::string("cf_" + std::to_string(i)),
+        &part_pool.at(i).markerPool().at(0),
+        &part_pool.at(imp_->model_ptr_->ground().id()).markerPool().at(1));
     force.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
 }
@@ -360,7 +366,7 @@ auto PhysicsEngine::resetPartContactForce() -> void {
         .setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
 }
-auto PhysicsEngine::cptContactForceByPenaltyMethod(
+auto PhysicsEngine::cptGlbForceByContactInfo(
     const std::vector<common::PointPairContactInfo>& contact_info) -> bool {
   const int num_contacts = contact_info.size();
   const int contact_force_offset = imp_->model_ptr_->motionPool().size();

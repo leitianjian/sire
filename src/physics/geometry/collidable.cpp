@@ -22,6 +22,7 @@ struct Collidable::Imp {
 
   // TODO(leitianjian) 需要完成unorder_map的序列化，方便填写属性与配置注入
   core::PropMap contact_properties_;
+  std::string material_;
 };
 auto Collidable::getCollisionObject() -> fcl::CollisionObject* {
   return imp_->fcl_object_ptr_.get();
@@ -39,6 +40,10 @@ auto Collidable::setContactProp(core::PropMap& map) -> void {
 auto Collidable::contactProp() const -> const core::PropMap& {
   return imp_->contact_properties_;
 }
+auto Collidable::material() const -> std::string { return imp_->material_; }
+auto Collidable::setMaterial(const std::string& material) -> void {
+  imp_->material_ = material;
+}
 Collidable::Collidable() : imp_(new Imp) {}
 Collidable::~Collidable() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(Collidable);
@@ -51,6 +56,8 @@ ARIS_REGISTRATION {
     return c->contactProp();
   };
   aris::core::class_<Collidable>("Collidable")
-      .prop("contact_prop", &setContactParam, &getContactParam);
+      .prop("contact_prop", &setContactParam, &getContactParam)
+      .prop("material", &Collidable::setMaterial, &Collidable::material);
+  ;
 }
 }  // namespace sire::physics::geometry

@@ -6,17 +6,17 @@
 
 #include <aris/dynamic/screw.hpp>
 
+#include "sire/core/contact_pair_manager.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/core/sorted_pair.hpp"
-#include "sire/physics/contact/contact_pair_manager.hpp"
 #include "sire/simulator/simulator.hpp"
 
 namespace sire::simulator {
+using core::ContactPairManager;
+using core::ContactPairValue;
 using core::SortedPair;
 using physics::PhysicsEngine;
 using physics::common::PenetrationAsPointPair;
-using physics::contact::ContactPairManager;
-using physics::contact::ContactPairValue;
 struct EventManager::Imp {
   std::list<Event> event_list_;
   std::list<Event>::iterator header_;
@@ -84,10 +84,10 @@ auto EventManager::start() -> void {
         std::vector<physics::common::PenetrationAsPointPair> penetrationPairs;
         engine_ptr_->cptPointPairPenetration(penetrationPairs);
         // 用于转换保存在vector中的碰撞结果，方便查找
-        std::unordered_set<core::SortedPair> temp_set;
+        std::unordered_set<core::SortedPair<double>> temp_set;
         // 循环碰撞结果
         for (auto& penetration : penetrationPairs) {
-          core::SortedPair s(penetration.id_A, penetration.id_B);
+          core::SortedPair<double> s(penetration.id_A, penetration.id_B);
           temp_set.insert(s);
           // 查找检测到的碰撞点在ContactPairManager中是否有记录
           if (!contact_pair_manager_ptr_->contains(s)) {
@@ -195,7 +195,7 @@ auto EventManager::resolveStartEvent(Event& start_event) -> void {
   if (penetrationPairs.size() != 0) {
     start_event.functionalities_.insert(EventFeature::CONTACT_START);
     for (auto& penetration : penetrationPairs) {
-      core::SortedPair s(penetration.id_A, penetration.id_B);
+      core::SortedPair<double> s(penetration.id_A, penetration.id_B);
       // 直接将检测到的碰撞插入contact_start，认为他们都是碰撞开始
       // 此时是仿真开始，没有时刻比现在更早了，
       // 在resolveContactStart中直接对当前进行受力分析与微分方程求解
@@ -226,7 +226,7 @@ auto EventManager::preprocessContactStartEvent(Event& e) -> void {
   }
 
   for (auto& collided_pair : collided_result) {
-    SortedPair pair(collided_pair.id_A, collided_pair.id_B);
+    SortedPair<double> pair(collided_pair.id_A, collided_pair.id_B);
     if (contacting_set->find(pair) != contacting_set->end()) {
     }
   }

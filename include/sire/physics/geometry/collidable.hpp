@@ -33,6 +33,8 @@ class SIRE_API Collidable {
     return const_cast<core::PropMap&>(
         static_cast<const Collidable&>(*this).contactProp());
   }
+  auto material() const -> std::string;
+  auto setMaterial(const std::string& material) -> void;
   auto virtual updateLocation(const double* pm) -> void = 0;
   auto virtual init() -> void = 0;
   explicit Collidable();

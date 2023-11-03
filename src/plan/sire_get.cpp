@@ -23,13 +23,13 @@ struct GetParam {
 
 // TODO(ltj)解决一下高帧率情况下出现的getRtData方法崩溃的问题，本质不能加锁，需要用无锁数据结构把东西发出来
 auto SireGet::prepareNrt() -> void {
-  option() |= NOT_PRINT_CMD_INFO |
-              NOT_RUN_EXECUTE_FUNCTION | NOT_RUN_COLLECT_FUNCTION;
+  option() |=
+      NOT_PRINT_CMD_INFO | NOT_RUN_EXECUTE_FUNCTION | NOT_RUN_COLLECT_FUNCTION;
   for (auto& m : motorOptions()) m = aris::plan::Plan::NOT_CHECK_ENABLE;
   GetParam par;
   auto& cs = *controlServer();
   auto& middleware = dynamic_cast<middleware::SireMiddleware&>(cs.middleWare());
-  auto& simulator = middleware.simulator();
+  auto& simulator = middleware.simulatorBase();
 
   auto part_pq_only = cmdParams().find("part_pq");
   // 如果只需要part_pq
@@ -47,7 +47,7 @@ auto SireGet::prepareNrt() -> void {
   std::any param = par;
   if (part_pq_only != cmdParams().end()) {
     simulator.getModelState(
-        [](aris::server::ControlServer& cs, simulator::Simulator& s,
+        [](aris::server::ControlServer& cs, simulator::SimulatorBase& s,
            std::any& data) -> void {
           auto& get_param = std::any_cast<GetParam&>(data);
           auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
@@ -60,7 +60,7 @@ auto SireGet::prepareNrt() -> void {
         param);
   } else {
     simulator.getModelState(
-        [](aris::server::ControlServer& cs, simulator::Simulator&,
+        [](aris::server::ControlServer& cs, simulator::SimulatorBase&,
            std::any& data) -> void {
           auto& get_param = std::any_cast<GetParam&>(data);
           auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());

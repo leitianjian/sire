@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
   aris::core::fromXmlFile(cs, xmlpath);
   auto& simulator =
       dynamic_cast<sire::middleware::SireMiddleware&>(cs.middleWare())
-          .simulator();
+          .simulatorBase();
   cs.init();
   simulator.start();
 

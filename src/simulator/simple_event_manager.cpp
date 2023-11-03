@@ -8,15 +8,12 @@
 
 #include "sire/core/sire_assert.hpp"
 #include "sire/core/sorted_pair.hpp"
-#include "sire/physics/contact/contact_pair_manager.hpp"
 #include "sire/simulator/simulator.hpp"
 
 namespace sire::simulator {
 using core::SortedPair;
 using physics::PhysicsEngine;
 using physics::common::PenetrationAsPointPair;
-using physics::contact::ContactPairManager;
-using physics::contact::ContactPairValue;
 struct SimpleEventManager::Imp {
   std::list<Event> event_list_;
   std::list<Event>::iterator header_;
@@ -86,7 +83,7 @@ auto SimpleEventManager::start() -> void {
       step(imp_->next_time_ - imp_->current_time_);
       std::this_thread::sleep_until(
           imp_->begin_time_ +
-          10 * std::chrono::duration<double>(imp_->next_time_));
+          std::chrono::duration<double>(imp_->next_time_));
       engine_ptr_->updateGeometryLocationFromModel();
       // 使用碰撞检测结果求解接触问题
       engine_ptr_->handleContact();
@@ -171,7 +168,7 @@ auto SimpleEventManager::resolveStartEvent(Event& start_event) -> void {
   if (penetrationPairs.size() != 0) {
     start_event.functionalities_.insert(EventFeature::CONTACT_START);
     for (auto& penetration : penetrationPairs) {
-      core::SortedPair s(penetration.id_A, penetration.id_B);
+      core::SortedPair<double> s(penetration.id_A, penetration.id_B);
       // 直接将检测到的碰撞插入contact_start，认为他们都是碰撞开始
       // 此时是仿真开始，没有时刻比现在更早了，
       // 在resolveContactStart中直接对当前进行受力分析与微分方程求解

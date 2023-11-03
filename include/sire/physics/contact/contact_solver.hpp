@@ -1,24 +1,14 @@
 #ifndef SIRE_CONTACT_SOLVER_HPP_
 #define SIRE_CONTACT_SOLVER_HPP_
 
-#include <map>
 #include <string>
-#include <utility>
-
-#include <hpp/fcl/broadphase/broadphase_callbacks.h>
-#include <hpp/fcl/broadphase/broadphase_collision_manager.h>
-#include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
-#include <hpp/fcl/collision.h>
-#include <hpp/fcl/collision_data.h>
-#include <hpp/fcl/collision_object.h>
 
 #include <aris/core/expression_calculator.hpp>
 #include <aris/core/object.hpp>
+#include <aris/server/control_server.hpp>
 
-#include "sire/physics/collision/collided_objects_callback.hpp"
-#include "sire/physics/collision/collision_filter.hpp"
+#include "sire/core/material_manager.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
-#include "sire/physics/common/point_pair_contact_info.hpp"
 #include "sire/physics/contact/contact_solver_result.hpp"
 
 namespace sire::physics {
@@ -30,27 +20,33 @@ using namespace hpp;
  */
 class SIRE_API ContactSolver {
  public:
-  ContactSolver();
-  virtual ~ContactSolver();
+  ContactSolver() = default;
+  virtual ~ContactSolver() = default;
   ARIS_DECLARE_BIG_FOUR(ContactSolver);
-  auto init(physics::PhysicsEngine* engine_ptr) -> void;
 
-  auto handleContact(const common::PenetrationAsPointPair& pair) -> void{};
-  auto combineContactParameter(double k1, double k2, double d1, double d2)
-      -> std::pair<double, double>;
+  auto init(physics::PhysicsEngine* engine_ptr) -> void;
+  virtual auto doInit(physics::PhysicsEngine* engine_ptr) -> void{};
+
+  auto physicsEnginePtr() -> physics::PhysicsEngine* { return engine_ptr_; };
+  auto controlServerPtr() -> aris::server::ControlServer* { return server_; }
+  auto partPoolPtr() -> aris::core::PointerArray<aris::dynamic::Part,
+                                                 aris::dynamic::Element>* {
+    return part_pool_ptr_;
+  }
+  auto partSize() -> sire::Size { return part_size_; }
+
   virtual auto cptContactSolverResult(
       const aris::dynamic::Model* current_state,
       const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       const std::vector<std::array<double, 16>>& T_C_vec,
-      ContactSolverResult& result) -> void;
+      ContactSolverResult& result) -> void = 0;
 
  private:
-  auto cptContactForce(double A, double B, double k, double D, double r,
-                       double w, double t) -> double;
-  auto cptPenaltyODE(double contact_time, double projected_start_diff_v,
-                     double cr, double m, double k, double delta_t) -> double;
-  struct Imp;
-  aris::core::ImpPtr<Imp> imp_;
+  physics::PhysicsEngine* engine_ptr_{nullptr};
+  aris::server::ControlServer* server_{nullptr};
+  aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
+      part_pool_ptr_{nullptr};
+  sire::Size part_size_{0};
 };
 }  // namespace contact
 }  // namespace sire::physics

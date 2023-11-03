@@ -14,10 +14,10 @@ int main(int argc, char* argv[]) {
   aris::core::fromXmlFile(cs, xmlpath);
   auto& simulator =
       dynamic_cast<sire::middleware::SireMiddleware&>(cs.middleWare())
-          .simulator();
+          .simulatorBase();
   cs.init();
   simulator.start();
-   
+
   // 开启控制器服务
   try {
     cs.start();
@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
   }
   // Start Web Socket
   cs.open();
-  
+
   // Receive Command
   cs.runCmdLine();
   return 0;

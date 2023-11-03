@@ -22,7 +22,6 @@ MeshShape::MeshShape(std::string resource_path)
 MeshShape::~MeshShape() = default;
 ARIS_REGISTRATION {
   aris::core::class_<MeshShape>("MeshShape")
-      .inherit<ShapeBase>()
       .prop("resource_path", &MeshShape::setResourcePath,
             &MeshShape::getResourcePath);
 }
