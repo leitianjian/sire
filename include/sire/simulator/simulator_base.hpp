@@ -111,6 +111,7 @@ class SIRE_API SimulatorBase {
   }
   auto init(middleware::SireMiddleware* middleware) -> void;
   auto start() -> void;
+  auto step(sire::Size frame_skip, bool pause_if_fast = false) -> void;
   auto pause() -> void{};
   auto playback() -> void{};
   auto stop() -> void{};

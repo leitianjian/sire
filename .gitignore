@@ -53,3 +53,6 @@ build/
 cmake-build-debug-visual-studio
 cmake-build-debug
 .idea
+
+# python script
+__pycache__

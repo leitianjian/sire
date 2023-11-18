@@ -121,6 +121,23 @@ auto SimulatorBase::init(middleware::SireMiddleware* middleware) -> void {
   imp_->model_ptr_->init();
 }
 auto SimulatorBase::timer() -> core::Timer& { return imp_->timer_; }
+auto SimulatorBase::step(sire::Size frame_skip, bool pause_if_fast) -> void {
+  for (sire::Size i = 0; i < frame_skip; ++i) {
+    // Get header event pointer
+    core::EventBase* header = imp_->event_manager_->eventListHeader();
+    // New handler by event id
+    std::unique_ptr<core::HandlerBase> handler =
+        createHandlerByEventId(header->eventId());
+    handler->init(this);
+    if (handler->handle(header)) {
+      if (pause_if_fast) {
+        imp_->timer_.pauseIfTooFast();
+      }
+      imp_->event_manager_->headerNextEvent(1);
+      imp_->event_manager_->popEventListHeader();
+    }
+  }
+}
 auto SimulatorBase::start() -> void {
   imp_->is_simulation_running_.store(true);
   imp_->simulation_thread = std::thread([this]() {

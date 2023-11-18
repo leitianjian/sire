@@ -9,6 +9,8 @@
 #include "sire/core/constants.hpp"
 #include "sire/core/event_base.hpp"
 #include "sire/core/handler_base.hpp"
+// template class or function should not dll_export
+// client usage will cause link error
 namespace sire::core {
 using EventId = sire::Size;
 class SIRE_API EventBaseFactory {
@@ -26,6 +28,10 @@ class SIRE_API EventBaseFactory {
   auto idNamePair() -> std::map<EventId, std::string>& {
     return id_name_pair_;
   };
+  auto clear() -> void {
+    map_.clear();
+    id_name_pair_.clear();
+  }
   static auto instance() noexcept -> EventBaseFactory&;
 
  private:
@@ -33,17 +39,20 @@ class SIRE_API EventBaseFactory {
   virtual ~EventBaseFactory() = default;
   EventBaseFactory(const EventBaseFactory&) = delete;
   EventBaseFactory& operator=(const EventBaseFactory&) = delete;
-  Map map_;
-  std::map<EventId, std::string> id_name_pair_;
+  Map EventBaseFactory::map_;
+  std::map<EventId, std::string> EventBaseFactory::id_name_pair_;
 };
 template <typename T>
-class SIRE_API EventRegister final {
+class EventRegister final {
  public:
-  EventRegister() = default;
+  EventRegister(const std::string& s, EventId id){
+    EventBaseFactory::instance().registration(s, id, &createEventFunc<T>);
+  };
   ~EventRegister() = default;
   static auto registration(const std::string& s, EventId id) -> void {
     EventBaseFactory::instance().registration(s, id, &createEventFunc<T>);
   }
+  static auto clear() -> void { EventBaseFactory::instance().clear(); }
 };
 template <typename T>
 auto createEventFunc() -> std::unique_ptr<EventBase> {
@@ -66,6 +75,10 @@ class SIRE_API HandlerBaseFactory {
   auto idNamePair() -> std::map<HandlerId, std::string>& {
     return id_name_pair_;
   };
+  auto clear() -> void {
+    map_.clear();
+    id_name_pair_.clear();
+  }
   static auto instance() noexcept -> HandlerBaseFactory&;
 
  private:
@@ -83,7 +96,7 @@ auto createHandlerFunc() -> std::unique_ptr<HandlerBase> {
 }
 
 template <typename T>
-class SIRE_API HandlerRegister final {
+class HandlerRegister final {
  public:
  public:
   HandlerRegister() = default;
@@ -91,6 +104,7 @@ class SIRE_API HandlerRegister final {
   static auto registration(const std::string& s, HandlerId id) -> void {
     HandlerBaseFactory::instance().registration(s, id, &createHandlerFunc<T>);
   }
+  static auto clear() -> void { HandlerBaseFactory::instance().clear(); }
 };
 
 // template <typename T>
