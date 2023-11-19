@@ -85,7 +85,9 @@ class SIRE_API PhysicsEngine {
   inline auto numDynamicGeometries() -> sire::Size;
 
   // engine state control
+  auto doInit() -> void;
   auto init() -> void;
+  auto initByModel(aris::dynamic::Model* m) -> void;
 
   // this prt_pm represent the pose of geometry on part coordinate
   auto addSphereGeometry(double radius, int part_id = 0,

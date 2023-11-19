@@ -38,6 +38,7 @@ struct Event {
 ///  EventManager的基类，提供接口规范，是用来控制物理引擎的驱动，所有的物理计算在PhysicalEngine和Model中解决，
 ///  但仿真实际上由EventManager驱动。
 /// </summary>
+/// TODO(leitianjian): remove controlserver dependancy
 class EventManagerBase {
  public:
   auto init() -> void;

@@ -43,7 +43,6 @@ struct PhysicsEngine::Imp {
 
   // Useful pointer and information from outer module
   aris::dynamic::Model* model_ptr_{nullptr};
-  aris::server::ControlServer* server_{nullptr};
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_{nullptr};
   sire::Size part_size_{0};
@@ -59,7 +58,6 @@ struct PhysicsEngine::Imp {
             std::make_unique<contact::StiffnessDampingContactSolver>()),
         collision_filter_(std::make_unique<collision::CollisionFilter>()),
         model_ptr_(nullptr),
-        server_(nullptr),
         part_pool_ptr_(nullptr),
         part_size_(0) {}
 };
@@ -71,9 +69,7 @@ auto PhysicsEngine::init() -> void {
   // 初始化Model与ControlServer相关的指针
   imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
       &aris::server::ControlServer::instance().model());
-  imp_->server_ = &aris::server::ControlServer::instance();
-  imp_->part_pool_ptr_ =
-      &dynamic_cast<aris::dynamic::Model*>(&imp_->server_->model())->partPool();
+  imp_->part_pool_ptr_ = &imp_->model_ptr_->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
   if (collisionDetectionFlag()) {
     // 根据当前的PhysicalEngine的GeometryPool初始化碰撞检测引擎，添加到里面的Tree

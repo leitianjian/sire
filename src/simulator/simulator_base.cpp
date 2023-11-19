@@ -19,7 +19,6 @@ namespace sire::simulator {
 using core::TriggerBase, core::EventBase, core::HandlerBase;
 using std::map;
 struct SimulatorBase::Imp {
-  aris::server::ControlServer* control_server_ptr_;
   middleware::SireMiddleware* middleware_ptr_;
   physics::PhysicsEngine* physics_engine_ptr_;
   simulator::SimulatorModules* simulator_modules_ptr_;
@@ -84,9 +83,8 @@ auto SimulatorBase::init(middleware::SireMiddleware* middleware) -> void {
 
   // 初始化Simulator中的Model指针
   // ControlServer中有一个Model的资源，另一个用来备份的Model由Simulator管理
-  imp_->control_server_ptr_ = &aris::server::ControlServer::instance();
-  imp_->model_ptr_ =
-      &dynamic_cast<aris::dynamic::Model&>(imp_->control_server_ptr_->model());
+  imp_->model_ptr_ = &dynamic_cast<aris::dynamic::Model&>(
+      aris::server::ControlServer::instance().model());
 
   //  aris::core::fromXmlString(*(imp_->prev_model_),
   //                            aris::core::toXmlString(*(imp_->model_ptr_)));

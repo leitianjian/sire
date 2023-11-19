@@ -28,7 +28,6 @@ class SIRE_API ContactSolver {
   virtual auto doInit(physics::PhysicsEngine* engine_ptr) -> void{};
 
   auto physicsEnginePtr() -> physics::PhysicsEngine* { return engine_ptr_; };
-  auto controlServerPtr() -> aris::server::ControlServer* { return server_; }
   auto partPoolPtr() -> aris::core::PointerArray<aris::dynamic::Part,
                                                  aris::dynamic::Element>* {
     return part_pool_ptr_;
@@ -43,7 +42,6 @@ class SIRE_API ContactSolver {
 
  private:
   physics::PhysicsEngine* engine_ptr_{nullptr};
-  aris::server::ControlServer* server_{nullptr};
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_{nullptr};
   sire::Size part_size_{0};

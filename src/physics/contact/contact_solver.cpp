@@ -11,9 +11,9 @@ ARIS_DEFINE_BIG_FOUR_CPP(ContactSolver);
 
 auto ContactSolver::init(physics::PhysicsEngine* engine_ptr) -> void {
   engine_ptr_ = engine_ptr;
-  server_ = &aris::server::ControlServer::instance();
-  part_pool_ptr_ =
-      &dynamic_cast<aris::dynamic::Model*>(&server_->model())->partPool();
+  part_pool_ptr_ = &dynamic_cast<aris::dynamic::Model*>(
+                        &aris::server::ControlServer::instance().model())
+                        ->partPool();
   part_size_ = part_pool_ptr_->size();
   doInit(engine_ptr);
 }
