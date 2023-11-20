@@ -24,6 +24,9 @@ namespace sire::cam_backend {
 auto mapAngleToSymRange(double angle, double range) -> double {
   bool is_negative = false;
   range = std::abs(range);
+  if (std::abs(angle) < range) {
+    return angle;
+  }
   if (angle < 0) {
     is_negative = true;
     angle = -angle;
@@ -54,29 +57,30 @@ auto xyz2pm(double* x, double* y, double* z, double* out) -> void {
   return;
 }
 
+// 根据右手定则，可得知，正的侧倾角度，意味着负的y
 auto tiltAngle2pm(double side_tilt_angle, double forward_tilt_angle,
                   double* out) -> void {
   std::array<double, 3> x_vec{1, 0, 0};
   std::array<double, 3> y_vec{0, 1, 0};
   std::array<double, 3> z_vec{0, 0, 1};
-  bool side_othogonal, forward_othogonal;
+  bool side_orthogonal = false, forward_orthogonal = false;
   bool side_negative = side_tilt_angle < 0;
   bool forward_negative = forward_tilt_angle < 0;
   if (aris::dynamic::s_is_equal(std::abs(side_tilt_angle), aris::PI / 2.0,
                                 1e-2)) {
     side_tilt_angle = (side_negative) ? -1.57079632679 : 1.57079632679;
-    side_othogonal = true;
+    side_orthogonal = true;
   }
   if (aris::dynamic::s_is_equal(std::abs(forward_tilt_angle), aris::PI / 2.0,
                                 1e-2)) {
     forward_tilt_angle = (forward_negative) ? -1.57079632679 : 1.57079632679;
-    forward_othogonal = true;
+    forward_orthogonal = true;
   }
   // 如果侧倾和前倾角都垂直，就保留侧倾，不管前倾角
-  if (side_othogonal && forward_othogonal) {
+  if (side_orthogonal && forward_orthogonal) {
     y_vec = {0, 0, (side_negative) ? -1.0 : 1.0};
     z_vec = {0, (side_negative) ? 1.0 : -1.0, 0};
-  } else if (side_othogonal && !forward_othogonal) {
+  } else if (side_orthogonal && !forward_orthogonal) {
     y_vec = {0, 0, (side_negative) ? -1.0 : 1.0};
     if (side_negative) {
       x_vec = {std::cos(forward_tilt_angle), -std::sin(forward_tilt_angle), 0};
@@ -85,18 +89,18 @@ auto tiltAngle2pm(double side_tilt_angle, double forward_tilt_angle,
       x_vec = {std::cos(forward_tilt_angle), std::sin(forward_tilt_angle), 0};
       z_vec = {std::sin(forward_tilt_angle), -std::cos(forward_tilt_angle), 0};
     }
-  } else if (!side_othogonal && forward_othogonal) {
+  } else if (!side_orthogonal && forward_orthogonal) {
     x_vec = {0, 0, (forward_negative) ? 1.0 : -1.0};
     if (forward_negative) {
-      y_vec = {-std::sin(forward_tilt_angle), std::cos(forward_tilt_angle), 0};
-      z_vec = {-std::cos(forward_tilt_angle), -std::sin(forward_tilt_angle), 0};
+      y_vec = {-std::sin(side_tilt_angle), std::cos(side_tilt_angle), 0};
+      z_vec = {-std::cos(side_tilt_angle), -std::sin(side_tilt_angle), 0};
     } else {
-      y_vec = {std::sin(forward_tilt_angle), std::cos(forward_tilt_angle), 0};
-      z_vec = {std::cos(forward_tilt_angle), -std::sin(forward_tilt_angle), 0};
+      y_vec = {std::sin(side_tilt_angle), std::cos(side_tilt_angle), 0};
+      z_vec = {std::cos(side_tilt_angle), -std::sin(side_tilt_angle), 0};
     }
   } else {
-    z_vec = {std::tan(forward_tilt_angle), std::tan(side_tilt_angle), 1};
-    x_vec = {1, 0 - tan(forward_tilt_angle)};
+    z_vec = {std::tan(forward_tilt_angle), -std::tan(side_tilt_angle), 1};
+    x_vec = {1, 0, -tan(forward_tilt_angle)};
     vectorCross(z_vec.data(), x_vec.data(), y_vec.data());
     vectorNormalize(3, z_vec.data());
     vectorNormalize(3, x_vec.data());
@@ -144,9 +148,6 @@ auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
                            double tool_axis_angle, double side_tilt_angle,
                            double forward_tilt_angle, double* target_ee_pe)
     -> void {
-  tool_axis_angle = mapAngleToSymRange(tool_axis_angle, aris::PI);
-  side_tilt_angle = mapAngleToSymRange(side_tilt_angle, aris::PI / 2.0);
-  forward_tilt_angle = mapAngleToSymRange(forward_tilt_angle, aris::PI / 2.0);
   if (install_method == WobjToolInstallMethod::EX_WOBJ_HAND_TOOL) {
     // AxisA6 collision map
     if (cpt_option == 0) {
@@ -162,6 +163,10 @@ auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
     } else if (cpt_option == 1) {
     }
   }
+  tool_axis_angle = mapAngleToSymRange(tool_axis_angle, aris::PI);
+  side_tilt_angle = mapAngleToSymRange(side_tilt_angle, aris::PI / 2.0);
+  forward_tilt_angle = mapAngleToSymRange(forward_tilt_angle, aris::PI / 2.0);
+
 
   // 最终需要知道的3个角度，前倾、侧倾、axisA6的转动角度，就可以计算末端位置
   // 1. 根据前倾侧倾旋转加工点坐标系（normal tangent)
@@ -352,9 +357,14 @@ void CamBackend::cptCollisionMap(
       // 1. 加工点坐标系( normal tangent)
       double forward_tilt_angle = forward_tilt_angles[j];
       double side_tilt_angle = side_tilt_angles[j];
-      double tool_axis_angle = side_tilt_angles[j];
+      double tool_axis_angle = tool_axis_angles[j];
       double* point_pm = points_pm + j * 16;
       double target_angle = step_angle * i;
+      if (cpt_option == 1) {
+        side_tilt_angle = step_angle * i;
+      } else {
+      
+      }
       double target_ee_pe[6];
       cptEEPose(install_method, cpt_option, target_angle, point_pm,
                 tool_axis_angle, side_tilt_angle, forward_tilt_angle,

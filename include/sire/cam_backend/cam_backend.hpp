@@ -4,6 +4,8 @@
 #include <map>
 #include <string>
 
+#include <sire_lib_export.h>
+
 #include <hpp/fcl/broadphase/broadphase_callbacks.h>
 #include <hpp/fcl/broadphase/broadphase_collision_manager.h>
 #include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
@@ -33,7 +35,7 @@ enum class WobjToolInstallMethod {
 };
 
 // 之后用CAM_Backend取代CS，然后统一model
-class CamBackend : public core::SireModuleBase {
+class SIRE_API CamBackend : public core::SireModuleBase {
  public:
   // @param[in] cpt_option  compute collision map option with two case.
   // AxisA6, tilt angle.
