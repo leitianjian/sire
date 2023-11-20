@@ -12,11 +12,13 @@
 #include <hpp/fcl/collision_object.h>
 
 #include <aris/core/expression_calculator.hpp>
+#include <aris/dynamic/model.hpp>
 
-#include "sire/physics/collision/collided_objects_callback.hpp"
-#include "sire/physics/collision/collision_detection.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/core/module_base.hpp"
+#include "sire/physics//physics_engine.hpp"
+#include "sire/physics/collision/collided_objects_callback.hpp"
+#include "sire/physics/collision/collision_detection.hpp"
 
 namespace sire::cam_backend {
 using namespace std;
@@ -53,11 +55,13 @@ class CamBackend : public core::SireModuleBase {
   //
   // @param[in] normal  number of tool path points
   // @param[in] tangent  number of tool path points
-  auto cptCollisionMap(WobjToolInstallMethod install_method, int option,
-                       sire::Size resolution, sire::Size pSzie, double* points,
-                       double* tool_axis_angles, double* side_tilt_angles,
-                       double* forward_tilt_angles, double* normal,
-                       double* tangent) -> void;
+  auto cptCollisionMap(
+      WobjToolInstallMethod install_method, int option, sire::Size resolution,
+      sire::Size pSzie, double* points, double* tool_axis_angles,
+      double* side_tilt_angles, double* forward_tilt_angles, double* normal,
+      double* tangent, std::vector<bool>& collision_result,
+      vector<set<physics::CollisionObjectsPair>>& collided_objects_result)
+      -> void;
 
   // @param[in] cpt_option  compute collision map option with two case.
   // AxisA6, tilt angle.
@@ -74,28 +78,36 @@ class CamBackend : public core::SireModuleBase {
   //
   // @param[in] forward_tilt_angles  Additional tilt angle in the direction of
   // tool motion
-  auto cptCollisionMap(WobjToolInstallMethod install_method, int cpt_option,
-                       sire::Size resolution, sire::Size pSzie,
-                       double* points_pm, double* tool_axis_angles,
-                       double* side_tilt_angles, double* forward_tilt_angles)
+  auto cptCollisionMap(
+      WobjToolInstallMethod install_method, int cpt_option,
+      sire::Size resolution, sire::Size pSzie, double* points_pm,
+      double* tool_axis_angles, double* side_tilt_angles,
+      double* forward_tilt_angles, std::vector<bool>& collision_result,
+      vector<set<physics::CollisionObjectsPair>>& collided_objects_resultf)
       -> void;
-  auto getCollisionDetection() -> physics::collision::CollisionDetection&;
-  auto resetCollisionDetection(
-      physics::collision::CollisionDetection* engine) -> void;
-  auto getCollisionMapResult() -> const vector<bool>&;
-  auto getCollidedObjectsResult()
-      -> const vector<set<physics::CollisionObjectsPair>>&;
+  // auto getCollisionDetection() -> physics::collision::CollisionDetection&;
+  // auto resetCollisionDetection(physics::collision::CollisionDetection*
+  // engine)
+  //     -> void;
+  // auto getCollisionMapResult() -> const vector<bool>&;
+  // auto getCollidedObjectsResult()
+  // ->const vector<set<physics::CollisionObjectsPair>>&;
   // initial CAM backend by two config file
-  auto init(string model_xml_path = ".", string collision_xml_path = ".")
-      -> void;
-  // initial CAM backend by control server default
+  auto doInit() -> void;
   auto init() -> void;
+  auto init(string model_config_path, string engine_config_path) -> void;
+  auto init(aris::dynamic::Model* model_ptr) -> void;
+  auto init(physics::PhysicsEngine* engine_ptr) -> void;
+  // initial CAM backend by control server default
+  // auto init() -> void;
   CamBackend();
   ~CamBackend();
+  SIRE_DECLARE_MOVE_CTOR(CamBackend);
 
  private:
   // @param[in] ee_pe  end effector pose with [position, EULER321] in double[6]
-  auto cptCollisionByEEPose(double* ee_pe, physics::collision::CollidedObjectsCallback& callback)
+  auto cptCollisionByEEPose(
+      double* ee_pe, physics::collision::CollidedObjectsCallback& callback)
       -> void;
   // @param[in] install_method  wobj/tool install method
   //

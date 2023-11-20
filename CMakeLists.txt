@@ -456,6 +456,7 @@ add_library(sire_lib
 		$<TARGET_OBJECTS:sire_server>
 		$<TARGET_OBJECTS:sire_transfer>
 		$<TARGET_OBJECTS:sire_sensor>
+		$<TARGET_OBJECTS:sire_cam_backend>
 	)
 generate_export_header(sire_lib EXPORT_MACRO_NAME SIRE_API)
 target_compile_features(sire_lib PUBLIC cxx_std_17)

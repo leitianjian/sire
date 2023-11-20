@@ -16,6 +16,8 @@
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
+#include "sire/core/sire_assert.hpp"
+#include "sire/physics//physics_engine.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
 
 namespace sire::cam_backend {
@@ -104,13 +106,21 @@ auto tiltAngle2pm(double side_tilt_angle, double forward_tilt_angle,
 }
 
 struct CamBackend::Imp {
-  vector<bool> collision_result_;
-  vector<set<physics::CollisionObjectsPair>> collided_objects_result_;
+  unique_ptr<aris::dynamic::Model> model;
+  unique_ptr<physics::PhysicsEngine> engine;
+  aris::dynamic::Model* robot_model_ptr_;
+  physics::PhysicsEngine* physics_engine_ptr_;
 
-  shared_ptr<aris::dynamic::Model> robot_model_ptr_;
-  unique_ptr<physics::collision::CollisionDetection>
-      collision_detection_ptr_;
+  Imp()
+      : model(std::make_unique<aris::dynamic::Model>()),
+        engine(std::make_unique<physics::PhysicsEngine>()),
+        robot_model_ptr_(model.get()),
+        physics_engine_ptr_(engine.get()) {}
 };
+
+CamBackend::CamBackend() : imp_(new Imp) {}
+CamBackend::~CamBackend() = default;
+SIRE_DEFINE_MOVE_CTOR_CPP(CamBackend);
 
 auto CamBackend::cptCollisionByEEPose(
     double* ee_pe, physics::collision::CollidedObjectsCallback& callback)
@@ -124,8 +134,9 @@ auto CamBackend::cptCollisionByEEPose(
   for (sire::Size i = 0; i < partSize; ++i) {
     imp_->robot_model_ptr_->partPool().at(i).getPq(part_pq.data() + i * 7);
   }
-  imp_->collision_detection_ptr_->updateLocation(part_pq.data());
-  imp_->collision_detection_ptr_->collidedObjects(callback);
+  imp_->physics_engine_ptr_->collisionDetection().updateLocation(
+      part_pq.data());
+  imp_->physics_engine_ptr_->collisionDetection().collidedObjects(callback);
 }
 
 auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
@@ -182,34 +193,68 @@ auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
   aris::dynamic::s_pm2pe(target_ee_pm, target_ee_pe, "321");
 }
 
-// initial CAM backend by two config file
-auto CamBackend::init(string model_xml_path, string collision_xml_path)
-    -> void {
+// initial CAM backend by two config file in the same directory
+auto CamBackend::init() -> void {
   auto config_path =
       std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
   const string model_config_name = "cam_model.xml";
   auto model_config_path = config_path / model_config_name;
-  imp_->robot_model_ptr_.reset(new aris::dynamic::Model());
   aris::core::fromXmlFile(&(imp_->robot_model_ptr_), model_config_path);
 
-  const string collision_config_name = "collision_calculator.xml";
-  auto collision_config_path = config_path / collision_config_name;
-  imp_->collision_detection_ptr_.reset(
-      new physics::collision::CollisionDetection());
-  aris::core::fromXmlFile(&(imp_->collision_detection_ptr_),
-                          collision_config_path);
+  const string physics_engine_name = "physics_engine.xml";
+  auto physics_engine_path = config_path / physics_engine_name;
+  aris::core::fromXmlFile(&(imp_->physics_engine_ptr_), physics_engine_path);
 
-  imp_->robot_model_ptr_->init();
-  // TODO(leitianjian): 代码有问题，先注释掉，具体解释见文件开头
-  //imp_->collision_detection_ptr_->init();
+  doInit();
+}
+
+auto CamBackend::init(string model_config_path, string engine_config_path)
+    -> void {
+  auto config_path_m = std::filesystem::absolute(model_config_path);
+  aris::core::fromXmlFile(&(imp_->robot_model_ptr_), config_path_m);
+
+  auto config_path_e = std::filesystem::absolute(engine_config_path);
+  aris::core::fromXmlFile(&(imp_->physics_engine_ptr_), config_path_e);
+
+  doInit();
+}
+
+auto CamBackend::init(aris::dynamic::Model* model_ptr) -> void {
+  SIRE_DEMAND(model_ptr != nullptr);
+  imp_->robot_model_ptr_ = model_ptr;
+
+  auto config_path =
+      std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
+  const string physics_engine_name = "physics_engine.xml";
+  auto physics_engine_path = config_path / physics_engine_name;
+  aris::core::fromXmlFile(&(imp_->physics_engine_ptr_), physics_engine_path);
+
+  doInit();
+}
+
+auto CamBackend::init(physics::PhysicsEngine* engine_ptr) -> void {
+  auto config_path =
+      std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
+  const string model_config_name = "cam_model.xml";
+  auto model_config_path = config_path / model_config_name;
+  aris::core::fromXmlFile(&(imp_->robot_model_ptr_), model_config_path);
+
+  imp_->physics_engine_ptr_ = engine_ptr;
+
+  doInit();
 }
 
 // initial CAM backend by control server
-auto CamBackend::init() -> void {
-  imp_->robot_model_ptr_.reset(&dynamic_cast<aris::dynamic::Model&>(
-      aris::server::ControlServer::instance().model()));
-  // TODO(leitianjian): 代码有问题，先注释掉，具体解释见文件开头
-  //imp_->collision_detection_ptr_->init();
+// auto CamBackend::init() -> void {
+//   imp_->robot_model_ptr_.reset(&dynamic_cast<aris::dynamic::Model&>(
+//       aris::server::ControlServer::instance().model()));
+//   // TODO(leitianjian): 代码有问题，先注释掉，具体解释见文件开头
+//   // imp_->collision_detection_ptr_->init();
+// }
+
+auto CamBackend::doInit() -> void {
+  imp_->robot_model_ptr_->init();
+  imp_->physics_engine_ptr_->initByModel(imp_->robot_model_ptr_);
 }
 
 // 未考虑周全的问题：
@@ -222,15 +267,16 @@ auto CamBackend::init() -> void {
 //
 //  tool_z_vec在不设置侧倾的时候与normal一致，但是设置侧倾之后就不一样了，需要传入给AxisA6的旋转使用
 //  单位 m
-void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
-                                 int cpt_option, sire::Size resolution,
-                                 sire::Size pSize, double* points,
-                                 double* tool_axis_angles,
-                                 double* side_tilt_angles,
-                                 double* forward_tilt_angles, double* normal,
-                                 double* tangent) {
-  imp_->collision_result_.resize(resolution * pSize);
-  imp_->collided_objects_result_.resize(resolution * pSize);
+void CamBackend::cptCollisionMap(
+    WobjToolInstallMethod install_method, int cpt_option, sire::Size resolution,
+    sire::Size pSize, double* points, double* tool_axis_angles,
+    double* side_tilt_angles, double* forward_tilt_angles, double* normal,
+    double* tangent, std::vector<bool>& collision_result,
+    vector<set<physics::CollisionObjectsPair>>& collided_objects_result) {
+  collision_result.clear();
+  collided_objects_result.clear();
+  collision_result.resize(resolution * pSize);
+  collided_objects_result.resize(resolution * pSize);
   double step_angle;
   if (cpt_option == 0) {
     step_angle = 2.0 * aris::PI / resolution;
@@ -273,27 +319,28 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
                 target_ee_pe);
       // 5. 设置末端位姿并反解
       // TODO(leitianjian): 代码有问题，先注释掉，具体解释见文件开头
-      //physics::collision::CollidedObjectsCallback callback(
-      //    &imp_->collision_detection_ptr_->collisionFilter());
-      //cptCollisionByEEPose(target_ee_pe, callback);
-      //if (callback.collidedObjectMap().size() != 0) {
-      //  imp_->collision_result_[i * pSize + j] = true;
-      //  imp_->collided_objects_result_[i * pSize + j] =
-      //      callback.collidedObjectMap();
-      //}
+      physics::collision::CollidedObjectsCallback callback(
+          &imp_->physics_engine_ptr_->collisionFilter());
+      cptCollisionByEEPose(target_ee_pe, callback);
+      if (callback.collidedObjectMap().size() != 0) {
+        collision_result[i * pSize + j] = true;
+        collided_objects_result[i * pSize + j] = callback.collidedObjectMap();
+      }
     }
   }
   return;
 }
 
-void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
-                                 int cpt_option, sire::Size resolution,
-                                 sire::Size pSize, double* points_pm,
-                                 double* tool_axis_angles,
-                                 double* side_tilt_angles,
-                                 double* forward_tilt_angles) {
-  imp_->collision_result_.resize(resolution * pSize);
-  imp_->collided_objects_result_.resize(resolution * pSize);
+void CamBackend::cptCollisionMap(
+    WobjToolInstallMethod install_method, int cpt_option, sire::Size resolution,
+    sire::Size pSize, double* points_pm, double* tool_axis_angles,
+    double* side_tilt_angles, double* forward_tilt_angles,
+    std::vector<bool>& collision_result,
+    vector<set<physics::CollisionObjectsPair>>& collided_objects_result) {
+  collision_result.clear();
+  collided_objects_result.clear();
+  collision_result.resize(resolution * pSize);
+  collided_objects_result.resize(resolution * pSize);
   double step_angle;
   if (cpt_option == 0) {
     step_angle = 2.0 * aris::PI / resolution;
@@ -314,43 +361,34 @@ void CamBackend::cptCollisionMap(WobjToolInstallMethod install_method,
                 target_ee_pe);
       // 5. 设置末端位姿并反解
       // TODO(leitianjian): 代码有问题，先注释掉，具体解释见文件开头
-      //physics::collision::CollidedObjectsCallback callback(
-      //    &imp_->collision_detection_ptr_->collisionFilter());
-      //cptCollisionByEEPose(target_ee_pe, callback);
-      //if (callback.collidedObjectMap().size() != 0) {
-      //  imp_->collision_result_[i * pSize + j] = true;
-      //  imp_->collided_objects_result_[i * pSize + j] =
-      //      callback.collidedObjectMap();
-      //}
+      physics::collision::CollidedObjectsCallback callback(
+          &imp_->physics_engine_ptr_->collisionFilter());
+      cptCollisionByEEPose(target_ee_pe, callback);
+      if (callback.collidedObjectMap().size() != 0) {
+        collision_result[i * pSize + j] = true;
+        collided_objects_result[i * pSize + j] = callback.collidedObjectMap();
+      }
     }
   }
   return;
 }
 
-auto CamBackend::getCollisionDetection()
-    -> physics::collision::CollisionDetection& {
-  return *imp_->collision_detection_ptr_;
-}
-auto CamBackend::resetCollisionDetection(
-    physics::collision::CollisionDetection* engine) -> void {
-  imp_->collision_detection_ptr_.reset(engine);
-}
+// auto CamBackend::getCollisionDetection()
+//     -> physics::collision::CollisionDetection& {
+//   return *imp_->collision_detection_ptr_;
+// }
+// auto CamBackend::resetCollisionDetection(
+//     physics::collision::CollisionDetection* engine) -> void {
+//   imp_->collision_detection_ptr_.reset(engine);
+// }
+//
+// auto CamBackend::getCollisionMapResult() -> const vector<bool>& {
+//   return imp_->collision_result_;
+// }
+// auto CamBackend::getCollidedObjectsResult()
+//     -> const vector<set<physics::CollisionObjectsPair>>& {
+//   return imp_->collided_objects_result_;
+// }
 
-auto CamBackend::getCollisionMapResult() -> const vector<bool>& {
-  return imp_->collision_result_;
-}
-auto CamBackend::getCollidedObjectsResult()
-    -> const vector<set<physics::CollisionObjectsPair>>& {
-  return imp_->collided_objects_result_;
-}
-
-CamBackend::CamBackend() : imp_(new Imp) {}
-CamBackend::~CamBackend() = default;
-
-ARIS_REGISTRATION {
-  aris::core::class_<CamBackend>("SireCamBackend")
-      .inherit<core::SireModuleBase>()
-      .prop("collision_calculator", &CamBackend::resetCollisionDetection,
-            &CamBackend::getCollisionDetection);
-}
+ARIS_REGISTRATION {}
 }  // namespace sire::cam_backend

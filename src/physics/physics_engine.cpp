@@ -65,10 +65,7 @@ PhysicsEngine::PhysicsEngine() : imp_(new Imp) {}
 PhysicsEngine::~PhysicsEngine() { sire::geometry::reset_geometry_id(); };
 // TODO(leitianjian): 精简PhysicsEngine的资源管理
 //   PhysicsEngine中管理的资源是两个引擎都需要的资源，如果只是自己需要的没必要放在外面
-auto PhysicsEngine::init() -> void {
-  // 初始化Model与ControlServer相关的指针
-  imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
-      &aris::server::ControlServer::instance().model());
+auto PhysicsEngine::doInit() -> void {
   imp_->part_pool_ptr_ = &imp_->model_ptr_->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
   if (collisionDetectionFlag()) {
@@ -92,6 +89,17 @@ auto PhysicsEngine::init() -> void {
   if (contactSolverFlag()) {
     imp_->contact_solver_->init(this);
   }
+}
+auto PhysicsEngine::init() -> void {
+  // 初始化Model与ControlServer相关的指针
+  imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
+      &aris::server::ControlServer::instance().model());
+  doInit();
+}
+auto PhysicsEngine::initByModel(aris::dynamic::Model* m) -> void {
+  SIRE_DEMAND(m != nullptr);
+  imp_->model_ptr_ = m;
+  doInit();
 }
 auto PhysicsEngine::collisionDetectionFlag() const -> bool {
   return imp_->collision_detection_flag_;
