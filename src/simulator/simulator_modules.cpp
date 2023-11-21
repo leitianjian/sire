@@ -44,7 +44,7 @@ ARIS_REGISTRATION {
   using SensorPool = aris::core::PointerArray<sensor::SensorBase>;
 
   aris::core::class_<IntegratorPool>("IntegratorPoolObject").asRefArray();
-  aris::core::class_<SensorPool>("SensorPoolObject").asRefArray();
+  aris::core::class_<SensorPool>("SireSensorPoolObject").asRefArray();
 
   typedef IntegratorPool& (SimulatorModules::*IntegratorPoolFunc)();
   typedef SensorPool& (SimulatorModules::*SensorPoolFunc)();

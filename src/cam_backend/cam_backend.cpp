@@ -204,11 +204,11 @@ auto CamBackend::init() -> void {
       std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
   const string model_config_name = "cam_model.xml";
   auto model_config_path = config_path / model_config_name;
-  aris::core::fromXmlFile(&(imp_->robot_model_ptr_), model_config_path);
+  aris::core::fromXmlFile(*imp_->robot_model_ptr_, model_config_path);
 
   const string physics_engine_name = "physics_engine.xml";
   auto physics_engine_path = config_path / physics_engine_name;
-  aris::core::fromXmlFile(&(imp_->physics_engine_ptr_), physics_engine_path);
+  aris::core::fromXmlFile(*imp_->physics_engine_ptr_, physics_engine_path);
 
   doInit();
 }
@@ -216,10 +216,10 @@ auto CamBackend::init() -> void {
 auto CamBackend::init(string model_config_path, string engine_config_path)
     -> void {
   auto config_path_m = std::filesystem::absolute(model_config_path);
-  aris::core::fromXmlFile(&(imp_->robot_model_ptr_), config_path_m);
+  aris::core::fromXmlFile(*imp_->robot_model_ptr_, config_path_m);
 
   auto config_path_e = std::filesystem::absolute(engine_config_path);
-  aris::core::fromXmlFile(&(imp_->physics_engine_ptr_), config_path_e);
+  aris::core::fromXmlFile(*imp_->physics_engine_ptr_, config_path_e);
 
   doInit();
 }
@@ -232,7 +232,7 @@ auto CamBackend::init(aris::dynamic::Model* model_ptr) -> void {
       std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
   const string physics_engine_name = "physics_engine.xml";
   auto physics_engine_path = config_path / physics_engine_name;
-  aris::core::fromXmlFile(&(imp_->physics_engine_ptr_), physics_engine_path);
+  aris::core::fromXmlFile(*imp_->physics_engine_ptr_, physics_engine_path);
 
   doInit();
 }
@@ -242,7 +242,7 @@ auto CamBackend::init(physics::PhysicsEngine* engine_ptr) -> void {
       std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
   const string model_config_name = "cam_model.xml";
   auto model_config_path = config_path / model_config_name;
-  aris::core::fromXmlFile(&(imp_->robot_model_ptr_), model_config_path);
+  aris::core::fromXmlFile(*imp_->robot_model_ptr_, model_config_path);
 
   imp_->physics_engine_ptr_ = engine_ptr;
 
