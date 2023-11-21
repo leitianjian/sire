@@ -28,12 +28,12 @@ class Command:
 
 
 class RobotSocket:
-    def __init__(self):
-        self.websocket = None
+    def __init__(self, ws):
+        self.websocket = ws
         self.cmd_map = dict()
         self.cmd_reserved1 = 1000
     
-    def connect(self): 
+    def connect(self):
         self.cmd_map = dict();
         self.cmd_reserved1 = time.time();
 
@@ -45,8 +45,6 @@ class RobotSocket:
           msg.reserved1 = self.cmd_reserved1 + 1
         self.cmd_reserved1 = msg.reserved1
         try: 
-            self.websocket = websocket.WebSocket()
-            self.websocket.connect("ws://127.0.0.1:5867")
             self.websocket.send(msg.buffer)
             successCallback(Msg(self.websocket.recv()))
         except:
