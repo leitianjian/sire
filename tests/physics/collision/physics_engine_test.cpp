@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <hpp/fcl/data_types.h>
 
-#include <aris/dynamic/matrix.hpp>
+#include <aris/dynamic/math_matrix.hpp>
 
 #include "sire/core/constants.hpp"
 #include "sire/core/geometry/geometry_base.hpp"
