@@ -50,7 +50,6 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   //       << std::endl;
   // }
   simulator_ptr->eventManager().addEvent(std::move(step_event));
-  std::cout << "new step" << std::endl;
 
   return true;
 }

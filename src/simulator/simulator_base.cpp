@@ -51,6 +51,10 @@ struct SimulatorBase::Imp {
 
   std::atomic_bool is_simulation_running_{false};
   std::thread simulation_thread;
+
+  std::atomic_bool is_data_fetch_running_{false};
+  std::thread data_fetch_thread;
+  std::atomic_bool can_get_data_{true};
   // std::unique_ptr<aris::dynamic::Model> prev_model_{
   //     std::make_unique<aris::dynamic::Model>()};
 
@@ -117,6 +121,20 @@ auto SimulatorBase::init(middleware::SireMiddleware* middleware) -> void {
   // 正确设置model中的力
   imp_->physics_engine_ptr_->initPartContactForce2Model();
   imp_->model_ptr_->init();
+
+  // 开始允许获取数据
+  imp_->is_data_fetch_running_.store(true);
+  imp_->data_fetch_thread = std::thread([this]() {
+    while (imp_->is_data_fetch_running_) {
+      while (!(imp_->if_get_data_.load() && imp_->can_get_data_.load()))
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+      imp_->get_data_func_->operator()(aris::server::ControlServer::instance(),
+                                       *this, *imp_->get_data_);
+      imp_->if_get_data_ready_.store(true);  // 原子操作
+      imp_->if_get_data_.store(false);
+    }
+  });
 }
 auto SimulatorBase::timer() -> core::Timer& { return imp_->timer_; }
 auto SimulatorBase::step(sire::Size frame_skip, bool pause_if_fast) -> void {
@@ -127,13 +145,33 @@ auto SimulatorBase::step(sire::Size frame_skip, bool pause_if_fast) -> void {
     std::unique_ptr<core::HandlerBase> handler =
         createHandlerByEventId(header->eventId());
     handler->init(this);
+    imp_->can_get_data_.store(false);
     if (handler->handle(header)) {
+      imp_->can_get_data_.store(true);
       if (pause_if_fast) {
         imp_->timer_.pauseIfTooFast();
       }
       imp_->event_manager_->headerNextEvent(1);
       imp_->event_manager_->popEventListHeader();
     }
+    // double p[6]{0}, v[6]{0}, a[6]{0};
+    // model()->generalMotionPool().at(0).getP(p);
+    // model()->generalMotionPool().at(0).getV(v);
+    // model()->generalMotionPool().at(0).getA(a);
+    // std::cout << "step: " << i << std::endl;
+    // std::cout << "general_p: ";
+    // aris::dynamic::dsp(1, 6, p);
+    // aris::dynamic::dsp(1, 6, v);
+    // aris::dynamic::dsp(1, 6, a);
+    // std::cout << "action: "
+    //           << dynamic_cast<aris::dynamic::SingleComponentForce&>(
+    //                  model()->forcePool().at(0))
+    //                  .fce()
+    //           << ", "
+    //           << dynamic_cast<aris::dynamic::SingleComponentForce&>(
+    //                  model()->forcePool().at(1))
+    //                  .fce()
+    //           << std::endl;
   }
 }
 auto SimulatorBase::start() -> void {
@@ -148,12 +186,12 @@ auto SimulatorBase::start() -> void {
           createHandlerByEventId(header->eventId());
       handler->init(this);
       if (handler->handle(header)) {
-        if (imp_->if_get_data_.exchange(false)) {
-          imp_->get_data_func_->operator()(
-              aris::server::ControlServer::instance(), *this, *imp_->get_data_);
-          imp_->if_get_data_ready_.store(true);  // 原子操作
-        }
-
+        // if (imp_->if_get_data_.exchange(false)) {
+        //   imp_->get_data_func_->operator()(
+        //       aris::server::ControlServer::instance(), *this,
+        //       *imp_->get_data_);
+        //   imp_->if_get_data_ready_.store(true);  // 原子操作
+        // }
         imp_->timer_.pauseIfTooFast();
         imp_->event_manager_->headerNextEvent(1);
         imp_->event_manager_->popEventListHeader();
@@ -205,7 +243,8 @@ auto SimulatorBase::getModelState(
     const std::function<void(aris::server::ControlServer&, SimulatorBase&,
                              std::any&)>& get_func,
     std::any& get_data) -> void {
-  if (!imp_->is_simulation_running_) THROW_FILE_LINE("simulator not start");
+  if (!imp_->is_data_fetch_running_)
+    THROW_FILE_LINE("data fetch thread not start");
   imp_->get_data_func_ = &get_func;
   imp_->get_data_ = &get_data;
 

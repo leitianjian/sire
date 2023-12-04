@@ -42,14 +42,14 @@ auto ExplicitEulerIntegrator::doStep(double dt) -> bool {
     motion.updV();
     motion.updP();
   }
+  // 调整与杆件相关的marker坐标与杆件位姿（最小二乘）
+  model_ptr_->forwardKinematics();
   for (std::size_t i = 0; i < general_motion_pool_length_; ++i) {
     auto& general_motion = model_ptr_->generalMotionPool().at(i);
     general_motion.updA();
     general_motion.updV();
     general_motion.updP();
   }
-  // 调整与杆件相关的marker坐标与杆件位姿（最小二乘）
-  model_ptr_->forwardKinematics();
   return true;
 };
 auto ExplicitEulerIntegrator::integrate(double** diff_data_in,

@@ -4,7 +4,8 @@
 #include <aris.hpp>
 
 namespace sire::plan {
-class SireGet : public aris::core::CloneObject<SireGet, aris::plan::Plan> {
+class SireGet
+    : public aris::core::CloneObject<SireGet, aris::plan::Plan> {
  public:
   auto virtual prepareNrt() -> void override;
   auto virtual collectNrt() -> void override;

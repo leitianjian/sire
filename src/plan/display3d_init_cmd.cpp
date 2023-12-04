@@ -15,7 +15,6 @@ auto Display3dInit::prepareNrt() -> void {
   for (auto& m : motorOptions()) m = aris::plan::Plan::NOT_CHECK_ENABLE;
   // get control server config of geometry in part pool
   nlohmann::json geo_pool;
-  
   // 取出 Part下面的每一个geometry
   for (sire::Size i = 0; i < model()->partPool().size(); ++i) {
     nlohmann::json json;
@@ -37,7 +36,7 @@ auto Display3dInit::prepareNrt() -> void {
     aris::dynamic::Part& part = model()->partPool().at(i);
     std::array<double, sire::kPosQuatSize> part_pq_buffer;
     part.markerPool().at(0).getPq(part_pq_buffer.data());
-    //part.markerPool().at(0).getPq(ground, part_pq_buffer.data());
+    // part.markerPool().at(0).getPq(ground, part_pq_buffer.data());
     part_init_config.push_back(part_pq_buffer);
   }
 

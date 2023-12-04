@@ -14,6 +14,7 @@ struct GetParam {
   std::vector<double> motors_a;
   std::vector<double> motors_f;
   std::vector<std::vector<double>> general_motion_p;
+  std::vector<std::vector<double>> general_motion_v;
   int state_code;
   bool is_cs_started;
   std::string currentPlan;
@@ -34,6 +35,7 @@ auto SimulationWithAction::prepareNrt() -> void {
   par.motors_p.resize(model()->motionPool().size());
   par.motors_f.resize(model()->motionPool().size());
   par.general_motion_p.resize(model()->generalMotionPool().size());
+  par.general_motion_v.resize(model()->generalMotionPool().size());
   auto& cs = *controlServer();
   auto& middleware = dynamic_cast<middleware::SireMiddleware&>(cs.middleWare());
   auto& simulator = middleware.simulatorBase();
@@ -63,15 +65,20 @@ auto SimulationWithAction::prepareNrt() -> void {
 
   for (std::size_t i = 0; i < model()->generalMotionPool().size(); ++i) {
     auto& general_motion = model()->generalMotionPool().at(i);
-    std::array<double, 6> temp_p{0.0};
+    // general_motion.updP();
+    std::array<double, 6> temp_p{0.0}, temp_v{0.0};
     general_motion.getP(temp_p.data());
+    general_motion.getV(temp_v.data());
     par.general_motion_p[i].assign(temp_p.begin(), temp_p.end());
+    par.general_motion_v[i].assign(temp_v.begin(), temp_v.end());
   }
   auto& inter =
       dynamic_cast<server::ProgramWebInterface&>(cs.interfacePool().at(0));
   std::vector<std::pair<std::string, std::any>> out_param;
   out_param.push_back(std::make_pair<std::string, std::any>(
       "general_motion_p", nlohmann::json(par.general_motion_p)));
+  out_param.push_back(std::make_pair<std::string, std::any>(
+      "general_motion_v", nlohmann::json(par.general_motion_v)));
   ret() = out_param;
   return;
 }
