@@ -267,7 +267,7 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   double dt = e->eventProp().getPropValue("dt");
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);
-  if (dt == 0.0000001) std::cout << "dt=" << dt << " ";
+  // if (dt == 0.0000001) std::cout << "dt=" << dt << " ";
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
   process_penetration_depth_and_maintain_impact_set(simulator_ptr);

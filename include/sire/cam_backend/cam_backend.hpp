@@ -6,21 +6,13 @@
 
 #include <sire_lib_export.h>
 
-#include <hpp/fcl/broadphase/broadphase_callbacks.h>
-#include <hpp/fcl/broadphase/broadphase_collision_manager.h>
-#include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
-#include <hpp/fcl/collision.h>
-#include <hpp/fcl/collision_data.h>
-#include <hpp/fcl/collision_object.h>
-
 #include <aris/core/expression_calculator.hpp>
 #include <aris/dynamic/model.hpp>
 
 #include "sire/core/constants.hpp"
 #include "sire/core/module_base.hpp"
-#include "sire/physics//physics_engine.hpp"
+#include "sire/physics/physics_engine.hpp"
 #include "sire/physics/collision/collided_objects_callback.hpp"
-#include "sire/physics/collision/collision_detection.hpp"
 
 namespace sire::cam_backend {
 using namespace std;
@@ -87,6 +79,10 @@ class SIRE_API CamBackend : public core::SireModuleBase {
       double* forward_tilt_angles, std::vector<bool>& collision_result,
       vector<set<physics::CollisionObjectsPair>>& collided_objects_resultf)
       -> void;
+  auto cptCollisionByEEPose(
+      double* ee_pe, physics::collision::CollidedObjectsCallback& callback)
+      -> void;
+  auto physicsEngine() -> physics::PhysicsEngine*;
   // auto getCollisionDetection() -> physics::collision::CollisionDetection&;
   // auto resetCollisionDetection(physics::collision::CollisionDetection*
   // engine)
@@ -95,11 +91,12 @@ class SIRE_API CamBackend : public core::SireModuleBase {
   // auto getCollidedObjectsResult()
   // ->const vector<set<physics::CollisionObjectsPair>>&;
   // initial CAM backend by two config file
-  auto doInit() -> void;
-  auto init() -> void;
-  auto init(string model_config_path, string engine_config_path) -> void;
-  auto init(aris::dynamic::Model* model_ptr) -> void;
-  auto init(physics::PhysicsEngine* engine_ptr) -> void;
+  auto doInit(double* init_motor_p) -> void;
+  auto init(double* init_motor_p) -> void;
+  auto init(string model_config_path, string engine_config_path,
+            double* init_motor_p) -> void;
+  auto init(aris::dynamic::Model* model_ptr, double* init_motor_p) -> void;
+  auto init(physics::PhysicsEngine* engine_ptr, double* init_motor_p) -> void;
   // initial CAM backend by control server default
   // auto init() -> void;
   CamBackend();
@@ -108,9 +105,7 @@ class SIRE_API CamBackend : public core::SireModuleBase {
 
  private:
   // @param[in] ee_pe  end effector pose with [position, EULER321] in double[6]
-  auto cptCollisionByEEPose(
-      double* ee_pe, physics::collision::CollidedObjectsCallback& callback)
-      -> void;
+
   // @param[in] install_method  wobj/tool install method
   //
   // @param[in] cpt_option  compute option of which collision map to compute

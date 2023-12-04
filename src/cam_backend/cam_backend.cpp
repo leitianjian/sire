@@ -4,20 +4,13 @@
 
 #include <cmath>
 
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <hpp/fcl/distance.h>
-#include <hpp/fcl/math/transform.h>
-#include <hpp/fcl/mesh_loader/assimp.h>
-#include <hpp/fcl/mesh_loader/loader.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
-
 #include <aris/core/serialization.hpp>
 #include <aris/dynamic/model.hpp>
 #include <aris/server/control_server.hpp>
 
 #include "sire/core/constants.hpp"
 #include "sire/core/sire_assert.hpp"
-#include "sire/physics//physics_engine.hpp"
+#include "sire/physics/physics_engine.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
 
 namespace sire::cam_backend {
@@ -125,7 +118,9 @@ struct CamBackend::Imp {
 CamBackend::CamBackend() : imp_(new Imp) {}
 CamBackend::~CamBackend() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(CamBackend);
-
+auto CamBackend::physicsEngine() -> physics::PhysicsEngine* {
+  return imp_->physics_engine_ptr_;
+}
 auto CamBackend::cptCollisionByEEPose(
     double* ee_pe, physics::collision::CollidedObjectsCallback& callback)
     -> void {
@@ -167,7 +162,6 @@ auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
   side_tilt_angle = mapAngleToSymRange(side_tilt_angle, aris::PI / 2.0);
   forward_tilt_angle = mapAngleToSymRange(forward_tilt_angle, aris::PI / 2.0);
 
-
   // 最终需要知道的3个角度，前倾、侧倾、axisA6的转动角度，就可以计算末端位置
   // 1. 根据前倾侧倾旋转加工点坐标系（normal tangent)
   double tilt_pm[16];
@@ -199,7 +193,7 @@ auto CamBackend::cptEEPose(WobjToolInstallMethod install_method, int cpt_option,
 }
 
 // initial CAM backend by two config file in the same directory
-auto CamBackend::init() -> void {
+auto CamBackend::init(double* init_motor_p) -> void {
   auto config_path =
       std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
   const string model_config_name = "cam_model.xml";
@@ -210,10 +204,11 @@ auto CamBackend::init() -> void {
   auto physics_engine_path = config_path / physics_engine_name;
   aris::core::fromXmlFile(*imp_->physics_engine_ptr_, physics_engine_path);
 
-  doInit();
+  doInit(init_motor_p);
 }
 
-auto CamBackend::init(string model_config_path, string engine_config_path)
+auto CamBackend::init(string model_config_path, string engine_config_path,
+                      double* init_motor_p)
     -> void {
   auto config_path_m = std::filesystem::absolute(model_config_path);
   aris::core::fromXmlFile(*imp_->robot_model_ptr_, config_path_m);
@@ -221,10 +216,11 @@ auto CamBackend::init(string model_config_path, string engine_config_path)
   auto config_path_e = std::filesystem::absolute(engine_config_path);
   aris::core::fromXmlFile(*imp_->physics_engine_ptr_, config_path_e);
 
-  doInit();
+  doInit(init_motor_p);
 }
 
-auto CamBackend::init(aris::dynamic::Model* model_ptr) -> void {
+auto CamBackend::init(aris::dynamic::Model* model_ptr, double* init_motor_p)
+    -> void {
   SIRE_DEMAND(model_ptr != nullptr);
   imp_->robot_model_ptr_ = model_ptr;
 
@@ -234,10 +230,11 @@ auto CamBackend::init(aris::dynamic::Model* model_ptr) -> void {
   auto physics_engine_path = config_path / physics_engine_name;
   aris::core::fromXmlFile(*imp_->physics_engine_ptr_, physics_engine_path);
 
-  doInit();
+  doInit(init_motor_p);
 }
 
-auto CamBackend::init(physics::PhysicsEngine* engine_ptr) -> void {
+auto CamBackend::init(physics::PhysicsEngine* engine_ptr, double* init_motor_p)
+    -> void {
   auto config_path =
       std::filesystem::absolute(".");  // 获取当前可执行文件所在的路径
   const string model_config_name = "cam_model.xml";
@@ -246,7 +243,7 @@ auto CamBackend::init(physics::PhysicsEngine* engine_ptr) -> void {
 
   imp_->physics_engine_ptr_ = engine_ptr;
 
-  doInit();
+  doInit(init_motor_p);
 }
 
 // initial CAM backend by control server
@@ -257,9 +254,14 @@ auto CamBackend::init(physics::PhysicsEngine* engine_ptr) -> void {
 //   // imp_->collision_detection_ptr_->init();
 // }
 
-auto CamBackend::doInit() -> void {
+auto CamBackend::doInit(double* init_motor_p) -> void {
   imp_->robot_model_ptr_->init();
   imp_->physics_engine_ptr_->initByModel(imp_->robot_model_ptr_);
+  imp_->robot_model_ptr_->setInputPos(init_motor_p);
+  imp_->robot_model_ptr_->forwardKinematics();
+  for (auto& general_motion : imp_->robot_model_ptr_->generalMotionPool()) {
+    general_motion.updP();
+  }
 }
 
 // 未考虑周全的问题：
@@ -363,7 +365,6 @@ void CamBackend::cptCollisionMap(
       if (cpt_option == 1) {
         side_tilt_angle = step_angle * i;
       } else {
-      
       }
       double target_ee_pe[6];
       cptEEPose(install_method, cpt_option, target_angle, point_pm,

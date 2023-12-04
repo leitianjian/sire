@@ -68,8 +68,8 @@ auto CollidedObjectsCallback::queryCollidedObject(fcl::CollisionObject* o1,
 }
 CollidedObjectsCallback::CollidedObjectsCallback(CollisionFilter* filter_in)
     : fcl::CollisionCallBackBase(), filter_(filter_in), collidedObjectMap_() {
-  data.request.num_max_contacts = 10;
+  data.request.num_max_contacts = 1;
   data.request.enable_contact = false;
-  data.request.gjk_tolerance = 2e-12;
+  data.request.gjk_tolerance = 1e-6;
 };
 }  // namespace sire::physics::collision

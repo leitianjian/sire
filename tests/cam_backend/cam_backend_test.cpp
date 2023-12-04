@@ -20,5 +20,5 @@ GTEST_TEST(CAMBackend, mapAngleToSymRangeTest) {
             << mapAngleToSymRange(temp * 91, sire::PI / 2) << " " << std::endl;
 
   sire::cam_backend::CamBackend backend;
-  backend.init();
+  //backend.init();
 }

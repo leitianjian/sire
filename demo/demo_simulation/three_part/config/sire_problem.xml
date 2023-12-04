@@ -233,7 +233,7 @@
 			<IntegratorPoolObject __prop_name__="integrator_pool">
 				<ExplicitEulerIntegrator/>
 			</IntegratorPoolObject>
-			<SensorPoolObject __prop_name__="sensor_pool"/>
+			<SireSensorPoolObject __prop_name__="sensor_pool"/>
 		</SimulatorModules>
 	</SireMiddleware>
 	<CustomModule __prop_name__="custom_module"/>
