@@ -49,5 +49,40 @@ class SIRE_API StepHandler final : public core::HandlerBase {
   auto handle(core::EventBase* e) -> bool override;
   simulator::SimulatorBase* simulator_ptr;
 };
+
+class SIRE_API InitEvent1 final : public core::EventBase {
+ public:
+  InitEvent1() : EventBase() {}
+  ~InitEvent1() = default;
+  auto init() -> void override;
+  simulator::SimulatorBase* simulator_ptr;
+  physics::PhysicsEngine* engine_ptr;
+  core::EventManager* manager_ptr;
+};
+class SIRE_API InitHandler1 final : public core::HandlerBase {
+ public:
+  InitHandler1() : HandlerBase() {}
+  ~InitHandler1() = default;
+  auto init(simulator::SimulatorBase* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulatorBase* simulator_ptr;
+};
+class SIRE_API StepEvent1 final : public core::EventBase {
+ public:
+  StepEvent1() : EventBase() {}
+  ~StepEvent1() = default;
+  auto init() -> void override;
+  simulator::SimulatorBase* simulator_ptr;
+  physics::PhysicsEngine* engine_ptr;
+  core::EventManager* manager_ptr;
+};
+class SIRE_API StepHandler1 final : public core::HandlerBase {
+ public:
+  StepHandler1() : HandlerBase() {}
+  ~StepHandler1() = default;
+  auto init(simulator::SimulatorBase* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulatorBase* simulator_ptr;
+};
 }  // namespace sire::simulator
 #endif

@@ -22,7 +22,7 @@ auto process_impact_threshold(aris::dynamic::Model* m,
     min_mass = min_mass < part.prtIv()[0] ? min_mass : part.prtIv()[0];
   }
   min_mass = min_mass <= 0 ? 1.0 : min_mass;
-  double max_allow_velocity_change_dt_insert = 50.0;
+  double max_allow_velocity_change_dt_insert = 5000.0;
   double impact_threshold_1 = min_mass * max_allow_velocity_change_dt_insert;
   impact_threshold_insert = impact_threshold_insert < impact_threshold_1
                                 ? impact_threshold_insert
@@ -78,7 +78,8 @@ auto process_penetration_depth_and_maintain_impact_set(
   std::vector<common::PenetrationAsPointPair> pairs;
   // 碰撞检测
   engine_ptr->cptPointPairPenetration(pairs);
-  // if (pairs.size() != 0) std::cout << "pair_depth=" << pairs.at(0).depth << " ";
+  // if (pairs.size() != 0) std::cout << "pair_depth=" << pairs.at(0).depth << "
+  // ";
   // 1. 修改表二
   // 根据碰撞信息，结合碰撞点的记录，更新表二的碰撞点记录和碰撞信息 depth -
   // init_depth
@@ -154,10 +155,10 @@ auto process_penetration_depth_and_maintain_impact_set(
   // 计算每个杆件碰撞力和加速度和dt的数据，判断是否碰撞，碰撞需要缩小步长
   double impact_threshold_insert =
       simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
-          "impact_threshold_insert", 50000);
+          "impact_threshold_insert", 5);
   double impact_threshold_remove =
       simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
-          "impact_threshold_remove", 10000);
+          "impact_threshold_remove", 0.2);
   std::tie(impact_threshold_insert, impact_threshold_remove) =
       process_impact_threshold(simulator_ptr->model(), impact_threshold_insert,
                                impact_threshold_remove);
@@ -282,6 +283,72 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   // if (!manager_ptr->impactedPrtSet().empty()) {
   //   std::cout
   //       << "shrinked dt "
+  //       << simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
+  //              "shrink_dt", 1e-7)
+  //       << " "
+  //       << manager_ptr->contactPairMap().at({0, 1}).init_penetration_depth_
+  //       << std::endl;
+  // }
+  simulator_ptr->eventManager().addEvent(std::move(step_event));
+
+  return true;
+  // Add Step Trigger to trigger list in Event Manager
+  // EventManager ptr
+}
+
+auto InitEvent1::init() -> void {}
+auto InitHandler1::init(simulator::SimulatorBase* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto InitHandler1::handle(core::EventBase* e) -> bool {
+  InitEvent1* event_ptr = dynamic_cast<InitEvent1*>(e);
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  process_penetration_depth_and_maintain_impact_set(simulator_ptr);
+  // 之后就可以正常积分
+
+  std::unique_ptr<core::EventBase> step_event =
+      simulator_ptr->createEventById(1);
+  step_event->eventProp().addProp(
+      "dt", manager_ptr->impactedPrtSet().empty()
+                ? simulator_ptr->deltaT()
+                : simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
+                      "shrink_dt", 1e-5));
+  simulator_ptr->eventManager().addEvent(std::move(step_event));
+
+  return true;
+  // Add Step Trigger to trigger list in Event Manager
+  // EventManager ptr
+}
+auto StepEvent1::init() -> void {}
+auto StepHandler1::init(simulator::SimulatorBase* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto StepHandler1::handle(core::EventBase* e) -> bool {
+  // 积分到当前event记录的时间
+  double dt = e->eventProp().getPropValue("dt");
+  simulator_ptr->integratorPoolPtr()->at(0).step(dt);
+  simulator_ptr->timer().updateSimTime(dt);
+  // if (dt == 0.0000001) std::cout << "dt=" << dt << " ";
+  StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  if (dt == simulator_ptr->deltaT()) {
+    manager_ptr->contactPairMap().clear();
+  }
+  process_penetration_depth_and_maintain_impact_set(simulator_ptr);
+
+  std::unique_ptr<core::EventBase> step_event =
+      simulator_ptr->createEventById(1);
+  step_event->eventProp().addProp(
+      "dt", manager_ptr->impactedPrtSet().empty()
+                ? simulator_ptr->deltaT()
+                : simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
+                      "shrink_dt", 1e-5));
+  // if (!manager_ptr->impactedPrtSet().empty()) {
+  //   std::cout
+  //       << "shrinked dt "
+  //       << simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
+  //              "shrink_dt", 1e-7)
+  //       << " "
   //       << manager_ptr->contactPairMap().at({0, 1}).init_penetration_depth_
   //       << std::endl;
   // }
@@ -292,9 +359,13 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   // EventManager ptr
 }
 ARIS_REGISTRATION {
-  core::EventRegister<InitEvent>::registration("initial", 0);
-  core::EventRegister<StepEvent>::registration("step", 1);
-  core::HandlerRegister<InitHandler>::registration("initial", 0);
-  core::HandlerRegister<StepHandler>::registration("step", 1);
+  // core::EventRegister<InitEvent>::registration("initial", 0);
+  // core::EventRegister<StepEvent>::registration("step", 1);
+  // core::HandlerRegister<InitHandler>::registration("initial", 0);
+  // core::HandlerRegister<StepHandler>::registration("step", 1);
+  core::EventRegister<InitEvent1>::registration("initial1", 0);
+  core::EventRegister<StepEvent1>::registration("step1", 1);
+  core::HandlerRegister<InitHandler1>::registration("initial1", 0);
+  core::HandlerRegister<StepHandler1>::registration("step1", 1);
 }
 }  // namespace sire::simulator

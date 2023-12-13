@@ -207,10 +207,12 @@ target_sources(sire_integrator
 	PRIVATE 
 		"src/integrator/integrator_base.cpp"
 		"src/integrator/explicit_euler_integrator.cpp"
+		"src/integrator/semi_implicit_euler_integrator.cpp"
 		"src/integrator/runge_kutta4_integrator.cpp"
 	PUBLIC 
 		"include/sire/integrator/integrator_base.hpp"
 		"include/sire/integrator/explicit_euler_integrator.hpp"
+		"include/sire/integrator/semi_implicit_euler_integrator.hpp"
 		"include/sire/integrator/runge_kutta4_integrator.hpp"
 	)
 

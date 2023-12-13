@@ -1,4 +1,4 @@
-#include "sire/integrator/explicit_euler_integrator.hpp"
+#include "sire/integrator/semi_implicit_euler_integrator.hpp"
 
 #include <aris/core/serialization.hpp>
 #include <aris/dynamic/model.hpp>
@@ -8,8 +8,8 @@
 #include "sire/integrator/integrator_base.hpp"
 
 namespace sire::simulator {
-ExplicitEulerIntegrator::ExplicitEulerIntegrator() : IntegratorBase(){};
-auto ExplicitEulerIntegrator::doStep(double dt) -> bool {
+SemiImplicitEulerIntegrator::SemiImplicitEulerIntegrator() : IntegratorBase(){};
+auto SemiImplicitEulerIntegrator::doStep(double dt) -> bool {
   SIRE_ASSERT(model_ptr_ != nullptr);
   SIRE_ASSERT(dt > 0.0);
   if (model_ptr_->forwardDynamics()) {
@@ -27,8 +27,8 @@ auto ExplicitEulerIntegrator::doStep(double dt) -> bool {
     aris::dynamic::s_pm2ps(pm_buffer, ps_buffer);
     // aris::dynamic::dsp(1, 6, as_buffer);
     for (sire::Size j = 0; j < kTwistSize; ++j) {
-      ps_buffer[j] += dt * vs_buffer[j];
       vs_buffer[j] += dt * as_buffer[j];
+      ps_buffer[j] += dt * vs_buffer[j];
     }
     aris::dynamic::s_ps2pm(ps_buffer, pm_buffer);
     part.setVs(vs_buffer);
@@ -52,7 +52,7 @@ auto ExplicitEulerIntegrator::doStep(double dt) -> bool {
   }
   return true;
 };
-auto ExplicitEulerIntegrator::integrate(double** diff_data_in,
+auto SemiImplicitEulerIntegrator::integrate(double** diff_data_in,
                                         double* old_result, double* result_out)
     -> bool {
   for (int i = 0; i < dataLength(); ++i) {
@@ -60,10 +60,10 @@ auto ExplicitEulerIntegrator::integrate(double** diff_data_in,
   }
   return true;
 };
-ARIS_DEFINE_BIG_FOUR_CPP(ExplicitEulerIntegrator);
+ARIS_DEFINE_BIG_FOUR_CPP(SemiImplicitEulerIntegrator);
 
 ARIS_REGISTRATION {
-  aris::core::class_<ExplicitEulerIntegrator>("ExplicitEulerIntegrator")
+  aris::core::class_<SemiImplicitEulerIntegrator>("SemiImplicitEulerIntegrator")
       .inherit<IntegratorBase>();
 }
 }  // namespace sire::simulator
