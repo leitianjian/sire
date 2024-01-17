@@ -24,15 +24,16 @@ auto SemiImplicitEulerIntegrator::doStep(double dt) -> bool {
     part.getAs(as_buffer);
     part.getVs(vs_buffer);
     part.getPm(pm_buffer);
-    aris::dynamic::s_pm2ps(pm_buffer, ps_buffer);
     // aris::dynamic::dsp(1, 6, as_buffer);
+    double temp_pm[16]{0}, pm_result[16]{0};
     for (sire::Size j = 0; j < kTwistSize; ++j) {
       vs_buffer[j] += dt * as_buffer[j];
-      ps_buffer[j] += dt * vs_buffer[j];
+      ps_buffer[j] = dt * vs_buffer[j];
     }
-    aris::dynamic::s_ps2pm(ps_buffer, pm_buffer);
+    aris::dynamic::s_ps2pm(ps_buffer, temp_pm);
+    aris::dynamic::s_pm_dot_pm(temp_pm, pm_buffer, pm_result);
     part.setVs(vs_buffer);
-    part.setPm(pm_buffer);
+    part.setPm(pm_result);
   }
 
   // 根据更新的杆件相关的信息更新Motion的值
