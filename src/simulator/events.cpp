@@ -78,15 +78,14 @@ auto process_penetration_depth_and_maintain_impact_set(
   std::vector<common::PenetrationAsPointPair> pairs;
   // 碰撞检测
   engine_ptr->cptPointPairPenetration(pairs);
-  // if (pairs.size() != 0) std::cout << "pair_depth=" << pairs.at(0).depth << "
-  // ";
-  // 1. 修改表二
-  // 根据碰撞信息，结合碰撞点的记录，更新表二的碰撞点记录和碰撞信息 depth -
-  // init_depth
+
   using ContactPairMap = std::unordered_map<core::SortedPair<sire::PartId>,
                                             core::ContactPairValue>;
   ContactPairMap& contact_pair_map = manager_ptr->contactPairMap();
-
+  // if (pairs.size() != 0) std::cout << "pair_depth=" << pairs.at(0).depth << "
+  // ";
+  // 1. 修改表二
+  // 根据碰撞信息结合碰撞点的记录更新表二的碰撞点记录和碰撞信息 depth-init_depth
   // Map中有的，vector中没有，就删除
   for (ContactPairMap::iterator it = contact_pair_map.begin();
        it != contact_pair_map.end();) {

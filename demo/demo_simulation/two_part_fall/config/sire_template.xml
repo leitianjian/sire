@@ -12,7 +12,7 @@
 					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{1, 0.1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="part_1" active="true" pe="{0,0.2,0,0.785398163397448,0,0.785398163397448}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{2,0,0,0,0.000833333333333878,0.0271,0.0271,0,0,0}">
+			<Part name="part_1" active="true" pe="{0,0.4,0,0.785398163397448,0,0.785398163397448}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{2,0,0,0,0.000833333333333878,0.0271,0.0271,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="joint_0_i" active="true" pe="{-0.2,-1.22464679914735e-17,0,3.06161699786838e-17,0,3.06161699786838e-17}"/>
 					<Marker name="joint_1_j" active="true" pe="{0.2,1.22464679914735e-17,0,3.06161699786838e-17,0,3.06161699786838e-17}"/>
@@ -21,7 +21,7 @@
 					<BoxGeometry id="1" part_id="1" is_dynamic="true" side="{0.4, 0.05, 0.05}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="part_2" active="true" pe="{0,0.6,0,0.785398163397448,0,0.785398163397448}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{2,0,0,0,0.000833333333333878,0.0271,0.0271,0,0,0}">
+			<Part name="part_2" active="true" pe="{0,0.8,0,0.785398163397448,0,0.785398163397448}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{2,0,0,0,0.000833333333333878,0.0271,0.0271,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="joint_1_i" active="true" pe="{-0.2,-1.22464679914735e-17,0,3.06161699786838e-17,0,3.06161699786838e-17}"/>
 					<Marker name="joint_2_j" active="true" pe="{0.2,1.22464679914735e-17,0,3.06161699786838e-17,0,3.06161699786838e-17}"/>
@@ -30,7 +30,7 @@
 					<BoxGeometry id="2" part_id="2" is_dynamic="true" side="{0.4, 0.05, 0.05}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="part_3" active="true" pe="{0,1,0,0.785398163397448,0,0.785398163397448}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{2,0,0,0,0.000833333333333878,0.0271,0.0271,0,0,0}">
+			<Part name="part_3" active="true" pe="{0,1.2,0,0.785398163397448,0,0.785398163397448}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{2,0,0,0,0.000833333333333878,0.0271,0.0271,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="joint_2_i" active="true" pe="{-0.2,-1.22464679914735e-17,0,3.06161699786838e-17,0,3.06161699786838e-17}"/>
 					<Marker name="general_motion_0_i" active="true" pe="{0.2,1.22464679914735e-17,0,-0,0,-0}"/>
@@ -45,9 +45,8 @@
 			<Motion name="motion_1" active="true" prt_m="part_3" prt_n="part_2" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0}" component="5" rotate_range="0" mp_offset="0" mp_factor="1" mp="{0}" mv="0" ma="0" frc_coe="{0,0,0}"/>
 		</MotionPoolElement>
 		<JointPoolElement __prop_name__="joint_pool">
-			<RevoluteJoint name="joint_0" active="true" prt_m="part_1" prt_n="ground" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0,0,0,0,0}"/>
-			<RevoluteJoint name="joint_1" active="true" prt_m="part_2" prt_n="part_1" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0,0,0,0,0}"/>
-			<RevoluteJoint name="joint_2" active="true" prt_m="part_3" prt_n="part_2" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0,0,0,0,0}"/>
+			<RevoluteJoint name="joint_0" active="true" prt_m="part_2" prt_n="part_1" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0,0,0,0,0}"/>
+			<RevoluteJoint name="joint_1" active="true" prt_m="part_3" prt_n="part_2" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0,0,0,0,0}"/>
 		</JointPoolElement>
 		<GeneralMotionPoolElement __prop_name__="general_motion_pool">
 			<GeneralMotion name="general_motion_0" active="true" prt_m="part_3" prt_n="ground" mak_i="general_motion_0_i" mak_j="general_motion_0_j" cf="{0,0,0,0,0,0}" pose_type="EULER321"/>
@@ -186,15 +185,11 @@
 			<SireForceControlTest name="fc_test">
 				<Command __prop_name__="command" name="FCTest"/>
 			</SireForceControlTest>
-			<SimulationWithAction name="sim_act">
-				<Command __prop_name__="command" name="sim_act">
-					<GroupParam>
-						<Param name="action" abbreviation="a" default="{0,0}"/>
-						<Param name="frame_skip" abbreviation="s" default="25"/>
-						<Param name="reset" abbreviation="r" default="0"/>
-					</GroupParam>
+			<ExecuteRTTest name="ExecuteRTTest_plan">
+				<Command __prop_name__="command" name="executeRT_test">
+					<Param name="count" abbreviation="c" default="5000"/>
 				</Command>
-			</SimulationWithAction>
+			</ExecuteRTTest>
 			<Display3dInit name="Display3dInit_plan">
 				<Command __prop_name__="command" name="display3d_init"/>
 			</Display3dInit>
@@ -205,13 +200,10 @@
 		<SireProgramWebInterface name="sire_program_websock_interface">
 			<Socket __prop_name__="socket" connect_type="WEB" port="5867"/>
 		</SireProgramWebInterface>
-		<WebInterface name="sire_program_websock_interface">
-			<Socket __prop_name__="socket" connect_type="WEB" port="5868"/>
-		</WebInterface>
-		<SireHttpInterface name="http_interface" document_root="E:\code\build" port="8001"/>
+		<SireHttpInterface name="http_interface" document_root="D:\Documents\code\RobotControllerHMI\client\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SimulatorBase __prop_name__="simulator" dt="0.001" global_variable_pool="{impact_threshold_insert:50000,impact_threshold_remove:10000,shrink_dt:0.0000001}">
+		<SimulatorBase __prop_name__="simulator" realtime_rate="1.0" dt="0.001" global_variable_pool="{impact_threshold_insert:5,impact_threshold_remove:0.2,shrink_dt:0.00001}">
 			<EventManager __prop_name__="event_manager">
 				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
 					<EventHandlerIdPair event_id="0" handler_id="0"/>
@@ -219,22 +211,26 @@
 				</EventHandlerPairPool>
 			</EventManager>
 		</SimulatorBase>
-		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="false" enable_contact_solver="false">
+		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
 			<CollisionDetection __prop_name__="collision_detection"/>
-			<ContinuousForceContactSolver __prop_name__="contact_solver" default_k="2.8e14" default_cr="0.5">
-				<MaterialManager default_prop="{k:1.4e14,d:1500,cr:0.2}">
+			<ContinuousForceContactSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
+				<MaterialManager default_prop="{k:1.4e8,d:1500,cr:0.2}">
 					<MaterialPairPropPool>
-						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:1e14,d:1000,cr:0.2}"/>
+						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2.8e8,d:1000,cr:0.2}"/>
 					</MaterialPairPropPool>
 				</MaterialManager>
 			</ContinuousForceContactSolver>
 			<GeometryPoolObject __prop_name__="dynamic_geometry_pool">
+				<BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="steel" contact_prop="{k:2.8e8,d:2000}" side="{1, 0.1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<BoxCollisionGeometry id="1" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="{0.4, 0.05, 0.05}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<BoxCollisionGeometry id="2" part_id="2" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="{0.4, 0.05, 0.05}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<BoxCollisionGeometry id="3" part_id="3" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="{0.4, 0.05, 0.05}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
 			</GeometryPoolObject>
-			<CollisionFilter __prop_name__="collision_filter" filter_state="{}"/>
+			<CollisionFilter __prop_name__="collision_filter" filter_state="{1,0,0,0, 0,1,1,0, 0,1,1,1, 0,0,1,1}"/>
 		</PhysicsEngine>
 		<SimulatorModules __prop_name__="simulator_modules">
 			<IntegratorPoolObject __prop_name__="integrator_pool">
-				<ExplicitEulerIntegrator/>
+				<SemiImplicitEulerIntegrator/>
 			</IntegratorPoolObject>
 			<SireSensorPoolObject __prop_name__="sensor_pool"/>
 		</SimulatorModules>

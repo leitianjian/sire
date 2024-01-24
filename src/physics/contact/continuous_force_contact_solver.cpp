@@ -97,9 +97,9 @@ auto ContinuousForceContactSolver::cptContactSolverResult(
     auto k = imp_->combineContactStiffness(
         contact_prop_A.getPropValueOrDefault("k", imp_->default_k_),
         contact_prop_B.getPropValueOrDefault("k", imp_->default_k_));
-    auto m =
-        imp_->combineContactMass(this->partPoolPtr()->at(pair.id_A).prtIv()[0],
-                                 this->partPoolPtr()->at(pair.id_B).prtIv()[0]);
+    auto m = imp_->combineContactMass(
+        this->partPoolPtr()->at(geometry_A->partId()).prtIv()[0],
+        this->partPoolPtr()->at(geometry_A->partId()).prtIv()[0]);
     double fn =
         k * pair.depth +
         2 * absLnCr * vn *
