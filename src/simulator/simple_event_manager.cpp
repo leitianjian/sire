@@ -153,7 +153,7 @@ auto SimpleEventManager::preprocessEvent(Event& e) -> bool {
         break;
     }
   }
-  // TODO(leitianjian): need to judge whether continou next;
+  // TODO(leitianjian): need to judge whether continuous next;
   return false;
 }
 auto SimpleEventManager::resolveStartEvent(Event& start_event) -> void {

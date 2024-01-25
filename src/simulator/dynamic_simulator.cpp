@@ -17,7 +17,7 @@ namespace sire {
 struct Simulator::Imp {
   Simulator* simulator_;
   aris::server::ControlServer& cs_;
-  std::thread retrieve_rt_pm_thead_;
+  std::thread retrieve_rt_pm_thread_;
   std::array<double, 7 * 16> link_pm_;
   std::array<double, 7 * 7> link_pq_;
   std::array<double, 7 * 6> link_pe_;
@@ -54,7 +54,7 @@ Simulator::Simulator(const std::string& cs_config_path) : imp_(new Imp(this)) {
     exit(1);
   }
 
-  imp_->retrieve_rt_pm_thead_ = std::thread(
+  imp_->retrieve_rt_pm_thread_ = std::thread(
       [](aris::server::ControlServer& cs, std::array<double, 7 * 16>& link_pm,
          std::mutex& mu_link_pm) {
         while (true) {
@@ -145,7 +145,7 @@ auto Simulator::instance(const std::string& cs_config_path) -> Simulator& {
 
 auto Simulator::SimPlan() -> void {
   // ·¢ËÍ·ÂÕæ¹ì¼£
-  if (imp_->retrieve_rt_pm_thead_.joinable()) {
+  if (imp_->retrieve_rt_pm_thread_.joinable()) {
     auto& cs = aris::server::ControlServer::instance();
     try {
       cs.executeCmd("ds");
@@ -182,7 +182,7 @@ auto Simulator::SimPlan() -> void {
 auto Simulator::SimPlan(std::vector<std::array<double, 6>> track_points)
     -> void {
   // ·¢ËÍ·ÂÕæ¹ì¼£
-  if (imp_->retrieve_rt_pm_thead_.joinable()) {
+  if (imp_->retrieve_rt_pm_thread_.joinable()) {
     auto& cs = aris::server::ControlServer::instance();
     try {
       cs.executeCmd("ds");

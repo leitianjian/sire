@@ -29,8 +29,8 @@ auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
 }
 auto CollidableGeometry::init() -> void {}
 CollidableGeometry::CollidableGeometry(const double* prt_pm, int part_id,
-                                       bool is_dyanmic)
-    : sire::geometry::GeometryOnPart(prt_pm, part_id, is_dyanmic) {}
+                                       bool is_dynamic)
+    : sire::geometry::GeometryOnPart(prt_pm, part_id, is_dynamic) {}
 CollidableGeometry::~CollidableGeometry() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(CollidableGeometry);
 
