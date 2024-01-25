@@ -15,14 +15,25 @@ auto Display3dInit::prepareNrt() -> void {
   for (auto& m : motorOptions()) m = aris::plan::Plan::NOT_CHECK_ENABLE;
   // get control server config of geometry in part pool
   nlohmann::json geo_pool;
+  sire::Size geometry_size = 0;
   // 取出 Part下面的每一个geometry
+  nlohmann::json geometry_pm;
   for (sire::Size i = 0; i < model()->partPool().size(); ++i) {
     nlohmann::json json;
     aris::dynamic::Part& part = model()->partPool().at(i);
+    std::array<double, 16> buffer;
     for (sire::Size j = 0; j < part.geometryPool().size(); ++j) {
       dynamic_cast<geometry::GeometryBase&>(part.geometryPool().at(j))
           .to_json(json);
       geo_pool.push_back(json);
+      aris::dynamic::s_vc(
+          16,
+          const_cast<double*>(
+              *dynamic_cast<geometry::GeometryBase&>(part.geometryPool().at(j))
+                   .pm()),
+          buffer.data());
+      geometry_pm.push_back(buffer);
+      ++geometry_size;
     }
   }
   // 设置part相关初始化的信息
@@ -44,6 +55,8 @@ auto Display3dInit::prepareNrt() -> void {
   SIRE_LOG << geo_pool << "yes" << std::endl;
   out_param.push_back(
       std::make_pair<std::string, std::any>("geometry_pool", geo_pool));
+  out_param.push_back(
+      std::make_pair<std::string, std::any>("geometry_pm", geometry_pm));
   out_param.push_back(
       std::make_pair<std::string, std::any>("part_pq_init", part_init_config));
   ret() = out_param;
