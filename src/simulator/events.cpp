@@ -82,8 +82,13 @@ auto process_penetration_depth_and_maintain_impact_set(
   using ContactPairMap = std::unordered_map<core::SortedPair<sire::PartId>,
                                             core::ContactPairValue>;
   ContactPairMap& contact_pair_map = manager_ptr->contactPairMap();
-  // if (pairs.size() != 0) std::cout << "pair_depth=" << pairs.at(0).depth << "
-  // ";
+  // if (pairs.size() != 0) {
+  //   for (auto& pair : pairs) {
+  //     if (pair.id_B == 1) {
+  //       std::cout << "pair_depth=" << pair.depth << " ";
+  //     }
+  //   }
+  // }
   // 1. 修改表二
   // 根据碰撞信息结合碰撞点的记录更新表二的碰撞点记录和碰撞信息 depth-init_depth
   // Map中有的，vector中没有，就删除
@@ -112,24 +117,32 @@ auto process_penetration_depth_and_maintain_impact_set(
     } else {
       auto& contact_pair_value = contact_pair_map[{pair.id_A, pair.id_B}];
       pair.depth -= contact_pair_value.init_penetration_depth_;
-      if (contact_pair_value.is_depth_smaller_than_init_depth_) {
-        // 更新initial depth
+      if (pair.depth < 0) {
+        // 更新记录的初始穿深
         contact_pair_value.init_penetration_depth_ += pair.depth;
-        // 如果又开始接触，需要开始处理
-        if (pair.depth > 0) {
-          contact_pair_value.is_depth_smaller_than_init_depth_ = false;
-          new_contacts_ptr.push_back(&pair);
-        } else {
-          // 将depth一直设置为零，并更新记录的initial depth
-          pair.depth = 0;
-        }
-      } else {
-        // 修改已经在表二中的点的穿深（已经清理过不在vector中的记录）
-        if (pair.depth < 0) {
-          contact_pair_value.is_depth_smaller_than_init_depth_ = true;
-          contact_pair_value.init_penetration_depth_ += pair.depth;
-        }
+        // 将穿深设置为0，受到重力
+        pair.depth = 0;
+        // 记录为新的碰撞点
+        // new_contacts_ptr.push_back(&pair);
       }
+      // if (contact_pair_value.is_depth_smaller_than_init_depth_) {
+      //   // 更新initial depth
+      //   // 如果又开始接触，需要开始处理
+      //   if (pair.depth > 0) {
+      //     contact_pair_value.is_depth_smaller_than_init_depth_ = false;
+      //     new_contacts_ptr.push_back(&pair);
+      //   } else {
+      //     // 将depth一直设置为零，并更新记录的initial depth
+      //     contact_pair_value.init_penetration_depth_ += pair.depth;
+      //     pair.depth = 0;
+      //   }
+      // } else {
+      //   // 修改已经在表二中的点的穿深（已经清理过不在vector中的记录）
+      //   if (pair.depth < 0) {
+      //     contact_pair_value.is_depth_smaller_than_init_depth_ = true;
+      //     contact_pair_value.init_penetration_depth_ += pair.depth;
+      //   }
+      // }
     }
   }
   // if (contact_pair_map.size() != 0) {
@@ -171,28 +184,27 @@ auto process_penetration_depth_and_maintain_impact_set(
     if (prt_impact_result[i] < impact_threshold_remove)
       impact_prts_remove.insert(i);
   }
+  impact_prts_remove.erase(simulator_ptr->model()->ground().id());
   // 2. 修改表一（添加新的prt）
   using ImpactedPrtSet = std::unordered_set<sire::PartId>;
   ImpactedPrtSet& impacted_prt_set = manager_ptr->impactedPrtSet();
   for (sire::PartId impact_prt : impact_prts_insert) {
-    // 0. 产生过大冲击的杆件被记录了
-    if (simulator_ptr->contactPairManager()->hasImpactedPrt(impact_prt)) {
-      // 不需要做任何操作
-    }
-    // 1. 过大冲击的杆件没有被记录
-    else {
-      // 需要检测碰撞列表是否有新的碰撞需要加入，如果没有就不需要记录杆件（修改表1）
-      // 修改表一
-      if (auto search = std::find_if(
-              contact_info.begin(), contact_info.end(),
-              [&impact_prt](common::PointPairContactInfo& contact) {
-                return contact.partId_A() == impact_prt ||
-                       contact.partId_B() == impact_prt;
-              });
-          search != contact_info.end()) {
-        impacted_prt_set.insert(impact_prt);
-      }
-    }
+    impacted_prt_set.insert(impact_prt);
+    // if (!simulator_ptr->contactPairManager()->hasImpactedPrt(impact_prt)) {
+    //   // 1. 过大冲击的杆件没有被记录
+    //   //
+    //   需要检测碰撞列表是否有新的碰撞需要加入，如果没有就不需要记录杆件（修改表1）
+    //   // 修改表一
+    //   if (auto search = std::find_if(
+    //           contact_info.begin(), contact_info.end(),
+    //           [&impact_prt](common::PointPairContactInfo& contact) {
+    //             return contact.partId_A() == impact_prt ||
+    //                    contact.partId_B() == impact_prt;
+    //           });
+    //       search != contact_info.end()) {
+    //     impacted_prt_set.insert(impact_prt);
+    //   }
+    // }
   }
   // 3. 修改表一（移除记录）
   for (ImpactedPrtSet::iterator it = impacted_prt_set.begin();
@@ -267,11 +279,9 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   double dt = e->eventProp().getPropValue("dt");
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);
-  // if (dt == 0.0000001) std::cout << "dt=" << dt << " ";
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
   process_penetration_depth_and_maintain_impact_set(simulator_ptr);
-
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
   step_event->eventProp().addProp(
@@ -326,6 +336,7 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
   // 积分到当前event记录的时间
   double dt = e->eventProp().getPropValue("dt");
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
+  // std::cout << "dt=" << dt << " ";
   simulator_ptr->timer().updateSimTime(dt);
   // if (dt == 0.0000001) std::cout << "dt=" << dt << " ";
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
@@ -334,6 +345,7 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
     manager_ptr->contactPairMap().clear();
   }
   process_penetration_depth_and_maintain_impact_set(simulator_ptr);
+  // std::cout << std::endl;
 
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);

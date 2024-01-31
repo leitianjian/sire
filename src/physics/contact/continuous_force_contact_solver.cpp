@@ -81,6 +81,10 @@ auto ContinuousForceContactSolver::cptContactSolverResult(
   for (int i = 0; i < penetration_pairs.size(); ++i) {
     const common::PenetrationAsPointPair& pair = penetration_pairs[i];
     if (pair.depth <= 0) {
+      // double vn = physicsEnginePtr()->cptProximityVelocity(pair);
+      // if (pair.id_B == 1) {
+      //   std::cout << " vn=" << vn << " fn1=" << result.fn[i] << " ";
+      // }
       result.fn[i] = 0;
       continue;
     }
@@ -106,6 +110,9 @@ auto ContinuousForceContactSolver::cptContactSolverResult(
             std::sqrt((k * m) / (sire::PI * sire::PI + absLnCr * absLnCr));
     // result.fn[i] = fn < 0 ? 0 : fn;
     result.fn[i] = fn;
+    // if (pair.id_B == 1) {
+    //   std::cout << " vn=" << vn << " fn1=" << result.fn[i] << " ";
+    // }
     // std::cout << "kx=" << k * pair.depth << " vn=" << vn
     //           << " fn1=" << result.fn[i] << " ";
   }
