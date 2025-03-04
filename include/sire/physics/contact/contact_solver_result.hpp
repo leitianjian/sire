@@ -21,6 +21,7 @@ struct ContactSolverResult {
     vn.resize(num_contacts, 0);
     vt.resize(2 * num_contacts, 0);
   }
+  double dt{-1};
   // 下一时刻的速度旋量
   std::vector<double> vs_next;
   // 法向接触力

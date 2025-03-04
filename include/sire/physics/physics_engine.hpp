@@ -15,9 +15,15 @@
 #include "sire/physics/physics.hpp"
 
 namespace sire {
+namespace simulator {
+class SimulationLoop;
+};
 namespace physics {
 class SIRE_API PhysicsEngine {
  public:
+  auto currentModel() const -> aris::dynamic::Model*;
+  auto resetSimLoopPtr(simulator::SimulationLoop* simLoop) -> void;
+  auto simLoopPtr() -> simulator::SimulationLoop*;
   // Config get set method
   auto collisionDetectionFlag() const -> bool;
   auto setCollisionDetectionFlag(bool flag) -> void;
@@ -67,10 +73,16 @@ class SIRE_API PhysicsEngine {
 
   // continuous collision detection
   // will insert some time value which should be processed.
-  auto continuousCollisionDetection() -> void{};
+  auto continuousCollisionDetection() -> void {};
 
   // compute contact wrench of model
-  auto cptModelContactWrench() -> void{};
+  auto cptModelContactWrench() -> void {};
+
+  auto setContactForceIdxSize(int contact_force_idx,
+                              sire::Size contact_force_size) -> void;
+
+  // deactive all contact force
+  auto activateContactForce(bool flag = true) -> void;
 
   // compute point pair penetration and get result
   auto cptPointPairPenetration(
@@ -96,7 +108,7 @@ class SIRE_API PhysicsEngine {
 
   // engine state control
   auto doInit() -> void;
-  auto init() -> void;
+  auto init(simulator::SimulationLoop* simLoopPtr = nullptr) -> void;
   auto initByModel(aris::dynamic::Model* m) -> void;
 
   // this prt_pm represent the pose of geometry on part coordinate
@@ -121,7 +133,7 @@ class SIRE_API PhysicsEngine {
 
   auto cptContactInfo(
       const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      std::vector<common::PointPairContactInfo>& contact_info) -> bool;
+      std::vector<common::PointPairContactInfo>& contact_info) -> double;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
 

@@ -41,6 +41,8 @@ struct SimulationLoop::Imp {
   core::ContactPairManager contact_pair_manager_;
 
   core::Timer timer_;
+  simulator::Recorder recorder_;
+  double simDuration_{60};
 
   // all time represent in seconds;
   double dt_;
@@ -136,6 +138,9 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   });
 }
 auto SimulationLoop::timer() -> core::Timer& { return imp_->timer_; }
+auto SimulationLoop::recorder() -> simulator::Recorder& {
+  return imp_->recorder_;
+}
 auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
   for (sire::Size i = 0; i < frame_skip; ++i) {
     // Get header event pointer
@@ -177,10 +182,12 @@ auto SimulationLoop::start() -> void {
   imp_->is_simulation_running_.store(true);
   imp_->simulation_thread = std::thread([this]() {
     while (imp_->is_simulation_running_ &&
+           imp_->timer_.simTime() < imp_->simDuration_ &&
            imp_->event_manager_->isEventListEmpty()) {
       step(1, true);
     }
-  });
+    std::cout << imp_->recorder_.records.size() << std::endl;
+});
 }
 auto SimulationLoop::isRunning() -> bool {
   return imp_->is_simulation_running_.load();
@@ -311,6 +318,10 @@ auto SimulationLoop::realtimeRate() -> double {
 auto SimulationLoop::setRealtimeRate(double rate) -> void {
   imp_->timer_.setRealtimeRate(rate);
 }
+auto SimulationLoop::simDuration() -> double { return imp_->simDuration_; }
+auto SimulationLoop::setSimDuration(double simDuration) -> void {
+  imp_->simDuration_ = simDuration;
+}
 auto SimulationLoop::setGlobalVariablePool(core::PropMap& pool) -> void {
   imp_->global_variable_pool_ = pool;
 }
@@ -319,6 +330,8 @@ auto SimulationLoop::getGlobalVariablePool() const -> const core::PropMap& {
 }
 auto SimulationLoop::reset() -> void {
   imp_->contact_pair_manager_.contactPairMap().clear();
+  imp_->timer_.reset();
+  imp_->recorder_.reset();
 }
 
 ARIS_REGISTRATION {
@@ -335,6 +348,8 @@ ARIS_REGISTRATION {
       .prop("dt", &SimulationLoop::setDeltaT, &SimulationLoop::deltaT)
       .prop("realtime_rate", &SimulationLoop::setRealtimeRate,
             &SimulationLoop::realtimeRate)
+      .prop("sim_duration", &SimulationLoop::setSimDuration,
+            &SimulationLoop::simDuration)
       .prop("global_variable_pool", &setGlobalVariablePool,
             &getGlobalVariablePool)
       .prop("event_manager", &SimulationLoop::resetEventManager,

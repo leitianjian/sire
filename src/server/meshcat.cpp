@@ -202,23 +202,23 @@ class SceneTreeElement {
   }
 
   // Sends the entire tree on `ws`.
-  // void Send(WebSocket* ws) {
-  //   if (object_) {
-  //     ws->send(*object_);
-  //   }
-  //   if (transform_) {
-  //     ws->send(*transform_);
-  //   }
-  //   for (const auto& [property, msg] : properties_) {
-  //     unused(property);
-  //     ws->send(msg);
-  //   }
+  void Send(WebSocket* ws) {
+    if (object_) {
+      ws->send(*object_);
+    }
+    if (transform_) {
+      ws->send(*transform_);
+    }
+    for (const auto& [property, msg] : properties_) {
+      unused(property);
+      ws->send(msg);
+    }
 
-  //   for (const auto& [name, child] : children_) {
-  //     unused(name);
-  //     child->Send(ws);
-  //   }
-  // }
+    for (const auto& [name, child] : children_) {
+      unused(name);
+      child->Send(ws);
+    }
+  }
 
   // TODO: 考虑怎么实现static_html生成的问题，或许react可以用别的方法。
   //  Returns a string which implements the entire tree directly in javascript.

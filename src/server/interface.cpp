@@ -149,6 +149,100 @@ auto onLoseConnection(aris::core::Socket* socket) -> int {
 }
 
 #define ARIS_PRO_COUT ARIS_COUT << "pro "
+
+struct MeshcatInterface::Imp
+{
+  std::unique_ptr<aris::core::Socket> sock_{ new aris::core::Socket };
+
+  std::function<int(aris::core::Socket*, aris::core::Msg &)> onReceiveMsg_;
+  std::function<int(aris::core::Socket*, const char *data, int size)> onReceiveConnection_;
+  std::function<int(aris::core::Socket*)> onLoseConnection_;
+};
+auto MeshcatInterface::resetSocket(aris::core::Socket *sock)->void
+{
+  imp_->sock_.reset(sock);
+  socket().setOnReceivedMsg(imp_->onReceiveMsg_);
+  socket().setOnReceivedConnection(imp_->onReceiveConnection_);
+  socket().setOnLoseConnection(imp_->onLoseConnection_);
+}
+auto MeshcatInterface::socket()->aris::core::Socket& { return *imp_->sock_; }
+auto MeshcatInterface::open()->void { socket().startServer(); }
+auto MeshcatInterface::close()->void { socket().stop(); }
+auto MeshcatInterface::isConnected() const->bool { return imp_->sock_->isConnected(); }
+MeshcatInterface::~MeshcatInterface() = default;
+MeshcatInterface::MeshcatInterface(const std::string &name, const std::string &port, aris::core::Socket::Type type):Interface(name), imp_(new Imp)
+{
+  imp_->onReceiveMsg_ = [this](aris::core::Socket *socket, aris::core::Msg &msg)->int {
+    auto send_ret = [socket, msg](std::string str)->void {
+      try
+      {
+        aris::core::Msg ret_msg(msg);
+        ret_msg.copy(str);
+        socket->sendMsg(ret_msg);
+      }
+      catch (std::exception &e)
+      {
+        ARIS_COUT << e.what() << std::endl;
+        //LOG_ERROR << e.what() << std::endl;
+      }
+    };
+      
+    //LOG_INFO << this->name() << "receive cmd:"
+    //	<< msg.header().msg_size_ << "&"
+    //	<< msg.header().msg_id_ << "&"
+    //	<< msg.header().msg_type_ << "&"
+    //	<< msg.header().reserved1_ << "&"
+    //	<< msg.header().reserved2_ << "&"
+    //	<< msg.header().reserved3_ << ":"
+    //	<< std::string_view(msg.data(), msg.size()) << std::endl;
+
+    aris::server::ControlServer::instance().middleWare().executeCmd(std::string_view(msg.data(), msg.size()), send_ret, dynamic_cast<Interface*>(this));
+
+    return 0;
+  };
+  
+  imp_->onReceiveConnection_ = [this](aris::core::Socket *socket, const char *ip, int port)->int {
+    ARIS_COUT << this->name() << " receive connection" << std::endl;
+    //LOG_INFO << this->name() << " receive connection:\n"
+    //	<< std::setw(aris::core::LOG_SPACE_WIDTH) << "|" << "  ip:" << ip << "\n"
+    //	<< std::setw(aris::core::LOG_SPACE_WIDTH) << "|" << "port:" << port << std::endl;
+
+    // for (const auto &[priority, cbk] : aris::server::Interface::imp_->on_connecteds_) {
+    //   cbk(this);
+    // }
+
+    return 0;
+  };
+
+  imp_->onLoseConnection_ = [this](aris::core::Socket *socket)->int {
+    ARIS_COUT << this->name() << " lose connection" << std::endl;
+    //LOG_INFO << this->name() << " lose connection" << std::endl;
+    for (;;)
+    {
+      try
+      {
+        socket->startServer(socket->port());
+        break;
+      }
+      catch (std::runtime_error &e)
+      {
+        ARIS_COUT << e.what() << std::endl << this->name() << " will try to restart server socket in 1s" << std::endl;
+        //LOG_ERROR << e.what() << std::endl << this->name() << " will try to restart server socket in 1s" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+    }
+    ARIS_COUT << this->name() << " restart successful" << std::endl;
+    //LOG_INFO << this->name() << " restart successful" << std::endl;
+
+    return 0;
+  };
+
+  resetSocket(new aris::core::Socket("socket", "", port, type));
+  socket().setOnReceivedMsg(imp_->onReceiveMsg_);
+  socket().setOnReceivedConnection(imp_->onReceiveConnection_);
+  socket().setOnLoseConnection(imp_->onLoseConnection_);
+}
+
 struct ProgramWebInterface::Imp {
   std::unique_ptr<aris::core::Socket> sock_{new aris::core::Socket};
 

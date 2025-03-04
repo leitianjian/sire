@@ -75,15 +75,16 @@ def replace_string_in_win(file_path):
     :param new_string: The string to replace with
     """
     original_string = 'set(CMAKE_INSTALL_PREFIX "C:/aris/aris-${CMAKE_PROJECT_VERSION}")'
-    new_string = 'get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)' + '\n' + '  set(CMAKE_INSTALL_PREFIX "${PARENT_DIR}/install/aris/Release")'
+    # new_string = 'get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)' + '\n' + '  set(CMAKE_INSTALL_PREFIX "${PARENT_DIR}/install/aris/Release")'
+    new_string = 'get_filename_component(PARENT_DIR ${CMAKE_CURRENT_SOURCE_DIR} DIRECTORY)'
 
     try:
-        with open(file_path, 'r', encoding='utf-8') as file:
+        with open(file_path, 'r', encoding='gb2312') as file:
             file_contents = file.read()
         
         new_contents = file_contents.replace(original_string, new_string)
         
-        with open(file_path, 'w', encoding='utf-8') as file:
+        with open(file_path, 'w', encoding='gb2312') as file:
             file.write(new_contents)
         
         print(f"Successfully replaced '{original_string}' with '{new_string}' in {file_path}")

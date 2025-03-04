@@ -1,7 +1,13 @@
 #include "sire/physics/physics_engine.hpp"
 
+#include <algorithm>
+#include <map>
+
+#include "log/easyloggingConfig.hpp"
+
 #include <aris/core/reflection.hpp>
 #include <aris/core/serialization.hpp>
+#include <aris/dynamic/math_matrix.hpp>
 #include <aris/dynamic/model.hpp>
 #include <aris/dynamic/model_interaction.hpp>
 #include <aris/server/control_server.hpp>
@@ -19,6 +25,20 @@
 
 namespace sire::physics {
 using namespace std;
+// 在创建的时候记录 fce 的激活状态
+// 并在销毁的时候将记录的状态设置回去，放置在方法调用时放置过程中修改导致的状态不一致
+class FceActiveStateRecorder {
+ public:
+  std::vector<bool> fce_active_;
+  aris::dynamic::Model* model_;
+
+  FceActiveStateRecorder(aris::dynamic::Model* model) : model_(model) {
+    for (auto& fce : model_->forcePool()) fce_active_.push_back(fce.active());
+  }
+  ~FceActiveStateRecorder() {
+    for (auto& fce : model_->forcePool()) fce.activate(fce_active_[fce.id()]);
+  }
+};
 struct PhysicsEngine::Imp {
   // Config options which should determined before init() called
   // Collision detection method enabled options
@@ -44,9 +64,13 @@ struct PhysicsEngine::Imp {
   // Useful pointer and information from outer module
   std::string initial_model_config_{};
   aris::dynamic::Model* model_ptr_{nullptr};
+  // middleware::SireMiddleware* middleware_ptr_{nullptr};
+  simulator::SimulationLoop* simulation_loop_ptr_{nullptr};
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_{nullptr};
   sire::Size part_size_{0};
+  int contact_force_idx_{0};
+  sire::Size contact_force_size_{0};
 
   Imp()
       : collision_detection_flag_(false),
@@ -91,10 +115,11 @@ auto PhysicsEngine::doInit() -> void {
     imp_->contact_solver_->init(this);
   }
 }
-auto PhysicsEngine::init() -> void {
+auto PhysicsEngine::init(simulator::SimulationLoop* simLoopPtr) -> void {
   // 初始化Model与ControlServer相关的指针
   imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
       &aris::server::ControlServer::instance().model());
+    imp_->simulation_loop_ptr_ = simLoopPtr;
   saveInitialModel(*imp_->model_ptr_);
   doInit();
 }
@@ -102,6 +127,16 @@ auto PhysicsEngine::initByModel(aris::dynamic::Model* m) -> void {
   SIRE_DEMAND(m != nullptr);
   imp_->model_ptr_ = m;
   doInit();
+}
+auto PhysicsEngine::currentModel() const -> aris::dynamic::Model* {
+  return imp_->model_ptr_;
+}
+auto PhysicsEngine::resetSimLoopPtr(simulator::SimulationLoop* simLoop)
+    -> void {
+  imp_->simulation_loop_ptr_ = simLoop;
+}
+auto PhysicsEngine::simLoopPtr() -> simulator::SimulationLoop* {
+  return imp_->simulation_loop_ptr_;
 }
 auto PhysicsEngine::collisionDetectionFlag() const -> bool {
   return imp_->collision_detection_flag_;
@@ -154,8 +189,8 @@ auto PhysicsEngine::anchoredObjectsMap()
   return imp_->anchored_objects_map_;
 }
 auto PhysicsEngine::addSphereGeometry(double radius, int part_id,
-                                      const double* prt_pm, bool is_dynamic)
-    -> bool {
+                                      const double* prt_pm,
+                                      bool is_dynamic) -> bool {
   imp_->geometry_pool_->add<geometry::SphereCollisionGeometry>(
       radius, part_id, prt_pm, is_dynamic);
   return true;
@@ -234,8 +269,8 @@ auto PhysicsEngine::cptProximityVelocity(
 }
 auto PhysicsEngine::cptTangentialVelocity(
     const common::PenetrationAsPointPair& penetration,
-    const std::array<double, 16>& T_contact, std::array<double, 2>& vt)
-    -> void {
+    const std::array<double, 16>& T_contact,
+    std::array<double, 2>& vt) -> void {
   double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
   auto* geometry_A = queryGeometryPoolById(penetration.id_A);
   auto* geometry_B = queryGeometryPoolById(penetration.id_B);
@@ -245,12 +280,11 @@ auto PhysicsEngine::cptTangentialVelocity(
   aris::dynamic::s_vs2vp(vs_A, penetration.p_WC.data(), vel_A);
   aris::dynamic::s_vs2vp(vs_B, penetration.p_WC.data(), vel_B);
   aris::dynamic::s_vs(3, vel_A, vel_B);
-  return;
 }
 auto PhysicsEngine::cptContactVelocityB2A(
     const common::PenetrationAsPointPair& penetration,
-    const std::array<double, 16>& T_contact, std::array<double, 3>& v_contact)
-    -> void {
+    const std::array<double, 16>& T_contact,
+    std::array<double, 3>& v_contact) -> void {
   double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
   auto* geometry_A = queryGeometryPoolById(penetration.id_A);
   auto* geometry_B = queryGeometryPoolById(penetration.id_B);
@@ -261,13 +295,23 @@ auto PhysicsEngine::cptContactVelocityB2A(
   aris::dynamic::s_vs2vp(vs_B, penetration.p_WC.data(), vel_B);
   aris::dynamic::s_vs(3, vel_A, vel_B);
   aris::dynamic::s_inv_pm_dot_v3(T_contact.data(), vel_B, v_contact.data());
-  return;
+}
+
+auto PhysicsEngine::setContactForceIdxSize(
+    int contact_force_idx, sire::Size contact_force_size) -> void {
+  imp_->contact_force_idx_ = contact_force_idx;
+  imp_->contact_force_size_ = contact_force_size;
+}
+
+auto PhysicsEngine::activateContactForce(bool flag) -> void {
+  auto& force_pool = imp_->model_ptr_->forcePool();
+  for (int j{0}; j < imp_->contact_force_size_; ++j)
+    force_pool[j + imp_->contact_force_idx_].activate(flag);
 }
 auto PhysicsEngine::cptPointPairPenetration(
     std::vector<common::PenetrationAsPointPair>& pairs) -> void {
   imp_->collision_detection_->computePointPairPenetration(pairs);
 }
-
 auto PhysicsEngine::resetContactSolver(
     contact::ContactSolver* contact_solver_in) -> void {
   imp_->contact_solver_.reset(contact_solver_in);
@@ -307,7 +351,7 @@ auto PhysicsEngine::computePointPairPenetration()
 }
 auto PhysicsEngine::cptContactInfo(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    std::vector<common::PointPairContactInfo>& contact_info) -> bool {
+    std::vector<common::PointPairContactInfo>& contact_info) -> double {
   const sire::Size num_contacts = penetration_pairs.size();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
@@ -354,11 +398,11 @@ auto PhysicsEngine::cptContactInfo(
     aris::dynamic::s_pm2pe(T_C_vec.at(i).data(), pe_C);
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
-
+    // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
     contact_info.push_back(
         {partId_A, partId_B, fs, pe_C, separation_speed, slip_speed, pair});
   }
-  return true;
+  return solver_result.dt;
 }
 auto PhysicsEngine::initPartContactForce2Model() -> void {
   // 初始化并使Model的ForcePool符合条件
@@ -374,12 +418,14 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
   force_pool.clear();
+  // TODO: 这种写法有很大的问题。关于外力不能这样调整
   for (int i = 0; i < motion_size; ++i) {
     auto& force = force_pool.add<SingleComponentForce>(
         std::string("mf_" + std::to_string(i)), motion_pool.at(i).makI(),
         motion_pool.at(i).makJ(), 5);
     force.setFce(0);
   }
+  imp_->contact_force_idx_ = motion_size;
   for (int i = 0; i < part_size; ++i) {
     auto& force = force_pool.add<GeneralForce>(
         std::string("cf_" + std::to_string(i)),
@@ -387,6 +433,7 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
         &part_pool.at(imp_->model_ptr_->ground().id()).markerPool().at(1));
     force.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
+  imp_->contact_force_size_ = force_pool.size() - imp_->contact_force_idx_;
 }
 auto PhysicsEngine::resetPartContactForce() -> void {
   using aris::dynamic::GeneralForce;
@@ -404,16 +451,15 @@ auto PhysicsEngine::resetPartContactForce() -> void {
         .setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
 }
-auto PhysicsEngine::saveInitialModel(aris::dynamic::Model& model) -> void{
+auto PhysicsEngine::saveInitialModel(aris::dynamic::Model& model) -> void {
   imp_->initial_model_config_ = aris::core::toXmlString(model);
 }
-auto PhysicsEngine::resetInitialModel() -> void{
+auto PhysicsEngine::resetInitialModel() -> void {
   aris::core::fromXmlString(*imp_->model_ptr_, imp_->initial_model_config_);
   imp_->model_ptr_->init();
   imp_->part_pool_ptr_ = &imp_->model_ptr_->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
   imp_->contact_solver_->init(this);
-  // imp_->model_ptr_->init();
 }
 
 auto PhysicsEngine::cptGlbForceByContactInfo(

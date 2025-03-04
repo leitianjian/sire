@@ -95,10 +95,10 @@ GTEST_TEST(Motion, axis_of_motion) {
 //   // 添加两个求解器，并为求解器分配内存。注意，求解器一但分配内存后，请不要再添加或删除杆件、关节、驱动、末端等所有元素
 //   auto& inverse_kinematic_solver =
 //       model.solverPool().add<aris::dynamic::InverseKinematicSolver>();
-//   auto& inverse_dynamic_solver =
-//       model.solverPool().add<aris::dynamic::InverseDynamicSolver>();
 //   auto& forward_kinematic_solver =
 //       model.solverPool().add<aris::dynamic::ForwardKinematicSolver>();
+//   auto& inverse_dynamic_solver =
+//       model.solverPool().add<aris::dynamic::InverseDynamicSolver>();
 //   auto& forward_dynamic_solver =
 //       model.solverPool().add<aris::dynamic::ForwardDynamicSolver>();
 

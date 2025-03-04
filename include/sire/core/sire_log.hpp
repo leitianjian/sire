@@ -2,8 +2,8 @@
 #define SIRE_LOG_HPP_
 
 #include <filesystem>
-#include <string>
 #include <fstream>
+#include <string>
 
 #include <aris/core/log.hpp>
 

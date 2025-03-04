@@ -17,21 +17,20 @@ auto ExplicitEulerIntegrator::doStep(double dt) -> bool {
     return false;
   }
   // 对于每个Part，从as积分到vs之后积分到ps，并设置回去
-  double as_buffer[6]{0}, vs_buffer[6]{0}, pm_buffer[16]{0}, ps_buffer[6]{0};
-
+  double vs_buffer[6]{0}, ps_buffer[6]{0};
+  const double* as; const double* pm;
   for (sire::Size i = 0; i < part_pool_length_; ++i) {
     auto& part = model_ptr_->partPool()[i];
-    part.getAs(as_buffer);
+    as = part.as();
+    pm = *part.pm();
     part.getVs(vs_buffer);
-    part.getPm(pm_buffer);
-    // aris::dynamic::dsp(1, 6, as_buffer);
     double temp_pm[16]{0}, pm_result[16]{0};
     for (sire::Size j = 0; j < kTwistSize; ++j) {
       ps_buffer[j] = dt * vs_buffer[j];
-      vs_buffer[j] += dt * as_buffer[j];
+      vs_buffer[j] += dt * as[j];
     }
     aris::dynamic::s_ps2pm(ps_buffer, temp_pm);
-    aris::dynamic::s_pm_dot_pm(temp_pm, pm_buffer, pm_result);
+    aris::dynamic::s_pm_dot_pm(temp_pm, pm, pm_result);
     part.setVs(vs_buffer);
     part.setPm(pm_result);
   }

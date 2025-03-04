@@ -17,6 +17,7 @@ endif(WIN32 AND NOT DEFINED CMAKE_INSTALL_PREFIX)
 if(WIN32)
 	add_definitions(-D_SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING -D_CRT_SECURE_NO_WARNINGS)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4251 /wd4819")
+	add_definitions(${CMAKE_CXX_FLAGS})
 endif(WIN32)
 
 include(cmake_macros/base.cmake)
@@ -54,6 +55,7 @@ target_sources(sire_core
 		#"src/core/init_trigger.cpp"
 		"src/core/nice_type_name.cpp"
 		"src/core/timer.cpp"
+		"src/core/sire_fixed_joint.cpp"
 		"src/core/geometry/shape_base.cpp"
 		"src/core/geometry/shape_calculator.cpp"
 		"src/core/geometry/box_shape.cpp"
@@ -89,6 +91,7 @@ target_sources(sire_core
 		"include/sire/core/material_pair_prop.hpp"
 		"include/sire/core/material_manager.hpp"
 		"include/sire/core/nice_type_name.hpp"
+		"include/sire/core/sire_fixed_joint.hpp"
 		"include/sire/core/geometry/shape_base.hpp"
 		"include/sire/core/geometry/shape_calculator.hpp"
 		"include/sire/core/geometry/sphere_shape.hpp"
@@ -112,6 +115,8 @@ target_include_directories(sire_core
 	)
 install(DIRECTORY include/sire/core DESTINATION include/sire)
 
+add_subdirectory(src/log)
+
 # TODO(ltj)  Physics cmakelist to sub-directory
 # Build lib physics of sire
 add_library(sire_physics OBJECT)
@@ -133,6 +138,7 @@ target_sources(sire_physics
 		"src/physics/contact/contact_solver.cpp"
 		"src/physics/contact/stiffness_damping_contact_solver.cpp"
 		"src/physics/contact/continuous_force_contact_solver.cpp"
+		"src/physics/contact/avg_force_contact_solver.cpp"
 		"src/physics/collision/collision_detection.cpp"
 		"src/physics/collision/collision_filter.cpp"
 		"src/physics/collision/collision_exists_callback.cpp"
@@ -151,6 +157,7 @@ target_sources(sire_physics
 		"include/sire/physics/contact/contact_solver.hpp"
 		"include/sire/physics/contact/stiffness_damping_contact_solver.hpp"
 		"include/sire/physics/contact/continuous_force_contact_solver.hpp"
+		"include/sire/physics/contact/avg_force_contact_solver.hpp"
 		"include/sire/physics/contact/contact_solver_result.hpp"
 		"include/sire/physics/collision/collision_detection.hpp"
 		"include/sire/physics/collision/collision_filter.hpp"
@@ -219,11 +226,13 @@ target_compile_options(sire_simulator
 target_compile_features(sire_simulator PUBLIC cxx_std_17)
 target_sources(sire_simulator 
 	PRIVATE 
+		"src/simulator/recorder.cpp"
 		"src/simulator/simulation_loop.cpp"
 		"src/simulator/events.cpp"
 		"src/simulator/simulation_result.cpp"
 		"src/simulator/simulator_modules.cpp"
 	PUBLIC 
+	  "include/sire/simulator/recorder.hpp"
 		"include/sire/simulator/simulation_loop.hpp"
 		"include/sire/simulator/events.hpp"
 		"include/sire/simulator/simulation_result.hpp"
@@ -267,6 +276,8 @@ target_sources(sire_server
 		"src/server/mongoose.h"
 		"src/server/md5.cpp"
 		"src/server/md5.h"
+		"src/server/sha1.cpp"
+		"src/server/sha1.h"
 		"src/server/base64.cpp"
 		"src/server/base64.hpp"
 		# "src/server/sire_socket_server.cpp"
@@ -359,6 +370,7 @@ install(DIRECTORY include/sire/sensor DESTINATION include/sire)
 add_library(sire_lib 
 	SHARED 
 		$<TARGET_OBJECTS:sire_core>
+		$<TARGET_OBJECTS:sire_log>
 		$<TARGET_OBJECTS:sire_middleware>
 		$<TARGET_OBJECTS:sire_physics>
 		$<TARGET_OBJECTS:sire_integrator>

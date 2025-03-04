@@ -17,6 +17,7 @@
 #include "sire/integrator/integrator_base.hpp"
 #include "sire/physics/physics_engine.hpp"
 #include "sire/sensor/sensor.hpp"
+#include "sire/simulator/recorder.hpp"
 
 namespace sire {
 namespace middleware {
@@ -96,7 +97,9 @@ class SIRE_API SimulationLoop {
       std::any& get_data) -> void;
 
   auto timer() -> core::Timer&;
-
+  auto recorder() -> simulator::Recorder&;
+  auto simDuration() -> double;
+  auto setSimDuration(double simDuration) -> void;
   // TODO(leitianjian)：
   //   可以使用更有效率的方式，restore只需要更换Model的指针就可以，
   //   但是实现比较复杂，涉及到全局的Model的指针更换，暂时不考虑这个方法
@@ -115,8 +118,8 @@ class SIRE_API SimulationLoop {
   auto isRunning() -> bool;
   auto step(sire::Size frame_skip, bool pause_if_fast = false) -> void;
   auto pause() -> void;
-  auto playback() -> void{};
-  auto stop() -> void{};
+  auto playback() -> void {};
+  auto stop() -> void {};
   auto reset() -> void;
 
   SimulationLoop();

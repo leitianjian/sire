@@ -43,7 +43,7 @@ export default {
   //ViewThree,
   ViewThree2,
   // sizedDisplay,
-  // meshcatDisplay,
+  meshcatDisplay,
   // ConnectedLogDisplay,
   // ExperCell,
   // ConnectedSixDimensionForce,

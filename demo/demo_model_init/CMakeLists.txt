@@ -12,6 +12,7 @@ target_include_directories(${sire_demo}
 target_link_libraries(${sire_demo}
 	PRIVATE
 		sire_core 
+		sire_log
 		sire_server 
 		sire_middleware 
 		sire_integrator

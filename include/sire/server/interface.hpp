@@ -14,6 +14,24 @@
 #include <aris/server/interface.hpp>
 
 namespace sire::server {
+class MeshcatInterface : public aris::server::Interface {
+ public:
+  auto virtual open() -> void override;
+  auto virtual close() -> void override;
+  auto virtual isConnected() const -> bool override;
+  auto resetSocket(aris::core::Socket* sock) -> void;
+  auto socket() -> aris::core::Socket&;
+
+  ~MeshcatInterface();
+  MeshcatInterface(const std::string& name = "tcp_interface",
+               const std::string& port = "5866",
+               aris::core::Socket::Type type = aris::core::Socket::Type::WEB);
+  ARIS_DELETE_BIG_FOUR(MeshcatInterface);
+
+ private:
+  struct Imp;
+  std::unique_ptr<Imp> imp_;
+};
 class ProgramWebInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;
@@ -41,8 +59,8 @@ class ProgramWebInterface : public aris::server::Interface {
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
 };
-auto parse_ret_value(
-    std::vector<std::pair<std::string, std::any>>& ret, bool print_flag) -> std::string;
+auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret,
+                     bool print_flag) -> std::string;
 class HttpInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;

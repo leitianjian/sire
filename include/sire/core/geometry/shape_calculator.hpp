@@ -46,7 +46,7 @@ class ShapeCalculator {
  ShapeToString reifier;
  SceneGraphInspector inspector = ...;  // Get the inspector from somewhere.
  for (GeometryId id : inspector.GetAllGeometryIds()) {
-   inspector.Reify(id, reifier);
+   shape.Reify(id, reifier);
    std::cout << reifier.string() << "\n";
  }
  ```
@@ -73,6 +73,22 @@ class ShapeToName final : public ShapeCalculator {
 
  private:
   std::string string_;
+};
+// Mass should be in the user_data first element.
+class ShapeToInertia final : public ShapeCalculator {
+ public:
+  /** @name  Implementation of ShapeReifier interface  */
+  //@{
+  using ShapeCalculator::ImplementGeometry;
+  void ImplementGeometry(const BoxShape& box, void* user_data) final;
+  // void ImplementGeometry(const Capsule& capsule, void* user_data) final;
+  // void ImplementGeometry(const Convex& convex, void* user_data) final;
+  // void ImplementGeometry(const Cylinder& cylinder, void* user_data) final;
+  // void ImplementGeometry(const Ellipsoid& ellipsoid, void* user_data) final;
+  // void ImplementGeometry(const HalfSpace& half_space, void* user_data) final;
+  void ImplementGeometry(const MeshShape& mesh, void* user_data) final;
+  // void ImplementGeometry(const MeshcatCone& cone, void* user_data) final;
+  void ImplementGeometry(const SphereShape& sphere, void* user_data) final;
 };
 }  // namespace sire::geometry
 #endif
