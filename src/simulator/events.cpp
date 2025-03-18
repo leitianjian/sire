@@ -17,9 +17,10 @@
 
 namespace sire::simulator {
 using namespace sire::physics;
-auto process_impact_threshold(
-    aris::dynamic::Model* m, double impact_threshold_insert,
-    double impact_threshold_remove) -> std::pair<double, double> {
+auto process_impact_threshold(aris::dynamic::Model* m,
+                              double impact_threshold_insert,
+                              double impact_threshold_remove)
+    -> std::pair<double, double> {
   double min_mass = std::numeric_limits<double>::infinity();
   for (auto& part : m->partPool()) {
     min_mass = min_mass < part.prtIv()[0] ? min_mass : part.prtIv()[0];
@@ -391,6 +392,8 @@ auto process_penetration_depth_and_maintain_impact_set2(
   // 再修改穿深进行积分。记录没有减去穿深的新加入点的index
   std::vector<common::PenetrationAsPointPair*> new_contacts_ptr;
   for (auto& pair : pairs) {
+    DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
+                << " depth: " << pair.depth;
     if (auto search = contact_pair_map.find({pair.id_A, pair.id_B});
         search == contact_pair_map.end()) {
       contact_pair_map.insert({{pair.id_A, pair.id_B}, {pair.depth, false}});
@@ -401,7 +404,6 @@ auto process_penetration_depth_and_maintain_impact_set2(
       pair.depth -= contact_pair_value.init_penetration_depth_;
       if (pair.depth < 0) {
         // 更新记录的初始穿深
-        // 记录为新的碰撞点
         contact_pair_value.init_penetration_depth_ += pair.depth;
       }
     }
@@ -410,9 +412,8 @@ auto process_penetration_depth_and_maintain_impact_set2(
   // 接触求解，得到接触力
   // TODO: 对于第一次求解没必要使用多点接触求解方法，直接用最基本的就行了，
   // 这个只是后面消除穿深的参考
-  double nextSuggestDt{-1};
+  double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
   nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
-  DLOG(DEBUG) << "next suggest dt: " << nextSuggestDt;
   // 重置上一时刻关节和forcePool设置的力
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
   engine_ptr->resetPartContactForce();
@@ -454,25 +455,37 @@ auto StepHandler1::init(simulator::SimulationLoop* simulator) -> void {
 auto StepHandler1::handle(core::EventBase* e) -> bool {
   // 积分到当前event记录的时间
   double dt = e->eventProp().getPropValue("dt");
+  DLOG(DEBUG) << "-------------- integrate with dt " << dt << " --------------";
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), *simulator_ptr->model());
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+                                   *simulator_ptr->model());
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  // if (e->eventProp().getPropValueOrDefault("clearInitDepth", 0.0)) {
+  //   DLOG(DEBUG) << "Clear record initial depth";
+  //   manager_ptr->contactPairMap().clear();
+  // }
   double suggestDt =
       process_penetration_depth_and_maintain_impact_set2(simulator_ptr);
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
   double nextDt =
-      manager_ptr->impactedPrtSet().empty()
+      (suggestDt == 0)
           ? simulator_ptr->deltaT()
           : simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
-                "shrink_dt", 1e-5);
-  if (suggestDt > 0 && suggestDt < nextDt) {
+                "shrink_dt", 0.0005);
+  if (suggestDt > 0 && suggestDt < simulator_ptr->deltaT()) {
     nextDt = suggestDt;
   }
   DLOG_IF(suggestDt > 0, DEBUG)
       << "dt: " << nextDt << " suggestDt: " << suggestDt;
+  // if (nextDt == simulator_ptr->deltaT() &&
+  //     manager_ptr->impactedPrtSet().empty()) {
+  //   step_event->eventProp().addProp("clearInitDepth", 1);
+  // } else {
+  //   step_event->eventProp().addProp("clearInitDepth", 0);
+  // }
   step_event->eventProp().addProp("dt", nextDt);
   simulator_ptr->eventManager().addEvent(std::move(step_event));
   return true;

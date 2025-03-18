@@ -42,7 +42,7 @@ auto cptInitialCondition(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     const std::vector<std::array<double, 16>>& T_C_vec,
     const std::vector<sire::Size>& preservedPairsIdx, double* stiffness,
-    double* damping, double* x0) -> double;
+    double* damping, double* x0, double* v0) -> double;
 auto cptKdMatrix(sire::Size n, const double* stiffness, const double* damping,
                  double* kdMatrix) -> void;
 auto cptInvCpi(sire::Size n, sire::Size cpiWidth, double minDamp,

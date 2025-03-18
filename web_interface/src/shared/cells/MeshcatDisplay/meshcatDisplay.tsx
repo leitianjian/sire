@@ -102,7 +102,7 @@ const FBXModel = ({
   position = default_position,
   quaternion = default_quaternion,
 }: ModelProps) => {
-  const fbx: Group = useMemo(useLoader(FBXLoader, path), [path]);
+  const fbx: Group = useMemo(() => useLoader(FBXLoader, path), [path]);
   fbx.children.forEach((mesh) => {
     (mesh as Mesh).material = material;
   });
@@ -121,7 +121,7 @@ const STLModel = ({
   position = default_position,
   quaternion = default_quaternion,
 }: ModelProps) => {
-  const stl: BufferGeometry = useMemo(useLoader(STLLoader, path), [path]);
+  const stl: BufferGeometry = useMemo(() => useLoader(STLLoader, path), [path]);
   return (
     <mesh
       material={material}
@@ -269,7 +269,7 @@ const MeshcatDisplay = (props: CellProps) => {
   let viewer = useRef<Viewer | null>(null);
   useEffect(() => {
     if (!ref.current) return;
-    //viewer.current = useMeshcat(ref.current);
+    viewer.current = useMeshcat(ref.current);
     viewer.current = testMeshcatCommand(ref.current);
     return () => {};
   }, []);

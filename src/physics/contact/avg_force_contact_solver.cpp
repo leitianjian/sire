@@ -76,7 +76,7 @@ auto cptInitialCondition(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     const std::vector<std::array<double, 16>>& T_C_vec,
     const std::vector<sire::Size>& preservedPairsIdx, double* stiffness,
-    double* damping, double* x0) -> double {
+    double* damping, double* x0, double* v0) -> double {
   sire::Size n{preservedPairsIdx.size()};
   sire::Size n2{2 * n};
   double minStiff{1e20};
@@ -106,6 +106,9 @@ auto cptInitialCondition(
     x0[i] = pair.depth / stiffScale;
     // 穿透速度 = - B的速度相对于A
     x0[n + i] = -v_contact[2];
+    v0[3 * i] = v_contact[0];
+    v0[3 * i + 1] = v_contact[1];
+    v0[3 * i + 2] = v_contact[2];
   }
   return stiffScale;
 }
@@ -541,6 +544,100 @@ auto preprocessContactInfo(
     prtIdVector[2 * i + 1] = geometry_B_ptr->partId();
   }
 }
+auto cptInverseNormalCpiMatrix(
+    aris::dynamic::Model& model,
+    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    const std::vector<std::array<double, 16>>& T_C_vec,
+    const std::vector<sire::Size>& preservedPairsIdx,
+    const sire::PartId* prtIdVector, double* accelExt, double* invCpi) -> void {
+  auto init_interaction = [](aris::dynamic::Interaction& interaction,
+                             aris::dynamic::Model* m) -> void {
+    if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
+        interaction.makNameI().empty() && interaction.makNameJ().empty())
+      return;
+
+    auto find_part = [m](std::string_view name) -> aris::dynamic::Part* {
+      auto found = std::find_if(
+          m->partPool().begin(), m->partPool().end(),
+          [name](const auto& part) -> bool { return part.name() == name; });
+      return found == m->partPool().end() ? nullptr : &*found;
+    };
+
+    auto find_marker = [](aris::dynamic::Part* part,
+                          std::string_view name) -> aris::dynamic::Marker* {
+      auto found = std::find_if(
+          part->markerPool().begin(), part->markerPool().end(),
+          [name](const auto& marker) -> bool { return marker.name() == name; });
+      return found == part->markerPool().end() ? nullptr : &*found;
+    };
+
+    auto prt_m = find_part(interaction.prtNameM());
+    auto mak_i = find_marker(prt_m, interaction.makNameI());
+    auto prt_n = find_part(interaction.prtNameN());
+    auto mak_j = find_marker(prt_n, interaction.makNameJ());
+
+    interaction.setMakI(&*mak_i);
+    interaction.setMakJ(&*mak_j);
+  };
+  // 初始化一些重复使用的变量
+  auto& forcePool = model.forcePool();
+  auto& partPool = model.partPool();
+  sire::Size testForceIdxOffset = forcePool.size();
+
+  const sire::Size n = preservedPairsIdx.size();
+  // 给力并计算质量矩阵
+  const double fceValue = 10.0;
+  double testFce[3] = {0, 0, fceValue};
+  for (Size i{0}; i < n; ++i) {
+    for (Size j{0}; j < 2; ++j) {
+      // add generalForce to forcePool() in Model and init
+      auto& fce = forcePool.add<aris::dynamic::GeneralForce>(
+          std::string("test_f" + j
+                          ? "b"
+                          : "a" + std::to_string(i + testForceIdxOffset)),
+          &partPool.at(prtIdVector[2 * i + j]).markerPool().at(0),
+          &partPool.at(model.ground().id()).markerPool().at(0));
+      fce.resetModel(&model);
+      fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
+      // force id 可以先不管
+      init_interaction(fce, &model);
+    }
+  }
+  for (Size iContact{0}, cpiLineIdx{0}; iContact < n; ++iContact) {
+    for (Size i2{0}; i2 < 2; ++i2) {
+      auto& gf = dynamic_cast<aris::dynamic::GeneralForce&>(
+          forcePool.at(2 * iContact + i2 + testForceIdxOffset));
+      double fs[6];
+      sire::core::screw::s_fpm2fs(
+          testFce, T_C_vec[preservedPairsIdx[iContact]].data(), fs);
+      gf.setFce(fs);
+      if (model.forwardDynamics())
+        std::cout << "forward dynamic failed" << std::endl;
+
+      for (Size jContact{0}, cpiColIdx{0}; jContact < n; ++jContact) {
+        double ap_o[3]{0}, res[3]{0};
+        const double* contactPosition =
+            penetration_pairs[preservedPairsIdx[jContact]].p_WC.data();
+        std::array<double, 6> as;
+        for (Size j2 = 0; j2 < 2; ++j2) {
+          auto& prt = partPool[prtIdVector[2 * jContact + j2]];
+          prt.getAs(as.data());
+          aris::dynamic::s_as2ap(prt.vs(), as.data(), contactPosition, ap_o);
+          aris::dynamic::s_inv_pm_dot_v3(
+              T_C_vec[preservedPairsIdx[jContact]].data(), ap_o, res);
+          invCpi[cpiLineIdx * 2 * n + cpiColIdx] = core::screw::s_safe_div(
+              res[2] - accelExt[cpiColIdx], fceValue, 1e-4);
+          ++cpiColIdx;
+        }
+      }
+      aris::dynamic::s_fill(1, 6, 0, const_cast<double*>(gf.fce()));
+      ++cpiLineIdx;
+    }
+  }
+  for (sire::Size i{0}; i < 2 * n; ++i) {
+    forcePool.pop_back();
+  }
+}
 auto cptInverseCpiMatrix(
     aris::dynamic::Model& model,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -775,8 +872,9 @@ auto filterPairsAndPreprocessInfo(
                     prtIdVector.data(), accelExt.data());
 
   invCpiResult.resize(n2 * n2, 0);
-  cptInverseCpiMatrix(*modelPtr, penetration_pairs, T_C_vec, preservedPairsIdx,
-                      prtIdVector.data(), accelExt.data(), invCpiResult.data());
+  cptInverseNormalCpiMatrix(*modelPtr, penetration_pairs, T_C_vec,
+                            preservedPairsIdx, prtIdVector.data(),
+                            accelExt.data(), invCpiResult.data());
   engine.activateContactForce(true);
 }
 
@@ -790,6 +888,7 @@ struct AverageForceContactSolver::Imp {
   double default_tv_;
   double default_k_;
   double default_d_;
+  ContactSolverResult prevResult;
 
   auto combineContactMass(double m1, double m2) -> double {
     auto safe_div = [](double number, double denominator) -> double {
@@ -1643,16 +1742,37 @@ auto AverageForceContactSolver::cptContactSolverResult(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     const std::vector<std::array<double, 16>>& T_C_vec,
     ContactSolverResult& result) -> void {
-  if (penetration_pairs.size() == 0) return;
+  if (penetration_pairs.size() == 0) {
+    imp_->prevResult.reset();
+    return;
+  }
   auto enginePtr = physicsEnginePtr();
   SIRE_ASSERT(enginePtr != nullptr);
   auto modelPtr = enginePtr->currentModel();
   SIRE_ASSERT(modelPtr != nullptr);
   auto& partPool = modelPtr->partPool();
+  result.resize(partPool.size() * 6, penetration_pairs.size());
   std::vector<sire::Size> preservedPairsIdx;
   std::vector<double> invCpi;
   std::vector<double> accelExt;
   std::vector<sire::PartId> prtIdVector;
+  for (sire::Size i{0}; i < penetration_pairs.size(); ++i) {
+    auto& pair = penetration_pairs[i];
+    const geometry::CollidableGeometry* geometry_A_ptr =
+        enginePtr->queryGeometryPoolById(pair.id_A);
+    const geometry::CollidableGeometry* geometry_B_ptr =
+        enginePtr->queryGeometryPoolById(pair.id_B);
+    SIRE_DEMAND(geometry_A_ptr != nullptr);
+    SIRE_DEMAND(geometry_B_ptr != nullptr);
+    // 标记 ground 相关的idx，计算cpi的真实大小
+    // 默认是两个加速度a
+    result.prtsA[i] = geometry_A_ptr->partId();
+    result.prtsB[i] = geometry_B_ptr->partId();
+    result.contactPairIdxMap_.insert(
+        {sire::core::SortedPair<sire::PartId>(geometry_A_ptr->partId(),
+                                              geometry_B_ptr->partId()),
+         i});
+  }
   filterPairsAndPreprocessInfo(*enginePtr, penetration_pairs, T_C_vec,
                                preservedPairsIdx, prtIdVector, accelExt,
                                invCpi);
@@ -1664,10 +1784,11 @@ auto AverageForceContactSolver::cptContactSolverResult(
   // cptAccelExtVector(*enginePtr, penetration_pairs, T_C_vec,
   // preservedPairsIdx,
   //                   prtIdVector.data(), accelExt.data());
-  std::vector<double> stiffness(n), damping(n), x0(n2);
+  std::vector<double> stiffness(n), damping(n), x0(n2), v0(3 * n);
   double stiffScale = cptInitialCondition(
       *enginePtr, *(imp_->material_manager_), penetration_pairs, T_C_vec,
-      preservedPairsIdx, stiffness.data(), damping.data(), x0.data());
+      preservedPairsIdx, stiffness.data(), damping.data(), x0.data(),
+      v0.data());
 
   // cpi因为要去掉ground，所以可能不是n2的，但是最后相减之后应该是 n 的
   // 对于算出来的cpi，在算逆前先类似得到矩阵A的处理一下（相减）应该就可以，
@@ -1696,68 +1817,168 @@ auto AverageForceContactSolver::cptContactSolverResult(
   std::vector<double> avgFce(n);
   cptAvgContactFce(n, A.data(), b.data(), x0.data(), 0, minTime,
                    stiffness.data(), damping.data(), avgFce.data());
-  sire::Size avgFceIdx{0};
+  // sire::Size avgFceIdx{0};
+  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   result.dt = minTime;
   DLOG(DEBUG) << " minTime: " << minTime << " b: " << b << " A: " << A
               << " x0: " << x0;
-  for (sire::Size i{0}; i < preservedPairsIdx.size(); ++i) {
-    const common::PenetrationAsPointPair& pair =
-        penetration_pairs[preservedPairsIdx[i]];
-    result.fn[preservedPairsIdx[i]] = avgFce[avgFceIdx];
-    // DLOG_IF(result.fn[i] > 1e6, DEBUG)
-    //     << "Huge impact recorded: " << result.fn[i] << " minTime: " <<
-    //     minTime
-    //     << " b: " << b << " A: " << A << " x0: " << x0 << std::endl
-    //     << "depth: " << penetration_pairs[i].depth
-    //     << " id: " << penetration_pairs[i].id_A << " "
-    //     << penetration_pairs[i].id_B;
-    DLOG(DEBUG) << "id: " << penetration_pairs[i].id_A << " "
-                << penetration_pairs[i].id_B << " cf: " << result.fn[i]
-                << " depth: " << penetration_pairs[i].depth
-                << " pos: " << penetration_pairs[i].p_WC.transpose();
-    ++avgFceIdx;
-
-    // double threshold_velocity = pair_prop.getPropValueOrDefault(
-    //     "threshold_velocity", imp_->default_tv_);
-    // double friction_coefficient =
-    //     pair_prop.getPropValueOrDefault("cof", imp_->default_cof_);
-    //
-    // double zero_check = 1e-8;
-    // auto safe_div = [](double number, double denominator, double zero_check,
-    //                    double err_set) -> double {
-    //   return std::abs(denominator) <= zero_check ? err_set
-    //                                              : number / denominator;
-    // };
-    // double vt = aris::dynamic::s_norm(2, v_contact.data());
-    // if (vt < zero_check) return;
-    // double t1 = std::abs(safe_div(v_contact[0], v_contact[1], 1e-8, 1e10));
-    // double t2 = std::sqrt(t1 * t1 + 1);
-    //
-    // double ft{0};
-    // if (vt > threshold_velocity) {
-    //   ft = std::abs(0.95 * friction_coefficient * fn);
-    // } else {
-    //   ft = std::abs(friction_coefficient * fn *
-    //                 (std::expm1(-3 / threshold_velocity * vt)));
-    // }
-    // result.ft[2 * i] = -1 * aris::dynamic::s_sgn(v_contact[0]) * ft *
-    //                    safe_div(t1, t2, zero_check, 0.0);
-    // result.ft[2 * i + 1] = -1 * aris::dynamic::s_sgn(v_contact[1]) * ft *
-    //                        safe_div(1, t2, zero_check, 0.0);
-    //
-    // std::cout << result.ft[2 * i] << " " << result.ft[2 * i + 1] << " "
-    //           << v_contact[0] << " " << v_contact[1] << std::endl;
-    // result.ft[2 * i] = 0;
-    // result.ft[2 * i + 1] = 0;
-    // std::cout << "ft = " << result.ft[2 * i] << " " << result.ft[2 * i + 1]
-    //           << " vt = " << vt << " " << v_contact[0] << " " << v_contact[1]
-    //           << std::endl;
-    // if (pair.id_B == 1) {
-    //   std::cout << " vn=" << vn << " fn1=" << result.fn[i] << " ";
-    // }
-    // std::cout << "kx=" << k * pair.depth << " vn=" << vn
-    //           << " fn1=" << result.fn[i] << " ";
+  for (sire::Size i{0}; i < n; ++i) {
+    sire::Size idx = preservedPairsIdx[i];
+    const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
+    result.fn[idx] = avgFce[i];
   }
+
+  if (imp_->prevResult.isEmpty_) {
+    for (sire::Size i{0}; i < n; ++i) {
+      sire::Size idx = preservedPairsIdx[i];
+      result.ft[2 * idx] = 0;
+      result.ft[2 * idx + 1] = 0;
+    }
+  } else {
+    for (sire::Size i{0}; i < n; ++i) {
+      sire::Size idx = preservedPairsIdx[i];
+      double* v_contact = v0.data() + 3 * i;
+      double vt = aris::dynamic::s_norm(2, v_contact);
+      double zero_check = 1e-5;
+      if (vt < zero_check ||
+          (imp_->prevResult.contactPairIdxMap_.find(
+               sire::core::SortedPair(result.prtsA[idx], result.prtsB[idx])) ==
+           imp_->prevResult.contactPairIdxMap_.end())) {
+        result.ft[2 * idx] = 0;
+        result.ft[2 * idx + 1] = 0;
+      } else {
+        auto safe_div = [](double number, double denominator, double zero_check,
+                           double err_set) -> double {
+          return std::abs(denominator) <= zero_check ? err_set
+                                                     : number / denominator;
+        };
+        const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
+        auto* geometry_A = enginePtr->queryGeometryPoolById(pair.id_A);
+        auto* geometry_B = enginePtr->queryGeometryPoolById(pair.id_B);
+        const core::PropMap& pair_prop =
+            imp_->material_manager_->getPropMapOrDefault(
+                {geometry_A->material(), geometry_B->material()});
+        double threshold_velocity = pair_prop.getPropValueOrDefault(
+            "threshold_velocity", imp_->default_tv_);
+        double friction_coefficient =
+            pair_prop.getPropValueOrDefault("cof", imp_->default_cof_);
+        double t1 = std::abs(safe_div(v_contact[0], v_contact[1], 1e-8, 1e10));
+        double t2 = std::sqrt(t1 * t1 + 1);
+
+        double ft{0};
+        sire::Size prevIdx =
+            imp_->prevResult.contactPairIdxMap_[sire::core::SortedPair(
+                result.prtsA[idx], result.prtsB[idx])];
+        if (vt > threshold_velocity) {
+          ft = std::abs(0.95 * friction_coefficient *
+                        imp_->prevResult.fn[prevIdx]);
+        } else {
+          ft = std::abs(friction_coefficient * imp_->prevResult.fn[prevIdx] *
+                        (std::expm1(-3 * vt / threshold_velocity)));
+        }
+        // if (vt > threshold_velocity) {
+        //   ft = std::abs(0.95 * friction_coefficient * result.fn[idx]);
+        // } else {
+        //   ft = std::abs(friction_coefficient * result.fn[idx] *
+        //                 (std::expm1(-3 * vt / threshold_velocity)));
+        // }
+        result.ft[2 * idx] = -1 * aris::dynamic::s_sgn(v_contact[0]) * ft *
+                             safe_div(t1, t2, zero_check, 0.0);
+        result.ft[2 * idx + 1] = -1 * aris::dynamic::s_sgn(v_contact[1]) * ft *
+                                 safe_div(1, t2, zero_check, 0.0);
+      }
+    }
+  }
+  for (sire::Size i{0}; i < n; ++i) {
+    sire::Size idx = preservedPairsIdx[i];
+    DLOG(DEBUG) << "id: " << penetration_pairs[idx].id_A << " "
+                << penetration_pairs[idx].id_B << " v_contact " << v0[3 * i]
+                << " " << v0[3 * i + 1] << " ft1: " << result.ft[2 * i]
+                << " ft2: " << result.ft[2 * i + 1] << " fn: " << result.fn[idx]
+                << " depth: " << penetration_pairs[idx].depth
+                << " pos: " << penetration_pairs[idx].p_WC.transpose();
+  }
+  imp_->prevResult = result;
+  // for (sire::Size i{0}; i < n; ++i) {
+  //   sire::Size idx = preservedPairsIdx[i];
+  //   const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
+  //   result.fn[idx] = avgFce[i];
+  //   if (imp_->prevResult.isEmpty_) {
+  //     result.ft[2 * idx] = 0;
+  //     result.ft[2 * idx + 1] = 0;
+  //   } else {
+  //     auto* geometry_A = enginePtr->queryGeometryPoolById(pair.id_A);
+  //     auto* geometry_B = enginePtr->queryGeometryPoolById(pair.id_B);
+  //     const core::PropMap& pair_prop =
+  //         imp_->material_manager_->getPropMapOrDefault(
+  //             {geometry_A->material(), geometry_B->material()});
+  //     double* v_contact = v0.data() + 3 * i;
+  //     double threshold_velocity = pair_prop.getPropValueOrDefault(
+  //         "threshold_velocity", imp_->default_tv_);
+  //     double friction_coefficient =
+  //         pair_prop.getPropValueOrDefault("cof", imp_->default_cof_);
+
+  //     double zero_check = 1e-8;
+  //     auto safe_div = [](double number, double denominator, double
+  //     zero_check,
+  //                        double err_set) -> double {
+  //       return std::abs(denominator) <= zero_check ? err_set
+  //                                                  : number / denominator;
+  //     };
+  //     double vt = aris::dynamic::s_norm(2, v_contact);
+  //     if (vt < zero_check) {
+  //       result.ft[2 * idx] = 0;
+  //       result.ft[2 * idx + 1] = 0;
+  //     } else {
+  //       double t1 = std::abs(safe_div(v_contact[0], v_contact[1], 1e-8,
+  //       1e10)); double t2 = std::sqrt(t1 * t1 + 1);
+
+  //       double ft{0};
+  //       if (vt > threshold_velocity) {
+  //         ft = std::abs(0.95 * friction_coefficient *
+  //         imp_->prevResult.fn[idx]);
+  //       } else {
+  //         ft = std::abs(friction_coefficient * imp_->prevResult.fn[idx] *
+  //                       (std::expm1(-3 * vt / threshold_velocity)));
+  //       }
+  //       // if (vt > threshold_velocity) {
+  //       //   ft = std::abs(0.95 * friction_coefficient * result.fn[idx]);
+  //       // } else {
+  //       //   ft = std::abs(friction_coefficient * result.fn[idx] *
+  //       //                 (std::expm1(-3 * vt / threshold_velocity)));
+  //       // }
+  //       result.ft[2 * idx] = -1 * aris::dynamic::s_sgn(v_contact[0]) * ft *
+  //                            safe_div(t1, t2, zero_check, 0.0);
+  //       result.ft[2 * idx + 1] = -1 * aris::dynamic::s_sgn(v_contact[1]) * ft
+  //       *
+  //                                safe_div(1, t2, zero_check, 0.0);
+  //     }
+  //   }
+  //   // std::cout << result.ft[2 * i] << " " << result.ft[2 * i + 1] << " "
+  //   //           << v_contact[0] << " " << v_contact[1] << std::endl;
+  //   // result.ft[2 * idx] = 0;
+  //   // result.ft[2 * idx + 1] = 0;
+  //   // std::cout << "ft = " << result.ft[2 * i] << " " << result.ft[2 * i +
+  //   1]
+  //   //           << " vt = " << vt << " " << v_contact[0] << " " <<
+  //   v_contact[1]
+  //   //           << std::endl;
+  //   // DLOG_IF(result.fn[i] > 1e6, DEBUG)
+  //   //     << "Huge impact recorded: " << result.fn[i] << " minTime: " <<
+  //   //     minTime
+  //   //     << " b: " << b << " A: " << A << " x0: " << x0 << std::endl
+  //   //     << "depth: " << penetration_pairs[i].depth
+  //   //     << " id: " << penetration_pairs[i].id_A << " "
+  //   //     << penetration_pairs[i].id_B;
+  //   DLOG(DEBUG) << "id: " << penetration_pairs[idx].id_A << " "
+  //               << penetration_pairs[idx].id_B << " v_contact " << v0[3 * i]
+  //               << " " << v0[3 * i + 1] << " ft1: " << result.ft[2 * i]
+  //               << " ft2: " << result.ft[2 * i + 1] << " fn: " <<
+  //               result.fn[idx]
+  //               << " depth: " << penetration_pairs[idx].depth
+  //               << " pos: " << penetration_pairs[idx].p_WC.transpose();
+  // }
+  // imp_->prevResult = result;
 }
 auto AverageForceContactSolver::cptContactForce(double A, double B, double k,
                                                 double D, double r, double w,

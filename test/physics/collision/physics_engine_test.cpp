@@ -1610,7 +1610,7 @@ TEST_F(TableSurfaceModelTestor, testContactDiffEqnSolnCoeff) {
   EXPECT_EQ(table_model_.forcePool().size(), 4);
   const sire::Size nContact = penetration_pairs.size();
   std::vector<double> A(4 * nContact * nContact), b(2 * nContact),
-      x0(2 * nContact);
+      x0(2 * nContact), v0(3 * nContact);
   std::vector<double> invCpi;
   std::vector<double> stiffness(nContact, 2e8);
   std::vector<double> damping(nContact, 1e3);
@@ -1625,7 +1625,7 @@ TEST_F(TableSurfaceModelTestor, testContactDiffEqnSolnCoeff) {
   const sire::Size n2{2 * n};
   double stiffScale = sire::physics::contact::cptInitialCondition(
       *engine_, manager_, penetration_pairs, T_vec, preservedPairsIdx,
-      stiffness.data(), damping.data(), x0.data());
+      stiffness.data(), damping.data(), x0.data(), v0.data());
   sire::physics::contact::cptDAECoeff(*engine_, n, stiffness.data(),
                                       damping.data(), 1e-4, accelExt.data(),
                                       invCpi.data(), A.data(), b.data());
@@ -1767,7 +1767,7 @@ TEST_F(TableGroundModelTestor, testContactDiffEqnCoeffGround) {
   EXPECT_EQ(table_model_.forcePool().size(), 4);
   const sire::Size nContact = penetration_pairs.size();
   std::vector<double> A(4 * nContact * nContact), b(2 * nContact),
-      x0(2 * nContact);
+      x0(2 * nContact), v0(3 * nContact);
   std::vector<double> invCpi;
   std::vector<double> accelExt;
   std::vector<double> stiffness(nContact, 2e8);
@@ -1781,7 +1781,7 @@ TEST_F(TableGroundModelTestor, testContactDiffEqnCoeffGround) {
   const sire::Size n2 = 2 * n;
   double stiffScale = sire::physics::contact::cptInitialCondition(
       *engine_, manager_, penetration_pairs, T_vec, preservedPairsIdx,
-      stiffness.data(), damping.data(), x0.data());
+      stiffness.data(), damping.data(), x0.data(), v0.data());
   sire::physics::contact::cptDAECoeff(*engine_, n, stiffness.data(),
                                       damping.data(), 1e-4, accelExt.data(),
                                       invCpi.data(), A.data(), b.data());
@@ -1828,7 +1828,7 @@ TEST_F(TableSurfaceModelTestor, testDepthFormulaAndAvgFce) {
   std::vector<double> damping(nContact, 1e3);
   std::vector<double> invCpi(4 * nContact * nContact);
   std::vector<double> A(4 * nContact * nContact), b(2 * nContact),
-      x0(2 * nContact);
+      x0(2 * nContact), v0(3 * nContact);
   std::vector<sire::Size> preservedPairsIdx;
   std::vector<sire::PartId> prtIdVector;
   std::vector<double> accelExt;
@@ -1839,7 +1839,7 @@ TEST_F(TableSurfaceModelTestor, testDepthFormulaAndAvgFce) {
   const sire::Size n2 = 2 * n;
   double stiffScale = sire::physics::contact::cptInitialCondition(
       *engine_, manager_, penetration_pairs, T_vec, preservedPairsIdx,
-      stiffness.data(), damping.data(), x0.data());
+      stiffness.data(), damping.data(), x0.data(), v0.data());
   sire::physics::contact::cptDAECoeff(
       *engine_, n, stiffness.data(), damping.data(), stiffScale,
       accelExt.data(), invCpi.data(), A.data(), b.data());

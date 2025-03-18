@@ -119,7 +119,7 @@ auto PhysicsEngine::init(simulator::SimulationLoop* simLoopPtr) -> void {
   // 初始化Model与ControlServer相关的指针
   imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
       &aris::server::ControlServer::instance().model());
-    imp_->simulation_loop_ptr_ = simLoopPtr;
+  imp_->simulation_loop_ptr_ = simLoopPtr;
   saveInitialModel(*imp_->model_ptr_);
   doInit();
 }
@@ -189,8 +189,8 @@ auto PhysicsEngine::anchoredObjectsMap()
   return imp_->anchored_objects_map_;
 }
 auto PhysicsEngine::addSphereGeometry(double radius, int part_id,
-                                      const double* prt_pm,
-                                      bool is_dynamic) -> bool {
+                                      const double* prt_pm, bool is_dynamic)
+    -> bool {
   imp_->geometry_pool_->add<geometry::SphereCollisionGeometry>(
       radius, part_id, prt_pm, is_dynamic);
   return true;
@@ -269,8 +269,8 @@ auto PhysicsEngine::cptProximityVelocity(
 }
 auto PhysicsEngine::cptTangentialVelocity(
     const common::PenetrationAsPointPair& penetration,
-    const std::array<double, 16>& T_contact,
-    std::array<double, 2>& vt) -> void {
+    const std::array<double, 16>& T_contact, std::array<double, 2>& vt)
+    -> void {
   double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
   auto* geometry_A = queryGeometryPoolById(penetration.id_A);
   auto* geometry_B = queryGeometryPoolById(penetration.id_B);
@@ -283,8 +283,8 @@ auto PhysicsEngine::cptTangentialVelocity(
 }
 auto PhysicsEngine::cptContactVelocityB2A(
     const common::PenetrationAsPointPair& penetration,
-    const std::array<double, 16>& T_contact,
-    std::array<double, 3>& v_contact) -> void {
+    const std::array<double, 16>& T_contact, std::array<double, 3>& v_contact)
+    -> void {
   double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
   auto* geometry_A = queryGeometryPoolById(penetration.id_A);
   auto* geometry_B = queryGeometryPoolById(penetration.id_B);
@@ -297,8 +297,9 @@ auto PhysicsEngine::cptContactVelocityB2A(
   aris::dynamic::s_inv_pm_dot_v3(T_contact.data(), vel_B, v_contact.data());
 }
 
-auto PhysicsEngine::setContactForceIdxSize(
-    int contact_force_idx, sire::Size contact_force_size) -> void {
+auto PhysicsEngine::setContactForceIdxSize(int contact_force_idx,
+                                           sire::Size contact_force_size)
+    -> void {
   imp_->contact_force_idx_ = contact_force_idx;
   imp_->contact_force_size_ = contact_force_size;
 }
@@ -365,7 +366,7 @@ auto PhysicsEngine::cptContactInfo(
                                  pair.nhat_AB_W.data(), T_C_vec.at(i).data(),
                                  "zx");
   }
-  solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
+  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
@@ -381,14 +382,6 @@ auto PhysicsEngine::cptContactInfo(
   for (int i = 0; i < num_contacts; ++i) {
     // std::cout << "fn=" << fn[i] << " ";
     const auto& pair = penetration_pairs[i];
-    const geometry::CollidableGeometry* geometry_A_ptr =
-        this->queryGeometryPoolById(pair.id_A);
-    const geometry::CollidableGeometry* geometry_B_ptr =
-        this->queryGeometryPoolById(pair.id_B);
-    SIRE_DEMAND(geometry_A_ptr != nullptr);
-    SIRE_DEMAND(geometry_B_ptr != nullptr);
-    const auto partId_A = geometry_A_ptr->partId();
-    const auto partId_B = geometry_B_ptr->partId();
     // f of contact based on contact frame;
     double f_Bc_C[3]{ft[2 * i], ft[2 * i + 1], fn[i]};
     // 将接触坐标系下的力转换到世界坐标系
@@ -399,8 +392,8 @@ auto PhysicsEngine::cptContactInfo(
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
-    contact_info.push_back(
-        {partId_A, partId_B, fs, pe_C, separation_speed, slip_speed, pair});
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
+                            pe_C, separation_speed, slip_speed, pair});
   }
   return solver_result.dt;
 }

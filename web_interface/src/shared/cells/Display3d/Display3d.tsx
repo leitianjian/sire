@@ -18,7 +18,13 @@ import {
   ConfigContext,
 } from "antd/lib/config-provider/context";
 import { RedoOutlined } from "@ant-design/icons";
-import { CameraControls } from "@react-three/drei";
+import {
+  CameraControls,
+  PerspectiveCamera,
+  View,
+  Billboard,
+  Text,
+} from "@react-three/drei";
 
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
@@ -40,12 +46,12 @@ import sizeMe, { withSize } from "react-sizeme";
 import {
   BufferGeometry,
   Group,
-  LoadingManager,
   Material,
   Matrix4,
   Mesh,
   MeshStandardMaterial,
   Quaternion,
+  PerspectiveCamera as pc,
   Vector3,
 } from "three";
 
@@ -65,20 +71,17 @@ interface CellProps {
 }
 const default_material: MeshStandardMaterial = new MeshStandardMaterial({
   color: "rgb(255,255,255)",
-  roughness: 0.1,
-  metalness: 0.1,
+});
+const ground_material: MeshStandardMaterial = new MeshStandardMaterial({
+  color: "rgb(117, 83, 56)",
 });
 
 const material_odd_part: MeshStandardMaterial = new MeshStandardMaterial({
   color: "rgb(6,96,255)",
-  roughness: 0.1,
-  metalness: 0.1,
 });
 
 const material_even_part: MeshStandardMaterial = new MeshStandardMaterial({
   color: "rgb(212,212,212)",
-  roughness: 0.1,
-  metalness: 0.1,
 });
 
 const default_scale: number = 1;
@@ -101,11 +104,10 @@ const FBXModel = ({
   position = default_position,
   quaternion = default_quaternion,
 }: ModelProps) => {
-  const fbx: Group = useMemo(useLoader(FBXLoader, path), [
-    path,
-  ]);
+  const fbx: Group = useMemo(() => useLoader(FBXLoader, path), [path]);
   fbx.children.forEach((mesh) => {
     (mesh as Mesh).material = material;
+    (mesh as Mesh).castShadow = true;
   });
 
   return (
@@ -122,16 +124,14 @@ const STLModel = ({
   position = default_position,
   quaternion = default_quaternion,
 }: ModelProps) => {
-  const stl: BufferGeometry = useMemo(
-    useLoader(STLLoader, path),
-    [path]
-  );
+  const stl: BufferGeometry = useMemo(() => useLoader(STLLoader, path), [path]);
   return (
     <mesh
       material={material}
       position={position}
       quaternion={quaternion}
       scale={scale}
+      castShadow={true}
     >
       <primitive object={stl} attach="geometry" />
     </mesh>
@@ -210,8 +210,9 @@ function RobotMesh({ poses, scales }: RobotMeshProps) {
         if (processed_pose?.at(i)) {
           [position, quaternion] = processed_pose[i];
         }
-        const material: MeshStandardMaterial =
+        let material: MeshStandardMaterial =
           i % 2 ? material_odd_part : material_even_part;
+        if (i == 0) material = ground_material;
         switch (geometry.shape_type) {
           case "sphere":
             return (
@@ -219,6 +220,8 @@ function RobotMesh({ poses, scales }: RobotMeshProps) {
                 material={material}
                 position={position}
                 quaternion={quaternion}
+                castShadow={true}
+                receiveShadow={i == 0}
               >
                 <sphereGeometry
                   args={[(geometry as SireSphereGeometry).radius]}
@@ -231,6 +234,8 @@ function RobotMesh({ poses, scales }: RobotMeshProps) {
                 material={material}
                 position={position}
                 quaternion={quaternion}
+                castShadow={true}
+                receiveShadow={i == 0}
               >
                 <boxGeometry
                   args={[
@@ -269,69 +274,219 @@ function Loading({ prefixCls }: { prefixCls: string }) {
   return <div className={`${prefixCls}-loading`}>载入中...</div>;
 }
 
+const makeLight = () => {
+  return (
+    <>
+      <hemisphereLight
+        position={[0, 0, 200]}
+        color={0x808080}
+        groundColor={0x444444}
+        intensity={8}
+      />
+      <pointLight
+        position={[10, 10, 20]}
+        color={0xffffff}
+        castShadow={true}
+        intensity={1000}
+      />
+      <ambientLight color={0x808080} intensity={9} />
+    </>
+  );
+};
+
+const makeBackground = () => {
+  return (
+    <>
+      <color attach="background" args={[0x000000]} />
+      {/* <fog attach="fog" color={0x000000} near={2} far={10} /> */}
+    </>
+  );
+};
+
 const Display3d = (props: CellProps) => {
   const dispatch = useDispatch();
   const config = useSelector<RootState, Display3dConfig>(
     (state) => getViewerConfig(state, DefaultConfig),
     shallowEqual
   );
-  const update_location_count = useRef<number>(0);
-  const prev_update_location_time = useRef<number>(performance.now());
+
   const [location_update_per_second, set_LUPS] = useState<number>(0);
-  const location_update_timer = useRef<number | null>(null);
+  const update_location_count = useRef<number>(0);
+
+  const prev_update_location_time = useRef<number>(performance.now());
   const [pose, setPose] = useState<number[][]>();
-  const camera_control = useRef<CameraControls | null>(null);
 
-  const evalute_location_update_per_second = useCallback(() => {
-    update_location_count.current++;
-    const current_time: number = performance.now();
+  const camera_control_robot = useRef<CameraControls | null>(null);
+  const ctrlRef = useRef<CameraControls | null>(null);
+  const cameraRef = useRef<pc | null>(null);
+  const [camPos, setCamPos] = useState<Vector3>(new Vector3());
+  const [ctrlTarget, setCtrlTarget] = useState<Vector3>(new Vector3());
 
-    if (current_time >= prev_update_location_time.current + 500) {
-      set_LUPS(
-        Math.round(
-          (update_location_count.current * 1000) /
-            (current_time - prev_update_location_time.current)
-        )
-      );
-      update_location_count.current = 0;
-      prev_update_location_time.current = current_time;
-    }
-  }, []);
+  const [timeIndices, setTimeIndices] = useState<number[]>([]);
+  const [totalDuration, setTotalDuration] = useState(0);
+  const [uploadedData, setUploadedData] = useState<number[][][]>([]);
+  const [currentFrameIndex, setCurrentFrameIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const playbackInterval = useRef<number | null>(null);
 
-  // execute when component initialize.
-  useEffect(() => {
-    console.log("send display3d init");
-    // this.props.deleteResultByChannel('xml')
-    dispatch(display3dInitRequest());
-    // this.props.loadConfigXml();
-    location_update_timer.current = setInterval(() => {
-      dispatch(
-        sendCmdSilence("get --part_pq", (msg: any) => {
-          if (msg && msg.jsData && msg.jsData.return_code === 0) {
-            setPose(msg.jsData.part_pq);
-            evalute_location_update_per_second();
-          }
-        })
-      );
-    }, 1000.0 / config.frame_rate);
+  // 文件上传处理
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    return () => {
-      if (location_update_timer.current) {
-        clearInterval(location_update_timer.current);
-        location_update_timer.current = null;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (!data.partpq || !data.timeindex) {
+          throw new Error("Invalid JSON format");
+        }
+
+        // 提取 partpq 和 timeindex
+        setUploadedData(data.partpq);
+        setTimeIndices(data.timeindex);
+        setTotalDuration(data.timeindex[data.timeindex.length - 1] || 0);
+
+        setCurrentFrameIndex(0);
+        setIsPlaying(false);
+        if (playbackInterval.current) {
+          clearInterval(playbackInterval.current);
+        }
+      } catch (error) {
+        console.error("Invalid JSON file");
       }
     };
-  }, []);
+    reader.readAsText(file);
+  };
+
+  // 播放控制
+  const togglePlayback = () => {
+    setIsPlaying(!isPlaying);
+  };
+
+  const binarySearch = (arr: number[], target: number): number => {
+    let low = 0;
+    let high = arr.length - 1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      if (arr[mid] === target) return mid;
+      arr[mid] < target ? (low = mid + 1) : (high = mid - 1);
+    }
+
+    return Math.min(low, arr.length - 1);
+  };
+
+  // 播放逻辑
+  useEffect(() => {
+    if (!isPlaying || uploadedData.length === 0) return;
+
+    let startTime = performance.now();
+    let currentTime = 0;
+
+    const animate = () => {
+      const elapsed = performance.now() - startTime;
+      currentTime = Math.min(elapsed / 1000, totalDuration);
+
+      // 查找当前时间对应的帧索引
+      const newIndex = binarySearch(timeIndices, currentTime);
+      setCurrentFrameIndex(newIndex);
+
+      if (currentTime < totalDuration) {
+        animationFrameId = requestAnimationFrame(animate);
+      } else {
+        setIsPlaying(false);
+      }
+    };
+
+    let animationFrameId = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [isPlaying, uploadedData, totalDuration, timeIndices]);
+
+  // 原有数据获取逻辑（添加上传数据判断）
+  useEffect(() => {
+    if (uploadedData.length === 0) {
+      console.log("send display3d init");
+      dispatch(display3dInitRequest());
+
+      const timer = setInterval(() => {
+        dispatch(
+          sendCmdSilence("get --part_pq", (msg: any) => {
+            if (msg?.jsData?.return_code === 0) {
+              setPose(msg.jsData.part_pq);
+              set_LUPS((prev) => {
+                const now = performance.now();
+                if (now >= prev_update_location_time.current + 500) {
+                  const value = Math.round(
+                    (update_location_count.current * 1000) /
+                      (now - prev_update_location_time.current)
+                  );
+                  prev_update_location_time.current = now;
+                  update_location_count.current = 0;
+                  return value;
+                }
+                update_location_count.current++;
+                return prev;
+              });
+            }
+          })
+        );
+      }, 1000 / config.frame_rate);
+
+      return () => clearInterval(timer);
+    }
+  }, [uploadedData.length]);
+
   const { getPrefixCls, rootPrefixCls } =
     useContext<ConfigConsumerProps>(ConfigContext);
   const prefixCls = getPrefixCls("display3d", rootPrefixCls);
+  const eventSrcRef = useRef<any>();
   return (
     <div className={`${prefixCls}`}>
       <Suspense fallback={<Loading prefixCls={prefixCls} />}>
-        <div className={`${prefixCls}-three`}>
+        <div ref={eventSrcRef} className={`${prefixCls}-three`}>
+          {/* 新增控制面板 */}
+          <div className={`${prefixCls}-controls`}>
+            <input type="file" accept=".json" onChange={handleFileUpload} />
+            <button onClick={togglePlayback}>
+              {isPlaying ? "暂停" : "播放"}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max={uploadedData.length - 1}
+              value={currentFrameIndex}
+              onChange={(e) => {
+                const index = parseInt(e.target.value);
+                setCurrentFrameIndex(isNaN(index) ? 0 : index);
+              }}
+              disabled={!uploadedData.length}
+            />
+            <input
+              type="range"
+              min="0"
+              max={totalDuration * 1000} // 以毫秒为单位提高精度
+              value={timeIndices[currentFrameIndex] * 1000 || 0}
+              onChange={(e) => {
+                const targetTime = parseInt(e.target.value) / 1000;
+                const newIndex = binarySearch(timeIndices, targetTime);
+                setCurrentFrameIndex(newIndex);
+              }}
+              disabled={!uploadedData.length}
+            />
+            <div>
+              {`${
+                timeIndices[currentFrameIndex]?.toFixed(3) || 0
+              }s / ${totalDuration.toFixed(3)}s`}
+            </div>
+            <div>
+              当前帧: {currentFrameIndex + 1}/{uploadedData.length}
+            </div>
+          </div>
           <RedoOutlined
             onClick={() => {
-              camera_control.current?.reset(true);
+              camera_control_robot.current?.reset(true);
             }}
           />
           <div className={`${prefixCls}-three-info`}>
@@ -340,51 +495,99 @@ const Display3d = (props: CellProps) => {
               LUPS: {location_update_per_second}
             </div>
           </div>
-          <Canvas
-            camera={{
-              fov: 50,
-              near: 0.1,
-              //far: 10,
-              //position: [-1, -1, 0.1],
-              //lookAt: () => new Vector3(0, 0, 0),
-            }}
-          >
-            <CameraControls ref={camera_control} />
-            <color attach="background" args={[0x000000]} />
-            {/* <fog attach="fog" color={0x000000} near={2} far={10} /> */}
-            <hemisphereLight
-              position={[0, 0, 200]}
-              color={0xffffff}
-              groundColor={0x444444}
+          <View index={1} className={`${prefixCls}-three-robot`}>
+            <PerspectiveCamera
+              ref={cameraRef}
+              position={[-2.5, 0, 5]}
+              makeDefault
+              fov={50}
+              near={0.1}
             />
-            <directionalLight
-              position={[0, 10, 10]}
-              color={0xffffff}
-              intensity={2}
+            <CameraControls
+              ref={ctrlRef}
+              onChange={() => {
+                let camPosition = new Vector3();
+                let targetPosition = new Vector3();
+                // console.log(cameraRef.current?.position);
+                ctrlRef.current?.getPosition(camPosition);
+                // let camPosition = cameraRef.current?.position || new Vector3;
+                // cameraRef.current?.get(camPosition);
+                ctrlRef.current?.getTarget(targetPosition);
+                setCamPos(camPosition);
+                setCtrlTarget(targetPosition);
+                // console.log(camPosition);
+                // console.log(targetPosition);
+              }}
             />
-            {/* <mesh receiveShadow={true}>
-              <planeGeometry attach="geometry" args={[2000, 2000]} />
-              <meshPhongMaterial attach="material" color={0x111111} opacity={0}/>
-            </mesh> */}
-            <gridHelper rotation={[Math.PI / 2, 0, 0]}>
+            {makeLight()}
+            {makeBackground()}
+            {/* <gridHelper rotation={[Math.PI / 2, 0, 0]} scale={}>
               <lineBasicMaterial
                 opacity={0.3}
                 depthWrite={false}
                 transparent={true}
               />
-            </gridHelper>
-            <RobotMesh poses={pose} />
-            <ambientLight color={0x404040} intensity={5} />
-            <hemisphereLight
-              position={[0, 0, 200]}
-              color={0xffffff}
-              groundColor={0x444444}
+            </gridHelper> */}
+            <RobotMesh
+              poses={
+                uploadedData.length > 0 ? uploadedData[currentFrameIndex] : pose
+              }
             />
-            <directionalLight
-              position={[0, 10, 10]}
-              color={0xffffff}
-              intensity={2}
+          </View>
+          <View index={2} className={`${prefixCls}-three-axes`}>
+            <Billboard
+              position={[1.2, 0, 0]}
+              follow={true}
+              lockX={false}
+              lockY={false}
+              lockZ={false} // Lock the rotation on the z axis (default=false)
+            >
+              <Text fontSize={0.5}>x</Text>
+            </Billboard>
+            <Billboard
+              position={[0, 1.2, 0]}
+              follow={true}
+              lockX={false}
+              lockY={false}
+              lockZ={false} // Lock the rotation on the z axis (default=false)
+            >
+              <Text fontSize={0.5}>y</Text>
+            </Billboard>
+            <Billboard
+              position={[0, 0, 1.2]}
+              follow={true}
+              lockX={false}
+              lockY={false}
+              lockZ={false} // Lock the rotation on the z axis (default=false)
+            >
+              <Text fontSize={0.5}>z</Text>
+            </Billboard>
+            <axesHelper scale={1} />
+            <PerspectiveCamera
+              makeDefault
+              position={camPos.sub(ctrlTarget).setLength(5)}
+              onUpdate={(self) => {
+                self.lookAt(0, 0, 0);
+              }}
             />
+            {makeLight()}
+            {makeBackground()}
+          </View>
+          <Canvas
+            eventSource={eventSrcRef}
+            // camera={{
+            //   fov: 50,
+            //   near: 0.1
+            // }}
+            gl={{
+              antialias: true,
+              autoClearColor: false,
+              alpha: false,
+              powerPreference: "high-performance",
+            }}
+            shadows={"soft"}
+          >
+            <View.Port />
           </Canvas>
         </div>
       </Suspense>
@@ -394,6 +597,8 @@ const Display3d = (props: CellProps) => {
 
 const sizedDisplay = withSize({ monitorHeight: true, refreshRate: 30 })(
   Display3d
-) as React.ComponentType<Omit<CellProps, "size"> & sizeMe.WithSizeProps> & { NAME: string };
-sizedDisplay.NAME = "仿真可视化"
+) as React.ComponentType<Omit<CellProps, "size"> & sizeMe.WithSizeProps> & {
+  NAME: string;
+};
+sizedDisplay.NAME = "仿真可视化";
 export default sizedDisplay;

@@ -1,3 +1,13 @@
+cmake_minimum_required (VERSION 3.11)
+ 
+include(FetchContent)
+set(FETCHCONTENT_UPDATES_DISCONNECTED TRUE)
+FetchContent_Declare(ftxui
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+  GIT_TAG main # Important: Specify a version or a commit hash here.
+)
+FetchContent_MakeAvailable(ftxui)
+
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
 if(DEFINED VCPKG_INSTALLED_DIR)
@@ -48,6 +58,7 @@ add_subdirectory(demo_server_integrator_dynamics)
 
 # add_subdirectory(demo_server_sensor_root)
 add_subdirectory(demo_simulation)
+add_subdirectory(demo_main)
 
 # add_custom_target(gentest COMMAND ${CMAKE_COMMAND} -E echo "\"$<$<CONFIG:Debug>:-g;-O0>,$<PLATFORM_ID>\"")
 add_custom_target(gentest COMMAND ${CMAKE_COMMAND} -E echo "\"${VCPKG_DLL_PREFIX}/boost_filesystem-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll\"")

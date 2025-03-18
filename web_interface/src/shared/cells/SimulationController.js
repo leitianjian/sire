@@ -4,7 +4,7 @@ import { connect } from "react-redux";
 import Switch from "antd/lib/switch";
 import Modal from "antd/lib/modal";
 import Button from "antd/lib/button";
-import { RollbackOutlined, FlagOutlined, PlayCircleFilled } from "@ant-design/icons";
+import { RollbackOutlined, FlagOutlined, PlayCircleFilled, DownOutlined } from "@ant-design/icons";
 import CellBase from "./CellBase";
 import {
   getlocalestate,
@@ -171,6 +171,18 @@ class SimulationController extends CellBase {
             }}
           />
           <span>重置仿真</span>
+        </div>
+        <div>
+          <Button
+            disabled={ds}
+            size={"large"}
+            icon={<DownOutlined />}
+            onClick={() => {
+              // this.setState({ backHomeModal: true });
+              this.props.sendCmd("record_get");
+            }}
+          />
+          <span>记录仿真</span>
         </div>
         {/* <div>
           <Button

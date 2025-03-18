@@ -24,6 +24,18 @@
     &>canvas{
       z-index: 1;
     }
+    &-robot{
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+    &-axes{
+      position: absolute;
+      top: 2em;
+      right: 2em;
+      width: calc(250px - 2em);
+      height: calc(250px - 2em);
+    }
     &>span{
       cursor: pointer;
       position: absolute;
@@ -37,6 +49,7 @@
     }
     &-info{
       position: absolute;
+      z-index: 2;
       top: @padding-sm;
       right: @padding-sm;
     }
