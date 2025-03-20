@@ -10,6 +10,7 @@ import React, {
 import {
   Canvas,
   useLoader,
+  useThree,
   Vector3 as Vector3Type,
   Quaternion as Vector4Type,
 } from "@react-three/fiber";
@@ -88,7 +89,7 @@ const default_scale: number = 1;
 
 const default_position: PositionType = [0, 0, 0];
 const default_quaternion: QuaternionType = [0, 0, 0, 1];
-
+console.log("default_position", default_position);
 interface ModelProps {
   path: string;
   material?: Material;
@@ -329,6 +330,63 @@ const Display3d = (props: CellProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const playbackInterval = useRef<number | null>(null);
 
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+
+  const CanvasCapturer = () => {
+    const { gl } = useThree();
+    useEffect(() => {
+      // 通过状态更新传递canvas引用
+      setCanvasElement(gl.domElement);
+    }, [gl.domElement]);
+    return null;
+  };
+
+  const handleRecord = async () => {
+    if (!canvasElement) {
+      console.error("Canvas元素未就绪");
+      return;
+    }
+
+    if (!recording) {
+      try {
+        recordedChunksRef.current = [];
+        const stream = canvasElement.captureStream(30);
+        
+        mediaRecorderRef.current = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9',
+          videoBitsPerSecond: 2_500_000
+        });
+
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+        };
+
+        mediaRecorderRef.current.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `recording-${Date.now()}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+          recordedChunksRef.current = [];
+        };
+
+        mediaRecorderRef.current.start(100);
+        setRecording(true);
+      } catch (error) {
+        console.error("录屏启动失败:", error);
+        setRecording(false);
+      }
+    } else {
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+    }
+  };
+
   // 文件上传处理
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -494,6 +552,21 @@ const Display3d = (props: CellProps) => {
             <div className={`${prefixCls}-three-info-lups`}>
               LUPS: {location_update_per_second}
             </div>
+            <button 
+              onClick={handleRecord}
+              style={{
+                background: recording ? 'rgba(255,0,0,0.5)' : 'rgba(0,0,0,0.5)',
+                border: '1px solid white',
+                color: 'white',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginLeft: '10px'
+              }}
+              // disabled={!canvasElement} // 禁用直到canvas就绪
+            >
+              {recording ? '停止录制' : '开始录制'}
+            </button>
           </div>
           <View index={1} className={`${prefixCls}-three-robot`}>
             <PerspectiveCamera
@@ -575,10 +648,10 @@ const Display3d = (props: CellProps) => {
           </View>
           <Canvas
             eventSource={eventSrcRef}
-            // camera={{
-            //   fov: 50,
-            //   near: 0.1
-            // }}
+            camera={{
+              fov: 50,
+              near: 0.1
+            }}
             gl={{
               antialias: true,
               autoClearColor: false,
@@ -587,6 +660,8 @@ const Display3d = (props: CellProps) => {
             }}
             shadows={"soft"}
           >
+            <CanvasCapturer />
+            <CameraControls ref={camera_control_robot} />
             <View.Port />
           </Canvas>
         </div>
