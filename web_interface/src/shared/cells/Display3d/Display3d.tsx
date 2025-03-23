@@ -387,19 +387,22 @@ const Display3d = (props: CellProps) => {
     }
   };
 
+  const [fileName, setFileName] = useState<string>("📁 上传JSON文件");
+
   // 文件上传处理
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
         if (!data.partpq || !data.timeindex) {
-          throw new Error("Invalid JSON format");
+          alert("Invalid JSON format!");
+          // throw new Error("Invalid JSON format");
+          return;
         }
-
+        setFileName(file.name);
         // 提取 partpq 和 timeindex
         setUploadedData(data.partpq);
         setTimeIndices(data.timeindex);
@@ -410,6 +413,29 @@ const Display3d = (props: CellProps) => {
         if (playbackInterval.current) {
           clearInterval(playbackInterval.current);
         }
+      } catch (error) {
+        console.error("Invalid JSON file");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileFromDrop = (file: File) => {
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (!data.partpq || !data.timeindex) {
+          throw new Error("Invalid JSON format");
+        }
+  
+        setUploadedData(data.partpq);
+        setTimeIndices(data.timeindex);
+        setTotalDuration(data.timeindex[data.timeindex.length - 1] || 0);
+        setCurrentFrameIndex(0);
+        setIsPlaying(false);
+        if (playbackInterval.current) clearInterval(playbackInterval.current);
       } catch (error) {
         console.error("Invalid JSON file");
       }
@@ -506,41 +532,89 @@ const Display3d = (props: CellProps) => {
         <div ref={eventSrcRef} className={`${prefixCls}-three`}>
           {/* 新增控制面板 */}
           <div className={`${prefixCls}-controls`}>
-            <input type="file" accept=".json" onChange={handleFileUpload} />
-            <button onClick={togglePlayback}>
-              {isPlaying ? "暂停" : "播放"}
+            <div className={`${prefixCls}-upload-wrapper`}>
+              <input
+                type="file"
+                id="fileUpload"
+                accept=".json"
+                onChange={handleFileUpload}
+                style={{ display: "none" }}
+              />
+              <label
+                htmlFor="fileUpload"
+                className={`${prefixCls}-upload-button`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && file.type === "application/json") {
+                    handleFileFromDrop(file);  // 调用统一处理逻辑
+                  } else {
+                    alert("请上传 .json 文件");
+                  }
+                }}
+              >
+                {fileName}
+              </label>
+              {/* {fileName && <span className={`${prefixCls}-upload-filename`}>{fileName}</span>} */}
+            </div>
+            <div className={`${prefixCls}-progress-wrapper`}>
+              <div className={`${prefixCls}-progress-main`}>
+                {/* 播放按钮 */}
+                <button 
+                  className={`${prefixCls}-play-button`} 
+                  onClick={togglePlayback}
+                >
+                  {isPlaying ? "暂停" : "播放"}
+                </button>
+
+                <div className={`${prefixCls}-progress-group`}>
+                  {/* 帧进度条 + 信息 */}
+                  <input 
+                    type="range"
+                    className={`${prefixCls}-progress-frame`}
+                    min="0"
+                    max={uploadedData.length - 1}
+                    value={currentFrameIndex}
+                    onChange={(e) => {
+                      const index = parseInt(e.target.value);
+                      setCurrentFrameIndex(isNaN(index) ? 0 : index);
+                    }}
+                    disabled={!uploadedData.length}
+                  />
+                  <div className={`${prefixCls}-progress-info`}>
+                    帧: {currentFrameIndex + 1}/{uploadedData.length}
+                  </div>
+
+                  {/* 时间进度条 + 信息 */}
+                  <input
+                    type="range"
+                    className={`${prefixCls}-progress-time`}
+                    min="0"
+                    max={totalDuration * 1000}
+                    value={timeIndices[currentFrameIndex] * 1000 || 0}
+                    onChange={(e) => {
+                      const targetTime = parseInt(e.target.value) / 1000;
+                      const newIndex = binarySearch(timeIndices, targetTime);
+                      setCurrentFrameIndex(newIndex);
+                    }}
+                    disabled={!uploadedData.length}
+                  />
+                  <div className={`${prefixCls}-progress-info`}>
+                    时间: {timeIndices[currentFrameIndex]?.toFixed(3) || 0}s / {totalDuration.toFixed(3)}s
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={handleRecord}
+              className={`
+                ${prefixCls}-record-button
+                ${recording ? `${prefixCls}-recording` : ''}
+              `}
+            >
+              {recording ? '停止录制' : '开始录制'}
             </button>
-            <input
-              type="range"
-              min="0"
-              max={uploadedData.length - 1}
-              value={currentFrameIndex}
-              onChange={(e) => {
-                const index = parseInt(e.target.value);
-                setCurrentFrameIndex(isNaN(index) ? 0 : index);
-              }}
-              disabled={!uploadedData.length}
-            />
-            <input
-              type="range"
-              min="0"
-              max={totalDuration * 1000} // 以毫秒为单位提高精度
-              value={timeIndices[currentFrameIndex] * 1000 || 0}
-              onChange={(e) => {
-                const targetTime = parseInt(e.target.value) / 1000;
-                const newIndex = binarySearch(timeIndices, targetTime);
-                setCurrentFrameIndex(newIndex);
-              }}
-              disabled={!uploadedData.length}
-            />
-            <div>
-              {`${
-                timeIndices[currentFrameIndex]?.toFixed(3) || 0
-              }s / ${totalDuration.toFixed(3)}s`}
-            </div>
-            <div>
-              当前帧: {currentFrameIndex + 1}/{uploadedData.length}
-            </div>
           </div>
           <RedoOutlined
             onClick={() => {
@@ -552,21 +626,6 @@ const Display3d = (props: CellProps) => {
             <div className={`${prefixCls}-three-info-lups`}>
               LUPS: {location_update_per_second}
             </div>
-            <button 
-              onClick={handleRecord}
-              style={{
-                background: recording ? 'rgba(255,0,0,0.5)' : 'rgba(0,0,0,0.5)',
-                border: '1px solid white',
-                color: 'white',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                marginLeft: '10px'
-              }}
-              // disabled={!canvasElement} // 禁用直到canvas就绪
-            >
-              {recording ? '停止录制' : '开始录制'}
-            </button>
           </div>
           <View index={1} className={`${prefixCls}-three-robot`}>
             <PerspectiveCamera

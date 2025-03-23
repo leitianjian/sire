@@ -50,7 +50,6 @@ export default {
   // DIDisplay,
   // DODisplay,
   // ConnectedCodeEditor,
-  // // DEPolishTech,
   // ConnectedProgramLib,
   // ConnectedManualDrag,
   // RecordingMode,
