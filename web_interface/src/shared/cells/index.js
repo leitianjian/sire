@@ -25,7 +25,7 @@ import ConnectedManualDrag from "./ManualDrag/ManualDrag";
 import RecordingMode from "./RecordingMode/RecordingMode";
 import sizedDisplay from "./Display3d/Display3d";
 import meshcatDisplay from "./MeshcatDisplay/meshcatDisplay";
-
+import chartDisplay from "./DataDisplay/ForceDataDisplay"
 export default {
   // Blockly,
   // JogJoint,
@@ -42,6 +42,7 @@ export default {
   // Unknown,
   //ViewThree,
   // ViewThree2,
+  chartDisplay,
   sizedDisplay,
   meshcatDisplay,
   // ConnectedLogDisplay,
