@@ -5,10 +5,10 @@
 #include <string>
 #include <thread>
 
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <hpp/fcl/distance.h>
-#include <hpp/fcl/math/transform.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
+#include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/distance.h>
+#include <coal/math/transform.h>
+#include <coal/shape/geometric_shapes.h>
 
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
@@ -18,7 +18,7 @@
 namespace sire::physics::collision {
 struct CollisionFilter::Imp {
   FilterState filter_state_;
-  unordered_map<fcl::CollisionGeometry*, GeometryId> geometry_map_;
+  unordered_map<CollisionGeometry*, GeometryId> geometry_map_;
   aris::core::Matrix state_mat_;
   sire::Size geo_size_{0};
 };
@@ -26,7 +26,7 @@ auto CollisionFilter::addGeometry(geometry::CollidableGeometry& geo) -> bool {
   addGeometry(geo.geometryId(), geo.getCollisionObject());
   return true;
 }
-auto CollisionFilter::addGeometry(GeometryId id, fcl::CollisionObject* obj_ptr)
+auto CollisionFilter::addGeometry(GeometryId id, CollisionObject* obj_ptr)
     -> bool {
   if (!containsGeometry(id)) {
     GeometryMap map;
@@ -48,7 +48,7 @@ auto CollisionFilter::addGeometry(GeometryId id, fcl::CollisionObject* obj_ptr)
   }
 }
 auto CollisionFilter::updateGeometry(GeometryId id,
-                                     fcl::CollisionObject* obj_ptr) -> bool {
+                                     CollisionObject* obj_ptr) -> bool {
   if (containsGeometry(id)) {
     imp_->geometry_map_[obj_ptr->collisionGeometry().get()] = id;
     return true;
@@ -83,14 +83,14 @@ auto CollisionFilter::canCollideWith(GeometryId id_1, GeometryId id_2) -> bool {
                      : imp_->filter_state_[id_2][id_1] ==
                            CollisionRelationship::kUnfiltered;
 }
-auto CollisionFilter::canCollideWith(const fcl::CollisionObject* o1,
-                                     const fcl::CollisionObject* o2) -> bool {
+auto CollisionFilter::canCollideWith(const CollisionObject* o1,
+                                     const CollisionObject* o2) -> bool {
   if (o1 == o2) return false;
   try {
     GeometryId id_1 = imp_->geometry_map_.at(
-        const_cast<fcl::CollisionObject*>(o1)->collisionGeometry().get());
+        const_cast<CollisionObject*>(o1)->collisionGeometry().get());
     GeometryId id_2 = imp_->geometry_map_.at(
-        const_cast<fcl::CollisionObject*>(o2)->collisionGeometry().get());
+        const_cast<CollisionObject*>(o2)->collisionGeometry().get());
 
     return canCollideWith(id_1, id_2);
   } catch (std::out_of_range& err) {
@@ -98,11 +98,11 @@ auto CollisionFilter::canCollideWith(const fcl::CollisionObject* o1,
     return false;
   }
 }
-auto CollisionFilter::queryGeometryIdByPtr(const fcl::CollisionGeometry* ptr)
+auto CollisionFilter::queryGeometryIdByPtr(const CollisionGeometry* ptr)
     -> GeometryId {
-  return queryGeometryIdByPtr(const_cast<fcl::CollisionGeometry*>(ptr));
+  return queryGeometryIdByPtr(const_cast<CollisionGeometry*>(ptr));
 }
-auto CollisionFilter::queryGeometryIdByPtr(fcl::CollisionGeometry* ptr)
+auto CollisionFilter::queryGeometryIdByPtr(CollisionGeometry* ptr)
     -> GeometryId {
   return imp_->geometry_map_.at(ptr);
 }

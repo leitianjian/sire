@@ -34,7 +34,7 @@ if(WIN32)
 install(
 FILES 
 	"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
-	"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+	"${TARGET_HPP_FCL_PATH}/bin/coal.dll"
 	"${assimp_DIR}/../../debug/bin/assimp-vc${MSVC_TOOLSET_VERSION}-mtd.dll"
 	"${assimp_DIR}/../../debug/bin/zlibd1.dll"
 	"${assimp_DIR}/../../debug/bin/pugixml.dll"
@@ -62,7 +62,7 @@ if(WIN32)
 install(
 	FILES 
 		"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
-		"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+		"${TARGET_HPP_FCL_PATH}/bin/coal.dll"
 		"${assimp_DIR}/../../bin/assimp-vc${MSVC_TOOLSET_VERSION}-mt.dll"
 		"${assimp_DIR}/../../bin/zlib1.dll"
 		"${assimp_DIR}/../../bin/pugixml.dll"

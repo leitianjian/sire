@@ -2,12 +2,12 @@
 #define SIRE_PENETRATION_AS_POINT_PAIR_HPP_
 #include <algorithm>
 
-#include <hpp/fcl/data_types.h>
+#include <coal/data_types.h>
 
 #include "sire/core/geometry/geometry_base.hpp"
 
 namespace sire::physics::collision {
-using namespace hpp;
+using namespace coal;
 /** The data for reporting the signed distance between two geometries, A and B.
  It provides the id's of the two geometries, the witness points Ca and Cb on
  the surfaces of A and B, the signed distance, and nhat_BA_W a direction of
@@ -61,14 +61,14 @@ struct SignedDistancePair {
   sire::geometry::GeometryId id_B;
   /** The point on A that most deeply penetrates B, measured and expressed in
    the world frame. */
-  fcl::Vec3f p_WCa;
+  Vec3s p_WCa;
   /** The point on B that most deeply penetrates A, measured and expressed in
    the world frame. */
-  fcl::Vec3f p_WCb;
+  Vec3s p_WCb;
   /** The unit-length normal which defines the penetration direction, pointing
    from geometry A into geometry B, measured and expressed in the world frame.
    It _approximates_ the normal to the plane on which the contact patch lies. */
-  fcl::Vec3f nhat_AB_W;
+  Vec3s nhat_AB_W;
   /** The penetration depth. Should be positive*/
   double depth{-1.0};
 };

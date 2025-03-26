@@ -3,24 +3,24 @@
 
 #include <string>
 
-#include <hpp/fcl/broadphase/broadphase_callbacks.h>
-#include <hpp/fcl/broadphase/broadphase_collision_manager.h>
-#include <hpp/fcl/collision_data.h>
-#include <hpp/fcl/collision_object.h>
+#include <coal/broadphase/broadphase_callbacks.h>
+#include <coal/broadphase/broadphase_collision_manager.h>
+#include <coal/collision_data.h>
+#include <coal/collision_object.h>
 
 #include "sire/physics/collision/collision_filter.hpp"
 
 namespace sire::physics::collision {
 using namespace std;
-using namespace hpp;
+using namespace coal;
 // Stored collided object when collision detected
-class SIRE_API CollidedObjectsCallback : public fcl::CollisionCallBackBase {
+class SIRE_API CollidedObjectsCallback : public CollisionCallBackBase {
  public:
-  fcl::CollisionData data;
-  bool collide(fcl::CollisionObject* o1, fcl::CollisionObject* o2) override;
-  auto addCollidedObject(fcl::CollisionObject* o1, fcl::CollisionObject* o2)
+  CollisionData data;
+  bool collide(CollisionObject* o1, CollisionObject* o2) override;
+  auto addCollidedObject(CollisionObject* o1, CollisionObject* o2)
       -> void;
-  auto queryCollidedObject(fcl::CollisionObject* o1, fcl::CollisionObject* o2)
+  auto queryCollidedObject(CollisionObject* o1, CollisionObject* o2)
       -> bool;
   auto collidedObjectMap() -> set<CollisionObjectsPair>&;
   CollidedObjectsCallback(CollisionFilter* filter);

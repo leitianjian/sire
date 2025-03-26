@@ -5,12 +5,12 @@
 #include <string>
 #include <thread>
 
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <hpp/fcl/distance.h>
-#include <hpp/fcl/math/transform.h>
-#include <hpp/fcl/mesh_loader/assimp.h>
-#include <hpp/fcl/mesh_loader/loader.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
+#include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/distance.h>
+#include <coal/math/transform.h>
+#include <coal/mesh_loader/assimp.h>
+#include <coal/mesh_loader/loader.h>
+#include <coal/shape/geometric_shapes.h>
 
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>

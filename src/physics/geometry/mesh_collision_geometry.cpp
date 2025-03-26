@@ -5,10 +5,10 @@
 #include <string>
 #include <string_view>
 
-#include <hpp/fcl/BVH/BVH_model.h>
-#include <hpp/fcl/mesh_loader/assimp.h>
-#include <hpp/fcl/mesh_loader/loader.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
+#include <coal/BVH/BVH_model.h>
+#include <coal/mesh_loader/assimp.h>
+#include <coal/mesh_loader/loader.h>
+#include <coal/shape/geometric_shapes.h>
 
 #include <aris/core/reflection.hpp>
 #include <aris/dynamic/model.hpp>
@@ -42,18 +42,18 @@ auto MeshCollisionGeometry::setScale(const double* scale) -> void {
   if (scale) std::copy_n(scale, 3, imp_->scale_);
 }
 auto MeshCollisionGeometry::init() -> void {
-  shared_ptr<fcl::BVHModel<fcl::OBBRSS>> bvh_model =
-      make_shared<fcl::BVHModel<fcl::OBBRSS>>();
-  fcl::loadPolyhedronFromResource(meshShape.getResourcePath(), fcl::Vec3f(imp_->scale_),
+  shared_ptr<BVHModel<OBBRSS>> bvh_model =
+      make_shared<BVHModel<OBBRSS>>();
+  loadPolyhedronFromResource(meshShape.getResourcePath(), Vec3s(imp_->scale_),
                                   bvh_model);
-  fcl::Transform3f trans(
-      (fcl::Matrix3f() << partPm()[0][0], partPm()[0][1], partPm()[0][2],
+  Transform3s trans(
+      (Matrix3s() << partPm()[0][0], partPm()[0][1], partPm()[0][2],
        partPm()[1][0], partPm()[1][1], partPm()[1][2], partPm()[2][0],
        partPm()[2][1], partPm()[2][2])
           .finished(),
-      (fcl::Vec3f() << partPm()[0][3], partPm()[1][3], partPm()[2][3])
+      (Vec3s() << partPm()[0][3], partPm()[1][3], partPm()[2][3])
           .finished());
-  resetCollisionObject(new fcl::CollisionObject(bvh_model, trans));
+  resetCollisionObject(new CollisionObject(bvh_model, trans));
 }
 ARIS_REGISTRATION {
   auto setResourcePath = [](MeshCollisionGeometry* geo,

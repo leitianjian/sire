@@ -7,7 +7,7 @@
 
 #include <sire_lib_export.h>
 
-#include <hpp/fcl/collision_object.h>
+#include <coal/collision_object.h>
 
 #include <aris/dynamic/model_basic.hpp>
 #include <aris/dynamic/model_coordinate.hpp>
@@ -20,12 +20,12 @@ namespace sire::physics {
 namespace geometry {
 /* unique geometry id for every added collision geometry */
 using namespace std;
-using namespace hpp;
+using namespace coal;
 
 class SIRE_API Collidable {
  public:
-  auto getCollisionObject() -> fcl::CollisionObject*;
-  auto resetCollisionObject(fcl::CollisionObject* object) -> void;
+  auto getCollisionObject() -> CollisionObject*;
+  auto resetCollisionObject(CollisionObject* object) -> void;
   auto setContactProp(const core::PropMap& map) -> void;
   auto setContactProp(core::PropMap& map) -> void;
   auto contactProp() const -> const core::PropMap&;

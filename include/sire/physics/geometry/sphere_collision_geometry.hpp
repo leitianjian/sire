@@ -7,7 +7,7 @@
 
 #include <sire_lib_export.h>
 
-#include <hpp/fcl/collision_object.h>
+#include <coal/collision_object.h>
 
 #include <aris/core/object.hpp>
 #include <aris/dynamic/model_basic.hpp>
@@ -25,7 +25,7 @@ namespace geometry {
 using json = nlohmann::json;
 /* unique geometry id for every added collision geometry */
 using namespace std;
-using namespace hpp;
+using namespace coal;
 using GeometryId = sire::geometry::GeometryId;
 class SphereCollisionGeometry : public CollidableGeometry {
  public:
