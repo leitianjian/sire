@@ -393,8 +393,8 @@ auto process_penetration_depth_and_maintain_impact_set2(
   // 再修改穿深进行积分。记录没有减去穿深的新加入点的index
   std::vector<common::PenetrationAsPointPair*> new_contacts_ptr;
   for (auto& pair : pairs) {
-    // DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
-    //             << " depth: " << pair.depth;
+    DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
+                << " depth: " << pair.depth;
     if (auto search = contact_pair_map.find({pair.id_A, pair.id_B});
         search == contact_pair_map.end()) {
       contact_pair_map.insert({{pair.id_A, pair.id_B}, {pair.depth, false}});
@@ -457,6 +457,7 @@ auto StepHandler1::init(simulator::SimulationLoop* simulator) -> void {
 auto StepHandler1::handle(core::EventBase* e) -> bool {
   // 积分到当前 event 记录的时间
   double dt = e->eventProp().getPropValue("dt");
+  DLOG(DEBUG) << "-------------- integrate with dt " << dt << " --------------";
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);
   
@@ -472,7 +473,10 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
   
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
-  
+  if (e->eventProp().getPropValueOrDefault("clearInitDepth", 0.0)) {
+    DLOG(DEBUG) << "Clear record initial depth";
+    manager_ptr->contactPairMap().clear();
+  }
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
   double nextDt =
@@ -483,6 +487,14 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
   if (suggestDt > 0 && suggestDt < simulator_ptr->deltaT()) {
     nextDt = suggestDt;
   }
+  DLOG_IF(suggestDt > 0, DEBUG)
+      << "dt: " << nextDt << " suggestDt: " << suggestDt;
+  // if (nextDt == simulator_ptr->deltaT() &&
+  //     manager_ptr->impactedPrtSet().empty()) {
+  //   step_event->eventProp().addProp("clearInitDepth", 1);
+  // } else {
+  //   step_event->eventProp().addProp("clearInitDepth", 0);
+  // }
   step_event->eventProp().addProp("dt", nextDt);
   simulator_ptr->eventManager().addEvent(std::move(step_event));
   return true;
