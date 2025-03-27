@@ -472,11 +472,11 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
                                    contact_info_result);
   
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
-  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
-  if (e->eventProp().getPropValueOrDefault("clearInitDepth", 0.0)) {
-    DLOG(DEBUG) << "Clear record initial depth";
-    manager_ptr->contactPairMap().clear();
-  }
+  // core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  // if (e->eventProp().getPropValueOrDefault("clearInitDepth", 0.0)) {
+  //   DLOG(DEBUG) << "Clear record initial depth";
+  //   manager_ptr->contactPairMap().clear();
+  // }
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
   double nextDt =
