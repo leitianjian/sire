@@ -359,7 +359,8 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   return true;
 }
 auto process_penetration_depth_and_maintain_impact_set2(
-    simulator::SimulationLoop* simulator_ptr) -> double {
+    simulator::SimulationLoop* simulator_ptr,
+    std::vector<common::PointPairContactInfo>& contact_info_out) -> double {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
 
@@ -414,12 +415,12 @@ auto process_penetration_depth_and_maintain_impact_set2(
   // TODO: 对于第一次求解没必要使用多点接触求解方法，直接用最基本的就行了，
   // 这个只是后面消除穿深的参考
   double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
-  nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
+  nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info_out);
   // 重置上一时刻关节和forcePool设置的力
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
   engine_ptr->resetPartContactForce();
   // 根据接触信息将力设置回model的forcePool
-  engine_ptr->cptGlbForceByContactInfo(contact_info);
+  engine_ptr->cptGlbForceByContactInfo(contact_info_out);
   return nextSuggestDt;
 }
 auto process_penetration_depth_and_maintain_impact_set3(
@@ -626,7 +627,8 @@ auto InitHandler1::handle(core::EventBase* e) -> bool {
   simulator_ptr->timer().reset();
   // initLog();
   // logCurrentState(0, 1, simulator_ptr);
-  process_penetration_depth_and_maintain_impact_set3(simulator_ptr);
+  std::vector<common::PointPairContactInfo> contact_info_result;
+  process_penetration_depth_and_maintain_impact_set3(simulator_ptr, contact_info_result);
   // 之后就可以正常积分
 
   std::unique_ptr<core::EventBase> step_event =
@@ -648,21 +650,28 @@ auto StepHandler1::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
 auto StepHandler1::handle(core::EventBase* e) -> bool {
-  // 积分到当前event记录的时间
+  // 积分到当前 event 记录的时间
   double dt = e->eventProp().getPropValue("dt");
   DLOG(DEBUG) << "-------------- integrate with dt " << dt << " --------------";
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);
+  
+  // 获取接触信息
+  std::vector<common::PointPairContactInfo> contact_info_result;
+  double suggestDt =
+      process_penetration_depth_and_maintain_impact_set2(simulator_ptr, contact_info_result);
+  
+  // 记录模型状态和接触信息
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
-                                   *simulator_ptr->model());
+                                   *simulator_ptr->model(),
+                                   contact_info_result);
+  
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
-  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  // core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
   // if (e->eventProp().getPropValueOrDefault("clearInitDepth", 0.0)) {
   //   DLOG(DEBUG) << "Clear record initial depth";
   //   manager_ptr->contactPairMap().clear();
   // }
-  double suggestDt =
-      process_penetration_depth_and_maintain_impact_set3(simulator_ptr);
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
   double nextDt =

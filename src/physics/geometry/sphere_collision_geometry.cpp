@@ -5,8 +5,8 @@
 #include <string>
 #include <string_view>
 
-#include <hpp/fcl/BVH/BVH_model.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
+#include <coal/BVH/BVH_model.h>
+#include <coal/shape/geometric_shapes.h>
 
 #include <aris/core/reflection.hpp>
 
@@ -22,15 +22,15 @@ SIRE_DEFINE_TO_JSON_HEAD(SphereCollisionGeometry) {
 }
 
 auto SphereCollisionGeometry::init() -> void {
-  fcl::Transform3f trans(
-      (fcl::Matrix3f() << partPm()[0][0], partPm()[0][1], partPm()[0][2],
+  Transform3s trans(
+      (Matrix3s() << partPm()[0][0], partPm()[0][1], partPm()[0][2],
        partPm()[1][0], partPm()[1][1], partPm()[1][2], partPm()[2][0],
        partPm()[2][1], partPm()[2][2])
           .finished(),
-      (fcl::Vec3f() << partPm()[0][3], partPm()[1][3], partPm()[2][3])
+      (Vec3s() << partPm()[0][3], partPm()[1][3], partPm()[2][3])
           .finished());
-  resetCollisionObject(new fcl::CollisionObject(
-      make_shared<fcl::Sphere>(sphereShape.radius()), trans));
+  resetCollisionObject(new CollisionObject(
+      make_shared<Sphere>(sphereShape.radius()), trans));
 }
 SphereCollisionGeometry::SphereCollisionGeometry(double radius, int part_id,
                                                  const double* prt_pm,
@@ -38,8 +38,8 @@ SphereCollisionGeometry::SphereCollisionGeometry(double radius, int part_id,
     : CollidableGeometry(prt_pm, part_id, is_dynamic), sphereShape(radius) {}
 SphereCollisionGeometry::~SphereCollisionGeometry() = default;
 
-// 借助类内部的from_json to_json定义，
-// 使用宏定义完成用于json类型转换的from_json to_json的方法定义
+// 锟斤拷锟斤拷锟斤拷锟节诧拷锟斤拷from_json to_json锟斤拷锟藉，
+// 使锟矫宏定锟斤拷锟斤拷锟斤拷锟斤拷锟絡son锟斤拷锟斤拷转锟斤拷锟斤拷from_json to_json锟侥凤拷锟斤拷锟斤拷锟斤拷
 SIRE_DEFINE_JSON_OUTER_TWO(SphereCollisionGeometry)
 
 ARIS_REGISTRATION {

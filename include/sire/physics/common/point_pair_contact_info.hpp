@@ -2,7 +2,7 @@
 #define SIRE_POINT_PAIR_CONTACT_INFO_HPP_
 #include <algorithm>
 
-#include <hpp/fcl/data_types.h>
+#include <coal/data_types.h>
 
 #include <aris/core/basic_type.hpp>
 #include <aris/core/object.hpp>
@@ -12,7 +12,7 @@
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 
 namespace sire::physics::common {
-using namespace hpp;
+using namespace coal;
 class PointPairContactInfo {
  public:
   PointPairContactInfo(sire::PartId partId_A, sire::PartId partId_B,

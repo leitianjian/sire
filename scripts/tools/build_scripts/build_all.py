@@ -5,10 +5,10 @@ sire = Path.cwd().parent.parent.parent
 third_parties = sire / 'third_party' / 'install'
 
 scripts = [
-    ['python', 'build_third_parties.py'],
+    # ['python', 'build_third_parties.py'],
     ['python', 'build.py', '--base-path', str(sire), '--aris-path', str(third_parties / 'aris'), 
      '--fcl-path', str(third_parties / 'hpp-fcl'), '--uuid-path', str(third_parties / 'stduuid'),
-     '--toolchain-path', 'E:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake', '--build-demo', '--build-test', '--build-all']
+     '--toolchain-path', 'D:\\env\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake', '--build-demo', '--build-test', '--build-all']
 ]
 
 # 依次执行每个Python文件

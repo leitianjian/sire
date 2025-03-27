@@ -7,7 +7,7 @@
 
 #include <sire_lib_export.h>
 
-#include <hpp/fcl/collision_object.h>
+#include <coal/collision_object.h>
 
 #include <aris/dynamic/model_basic.hpp>
 #include <aris/dynamic/model_coordinate.hpp>
@@ -21,7 +21,7 @@ namespace sire::physics {
 namespace geometry {
 /* unique geometry id for every added collision geometry */
 using namespace std;
-using namespace hpp;
+using namespace coal;
 using GeometryId = sire::geometry::GeometryId;
 class MeshCollisionGeometry : public CollidableGeometry {
  public:
@@ -33,10 +33,10 @@ class MeshCollisionGeometry : public CollidableGeometry {
                                  const double* prt_pm = nullptr);
   virtual ~MeshCollisionGeometry();
   SIRE_DECLARE_MOVE_CTOR(MeshCollisionGeometry);
-  // ÀàÄÚ²¿Ê¹ÓÃµÄto_json from_jsonµÄÉùÃ÷
+  // ï¿½ï¿½ï¿½Ú²ï¿½Ê¹ï¿½Ãµï¿½to_json from_jsonï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
 
-  // nlohammn::json j = o;µÄÊ±ºò»á×Ô¶¯µ÷ÓÃµÄto_json from_jsonµÄÉùÃ÷
+  // nlohammn::json j = o;ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½Ãµï¿½to_json from_jsonï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   SIRE_DECLARE_JSON_FRIEND_TWO(MeshCollisionGeometry)
 
  private:

@@ -26,7 +26,7 @@ find_pkg_path(aris aris)
 
 find_pkg_path(assimp assimp)
 
-find_pkg_path(hpp-fcl hpp_fcl)
+find_pkg_path(coal hpp_fcl)
 
 find_pkg_path(stduuid stduuid)
 
@@ -176,7 +176,7 @@ target_include_directories(sire_physics
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
@@ -206,7 +206,7 @@ target_include_directories(sire_integrator
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
@@ -244,7 +244,7 @@ target_include_directories(sire_simulator
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
@@ -315,7 +315,7 @@ target_include_directories(sire_server
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 		${ASSIMP_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
 install(DIRECTORY include/sire/ext DESTINATION include/sire)
@@ -340,7 +340,7 @@ target_include_directories(sire_middleware
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
@@ -390,7 +390,8 @@ target_include_directories(sire_lib
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 	)
-set(PUB_RELY_LINK_LIB ${hpp-fcl_LIBRARIES} ${aris_LIBRARIES} msgpack-cxx)
+set(PUB_RELY_LINK_LIB ${coal_LIBRARIES} ${aris_LIBRARIES} msgpack-cxx)
+message(STATUS ${coal_LIBRARIES})
 target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB})
 
 set(sire_LIBRARIES 

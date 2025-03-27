@@ -1,8 +1,8 @@
 #include "sire/physics/collision/penetration_as_point_pair_callback.hpp"
 
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <hpp/fcl/distance.h>
-#include <hpp/fcl/math/transform.h>
+#include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/distance.h>
+#include <coal/math/transform.h>
 
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
@@ -12,19 +12,19 @@
 
 namespace sire::physics::collision {
 auto PenetrationAsPointPairCallback::calcDistance(
-    const fcl::CollisionObject* a, const fcl::CollisionObject* b,
-    const fcl::CollisionRequest& request,
+    const CollisionObject* a, const CollisionObject* b,
+    const CollisionRequest& request,
     common::PenetrationAsPointPair* pair_data) -> void {
   SIRE_DEMAND(pair_data != nullptr);
 
-  fcl::CollisionResult result;
-  fcl::collide(a, b, request, result);
+  CollisionResult result;
+  coal::collide(a, b, request, result);
 
   if (!result.isCollision()) return;
 
   // Process the contact points
   // NOTE: This assumes that the request is configured to use a single contact.
-  const fcl::Contact& contact = result.getContact(0);
+  const Contact& contact = result.getContact(0);
 
   // Signed distance.
   const double depth = std::abs(contact.penetration_depth);
@@ -55,14 +55,14 @@ auto PenetrationAsPointPairCallback::calcDistance(
   pair_data->p_WC = contact.pos;
 
   pair_data->id_A = filter_->queryGeometryIdByPtr(
-      const_cast<fcl::CollisionObject*>(a)->collisionGeometry().get());
+      const_cast<CollisionObject*>(a)->collisionGeometry().get());
   pair_data->id_B = filter_->queryGeometryIdByPtr(
-      const_cast<fcl::CollisionObject*>(b)->collisionGeometry().get());
+      const_cast<CollisionObject*>(b)->collisionGeometry().get());
 }
 
 auto PenetrationAsPointPairCallback::collide(
-    fcl::CollisionObject* fcl_object_A_ptr,
-    fcl::CollisionObject* fcl_object_B_ptr) -> bool {
+    CollisionObject* fcl_object_A_ptr,
+    CollisionObject* fcl_object_B_ptr) -> bool {
   SIRE_DEMAND(point_pairs != nullptr);
 
   // keep the query order smaller geometry id as a.
@@ -91,7 +91,7 @@ auto PenetrationAsPointPairCallback::collide(
 PenetrationAsPointPairCallback::PenetrationAsPointPairCallback(
     CollisionFilter* filter_in,
     vector<common::PenetrationAsPointPair>* point_pairs_in)
-    : fcl::CollisionCallBackBase(),
+    : CollisionCallBackBase(),
       filter_(filter_in),
       point_pairs(point_pairs_in) {
   request.num_max_contacts = 1;

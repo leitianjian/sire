@@ -7,12 +7,12 @@
 
 #include <sire_lib_export.h>
 
-#include <hpp/fcl/broadphase/broadphase_callbacks.h>
-#include <hpp/fcl/broadphase/broadphase_collision_manager.h>
-#include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
-#include <hpp/fcl/collision.h>
-#include <hpp/fcl/collision_data.h>
-#include <hpp/fcl/collision_object.h>
+#include <coal/broadphase/broadphase_callbacks.h>
+#include <coal/broadphase/broadphase_collision_manager.h>
+#include <coal/broadphase/default_broadphase_callbacks.h>
+#include <coal/collision.h>
+#include <coal/collision_data.h>
+#include <coal/collision_object.h>
 
 #include <aris/core/expression_calculator.hpp>
 #include <aris/dynamic/model.hpp>
@@ -28,11 +28,11 @@ namespace sire::physics {
 class PhysicsEngine;
 namespace collision {
 using namespace std;
-using namespace hpp;
+using namespace coal;
 
 /* drake-based implementation
- * filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
- * 使用无锁数据同步从transfer中取数据
+ * filter锟斤拷geometry锟斤拷锟矫讹拷锟饺讹拷锟斤拷去锟斤拷之锟斤拷通锟斤拷init锟斤拷锟斤拷锟斤拷撞锟斤拷锟斤拷锟斤拷锟侥筹拷始锟斤拷
+ * 使锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷同锟斤拷锟斤拷transfer锟斤拷取锟斤拷锟斤拷
  */
 class SIRE_API CollisionDetection {
  public:

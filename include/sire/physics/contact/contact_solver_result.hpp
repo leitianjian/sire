@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 
-#include <hpp/fcl/data_types.h>
+#include <coal/data_types.h>
 
 #include <aris/core/basic_type.hpp>
 #include <aris/core/object.hpp>
@@ -14,7 +14,7 @@
 #include "sire/core/sorted_pair.hpp"
 
 namespace sire::physics::contact {
-using namespace hpp;
+using namespace coal;
 struct ContactSolverResult {
   void resize(sire::Size num_velocities, sire::Size num_contacts) {
     vs_next.resize(num_velocities, 0);
@@ -42,15 +42,15 @@ struct ContactSolverResult {
   std::map<sire::core::SortedPair<sire::PartId>, sire::Size> contactPairIdxMap_;
   std::vector<sire::Size> prtsA;
   std::vector<sire::Size> prtsB;
-  // обр╩й╠©л╣дкы╤хпЩа©A
+  // О©╫О©╫р╩й╠О©╫л╣О©╫О©╫ы╤О©╫О©╫О©╫О©╫О©╫A
   std::vector<double> vs_next;
-  // ╥╗оР╫с╢╔а╕
+  // О©╫О©╫О©╫О©╫с╢О©╫О©╫О©╫
   std::vector<double> fn;
-  // гпоР╫с╢╔а╕
+  // О©╫О©╫О©╫О©╫с╢О©╫О©╫О©╫
   std::vector<double> ft;
-  // ╥╗оР╫с╢╔кы╤хё╗©иртсцр╡©ирт╡╩сцё╘
+  // О©╫О©╫О©╫О©╫с╢О©╫О©╫ы╤хёО©╫О©╫О©╫О©╫О©╫О©╫О©╫р╡О©╫О©╫О©╫т╡О©╫О©╫цёО©╫
   std::vector<double> vn;
-  // гпоР╫с╢╔кы╤хё╗©иртсцр╡©ирт╡╩сцё╘
+  // О©╫О©╫О©╫О©╫с╢О©╫О©╫ы╤хёО©╫О©╫О©╫О©╫О©╫О©╫О©╫р╡О©╫О©╫О©╫т╡О©╫О©╫цёО©╫
   std::vector<double> vt;
   bool isEmpty_{true};
 };

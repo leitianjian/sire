@@ -10,6 +10,7 @@ import React, {
 import {
   Canvas,
   useLoader,
+  useThree,
   Vector3 as Vector3Type,
   Quaternion as Vector4Type,
 } from "@react-three/fiber";
@@ -88,7 +89,7 @@ const default_scale: number = 1;
 
 const default_position: PositionType = [0, 0, 0];
 const default_quaternion: QuaternionType = [0, 0, 0, 1];
-
+console.log("default_position", default_position);
 interface ModelProps {
   path: string;
   material?: Material;
@@ -329,19 +330,79 @@ const Display3d = (props: CellProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const playbackInterval = useRef<number | null>(null);
 
+  const [recording, setRecording] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+
+  const CanvasCapturer = () => {
+    const { gl } = useThree();
+    useEffect(() => {
+      // 通过状态更新传递canvas引用
+      setCanvasElement(gl.domElement);
+    }, [gl.domElement]);
+    return null;
+  };
+
+  const handleRecord = async () => {
+    if (!canvasElement) {
+      console.error("Canvas元素未就绪");
+      return;
+    }
+
+    if (!recording) {
+      try {
+        recordedChunksRef.current = [];
+        const stream = canvasElement.captureStream(30);
+        
+        mediaRecorderRef.current = new MediaRecorder(stream, {
+          mimeType: 'video/webm;codecs=vp9',
+          videoBitsPerSecond: 2_500_000
+        });
+
+        mediaRecorderRef.current.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+        };
+
+        mediaRecorderRef.current.onstop = () => {
+          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `recording-${Date.now()}.webm`;
+          a.click();
+          URL.revokeObjectURL(url);
+          recordedChunksRef.current = [];
+        };
+
+        mediaRecorderRef.current.start(100);
+        setRecording(true);
+      } catch (error) {
+        console.error("录屏启动失败:", error);
+        setRecording(false);
+      }
+    } else {
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+    }
+  };
+
+  const [fileName, setFileName] = useState<string>("📁 上传JSON文件");
+
   // 文件上传处理
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
         if (!data.partpq || !data.timeindex) {
-          throw new Error("Invalid JSON format");
+          alert("Invalid JSON format!");
+          // throw new Error("Invalid JSON format");
+          return;
         }
-
+        setFileName(file.name);
         // 提取 partpq 和 timeindex
         setUploadedData(data.partpq);
         setTimeIndices(data.timeindex);
@@ -352,6 +413,29 @@ const Display3d = (props: CellProps) => {
         if (playbackInterval.current) {
           clearInterval(playbackInterval.current);
         }
+      } catch (error) {
+        console.error("Invalid JSON file");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileFromDrop = (file: File) => {
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string);
+        if (!data.partpq || !data.timeindex) {
+          throw new Error("Invalid JSON format");
+        }
+  
+        setUploadedData(data.partpq);
+        setTimeIndices(data.timeindex);
+        setTotalDuration(data.timeindex[data.timeindex.length - 1] || 0);
+        setCurrentFrameIndex(0);
+        setIsPlaying(false);
+        if (playbackInterval.current) clearInterval(playbackInterval.current);
       } catch (error) {
         console.error("Invalid JSON file");
       }
@@ -448,41 +532,89 @@ const Display3d = (props: CellProps) => {
         <div ref={eventSrcRef} className={`${prefixCls}-three`}>
           {/* 新增控制面板 */}
           <div className={`${prefixCls}-controls`}>
-            <input type="file" accept=".json" onChange={handleFileUpload} />
-            <button onClick={togglePlayback}>
-              {isPlaying ? "暂停" : "播放"}
+            <div className={`${prefixCls}-upload-wrapper`}>
+              <input
+                type="file"
+                id="fileUpload"
+                accept=".json"
+                onChange={handleFileUpload}
+                style={{ display: "none" }}
+              />
+              <label
+                htmlFor="fileUpload"
+                className={`${prefixCls}-upload-button`}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files?.[0];
+                  if (file && file.type === "application/json") {
+                    handleFileFromDrop(file);  // 调用统一处理逻辑
+                  } else {
+                    alert("请上传 .json 文件");
+                  }
+                }}
+              >
+                {fileName}
+              </label>
+              {/* {fileName && <span className={`${prefixCls}-upload-filename`}>{fileName}</span>} */}
+            </div>
+            <div className={`${prefixCls}-progress-wrapper`}>
+              <div className={`${prefixCls}-progress-main`}>
+                {/* 播放按钮 */}
+                <button 
+                  className={`${prefixCls}-play-button`} 
+                  onClick={togglePlayback}
+                >
+                  {isPlaying ? "暂停" : "播放"}
+                </button>
+
+                <div className={`${prefixCls}-progress-group`}>
+                  {/* 帧进度条 + 信息 */}
+                  <input 
+                    type="range"
+                    className={`${prefixCls}-progress-frame`}
+                    min="0"
+                    max={uploadedData.length - 1}
+                    value={currentFrameIndex}
+                    onChange={(e) => {
+                      const index = parseInt(e.target.value);
+                      setCurrentFrameIndex(isNaN(index) ? 0 : index);
+                    }}
+                    disabled={!uploadedData.length}
+                  />
+                  <div className={`${prefixCls}-progress-info`}>
+                    帧: {currentFrameIndex + 1}/{uploadedData.length}
+                  </div>
+
+                  {/* 时间进度条 + 信息 */}
+                  <input
+                    type="range"
+                    className={`${prefixCls}-progress-time`}
+                    min="0"
+                    max={totalDuration * 1000}
+                    value={timeIndices[currentFrameIndex] * 1000 || 0}
+                    onChange={(e) => {
+                      const targetTime = parseInt(e.target.value) / 1000;
+                      const newIndex = binarySearch(timeIndices, targetTime);
+                      setCurrentFrameIndex(newIndex);
+                    }}
+                    disabled={!uploadedData.length}
+                  />
+                  <div className={`${prefixCls}-progress-info`}>
+                    时间: {timeIndices[currentFrameIndex]?.toFixed(3) || 0}s / {totalDuration.toFixed(3)}s
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={handleRecord}
+              className={`
+                ${prefixCls}-record-button
+                ${recording ? `${prefixCls}-recording` : ''}
+              `}
+            >
+              {recording ? '停止录制' : '开始录制'}
             </button>
-            <input
-              type="range"
-              min="0"
-              max={uploadedData.length - 1}
-              value={currentFrameIndex}
-              onChange={(e) => {
-                const index = parseInt(e.target.value);
-                setCurrentFrameIndex(isNaN(index) ? 0 : index);
-              }}
-              disabled={!uploadedData.length}
-            />
-            <input
-              type="range"
-              min="0"
-              max={totalDuration * 1000} // 以毫秒为单位提高精度
-              value={timeIndices[currentFrameIndex] * 1000 || 0}
-              onChange={(e) => {
-                const targetTime = parseInt(e.target.value) / 1000;
-                const newIndex = binarySearch(timeIndices, targetTime);
-                setCurrentFrameIndex(newIndex);
-              }}
-              disabled={!uploadedData.length}
-            />
-            <div>
-              {`${
-                timeIndices[currentFrameIndex]?.toFixed(3) || 0
-              }s / ${totalDuration.toFixed(3)}s`}
-            </div>
-            <div>
-              当前帧: {currentFrameIndex + 1}/{uploadedData.length}
-            </div>
           </div>
           <RedoOutlined
             onClick={() => {
@@ -575,10 +707,10 @@ const Display3d = (props: CellProps) => {
           </View>
           <Canvas
             eventSource={eventSrcRef}
-            // camera={{
-            //   fov: 50,
-            //   near: 0.1
-            // }}
+            camera={{
+              fov: 50,
+              near: 0.1
+            }}
             gl={{
               antialias: true,
               autoClearColor: false,
@@ -587,6 +719,8 @@ const Display3d = (props: CellProps) => {
             }}
             shadows={"soft"}
           >
+            <CanvasCapturer />
+            <CameraControls ref={camera_control_robot} />
             <View.Port />
           </Canvas>
         </div>

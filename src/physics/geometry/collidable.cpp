@@ -6,10 +6,10 @@
 #include <string_view>
 #include <unordered_map>
 
-#include <hpp/fcl/BVH/BVH_model.h>
-#include <hpp/fcl/mesh_loader/assimp.h>
-#include <hpp/fcl/mesh_loader/loader.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
+#include <coal/BVH/BVH_model.h>
+#include <coal/mesh_loader/assimp.h>
+#include <coal/mesh_loader/loader.h>
+#include <coal/shape/geometric_shapes.h>
 
 #include <aris/core/object.hpp>
 #include <aris/core/reflection.hpp>
@@ -18,16 +18,16 @@
 
 namespace sire::physics::geometry {
 struct Collidable::Imp {
-  unique_ptr<fcl::CollisionObject> fcl_object_ptr_{nullptr};
+  unique_ptr<CollisionObject> fcl_object_ptr_{nullptr};
 
-  // TODO(leitianjian) ÐèÒªÍê³Éunorder_mapµÄÐòÁÐ»¯£¬·½±ãÌîÐ´ÊôÐÔÓëÅäÖÃ×¢Èë
+  // TODO(leitianjian) ï¿½ï¿½Òªï¿½ï¿½ï¿½unorder_mapï¿½ï¿½ï¿½ï¿½ï¿½Ð»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×¢ï¿½ï¿½
   core::PropMap contact_properties_;
   std::string material_;
 };
-auto Collidable::getCollisionObject() -> fcl::CollisionObject* {
+auto Collidable::getCollisionObject() -> CollisionObject* {
   return imp_->fcl_object_ptr_.get();
 }
-auto Collidable::resetCollisionObject(fcl::CollisionObject* object) -> void {
+auto Collidable::resetCollisionObject(CollisionObject* object) -> void {
   imp_->fcl_object_ptr_.reset(object);
 }
 auto Collidable::setContactProp(const core::PropMap& map) -> void {
