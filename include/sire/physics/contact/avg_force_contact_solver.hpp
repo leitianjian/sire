@@ -8,12 +8,12 @@
 #include <utility>
 #include <vector>
 
-#include <hpp/fcl/broadphase/broadphase_callbacks.h>
-#include <hpp/fcl/broadphase/broadphase_collision_manager.h>
-#include <hpp/fcl/broadphase/default_broadphase_callbacks.h>
-#include <hpp/fcl/collision.h>
-#include <hpp/fcl/collision_data.h>
-#include <hpp/fcl/collision_object.h>
+#include <coal/broadphase/broadphase_callbacks.h>
+#include <coal/broadphase/broadphase_collision_manager.h>
+#include <coal/broadphase/default_broadphase_callbacks.h>
+#include <coal/collision.h>
+#include <coal/collision_data.h>
+#include <coal/collision_object.h>
 
 #include <aris/core/expression_calculator.hpp>
 #include <aris/core/object.hpp>
@@ -28,7 +28,7 @@
 
 namespace sire::physics {
 namespace contact {
-using namespace hpp;
+using namespace coal;
 // TODO: 手动去掉两个ground相关的碰撞。
 enum class LhsVariableType { OneDelta, TwoAccel };
 auto cptAccelExtVector(

@@ -7,7 +7,7 @@
 
 #include <aris/core/object.hpp>
 #include <aris/dynamic/model.hpp>
-
+#include "sire/physics/common/point_pair_contact_info.hpp"
 #include "sire/core/constants.hpp"
 
 namespace sire::simulator {
@@ -25,6 +25,7 @@ class Record {
   std::vector<std::array<double, 7>> prtPqs;
   std::vector<std::array<double, 6>> prtVs;
   std::vector<std::array<double, 6>> prtAs;
+  std::vector<sire::physics::common::PointPairContactInfo> contactInfos;
 };
 
 class Recorder : aris::core::NamedObject {
@@ -33,7 +34,7 @@ class Recorder : aris::core::NamedObject {
   sire::Size recordSize;
   std::vector<double> timeIndices;
   std::vector<Record> records;
-  auto record(double time, aris::dynamic::Model& model) -> void;
+  auto record(double time, aris::dynamic::Model& model, const std::vector<sire::physics::common::PointPairContactInfo>& contactInfos) -> void;
   auto reset() -> void {
     timeIndices.clear();
     records.clear();

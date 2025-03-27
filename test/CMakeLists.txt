@@ -279,7 +279,7 @@ if(WIN32)
 	add_custom_command(TARGET collision_detection_test POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy
 		"${TARGET_ARIS_PATH}/lib/${CMAKE_BUILD_TYPE_LOWER}/aris_lib.dll"
-		"${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+		"${TARGET_HPP_FCL_PATH}/bin/coal.dll"
 		"${VCPKG_DLL_PREFIX}/assimp-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:d>.dll"
 		"${VCPKG_DLL_PREFIX}/zlib$<$<CONFIG:Debug>:d>1.dll"
 		"${VCPKG_DLL_PREFIX}/pugixml.dll"

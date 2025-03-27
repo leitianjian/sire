@@ -15,7 +15,7 @@ namespace sire::physics {
 class PhysicsEngine;
 namespace contact {
 using namespace std;
-using namespace hpp;
+using namespace coal;
 /* contact-based implementation
  */
 class SIRE_API ContactSolver {

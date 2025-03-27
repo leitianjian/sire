@@ -28,7 +28,7 @@ macro(INSTALL_DLL)
     install(
       FILES
         "${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE_LOWER}/aris_lib.dll"
-        "${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+        "${TARGET_HPP_FCL_PATH}/bin/coal.dll"
       DESTINATION
         ${_INSTALLDLL_DESTINATION}
     )
@@ -108,7 +108,7 @@ add_custom_target(gentest COMMAND ${CMAKE_COMMAND} -E echo "\"${VCPKG_DLL_PREFIX
 # install_dll(
 # PATHS
 # "${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE_LOWER}/aris_lib.dll"
-# "${TARGET_HPP_FCL_PATH}/bin/hpp-fcl.dll"
+# "${TARGET_HPP_FCL_PATH}/bin/coal.dll"
 # DESTINATION
 # ${_INSTALLDLL_DESTINATION}
 # )

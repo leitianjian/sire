@@ -15,6 +15,38 @@
   -ms-user-select: none!important;
   -o-user-select: none!important;
   border-radius: @border-radius-base;
+  &-upload-wrapper {
+    display: inline-block;
+    margin-right: 10px;
+  }
+  &-upload-button {
+    display: inline-block;
+    max-width: 200px; // 限制宽度
+    padding: 6px 14px;
+    background: linear-gradient(to bottom right, #4a90e2, #357ab7);
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: background 0.3s, transform 0.2s;
+    border: none;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; // 长文件名截断...
+  
+    &:hover {
+      background: linear-gradient(to bottom right, #5aa2f5, #4b8cdb);
+      transform: translateY(-1px);
+    }
+  
+    &:active {
+      transform: translateY(1px);
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+  }
   &-three {
     width: 100%;
     height: 100%;
@@ -60,5 +92,90 @@
   &-errors {
     color: @error-color;
     text-align: left;
+  }
+  &-progress-wrapper {
+    position: absolute;
+    bottom: @padding-sm;
+    left: @padding-sm;
+    z-index: 2;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 8px;
+    border-radius: 6px;
+  }
+  
+  &-progress-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  &-play-button {
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 4px;
+    background: #4a90e2;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    height: 30px;
+  
+    &:hover {
+      background: #357ab7;
+    }
+  }
+  
+  &-progress-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  &-progress-frame,
+  &-progress-time {
+    -webkit-appearance: none;
+    width: 200px;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, #4a90e2, #357ab7);
+    outline: none;
+    margin: 0;
+  
+    &::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 14px;
+      width: 14px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 2px rgba(0,0,0,0.6);
+    }
+  }
+
+  &-record-button {
+    position: absolute;
+    top: @padding-sm;
+    right: @padding-sm + 70px; // 防止覆盖你原右上角元素，自行微调
+    z-index: 2;
+    padding: 4px 10px;
+    font-size: 13px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    border: 1px solid white;
+    cursor: pointer;
+    transition: background 0.3s;
+  
+    &:hover {
+      background: rgba(0, 0, 0, 0.7);
+    }
+  }
+  
+  &-recording {
+    background: rgba(255, 0, 0, 0.5);
+  }
+
+  &-progress-info {
+    font-size: 12px;
+    color: #ffffff;
   }
 }

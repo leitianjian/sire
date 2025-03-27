@@ -5,8 +5,8 @@
 #include <string>
 #include <string_view>
 
-#include <hpp/fcl/BVH/BVH_model.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
+#include <coal/BVH/BVH_model.h>
+#include <coal/shape/geometric_shapes.h>
 
 #include <aris/core/reflection.hpp>
 
@@ -24,16 +24,16 @@ SIRE_DEFINE_TO_JSON_HEAD(BoxCollisionGeometry) {
 }
 
 auto BoxCollisionGeometry::init() -> void {
-  fcl::Transform3f trans(
-      (fcl::Matrix3f() << partPm()[0][0], partPm()[0][1], partPm()[0][2],
+  Transform3s trans(
+      (Matrix3s() << partPm()[0][0], partPm()[0][1], partPm()[0][2],
        partPm()[1][0], partPm()[1][1], partPm()[1][2], partPm()[2][0],
        partPm()[2][1], partPm()[2][2])
           .finished(),
-      (fcl::Vec3f() << partPm()[0][3], partPm()[1][3], partPm()[2][3])
+      (Vec3s() << partPm()[0][3], partPm()[1][3], partPm()[2][3])
           .finished());
   // std::array<double, 3> temp = side();
-  resetCollisionObject(new fcl::CollisionObject(
-      make_shared<fcl::Box>(boxShape.side()[0], boxShape.side()[1],
+  resetCollisionObject(new CollisionObject(
+      make_shared<Box>(boxShape.side()[0], boxShape.side()[1],
                             boxShape.side()[2]),
       trans));
 }

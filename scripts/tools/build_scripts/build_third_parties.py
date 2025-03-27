@@ -5,7 +5,7 @@ third_parties = Path.cwd().parent.parent.parent / 'third_party'
 
 scripts = [
     ["python", "build_aris.py", "--base-path", str(third_parties / 'aris'), "--install-dir", str(third_parties / 'install' / 'aris'), "--build-demo", "--build-test", "--build-all"],
-    ["python", "build_fcl.py", "--base-path", str(third_parties / 'hpp-fcl'), "--install-dir", str(third_parties / 'install' / 'hpp-fcl'), '--toolchain-path', 'E:\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake', '--build-all'],
+    ["python", "build_fcl.py", "--base-path", str(third_parties / 'hpp-fcl'), "--install-dir", str(third_parties / 'install' / 'hpp-fcl'), '--toolchain-path', 'D:\\env\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake', '--build-all'],
     ["python", "build_uuid.py", "--base-path", str(third_parties / 'stduuid'), "--install-dir", str(third_parties / 'install' / 'stduuid'), '--build-all']
 ]
 

@@ -6,12 +6,12 @@
 #include <string>
 #include <thread>
 
-#include <hpp/fcl/broadphase/broadphase_dynamic_AABB_tree.h>
-#include <hpp/fcl/distance.h>
-#include <hpp/fcl/math/transform.h>
-#include <hpp/fcl/mesh_loader/assimp.h>
-#include <hpp/fcl/mesh_loader/loader.h>
-#include <hpp/fcl/shape/geometric_shapes.h>
+#include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/distance.h>
+#include <coal/math/transform.h>
+#include <coal/mesh_loader/assimp.h>
+#include <coal/mesh_loader/loader.h>
+#include <coal/shape/geometric_shapes.h>
 
 #include <aris/core/reflection.hpp>
 #include <aris/server/control_server.hpp>
@@ -29,11 +29,11 @@ using PartPool =
     aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>;
 struct ContinuousForceContactSolver::Imp {
   unique_ptr<core::MaterialManager> material_manager_;
-  // ÏûºÄÏµÊý
+  // ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½
   double default_cr_;
-  // Ä¦²ÁÏµÊý
+  // Ä¦ï¿½ï¿½Ïµï¿½ï¿½
   double default_cof_;
-  // ËÙ¶ÈãÐÖµ velocity threshold
+  // ï¿½Ù¶ï¿½ï¿½ï¿½Öµ velocity threshold
   double default_tv_;
   double default_k_;
 
@@ -176,7 +176,7 @@ auto ContinuousForceContactSolver::cptContactSolverResult(
 auto ContinuousForceContactSolver::cptContactForce(double A, double B, double k,
                                                    double D, double r, double w,
                                                    double t) -> double {
-  // »ý·Ö
+  // ï¿½ï¿½ï¿½ï¿½
   double first = (A * k + D * A * r + D * B * w) * r * r *
                  ((std::cos(w * t) * r) + w * std::sin(w * t)) *
                  std::exp(r * t) / (r * r + w * w);
@@ -257,16 +257,16 @@ auto ContinuousForceContactSolver::cptPenaltyODE(double contact_time,
   // imp_->force_contact.push_back(force - F_ext);
 
   // if (sphere_pq[2] > imp_->contact_x_init) {
-  //  //ÓÃËÙ¶È»ØÍËµ½³õÊ¼Åö×²Ãæ
+  //  //ï¿½ï¿½ï¿½Ù¶È»ï¿½ï¿½Ëµï¿½ï¿½ï¿½Ê¼ï¿½ï¿½×²ï¿½ï¿½
   //   double temp_x = sphere_pq[2];
   //   double temp_v = sphere_vs[2];
   //   double temp_a = contact_force / m;
   //   sphere_vs[2] = std::sqrt(temp_v * temp_v + 2 * temp_a *
   //   std::abs(imp_->contact_x_init - temp_x));  // a != g sphere_pq[2] =
   //   imp_->contact_x_init; double dt_modify =
-  //       std::abs((sphere_vs[2] - temp_v) / temp_a);  //ÍË»ØµÄÊ±¼ä²î // a != g
+  //       std::abs((sphere_vs[2] - temp_v) / temp_a);  //ï¿½Ë»Øµï¿½Ê±ï¿½ï¿½ï¿½ // a != g
   //   std::cout << "----out dt_modify" << dt_modify << std::endl;
-  //   sphere_vs[2] += -imp_->g * dt_modify;//Ö»ÓÐÖØÁ¦
+  //   sphere_vs[2] += -imp_->g * dt_modify;//Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
   //   sphere_pq[2] += sphere_vs[2] * dt_modify;
   // }
 }
