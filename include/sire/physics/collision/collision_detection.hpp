@@ -31,8 +31,8 @@ using namespace std;
 using namespace coal;
 
 /* drake-based implementation
- * filter��geometry���ö��ȶ���ȥ��֮��ͨ��init������ײ�������ĳ�ʼ��
- * ʹ����������ͬ����transfer��ȡ����
+ * filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
+ * 使用无锁数据同步从transfer中取数据
  */
 class SIRE_API CollisionDetection {
  public:

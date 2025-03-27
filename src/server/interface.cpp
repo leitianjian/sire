@@ -1,4 +1,4 @@
-﻿#include "sire/server/interface.hpp"
+#include "sire/server/interface.hpp"
 
 #include <algorithm>
 #include <cinttypes>

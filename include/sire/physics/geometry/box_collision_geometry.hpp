@@ -35,10 +35,10 @@ class BoxCollisionGeometry : public CollidableGeometry {
                                 const double* prt_pm = nullptr);
   virtual ~BoxCollisionGeometry();
   SIRE_DECLARE_MOVE_CTOR(BoxCollisionGeometry)
-  // ���ڲ�ʹ�õ�to_json from_json������
+  // 类内部使用的to_json from_json的声明
   SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
 
-  // nlohammn::json j = o;��ʱ����Զ����õ�to_json from_json������
+  // nlohammn::json j = o;的时候会自动调用的to_json from_json的声明
   SIRE_DECLARE_JSON_FRIEND_TWO(BoxCollisionGeometry)
 };
 }  // namespace geometry

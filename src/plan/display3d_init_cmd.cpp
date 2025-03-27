@@ -16,7 +16,7 @@ auto Display3dInit::prepareNrt() -> void {
   // get control server config of geometry in part pool
   nlohmann::json geo_pool;
   sire::Size geometry_size = 0;
-  // 取出 Part下面的每一个geometry
+  // 鍙栧嚭 Part涓嬮潰鐨勬瘡涓�涓猤eometry
   nlohmann::json geometry_pm;
   for (sire::Size i = 0; i < model()->partPool().size(); ++i) {
     nlohmann::json json;
@@ -36,8 +36,8 @@ auto Display3dInit::prepareNrt() -> void {
       ++geometry_size;
     }
   }
-  // 设置part相关初始化的信息
-  // ground 默认使用wobj0作为0点坐标系，下标为1
+  // 璁剧疆part鐩稿叧鍒濆鍖栫殑淇℃伅
+  // ground 榛樿浣跨敤wobj0浣滀负0鐐瑰潗鏍囩郴锛屼笅鏍囦负1
   aris::dynamic::Marker& ground = model()->partPool().at(0).markerPool().at(1);
   nlohmann::json part_init_config;
   part_init_config.push_back(

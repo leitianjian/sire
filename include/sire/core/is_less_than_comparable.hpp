@@ -2,11 +2,11 @@
 #define SIRE_IS_LESS_THAN_COMPARABLE_HPP_
 #include <type_traits>
 namespace sire::core {
-// Ä¬ÈÏÇé¿ö£º ´«ÈëT£¬·µ»Øfalse_type
+// é»˜è®¤æƒ…å†µï¼š ä¼ å…¥Tï¼Œè¿”å›false_type
 template <typename T, typename = void>
 struct is_less_than_comparable : std::false_type {};
 
-// Èç¹û T ÓĞĞ¡ÓÚºÅµÄ·½·¨£¬Ôò·µ»Øtrue_type
+// å¦‚æœ T æœ‰å°äºå·çš„æ–¹æ³•ï¼Œåˆ™è¿”å›true_type
 template <typename T>
 struct is_less_than_comparable<
     T, typename std::enable_if_t<

@@ -9,8 +9,8 @@
 
 namespace sire::plan {
 struct GetParam {
-  std::vector<std::vector<double>> part_pq;  // 怎么获得 body_pq?
-  std::vector<std::vector<double>> part_vs;  // 怎么获得 body_pq?
+  std::vector<std::vector<double>> part_pq;  // 鎬庝箞鑾峰緱 body_pq?
+  std::vector<std::vector<double>> part_vs;  // 鎬庝箞鑾峰緱 body_pq?
   std::vector<double> motors_v;
   std::vector<double> motors_p;
   std::vector<double> motors_a;

@@ -30,7 +30,7 @@ class SIRE_API SimulationLoop {
   using SensorPool = aris::core::PointerArray<sensor::SensorBase>;
 
  public:
-  // Event Ïà¹Ø
+  // Event ç›¸å…³
   auto createTriggerById(sire::Size trigger_id)
       -> std::unique_ptr<core::TriggerBase>;
   auto createEventById(sire::Size event_id) -> std::unique_ptr<core::EventBase>;
@@ -100,9 +100,9 @@ class SIRE_API SimulationLoop {
   auto recorder() -> simulator::Recorder&;
   auto simDuration() -> double;
   auto setSimDuration(double simDuration) -> void;
-  // TODO(leitianjian)£º
-  //   ¿ÉÒÔÊ¹ÓÃ¸üÓÐÐ§ÂÊµÄ·½Ê½£¬restoreÖ»ÐèÒª¸ü»»ModelµÄÖ¸Õë¾Í¿ÉÒÔ£¬
-  //   µ«ÊÇÊµÏÖ±È½Ï¸´ÔÓ£¬Éæ¼°µ½È«¾ÖµÄModelµÄÖ¸Õë¸ü»»£¬ÔÝÊ±²»¿¼ÂÇÕâ¸ö·½·¨
+  // TODO(leitianjian)ï¼š
+  //   å¯ä»¥ä½¿ç”¨æ›´æœ‰æ•ˆçŽ‡çš„æ–¹å¼ï¼Œrestoreåªéœ€è¦æ›´æ¢Modelçš„æŒ‡é’ˆå°±å¯ä»¥ï¼Œ
+  //   ä½†æ˜¯å®žçŽ°æ¯”è¾ƒå¤æ‚ï¼Œæ¶‰åŠåˆ°å…¨å±€çš„Modelçš„æŒ‡é’ˆæ›´æ¢ï¼Œæš‚æ—¶ä¸è€ƒè™‘è¿™ä¸ªæ–¹æ³•
   auto backupModel() -> void;
   auto restoreModel() -> void;
 
@@ -111,7 +111,7 @@ class SIRE_API SimulationLoop {
     // model -> forwardDynamics()
     // model -> integratePartAs()
     // model -> integrateMotionAs()
-    // model -> forwardKinematics() ×îÐ¡¶þ³Ë
+    // model -> forwardKinematics() æœ€å°äºŒä¹˜
   }
   auto init(middleware::SireMiddleware* middleware) -> void;
   auto start() -> void;

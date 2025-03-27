@@ -42,15 +42,15 @@ struct ContactSolverResult {
   std::map<sire::core::SortedPair<sire::PartId>, sire::Size> contactPairIdxMap_;
   std::vector<sire::Size> prtsA;
   std::vector<sire::Size> prtsB;
-  // ��һʱ�̵��ٶ�����A
+  // 下一时刻的速度旋量
   std::vector<double> vs_next;
-  // ����Ӵ���
+  // 法向接触力
   std::vector<double> fn;
-  // ����Ӵ���
+  // 切向接触力
   std::vector<double> ft;
-  // ����Ӵ��ٶȣ�������Ҳ���Բ��ã�
+  // 法向接触速度（可以用也可以不用）
   std::vector<double> vn;
-  // ����Ӵ��ٶȣ�������Ҳ���Բ��ã�
+  // 切向接触速度（可以用也可以不用）
   std::vector<double> vt;
   bool isEmpty_{true};
 };

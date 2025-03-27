@@ -9,8 +9,8 @@
 
 namespace sire::plan {
 struct GetDebugParam {
-  std::vector<std::vector<double>> part_pq;  // 怎么获得 body_pq?
-  std::vector<std::vector<double>> part_vs;  // 怎么获得 body_pq?
+  std::vector<std::vector<double>> part_pq;  // 鎬庝箞鑾峰緱 body_pq?
+  std::vector<std::vector<double>> part_vs;  // 鎬庝箞鑾峰緱 body_pq?
   std::vector<double> motors_a;
   std::vector<double> motors_f;
   std::vector<double> motors_v;
@@ -21,7 +21,7 @@ struct GetDebugParam {
   int currentPlanId;
 };
 
-// TODO(ltj)解决一下高帧率情况下出现的getRtData方法崩溃的问题，本质不能加锁，需要用无锁数据结构把东西发出来
+// TODO(ltj)瑙ｅ喅涓�涓嬮珮甯х巼鎯呭喌涓嬪嚭鐜扮殑getRtData鏂规硶宕╂簝鐨勯棶棰橈紝鏈川涓嶈兘鍔犻攣锛岄渶瑕佺敤鏃犻攣鏁版嵁缁撴瀯鎶婁笢瑗垮彂鍑烘潵
 auto SireGetDebug::prepareNrt() -> void {
   std::cout << "execute get_debug" << std::endl;
   option() |=
@@ -33,7 +33,7 @@ auto SireGetDebug::prepareNrt() -> void {
   auto& simulator = middleware.simulationLoop();
 
   auto part_pq_only = cmdParams().find("part_pq");
-  // 如果只需要part_pq
+  // 濡傛灉鍙渶瑕乸art_pq
   if (part_pq_only != cmdParams().end()) {
     par.part_pq.resize(model()->partPool().size());
   } else {

@@ -25,8 +25,8 @@
 
 namespace sire::physics {
 using namespace std;
-// ÔÚ´´½¨µÄÊ±ºò¼ÇÂ¼ fce µÄ¼¤»î×´Ì¬
-// ²¢ÔÚÏú»ÙµÄÊ±ºò½«¼ÇÂ¼µÄ×´Ì¬ÉèÖÃ»ØÈ¥£¬·ÅÖÃÔÚ·½·¨µ÷ÓÃÊ±·ÅÖÃ¹ı³ÌÖĞĞŞ¸Äµ¼ÖÂµÄ×´Ì¬²»Ò»ÖÂ
+// åœ¨åˆ›å»ºçš„æ—¶å€™è®°å½• fce çš„æ¿€æ´»çŠ¶æ€
+// å¹¶åœ¨é”€æ¯çš„æ—¶å€™å°†è®°å½•çš„çŠ¶æ€è®¾ç½®å›å»ï¼Œæ”¾ç½®åœ¨æ–¹æ³•è°ƒç”¨æ—¶æ”¾ç½®è¿‡ç¨‹ä¸­ä¿®æ”¹å¯¼è‡´çš„çŠ¶æ€ä¸ä¸€è‡´
 class FceActiveStateRecorder {
  public:
   std::vector<bool> fce_active_;
@@ -88,16 +88,16 @@ struct PhysicsEngine::Imp {
 };
 PhysicsEngine::PhysicsEngine() : imp_(new Imp) {}
 PhysicsEngine::~PhysicsEngine() { sire::geometry::reset_geometry_id(); };
-// TODO(leitianjian): ¾«¼òPhysicsEngineµÄ×ÊÔ´¹ÜÀí
-//   PhysicsEngineÖĞ¹ÜÀíµÄ×ÊÔ´ÊÇÁ½¸öÒıÇæ¶¼ĞèÒªµÄ×ÊÔ´£¬Èç¹ûÖ»ÊÇ×Ô¼ºĞèÒªµÄÃ»±ØÒª·ÅÔÚÍâÃæ
+// TODO(leitianjian): ç²¾ç®€PhysicsEngineçš„èµ„æºç®¡ç†
+//   PhysicsEngineä¸­ç®¡ç†çš„èµ„æºæ˜¯ä¸¤ä¸ªå¼•æ“éƒ½éœ€è¦çš„èµ„æºï¼Œå¦‚æœåªæ˜¯è‡ªå·±éœ€è¦çš„æ²¡å¿…è¦æ”¾åœ¨å¤–é¢
 auto PhysicsEngine::doInit() -> void {
   imp_->part_pool_ptr_ = &imp_->model_ptr_->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
   if (collisionDetectionFlag()) {
-    // ¸ù¾İµ±Ç°µÄPhysicalEngineµÄGeometryPool³õÊ¼»¯Åö×²¼ì²âÒıÇæ£¬Ìí¼Óµ½ÀïÃæµÄTree
+    // æ ¹æ®å½“å‰çš„PhysicalEngineçš„GeometryPoolåˆå§‹åŒ–ç¢°æ’æ£€æµ‹å¼•æ“ï¼Œæ·»åŠ åˆ°é‡Œé¢çš„Tree
     imp_->collision_detection_->init(this);
-    // FilterÈç¹û¿ÉÒÔÖ»·ÅÔÚ detectionEngine ÖĞ¾Í·Å¹ıÈ¥£¬¿ÉÒÔ²»·ÅÕâµÄ
-    // ¸ù¾İGeometryPool()Ìí¼Ó½øCollisionFilterÖĞ
+    // Filterå¦‚æœå¯ä»¥åªæ”¾åœ¨ detectionEngine ä¸­å°±æ”¾è¿‡å»ï¼Œå¯ä»¥ä¸æ”¾è¿™çš„
+    // æ ¹æ®GeometryPool()æ·»åŠ è¿›CollisionFilterä¸­
     for (auto& geometry : *imp_->geometry_pool_) {
       if (geometry.isDynamic()) {
         addDynamicGeometry(geometry);
@@ -107,7 +107,7 @@ auto PhysicsEngine::doInit() -> void {
         imp_->collision_filter_->addGeometry(geometry);
       }
     }
-    // ¼ÓÔØCollisionFilterµÄÅäÖÃ
+    // åŠ è½½CollisionFilterçš„é…ç½®
     imp_->collision_filter_->loadMatConfig();
   }
 
@@ -116,7 +116,7 @@ auto PhysicsEngine::doInit() -> void {
   }
 }
 auto PhysicsEngine::init(simulator::SimulationLoop* simLoopPtr) -> void {
-  // ³õÊ¼»¯ModelÓëControlServerÏà¹ØµÄÖ¸Õë
+  // åˆå§‹åŒ–Modelä¸ControlServerç›¸å…³çš„æŒ‡é’ˆ
   imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
       &aris::server::ControlServer::instance().model());
   imp_->simulation_loop_ptr_ = simLoopPtr;
@@ -208,7 +208,7 @@ auto PhysicsEngine::addAnchoredGeometry(
       &anchored_geometry;
   return true;
 }
-// TODO(leitianjian): ĞèÒªÊµÏÖ£¬µ«ÊÇÓÅÏÈ¼¶½ÏµÍ
+// TODO(leitianjian): éœ€è¦å®ç°ï¼Œä½†æ˜¯ä¼˜å…ˆçº§è¾ƒä½
 auto PhysicsEngine::removeGeometry() -> bool { return false; }
 auto PhysicsEngine::clearDynamicGeometries() -> bool {
   imp_->collision_detection_->clearDynamicGeometries();
@@ -251,9 +251,9 @@ auto PhysicsEngine::cptContactTime(
     const common::PenetrationAsPointPair& penetration) -> double {
   return penetration.depth / cptProximityVelocity(penetration);
 }
-// vn ÎªV_b - V_aÔÚ½Ó´¥·¨ÏßÉÏµÄÍ¶Ó°
-// - vn > 0: Á½¸öÎïÌåÕıÔÚ¿¿½ü£¬
-// vn < 0: Á½¸öÎïÌåÕıÔÚÔ¶Àë
+// vn ä¸ºV_b - V_aåœ¨æ¥è§¦æ³•çº¿ä¸Šçš„æŠ•å½±
+// - vn > 0: ä¸¤ä¸ªç‰©ä½“æ­£åœ¨é è¿‘ï¼Œ
+// vn < 0: ä¸¤ä¸ªç‰©ä½“æ­£åœ¨è¿œç¦»
 auto PhysicsEngine::cptProximityVelocity(
     const common::PenetrationAsPointPair& penetration) -> double {
   double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
@@ -375,14 +375,14 @@ auto PhysicsEngine::cptContactInfo(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
   const sire::Size num_contacts = penetration_pairs.size();
-  // Ê¹ÓÃengine_ptrºÍµ±Ç°ModelµÄ×´Ì¬½áºÏPenetration_pair£¬¼ÆËã½Ó´¥ĞÅÏ¢
+  // ä½¿ç”¨engine_ptrå’Œå½“å‰Modelçš„çŠ¶æ€ç»“åˆPenetration_pairï¼Œè®¡ç®—æ¥è§¦ä¿¡æ¯
   contact::ContactSolverResult solver_result;
-  // Ã¿¸öÅö×²µã¹¹½¨µÄ×ø±êÏµ±£´æµÄÎ»ÖÃ£¬Ê¹ÓÃpm±£´æ
+  // æ¯ä¸ªç¢°æ’ç‚¹æ„å»ºçš„åæ ‡ç³»ä¿å­˜çš„ä½ç½®ï¼Œä½¿ç”¨pmä¿å­˜
   std::vector<std::array<double, 16>> T_C_vec;
   T_C_vec.resize(num_contacts);
   for (int i = 0; i < num_contacts; ++i) {
     const auto& pair = penetration_pairs[i];
-    // Ê¹ÓÃ nhat_AB_w ¹¹½¨µ±Ç°Åö×²µãµÄ T ¾ØÕó
+    // ä½¿ç”¨ nhat_AB_w æ„å»ºå½“å‰ç¢°æ’ç‚¹çš„ T çŸ©é˜µ
     aris::dynamic::s_sov_axes2pm(pair.p_WC.data(), pair.nhat_AB_W.data(),
                                  pair.nhat_AB_W.data(), T_C_vec.at(i).data(),
                                  "zx");
@@ -390,7 +390,7 @@ auto PhysicsEngine::cptContactInfo(
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
-  // ĞèÒª¼ÆËã½Ó´¥µãµÄÔË¶¯Ñ§£¬¼´½Ó´¥µãµÄ×ø±êÏµÇó½âµÄf v£¬µ½ÊÀ½ç×ø±êÏµ
+  // éœ€è¦è®¡ç®—æ¥è§¦ç‚¹çš„è¿åŠ¨å­¦ï¼Œå³æ¥è§¦ç‚¹çš„åæ ‡ç³»æ±‚è§£çš„f vï¼Œåˆ°ä¸–ç•Œåæ ‡ç³»
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
   std::vector<double>& vn = solver_result.vn;
@@ -405,7 +405,7 @@ auto PhysicsEngine::cptContactInfo(
     const auto& pair = penetration_pairs[i];
     // f of contact based on contact frame;
     double f_Bc_C[3]{ft[2 * i], ft[2 * i + 1], fn[i]};
-    // ½«½Ó´¥×ø±êÏµÏÂµÄÁ¦×ª»»µ½ÊÀ½ç×ø±êÏµ
+    // å°†æ¥è§¦åæ ‡ç³»ä¸‹çš„åŠ›è½¬æ¢åˆ°ä¸–ç•Œåæ ‡ç³»
     double fs[6];
     core::screw::s_fpm2fs(f_Bc_C, T_C_vec.at(i).data(), fs);
     double pe_C[6];
@@ -419,20 +419,20 @@ auto PhysicsEngine::cptContactInfo(
   return solver_result.dt;
 }
 auto PhysicsEngine::initPartContactForce2Model() -> void {
-  // ³õÊ¼»¯²¢Ê¹ModelµÄForcePool·ûºÏÌõ¼ş
-  // 0. ÉèÖÃµç»úÁ¦µÄForce£¬Ö÷ÒªÊ¹ÓÃÔÚ¶¯Á¦Ñ§Çó½âÊ±
-  // 1. ÉèÖÃ¹Ø½Ú½Ó´¥Á¦²úÉúµÄÁ¦ĞıÁ¿µÄGeneralForce£¬¶¼µ±×÷ground²úÉúµÄÁ¦£¬
-  //    ¼´Ê¹ÊÇÁ½¸öpartÏîÄ¿½Ó´¥µÄÁ¦£¬Òª²»È»forcePool²»ºÃ¸ã
+  // åˆå§‹åŒ–å¹¶ä½¿Modelçš„ForcePoolç¬¦åˆæ¡ä»¶
+  // 0. è®¾ç½®ç”µæœºåŠ›çš„Forceï¼Œä¸»è¦ä½¿ç”¨åœ¨åŠ¨åŠ›å­¦æ±‚è§£æ—¶
+  // 1. è®¾ç½®å…³èŠ‚æ¥è§¦åŠ›äº§ç”Ÿçš„åŠ›æ—‹é‡çš„GeneralForceï¼Œéƒ½å½“ä½œgroundäº§ç”Ÿçš„åŠ›ï¼Œ
+  //    å³ä½¿æ˜¯ä¸¤ä¸ªparté¡¹ç›®æ¥è§¦çš„åŠ›ï¼Œè¦ä¸ç„¶forcePoolä¸å¥½æ
   using aris::dynamic::GeneralForce;
   using aris::dynamic::SingleComponentForce;
   const sire::Size motion_size = imp_->model_ptr_->motionPool().size();
   const sire::Size part_size = imp_->part_size_;
-  const sire::Size force_size = motion_size + part_size - 1;  // ¼õÈ¥groundµÄÁ¦
+  const sire::Size force_size = motion_size + part_size - 1;  // å‡å»groundçš„åŠ›
   auto& force_pool = imp_->model_ptr_->forcePool();
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
   force_pool.clear();
-  // TODO: ÕâÖÖĞ´·¨ÓĞºÜ´óµÄÎÊÌâ¡£¹ØÓÚÍâÁ¦²»ÄÜÕâÑùµ÷Õû
+  // TODO: è¿™ç§å†™æ³•æœ‰å¾ˆå¤§çš„é—®é¢˜ã€‚å…³äºå¤–åŠ›ä¸èƒ½è¿™æ ·è°ƒæ•´
   for (int i = 0; i < motion_size; ++i) {
     auto& force = force_pool.add<SingleComponentForce>(
         std::string("mf_" + std::to_string(i)), motion_pool.at(i).makI(),
@@ -483,8 +483,8 @@ auto PhysicsEngine::cptGlbForceByContactInfo(
   auto& force_pool = imp_->model_ptr_->forcePool();
   for (int i = 0; i < num_contacts; ++i) {
     const common::PointPairContactInfo& info = contact_info.at(i);
-    // ¼ÆËãÃ¿¸ö¸Ë¼şµÄÁ¦ĞıÁ¿µÄºÍ²¢ÉèÖÃ¸ømodel
-    // ¶ÔÓÚpartId_A£¬ÉèÖÃcontact_force£¬Ö±½ÓÓÃid + offset¾ÍÊÇ¶ÔÓ¦µÄforce
+    // è®¡ç®—æ¯ä¸ªæ†ä»¶çš„åŠ›æ—‹é‡çš„å’Œå¹¶è®¾ç½®ç»™model
+    // å¯¹äºpartId_Aï¼Œè®¾ç½®contact_forceï¼Œç›´æ¥ç”¨id + offsetå°±æ˜¯å¯¹åº”çš„force
     aris::dynamic::GeneralForce& force_A =
         dynamic_cast<aris::dynamic::GeneralForce&>(
             force_pool.at(info.partId_A() + contact_force_offset));

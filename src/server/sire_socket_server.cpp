@@ -1,4 +1,4 @@
-﻿#include "sire/server/sire_socket_server.hpp"
+#include "sire/server/sire_socket_server.hpp"
 
 #include <stdint.h>
 

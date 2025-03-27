@@ -7,30 +7,30 @@
 
 #include "sire/core/constants.hpp"
 namespace sire::core::screw {
-// ÓÃÓÚ½«¿Õ¼äÁ¦Ê¸Á¿×ª»»ÎªÁ¦ÐýÁ¿
-// f: 3x1 ´¿Á¦
-// pe: 6x1 Î»ÖÃÓëÅ·À­½Ç±íÊ¾µÄ³¯Ïò
-// tau: 3x1 ´¿Á¦Å¼
-// fs:  6x1 Á¦ÐýÁ¿ [f, tau]
+// ç”¨äºŽå°†ç©ºé—´åŠ›çŸ¢é‡è½¬æ¢ä¸ºåŠ›æ—‹é‡
+// f: 3x1 çº¯åŠ›
+// pe: 6x1 ä½ç½®ä¸Žæ¬§æ‹‰è§’è¡¨ç¤ºçš„æœå‘
+// tau: 3x1 çº¯åŠ›å¶
+// fs:  6x1 åŠ›æ—‹é‡ [f, tau]
 auto SIRE_API s_fpm2fs(const double* f, const double* pm,
                        double* fs_out) -> void;
 
-// Êý³ýÊý×é²¢·µ»ØÊý×é£¬·ÇÔ­Ö·²Ù×÷
-// numerator: ±»³ýÊý
-// denominators: ³ýÊý×é
-// n£º ³ýÊý×é´óÐ¡
-// zero_tol: ³ýÊý×éµÄÁãÖµÈÝÈÌ·¶Î§£¬µ±³ýÊýÐ¡ÓÚÕâ¸öãÐÖµÊ±£¬¼ÆËã½á¹ûÎªÁã
-// dv_out: ¼ÆËã½á¹ûÊý×é
+// æ•°é™¤æ•°ç»„å¹¶è¿”å›žæ•°ç»„ï¼ŒéžåŽŸå€æ“ä½œ
+// numerator: è¢«é™¤æ•°
+// denominators: é™¤æ•°ç»„
+// nï¼š é™¤æ•°ç»„å¤§å°
+// zero_tol: é™¤æ•°ç»„çš„é›¶å€¼å®¹å¿èŒƒå›´ï¼Œå½“é™¤æ•°å°äºŽè¿™ä¸ªé˜ˆå€¼æ—¶ï¼Œè®¡ç®—ç»“æžœä¸ºé›¶
+// dv_out: è®¡ç®—ç»“æžœæ•°ç»„
 auto SIRE_API s_dv(const double numerator, const double* denominators,
                    const sire::Size n, const double zero_tol,
                    double* dv_out) -> void;
 
-// Êý³ýÊý×é²¢·µ»ØÊý×é£¬Ô­Ö·²Ù×÷
-// numerator: ±»³ýÊý
-// denominators: ³ýÊý×é¼°½á¹ûÊý×é
-// n£º ³ýÊý×é´óÐ¡
-// zero_tol: ³ýÊý×éµÄÁãÖµÈÝÈÌ·¶Î§£¬Ä¬ÈÏÉèÖÃÎª1e-5£¬
-// µ±³ýÊýÐ¡ÓÚÕâ¸öãÐÖµÊ±£¬¼ÆËã½á¹ûÎªÁã
+// æ•°é™¤æ•°ç»„å¹¶è¿”å›žæ•°ç»„ï¼ŒåŽŸå€æ“ä½œ
+// numerator: è¢«é™¤æ•°
+// denominators: é™¤æ•°ç»„åŠç»“æžœæ•°ç»„
+// nï¼š é™¤æ•°ç»„å¤§å°
+// zero_tol: é™¤æ•°ç»„çš„é›¶å€¼å®¹å¿èŒƒå›´ï¼Œé»˜è®¤è®¾ç½®ä¸º1e-5ï¼Œ
+// å½“é™¤æ•°å°äºŽè¿™ä¸ªé˜ˆå€¼æ—¶ï¼Œè®¡ç®—ç»“æžœä¸ºé›¶
 auto SIRE_API s_dvi(const double numerator, double* denominators,
                     const sire::Size n, const double zero_tol) -> void;
 

@@ -24,9 +24,9 @@ struct SimulationLoop::Imp {
   IntegratorPool* integrator_pool_ptr_;
   SensorPool* sensor_pool_ptr_;
 
-  // ÓÃÀ´±£´æÈ«¾Ö±äÁ¿£¬Ê¹ÓÃxmlÅäÖÃ£¬ÔÚtrigger event handleÖĞ¿ÉÒÔÊ¹ÓÃ
+  // ç”¨æ¥ä¿å­˜å…¨å±€å˜é‡ï¼Œä½¿ç”¨xmlé…ç½®ï¼Œåœ¨trigger event handleä¸­å¯ä»¥ä½¿ç”¨
   core::PropMap global_variable_pool_;
-  // EventÏà¹Ø
+  // Eventç›¸å…³
   // BaseFactory<TriggerBase>* trigger_factory_;
   core::EventBaseFactory* event_factory_;
   core::HandlerBaseFactory* handler_factory_;
@@ -59,7 +59,7 @@ struct SimulationLoop::Imp {
   // std::unique_ptr<aris::dynamic::Model> prev_model_{
   //     std::make_unique<aris::dynamic::Model>()};
 
-  // ´ò¶´£¬¶ÁÈ¡Êı¾İ //
+  // æ‰“æ´ï¼Œè¯»å–æ•°æ® //
   std::atomic_bool if_get_data_{false}, if_get_data_ready_{false};
   const std::function<void(aris::server::ControlServer&, SimulationLoop&,
                            std::any&)>* get_data_func_{nullptr};
@@ -76,8 +76,8 @@ SimulationLoop::SimulationLoop() : imp_(new Imp) {}
 SimulationLoop::~SimulationLoop() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(SimulationLoop);
 
-// ³õÊ¼»¯×Ô¼ºÕÆ¿ØµÄ×ÊÔ´ºÍ»ñÈ¡¹ÒÔÚÆäËû½ÚµãÏÂµÄ×ÊÔ´
-// ĞèÒªcs.init()Ö®ºóÊÖ¶¯µ÷ÓÃ£¬²»»á±»×Ô¶¯µ÷ÓÃ
+// åˆå§‹åŒ–è‡ªå·±æŒæ§çš„èµ„æºå’Œè·å–æŒ‚åœ¨å…¶ä»–èŠ‚ç‚¹ä¸‹çš„èµ„æº
+// éœ€è¦cs.init()ä¹‹åæ‰‹åŠ¨è°ƒç”¨ï¼Œä¸ä¼šè¢«è‡ªåŠ¨è°ƒç”¨
 auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   imp_->middleware_ptr_ = middleware;
   SIRE_ASSERT(imp_->middleware_ptr_ != nullptr);
@@ -86,8 +86,8 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   imp_->integrator_pool_ptr_ = &imp_->simulator_modules_ptr_->integratorPool();
   imp_->sensor_pool_ptr_ = &imp_->simulator_modules_ptr_->sensorPool();
 
-  // ³õÊ¼»¯SimulatorÖĞµÄModelÖ¸Õë
-  // ControlServerÖĞÓĞÒ»¸öModelµÄ×ÊÔ´£¬ÁíÒ»¸öÓÃÀ´±¸·İµÄModelÓÉSimulator¹ÜÀí
+  // åˆå§‹åŒ–Simulatorä¸­çš„ModelæŒ‡é’ˆ
+  // ControlServerä¸­æœ‰ä¸€ä¸ªModelçš„èµ„æºï¼Œå¦ä¸€ä¸ªç”¨æ¥å¤‡ä»½çš„Modelç”±Simulatorç®¡ç†
   imp_->model_ptr_ = &dynamic_cast<aris::dynamic::Model&>(
       aris::server::ControlServer::instance().model());
 
@@ -98,7 +98,7 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   //  imp_->model_pool_[0] = imp_->model_ptr_;
   //  imp_->model_pool_[1] = imp_->prev_model_.get();
 
-  // ³õÊ¼»¯SimulatorÖĞµÄ×ÊÔ´
+  // åˆå§‹åŒ–Simulatorä¸­çš„èµ„æº
   // event manager;
   // contact pair manager;
   // imp_->event_manager_.simulator_ptr_ = this;
@@ -119,11 +119,11 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   imp_->event_manager_->addEvent(std::move(init_event));
   imp_->event_manager_->init();
 
-  // ÕıÈ·ÉèÖÃmodelÖĞµÄÁ¦
+  // æ­£ç¡®è®¾ç½®modelä¸­çš„åŠ›
   imp_->physics_engine_ptr_->initPartContactForce2Model();
   imp_->model_ptr_->init();
 
-  // ¿ªÊ¼ÔÊĞí»ñÈ¡Êı¾İ
+  // å¼€å§‹å…è®¸è·å–æ•°æ®
   imp_->is_data_fetch_running_.store(true);
   imp_->data_fetch_thread = std::thread([this]() {
     while (imp_->is_data_fetch_running_) {
@@ -132,7 +132,7 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
 
       imp_->get_data_func_->operator()(aris::server::ControlServer::instance(),
                                        *this, *imp_->get_data_);
-      imp_->if_get_data_ready_.store(true);  // Ô­×Ó²Ù×÷
+      imp_->if_get_data_ready_.store(true);  // åŸå­æ“ä½œ
       imp_->if_get_data_.store(false);
     }
   });

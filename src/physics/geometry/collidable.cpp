@@ -20,7 +20,7 @@ namespace sire::physics::geometry {
 struct Collidable::Imp {
   unique_ptr<CollisionObject> fcl_object_ptr_{nullptr};
 
-  // TODO(leitianjian) ��Ҫ���unorder_map�����л���������д����������ע��
+  // TODO(leitianjian) 需要完成unorder_map的序列化，方便填写属性与配置注入
   core::PropMap contact_properties_;
   std::string material_;
 };

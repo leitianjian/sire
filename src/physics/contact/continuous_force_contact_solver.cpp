@@ -29,11 +29,11 @@ using PartPool =
     aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>;
 struct ContinuousForceContactSolver::Imp {
   unique_ptr<core::MaterialManager> material_manager_;
-  // ����ϵ��
+  // 消耗系数
   double default_cr_;
-  // Ħ��ϵ��
+  // 摩擦系数
   double default_cof_;
-  // �ٶ���ֵ velocity threshold
+   // 速度阈值 velocity threshold
   double default_tv_;
   double default_k_;
 
@@ -176,7 +176,7 @@ auto ContinuousForceContactSolver::cptContactSolverResult(
 auto ContinuousForceContactSolver::cptContactForce(double A, double B, double k,
                                                    double D, double r, double w,
                                                    double t) -> double {
-  // ����
+  // 积分
   double first = (A * k + D * A * r + D * B * w) * r * r *
                  ((std::cos(w * t) * r) + w * std::sin(w * t)) *
                  std::exp(r * t) / (r * r + w * w);
@@ -257,16 +257,16 @@ auto ContinuousForceContactSolver::cptPenaltyODE(double contact_time,
   // imp_->force_contact.push_back(force - F_ext);
 
   // if (sphere_pq[2] > imp_->contact_x_init) {
-  //  //���ٶȻ��˵���ʼ��ײ��
+  //  //用速度回退到初始碰撞面
   //   double temp_x = sphere_pq[2];
   //   double temp_v = sphere_vs[2];
   //   double temp_a = contact_force / m;
   //   sphere_vs[2] = std::sqrt(temp_v * temp_v + 2 * temp_a *
   //   std::abs(imp_->contact_x_init - temp_x));  // a != g sphere_pq[2] =
   //   imp_->contact_x_init; double dt_modify =
-  //       std::abs((sphere_vs[2] - temp_v) / temp_a);  //�˻ص�ʱ��� // a != g
+  //       std::abs((sphere_vs[2] - temp_v) / temp_a);  //退回的时间差 // a != g
   //   std::cout << "----out dt_modify" << dt_modify << std::endl;
-  //   sphere_vs[2] += -imp_->g * dt_modify;//ֻ������
+  //   sphere_vs[2] += -imp_->g * dt_modify; // 只有重力
   //   sphere_pq[2] += sphere_vs[2] * dt_modify;
   // }
 }

@@ -1,4 +1,4 @@
-﻿#ifndef SIRE_SERVER_INTERFACE_H_
+#ifndef SIRE_SERVER_INTERFACE_H_
 #define SIRE_SERVER_INTERFACE_H_
 
 #include <future>

@@ -1,4 +1,4 @@
-﻿#ifndef SIRE_MIDDLEWARE_HPP_
+#ifndef SIRE_MIDDLEWARE_HPP_
 #define SIRE_MIDDLEWARE_HPP_
 
 #include <functional>

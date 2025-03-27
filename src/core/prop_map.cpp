@@ -69,7 +69,7 @@ auto PropMap::fromString(std::string_view str) -> bool {
   auto split_pair_and_add_prop = [this](std::string_view pair) {
     auto pair_del_pos = pair.find(":");
     if (pair_del_pos == pair.npos)
-      THROW_FILE_LINE("PropMap·´ĞòÁĞ»¯´íÎó£¬ÕÒ²»µ½¼üÖµ¶Ô·Ö¸ô·û :");
+      THROW_FILE_LINE("PropMapååºåˆ—åŒ–é”™è¯¯ï¼Œæ‰¾ä¸åˆ°é”®å€¼å¯¹åˆ†éš”ç¬¦ :");
     std::string_view key = pair.substr(0, pair_del_pos);
     std::string_view value = pair.substr(pair_del_pos + 1);
     key = trim(key);

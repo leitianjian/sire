@@ -9,14 +9,14 @@ namespace sire::simulator {
 using aris::dynamic::GeneralForce;
 using aris::dynamic::SingleComponentForce;
 auto compareAndCopy(const Geometry* src, Geometry* dest) -> void {
-  // ¼ì²éÄÚ²¿ÊÇ·ñÒ»ÖÂ 
+  // æ£€æŸ¥å†…éƒ¨æ˜¯å¦ä¸€è‡´ 
 
 }
 
 auto compareAndCopy(const GeometryPool* src, GeometryPool* dest) -> void {
   if (src->size() != dest->size()) {
   } else {
-    // ¼ì²éÄÚ²¿ÊÇ·ñÒ»ÖÂ
+    // æ£€æŸ¥å†…éƒ¨æ˜¯å¦ä¸€è‡´
   }
   for (sire::Size i = 0; i < src->size(); ++i) {
   }
@@ -27,7 +27,7 @@ auto compareAndCopy(const Marker* src, Marker* dest) -> void {
 auto compareAndCopy(const MarkerPool* src, MarkerPool* dest) -> void {
   if (src->size() != dest->size()) {
   } else {
-    // ¼ì²éÄÚ²¿ÊÇ·ñÒ»ÖÂ
+    // æ£€æŸ¥å†…éƒ¨æ˜¯å¦ä¸€è‡´
   }
   for (sire::Size i = 0; i < src->size(); ++i) {
   }
@@ -39,15 +39,15 @@ auto compareAndCopy(const PartPool* src, PartPool* dest) -> void {
   if (src->size() != dest->size()) {
   
   } else {
-  // ¼ì²éÄÚ²¿ÊÇ·ñÒ»ÖÂ
+  // æ£€æŸ¥å†…éƒ¨æ˜¯å¦ä¸€è‡´
   
   }
   for (sire::Size i = 0; i < src->size(); ++ i) {
   }
 }
 auto compareAndCopy(const Model* src, Model* dest) -> void {
-  // 1. È·±£Á½¸öModel½á¹¹Ò»ÖÂ
-  //   (a) part pool½á¹¹¼ì²â
+  // 1. ç¡®ä¿ä¸¤ä¸ªModelç»“æž„ä¸€è‡´
+  //   (a) part poolç»“æž„æ£€æµ‹
     // copy part pool data
     SIRE_ASSERT(src->partPool().size() == dest->partPool().size());
   sire::Size part_size = src->partPool().size();
@@ -68,13 +68,13 @@ auto compareAndCopy(const Model* src, Model* dest) -> void {
   }
 
   // copy joint pool data
-  // joint pool ÀïÃæµÄÊý¾Ý²»Ò»¶¨»á±ä£¬»á±äÒ²²»Ò»¶¨»á¸ø¼ÆËã½á¹û´øÀ´Ó°Ïì
-  // joint ÊÇ´¿Ô¼Êø
+  // joint pool é‡Œé¢çš„æ•°æ®ä¸ä¸€å®šä¼šå˜ï¼Œä¼šå˜ä¹Ÿä¸ä¸€å®šä¼šç»™è®¡ç®—ç»“æžœå¸¦æ¥å½±å“
+  // joint æ˜¯çº¯çº¦æŸ
 
   // general motion pool data copy
-  // TODO(leitianjian): ÕâÀïÏÈÖ»¿¼ÂÇgeneralMotion£¬¿¼ÂÇÆäËûµÄ»°Çé¿ö¾ÍÌ«¶àÁË£¬
-  // ¸üÀíÏëµÄ×ö·¨Ó¦¸ÃÊÇÊ¹ÓÃDeepcopyÏà¹ØµÄ·½·¨¶ø²»ÊÇÊÖ¶¯¸´ÖÆð¤Ìù
-  // »òÕßÈÃËûÃÇ×Ô¼º¸üÐÂ¾ÍºÃÁË£¬²»ÓÃÊÖ¶¯¸´ÖÆ£¬ÉèÖÃÍêmotionºÍpart¾Í¿ÉÒÔ¸üÐÂgeneralMotionµÄÎ»ÖÃÁË
+  // TODO(leitianjian): è¿™é‡Œå…ˆåªè€ƒè™‘generalMotionï¼Œè€ƒè™‘å…¶ä»–çš„è¯æƒ…å†µå°±å¤ªå¤šäº†ï¼Œ
+  // æ›´ç†æƒ³çš„åšæ³•åº”è¯¥æ˜¯ä½¿ç”¨Deepcopyç›¸å…³çš„æ–¹æ³•è€Œä¸æ˜¯æ‰‹åŠ¨å¤åˆ¶é»è´´
+  // æˆ–è€…è®©ä»–ä»¬è‡ªå·±æ›´æ–°å°±å¥½äº†ï¼Œä¸ç”¨æ‰‹åŠ¨å¤åˆ¶ï¼Œè®¾ç½®å®Œmotionå’Œpartå°±å¯ä»¥æ›´æ–°generalMotionçš„ä½ç½®äº†
 
   // force pool data copy
   SIRE_ASSERT(src->forcePool().size() == dest->forcePool().size());

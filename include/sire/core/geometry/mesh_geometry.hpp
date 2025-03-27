@@ -22,10 +22,10 @@ class MeshGeometry : public GeometryOnPart {
   virtual ~MeshGeometry();
   ARIS_DECLARE_BIG_FOUR(MeshGeometry)
 
-  // ÀàÄÚ²¿Ê¹ÓÃµÄto_json from_jsonµÄÉùÃ÷
+  // ç±»å†…éƒ¨ä½¿ç”¨çš„to_json from_jsonçš„å£°æ˜Ž
   SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
 
-  // nlohammn::json j = o;µÄÊ±ºò»á×Ô¶¯µ÷ÓÃµÄto_json from_jsonµÄÉùÃ÷
+  // nlohammn::json j = o;çš„æ—¶å€™ä¼šè‡ªåŠ¨è°ƒç”¨çš„to_json from_jsonçš„å£°æ˜Ž
   SIRE_DECLARE_JSON_FRIEND_TWO(MeshGeometry)
 };
 }  // namespace sire::geometry

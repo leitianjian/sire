@@ -52,12 +52,12 @@ auto cptAccelExtVector(
     const std::vector<sire::Size>& preservedPairsIdx,
     const sire::PartId* prtIdVector, double* accelExt) -> void {
   auto& partPool = model.partPool();
-  // TODO: ¿ÉÄÜĞèÒª¹ØµôcontactForce
-  // TODO: ²»ÖªµÀÊÇ·ñĞèÒª£¬¼ÇÂ¼¸Ë¼şµÄ¼ÓËÙ¶ÈÊı¾İ£¬È»ºóÒªÖØĞÂÌî»ØÈ¥
+  // TODO: å¯èƒ½éœ€è¦å…³æ‰contactForce
+  // TODO: ä¸çŸ¥é“æ˜¯å¦éœ€è¦ï¼Œè®°å½•æ†ä»¶çš„åŠ é€Ÿåº¦æ•°æ®ï¼Œç„¶åè¦é‡æ–°å¡«å›å»
   if (model.forwardDynamics())
     std::cout << "forward dynamic failed" << std::endl;
 
-  // ±éÀúÅö×²µã£¬ÕÒµ½ËùÓĞÒªÇóµÄ¸Ë¼şÓëÅö×²µãÎ»×Ë
+  // éå†ç¢°æ’ç‚¹ï¼Œæ‰¾åˆ°æ‰€æœ‰è¦æ±‚çš„æ†ä»¶ä¸ç¢°æ’ç‚¹ä½å§¿
   for (sire::Size i{0}, accelExtColIdx{0}; i < preservedPairsIdx.size(); ++i) {
     auto& pair = penetration_pairs[preservedPairsIdx[i]];
     const double* contactPosition = pair.p_WC.data();
@@ -97,14 +97,14 @@ auto cptInitialCondition(
   for (int i{0}; i < n; ++i) {
     const common::PenetrationAsPointPair& pair =
         penetration_pairs[preservedPairsIdx[i]];
-    // ÒòÎª¼ì²âµÄÅö×²ĞÅÏ¢ÊÇÏà¶ÔÓÚÎïÌå A µÄ£¬ËùÒÔÏà¶ÔËÙ¶ÈÊÇ B Ïà¶ÔÓÚ A µÄ
+    // å› ä¸ºæ£€æµ‹çš„ç¢°æ’ä¿¡æ¯æ˜¯ç›¸å¯¹äºç‰©ä½“ A çš„ï¼Œæ‰€ä»¥ç›¸å¯¹é€Ÿåº¦æ˜¯ B ç›¸å¯¹äº A çš„
     std::array<double, 3> v_contact;
     engine.cptContactVelocityB2A(pair, T_C_vec[preservedPairsIdx[i]],
                                  v_contact);
     stiffness[i] *= stiffScale;
     // double vn = enginePtr->cptProximityVelocity(pair);
     x0[i] = pair.depth / stiffScale;
-    // ´©Í¸ËÙ¶È = - BµÄËÙ¶ÈÏà¶ÔÓÚA
+    // ç©¿é€é€Ÿåº¦ = - Bçš„é€Ÿåº¦ç›¸å¯¹äºA
     x0[n + i] = -v_contact[2];
     v0[3 * i] = v_contact[0];
     v0[3 * i + 1] = v_contact[1];
@@ -114,7 +114,7 @@ auto cptInitialCondition(
 }
 auto cptKdMatrix(sire::Size n, const double* stiffness, const double* damping,
                  double* kdMatrix) -> void {
-  // ¼ÙÉèground²»»áÓëgroundÏà×²¡£AÖ¸ÏòB
+  // å‡è®¾groundä¸ä¼šä¸groundç›¸æ’ã€‚AæŒ‡å‘B
   for (Size i{0}, lineIdx{0}; i < n; ++i) {
     Size lineBegin = lineIdx * 2 * n;
     kdMatrix[lineBegin + i] = -stiffness[i];
@@ -128,9 +128,9 @@ auto cptInvCpi(sire::Size n, sire::Size cpiWidth, double minDamp,
                const LhsVariableType* variableType, double* cpi,
                double* kdMatrix, double* fext, double* invCpi) -> void {
   // ----------------------------------------------------
-  // ------------ ½Ó´¥µã¹ßÁ¿¾ØÕóÇóÄæ ---------------------
+  // ------------ æ¥è§¦ç‚¹æƒ¯é‡çŸ©é˜µæ±‚é€† ---------------------
   // ----------------------------------------------------
-  // Èç¹ûÃ»ÓĞÄæ¾ØÕó£¬¾ÍÊ¹ÓÃ¹«Ê½½øĞĞÌæ»»
+  // å¦‚æœæ²¡æœ‰é€†çŸ©é˜µï¼Œå°±ä½¿ç”¨å…¬å¼è¿›è¡Œæ›¿æ¢
   double divider = std::pow(10, floor(std::log10(minDamp)));
   std::vector<double> u(cpiWidth * cpiWidth), tau(cpiWidth), tau2(cpiWidth);
   std::vector<aris::Size> p(cpiWidth);
@@ -163,14 +163,14 @@ auto cptInvCpi(sire::Size n, sire::Size cpiWidth, double minDamp,
       }
       SIRE_DEMAND(replaceRowIdx.size() == nullSpace.rows());
       Eigen::MatrixXd temp = nullSpace * kdEigenMatrix / divider;
-      // temp ¶ÔÓ¦µÄ±äÁ¿Îª delta1 ... deltan
-      // µ«ÊÇcpiMatrix¶ÔÓ¦µÄ±äÁ¿Îª a1A a1B ... deltac ... anA anB
-      // ĞèÒª¶Ôtemp½øĞĞÏàÓ¦µÄ²ğ·Ö¡£
+      // temp å¯¹åº”çš„å˜é‡ä¸º delta1 ... deltan
+      // ä½†æ˜¯cpiMatrixå¯¹åº”çš„å˜é‡ä¸º a1A a1B ... deltac ... anA anB
+      // éœ€è¦å¯¹tempè¿›è¡Œç›¸åº”çš„æ‹†åˆ†ã€‚
       for (int i{0}; i < replaceRowIdx.size(); ++i) {
         int idx = replaceRowIdx[i];
-        // µÈÊ½×óÓÒÁ½±ß¹²Í¬³ıÒÔdampingµÄÊıÁ¿¼¶£¬
-        // ·ÀÖ¹Óë¾ØÕóÖĞµÄÆäËûÔªËØÊıÁ¿¼¶²îµÄ¹ı´ó£¬µ¼ÖÂ¾ØÕóÌõ¼şÊı¹ı´ó£¬ÇóÄæÉ¥Ê§µÄ¾«¶È¹ı´ó
-        // ¶ÔÓÚa1A Óë a1BĞèÒª½øĞĞ²ğ·Ö¡£
+        // ç­‰å¼å·¦å³ä¸¤è¾¹å…±åŒé™¤ä»¥dampingçš„æ•°é‡çº§ï¼Œ
+        // é˜²æ­¢ä¸çŸ©é˜µä¸­çš„å…¶ä»–å…ƒç´ æ•°é‡çº§å·®çš„è¿‡å¤§ï¼Œå¯¼è‡´çŸ©é˜µæ¡ä»¶æ•°è¿‡å¤§ï¼Œæ±‚é€†ä¸§å¤±çš„ç²¾åº¦è¿‡å¤§
+        // å¯¹äºa1A ä¸ a1Béœ€è¦è¿›è¡Œæ‹†åˆ†ã€‚
         for (sire::Size j{0}, cpiColIdx{0}; j < n; ++j) {
           if (variableType[j] == LhsVariableType::OneDelta) {
             cpiMatrix(idx, cpiColIdx) = temp(i, n + j);
@@ -200,9 +200,9 @@ auto cptInvCpi(sire::Size n, sire::Size cpiWidth, double minDamp,
 
 // clang-format off
 /// @brief 
-/// TODO: ´¦ÀíÒ»ÏÂÓÉÓÚcpiÎŞÄæÇé¿öÏÂ¹«Ê½µÄdelta1µ½a1b - a1aµÄ·Ö½â¡£
-/// Ä¿Ç°¶ÔÓÚcpiÎŞÄæÇé¿öÏÂµÄ¸÷ÖÖÈÏÊ¶
-/// 1. ¾ØÕó A ¿ÉÄÜ»á³öÏÖÎŞ½âµÄÇé¿ö£¬ÎŞ½âÓÉÓÚdeltaÓëÆäËûµÄÏßĞÔÏà¹Ø£¬A É¥Ê§×ÔÓÉ¶È£¬²»¶Ô£¬²»¹ÜÊÇ·ñ²ğ·Ö£¬¾ØÕóAÒòÎªÏÂ°ë²¿·ÖµÄÔ­Òò×Ü»á¶ªÊ§×ÔÓÉ¶È¡£
+/// TODO: å¤„ç†ä¸€ä¸‹ç”±äºcpiæ— é€†æƒ…å†µä¸‹å…¬å¼çš„delta1åˆ°a1b - a1açš„åˆ†è§£ã€‚
+/// ç›®å‰å¯¹äºcpiæ— é€†æƒ…å†µä¸‹çš„å„ç§è®¤è¯†
+/// 1. çŸ©é˜µ A å¯èƒ½ä¼šå‡ºç°æ— è§£çš„æƒ…å†µï¼Œæ— è§£ç”±äºdeltaä¸å…¶ä»–çš„çº¿æ€§ç›¸å…³ï¼ŒA ä¸§å¤±è‡ªç”±åº¦ï¼Œä¸å¯¹ï¼Œä¸ç®¡æ˜¯å¦æ‹†åˆ†ï¼ŒçŸ©é˜µAå› ä¸ºä¸‹åŠéƒ¨åˆ†çš„åŸå› æ€»ä¼šä¸¢å¤±è‡ªç”±åº¦ã€‚
 /// 
 /// @param[] penetration_pairs 
 /// @param[] T_C_vec 
@@ -217,7 +217,7 @@ auto cptDAECoeff(sire::physics::PhysicsEngine& engine, sire::Size n,
                  double* b) -> void {
   sire::Size n2{2 * n};
   std::vector<double> kdMatrix(n2 * n2);
-  // ¼ÙÉèground²»»áÓëgroundÏà×²¡£AÖ¸ÏòB
+  // å‡è®¾groundä¸ä¼šä¸groundç›¸æ’ã€‚AæŒ‡å‘B
   cptKdMatrix(n, stiffness, damping, kdMatrix.data());
 
   std::vector<double> temp1(n2 * n2, 0), temp2(n2, 0);
@@ -229,15 +229,15 @@ auto cptDAECoeff(sire::physics::PhysicsEngine& engine, sire::Size n,
   //     [.  . .  . ....  .]
   //     [0 0 0 0 .... 1 -1] n * 2n
   // shrinked inverse cpi matrix = T * I^-1 * T'
-  // ---------------¼ÆËãËõĞ¡ºóµÄ cpi ¾ØÕó  n x n ---------------------
-  // Ö±½Ó¼ÆËã A Óë b£¬Í¨¹ıÖĞ¼ä±äÁ¿´¢´æÒ»Ğ©ÖĞ¼äÖµ
+  // ---------------è®¡ç®—ç¼©å°åçš„ cpi çŸ©é˜µ  n x n ---------------------
+  // ç›´æ¥è®¡ç®— A ä¸ bï¼Œé€šè¿‡ä¸­é—´å˜é‡å‚¨å­˜ä¸€äº›ä¸­é—´å€¼
   // ----------------------------------------------------------------
   for (sire::Size i{0}; i < n; ++i) {
     b[i] = 0;
     b[n + i] = accelExt[2 * i] - accelExt[2 * i + 1];
   }
   // A.resize(4 * n * n, 0);
-  // TODO: ²»´æÔÚÁ½¸ögroundÏà×²
+  // TODO: ä¸å­˜åœ¨ä¸¤ä¸ªgroundç›¸æ’
   for (Size i{0}, lineIdx{0}; i < n; ++i) {
     A[n2 * i + n + i] = 1 / stiffScale;
     for (Size j{0}; j < n2; ++j) {
@@ -248,15 +248,15 @@ auto cptDAECoeff(sire::physics::PhysicsEngine& engine, sire::Size n,
   }
 }
 // clang-format off
-/// @brief ¼ÆËã¶àµã½Ó´¥Î¢·Ö¹«Ê½ x(t) µÄ½á¹û
+/// @brief è®¡ç®—å¤šç‚¹æ¥è§¦å¾®åˆ†å…¬å¼ x(t) çš„ç»“æœ
 /// 
 /// expm(A * t) * (x0' + A \ b') - A \ b';
-/// @param[in] n 2±¶½Ó´¥µãÊıÄ¿£¨×´Ì¬¿Õ¼ä´óĞ¡£©
-/// @param[in] A n x n Ò»½×Î¢·Ö¶¯Á¦·½³Ì×´Ì¬×ªÒÆ¾ØÕó
-/// @param[in] t 1 ĞèÒª¼ÆËãµÄÊ±¼ä
-/// @param[in] b n x 1 Î¢·Ö¶¯Á¦·½³Ì·ÇÆë´ÎÏî
-/// @param[in] x0 n x 1 Î¢·Ö¶¯Á¦·½³Ì³õÊ¼×´Ì¬
-/// @param[out] x n x 1 Êä³ö×´Ì¬
+/// @param[in] n 2å€æ¥è§¦ç‚¹æ•°ç›®ï¼ˆçŠ¶æ€ç©ºé—´å¤§å°ï¼‰
+/// @param[in] A n x n ä¸€é˜¶å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹çŠ¶æ€è½¬ç§»çŸ©é˜µ
+/// @param[in] t 1 éœ€è¦è®¡ç®—çš„æ—¶é—´
+/// @param[in] b n x 1 å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹éé½æ¬¡é¡¹
+/// @param[in] x0 n x 1 å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹åˆå§‹çŠ¶æ€
+/// @param[out] x n x 1 è¾“å‡ºçŠ¶æ€
 // clang-format on
 auto cptFormulaX(sire::Size n, const double* A, double t, const double* b,
                  const double* x0, double* x) -> void {
@@ -265,7 +265,7 @@ auto cptFormulaX(sire::Size n, const double* A, double t, const double* b,
   aris::Size rank;
   aris::dynamic::s_householder_utp(n, n, A, u.data(), tau.data(), p.data(),
                                    rank);
-  // ²»ĞèÒªÇóÄæ£¬Ö±½Ó A = Q R ·Ö½âºóµÃµ½ A \ b µÄ½á¹û A left divide b aldb
+  // ä¸éœ€è¦æ±‚é€†ï¼Œç›´æ¥ A = Q R åˆ†è§£åå¾—åˆ° A \ b çš„ç»“æœ A left divide b aldb
   // A x = b -> Q R x = b -> x = R^-1 *  Q' * b
   aris::dynamic::s_householder_utp_sov(n, n, 1, rank, u.data(), tau.data(),
                                        p.data(), b,
@@ -278,20 +278,20 @@ auto cptFormulaX(sire::Size n, const double* A, double t, const double* b,
   aris::dynamic::s_vs(n, aldb.data(), x);                 // x = x - A \ b
 }
 // clang-format off
-/// @brief ¼ÆËã¶àµã½Ó´¥×´Ì¬»ı·Ö ix(tc - t0) µÄ½á¹û
+/// @brief è®¡ç®—å¤šç‚¹æ¥è§¦çŠ¶æ€ç§¯åˆ† ix(tc - t0) çš„ç»“æœ
 /// 
-/// ÓÃÓÚ¼ÆËã½Ó´¥Á¦ÔÚ½Ó´¥Ê±¼äÄÚµÄ³åÁ¿²¢ÓÃÓÚÇóÆ½¾ùÁ¦¡£
-/// ×¢Òâix(t)²¢Ã»ÓĞÎïÀíÒâÒå£¬ÒòÎªÎÒÃÇÃ»ÓĞ³õÊ¼×´Ì¬£¬ÎŞ·¨Çó³£ÊıÏî
-/// ²»¶¨»ı·ÖÃ»ÓĞÒâÒå£¬µ«ÊÇ¶¨»ı·ÖÓĞÒâÒå
+/// ç”¨äºè®¡ç®—æ¥è§¦åŠ›åœ¨æ¥è§¦æ—¶é—´å†…çš„å†²é‡å¹¶ç”¨äºæ±‚å¹³å‡åŠ›ã€‚
+/// æ³¨æ„ix(t)å¹¶æ²¡æœ‰ç‰©ç†æ„ä¹‰ï¼Œå› ä¸ºæˆ‘ä»¬æ²¡æœ‰åˆå§‹çŠ¶æ€ï¼Œæ— æ³•æ±‚å¸¸æ•°é¡¹
+/// ä¸å®šç§¯åˆ†æ²¡æœ‰æ„ä¹‰ï¼Œä½†æ˜¯å®šç§¯åˆ†æœ‰æ„ä¹‰
 /// (A \ ((expm(A * tc) - expm(A * t0)) * (x0' + A \ b'))) -
 /// (A \ b') * (tc - t0)
-/// @param[in] n 2±¶½Ó´¥µãÊıÄ¿£¨×´Ì¬¿Õ¼ä´óĞ¡£©
-/// @param[in] A n x n Ò»½×Î¢·Ö¶¯Á¦·½³Ì×´Ì¬×ªÒÆ¾ØÕó
-/// @param[in] t0 1 Ê±¼äÆ¬¿ªÊ¼Ê±¼ä
-/// @param[in] tc 1 ×îĞ¡×´Ì¬×ª»»Ê±¼ä
-/// @param[in] b n x 1 Î¢·Ö¶¯Á¦·½³Ì·ÇÆë´ÎÏî
-/// @param[in] x0 n x 1 Î¢·Ö¶¯Á¦·½³Ì³õÊ¼×´Ì¬
-/// @param[out] ix n x 1 Êä³ö×´Ì¬
+/// @param[in] n 2å€æ¥è§¦ç‚¹æ•°ç›®ï¼ˆçŠ¶æ€ç©ºé—´å¤§å°ï¼‰
+/// @param[in] A n x n ä¸€é˜¶å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹çŠ¶æ€è½¬ç§»çŸ©é˜µ
+/// @param[in] t0 1 æ—¶é—´ç‰‡å¼€å§‹æ—¶é—´
+/// @param[in] tc 1 æœ€å°çŠ¶æ€è½¬æ¢æ—¶é—´
+/// @param[in] b n x 1 å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹éé½æ¬¡é¡¹
+/// @param[in] x0 n x 1 å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹åˆå§‹çŠ¶æ€
+/// @param[out] ix n x 1 è¾“å‡ºçŠ¶æ€
 // clang-format on
 auto cptFormulaIXdt(sire::Size n, const double* A, double t0, double tc,
                     const double* b, const double* x0, double* ix) -> void {
@@ -305,7 +305,7 @@ auto cptFormulaIXdt(sire::Size n, const double* A, double t0, double tc,
   aris::Size rank;
   aris::dynamic::s_householder_utp(n, n, A, u.data(), tau.data(), p.data(),
                                    rank);
-  // ²»ĞèÒªÇóÄæ£¬Ö±½Ó A = Q R ·Ö½âºóµÃµ½ A \ b µÄ½á¹û A left divide b aldb
+  // ä¸éœ€è¦æ±‚é€†ï¼Œç›´æ¥ A = Q R åˆ†è§£åå¾—åˆ° A \ b çš„ç»“æœ A left divide b aldb
   // A x = b -> Q R x = b -> x = R^-1 *  Q' * b
   aris::dynamic::s_householder_utp_sov(n, n, 1, rank, u.data(), tau.data(),
                                        p.data(), b,
@@ -321,14 +321,14 @@ auto cptFormulaIXdt(sire::Size n, const double* A, double t0, double tc,
   aris::dynamic::s_va(n, t0 - tc, aldb.data(), ix);  // ix = ix - (A \ b)t
 }
 // clang-format off
-/// @brief ¼ÆËã¶àµã½Ó´¥Î¢·Ö¹«Ê½ x(t) µÄ½á¹û
+/// @brief è®¡ç®—å¤šç‚¹æ¥è§¦å¾®åˆ†å…¬å¼ x(t) çš„ç»“æœ
 /// 
 /// expm(Ab * t) * x01';
-/// @param[in] n 2±¶½Ó´¥µãÊıÄ¿£¨×´Ì¬¿Õ¼ä´óĞ¡£©
-/// @param[in] Ab n x n Ò»½×Î¢·Ö¶¯Á¦·½³Ì×´Ì¬×ªÒÆ¾ØÕó
-/// @param[in] t 1 ĞèÒª¼ÆËãµÄÊ±¼ä
-/// @param[in] x01 (n + 1) x 1 Î¢·Ö¶¯Á¦·½³Ì³õÊ¼×´Ì¬
-/// @param[out] x1t (n + 1) x 1 Êä³ö×´Ì¬
+/// @param[in] n 2å€æ¥è§¦ç‚¹æ•°ç›®ï¼ˆçŠ¶æ€ç©ºé—´å¤§å°ï¼‰
+/// @param[in] Ab n x n ä¸€é˜¶å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹çŠ¶æ€è½¬ç§»çŸ©é˜µ
+/// @param[in] t 1 éœ€è¦è®¡ç®—çš„æ—¶é—´
+/// @param[in] x01 (n + 1) x 1 å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹åˆå§‹çŠ¶æ€
+/// @param[out] x1t (n + 1) x 1 è¾“å‡ºçŠ¶æ€
 // clang-format on
 auto cptFormulaXComposeAb(sire::Size n, const double* Ab, double t,
                           const double* x01, double* x1t) -> void {
@@ -338,20 +338,20 @@ auto cptFormulaXComposeAb(sire::Size n, const double* Ab, double t,
   aris::dynamic::s_mm(n, 1, n, temp.data(), x01, x1t);        // e^At * x01
 }
 // clang-format off
-/// @brief ¼ÆËã¶àµã½Ó´¥×´Ì¬»ı·Ö ix(tc - t0) µÄ½á¹û
+/// @brief è®¡ç®—å¤šç‚¹æ¥è§¦çŠ¶æ€ç§¯åˆ† ix(tc - t0) çš„ç»“æœ
 /// 
-/// ÓÃÓÚ¼ÆËã½Ó´¥Á¦ÔÚ½Ó´¥Ê±¼äÄÚµÄ³åÁ¿²¢ÓÃÓÚÇóÆ½¾ùÁ¦¡£
-/// ×¢Òâix(t)²¢Ã»ÓĞÎïÀíÒâÒå£¬ÒòÎªÎÒÃÇÃ»ÓĞ³õÊ¼×´Ì¬£¬ÎŞ·¨Çó³£ÊıÏî
-/// ²»¶¨»ı·ÖÃ»ÓĞÒâÒå£¬µ«ÊÇ¶¨»ı·ÖÓĞÒâÒå
+/// ç”¨äºè®¡ç®—æ¥è§¦åŠ›åœ¨æ¥è§¦æ—¶é—´å†…çš„å†²é‡å¹¶ç”¨äºæ±‚å¹³å‡åŠ›ã€‚
+/// æ³¨æ„ix(t)å¹¶æ²¡æœ‰ç‰©ç†æ„ä¹‰ï¼Œå› ä¸ºæˆ‘ä»¬æ²¡æœ‰åˆå§‹çŠ¶æ€ï¼Œæ— æ³•æ±‚å¸¸æ•°é¡¹
+/// ä¸å®šç§¯åˆ†æ²¡æœ‰æ„ä¹‰ï¼Œä½†æ˜¯å®šç§¯åˆ†æœ‰æ„ä¹‰
 /// (A \ ((expm(A * tc) - expm(A * t0)) * (x0' + A \ b'))) -
 /// (A \ b') * (tc - t0)
-/// @param[in] n 2±¶½Ó´¥µãÊıÄ¿£¨×´Ì¬¿Õ¼ä´óĞ¡£©
-/// @param[in] A n x n Ò»½×Î¢·Ö¶¯Á¦·½³Ì×´Ì¬×ªÒÆ¾ØÕó
-/// @param[in] t0 1 Ê±¼äÆ¬¿ªÊ¼Ê±¼ä
-/// @param[in] tc 1 ×îĞ¡×´Ì¬×ª»»Ê±¼ä
-/// @param[in] b n x 1 Î¢·Ö¶¯Á¦·½³Ì·ÇÆë´ÎÏî
-/// @param[in] x0 n x 1 Î¢·Ö¶¯Á¦·½³Ì³õÊ¼×´Ì¬
-/// @param[out] ix n x 1 Êä³ö×´Ì¬
+/// @param[in] n 2å€æ¥è§¦ç‚¹æ•°ç›®ï¼ˆçŠ¶æ€ç©ºé—´å¤§å°ï¼‰
+/// @param[in] A n x n ä¸€é˜¶å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹çŠ¶æ€è½¬ç§»çŸ©é˜µ
+/// @param[in] t0 1 æ—¶é—´ç‰‡å¼€å§‹æ—¶é—´
+/// @param[in] tc 1 æœ€å°çŠ¶æ€è½¬æ¢æ—¶é—´
+/// @param[in] b n x 1 å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹éé½æ¬¡é¡¹
+/// @param[in] x0 n x 1 å¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹åˆå§‹çŠ¶æ€
+/// @param[out] ix n x 1 è¾“å‡ºçŠ¶æ€
 // clang-format on
 auto cptFormulaIXdtComposeAbx0(sire::Size n, const double* Abx0, double t0,
                                double tc, double* ixdt) -> void {
@@ -369,45 +369,45 @@ auto cptFormulaIXdtComposeAbx0(sire::Size n, const double* Abx0, double t0,
   }
 }
 // clang-format off
-/// @brief ¸ù¾İÒ»½×¾ØÕóÎ¢·Ö¶¯Á¦·½³ÌµÄ×´Ì¬×ªÒÆ¾ØÕóĞÔÖÊÇó×î½üµÄ×´Ì¬×ª»»Ê±¿Ì
+/// @brief æ ¹æ®ä¸€é˜¶çŸ©é˜µå¾®åˆ†åŠ¨åŠ›æ–¹ç¨‹çš„çŠ¶æ€è½¬ç§»çŸ©é˜µæ€§è´¨æ±‚æœ€è¿‘çš„çŠ¶æ€è½¬æ¢æ—¶åˆ»
 /// 
-/// @param[in] nContact ½Ó´¥µãÊıÄ¿
-/// @param[in] A 2n x 2n ×´Ì¬×ªÒÆ¾ØÕó
-/// @param[in] b 2n x 1 ·ÇÆë´ÎÏî
-/// @param[in] x0 2n x 1 ³õÊ¼×´Ì¬
-/// @param[in] tolerance ÖÜÆÚÊıÈ¥ÖØ¾«¶È/Çó¸ù¾«¶È/½áÊøÌõ¼ş
-/// @param[in] maxIter ×î´óÑ­»·´ÎÊı
-/// @return double ×î½üµÄ×´Ì¬×ªÒÆÊ±¿Ì£¬ÓÃÓÚÇóÆ½¾ùÁ¦
+/// @param[in] nContact æ¥è§¦ç‚¹æ•°ç›®
+/// @param[in] A 2n x 2n çŠ¶æ€è½¬ç§»çŸ©é˜µ
+/// @param[in] b 2n x 1 éé½æ¬¡é¡¹
+/// @param[in] x0 2n x 1 åˆå§‹çŠ¶æ€
+/// @param[in] tolerance å‘¨æœŸæ•°å»é‡ç²¾åº¦/æ±‚æ ¹ç²¾åº¦/ç»“æŸæ¡ä»¶
+/// @param[in] maxIter æœ€å¤§å¾ªç¯æ¬¡æ•°
+/// @return double æœ€è¿‘çš„çŠ¶æ€è½¬ç§»æ—¶åˆ»ï¼Œç”¨äºæ±‚å¹³å‡åŠ›
 // clang-format on
 auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
                           const double* x0, double tolerance,
                           sire::Size maxIter) -> double {
   const sire::Size n2 = 2 * nContact;
-  // ÒòÎª¾ØÕó A ¾­³£ÎŞÄæ£¬ËùÒÔÊ¹ÓÃÆäÔö¹ãĞÎÊ½ [A b; 0 0] ×÷Îª×´Ì¬×ªÒÆ¾ØÕó£¬x0 =
-  // [x0 1] ×÷Îª³õÊ¼×´Ì¬£¨ÇóÎ¢·Ö·½³Ì½âµÄÎ¢·Ö²¿·Ö£©
+  // å› ä¸ºçŸ©é˜µ A ç»å¸¸æ— é€†ï¼Œæ‰€ä»¥ä½¿ç”¨å…¶å¢å¹¿å½¢å¼ [A b; 0 0] ä½œä¸ºçŠ¶æ€è½¬ç§»çŸ©é˜µï¼Œx0 =
+  // [x0 1] ä½œä¸ºåˆå§‹çŠ¶æ€ï¼ˆæ±‚å¾®åˆ†æ–¹ç¨‹è§£çš„å¾®åˆ†éƒ¨åˆ†ï¼‰
   std::vector<double> Ab((n2 + 1) * (n2 + 1), 0), x01(n2 + 1);
   sire::core::screw::matrixVectorComposeBack(n2, A, b, Ab.data());
   std::copy(x0, x0 + n2, x01.data());
   x01[n2] = 1;
-  // ´¦Àí¾ØÕóAµÄeigenvalue£¬ÓÃÀ´Ñ°ÕÒĞËÈ¤µã
+  // å¤„ç†çŸ©é˜µAçš„eigenvalueï¼Œç”¨æ¥å¯»æ‰¾å…´è¶£ç‚¹
   Eigen::MatrixXd Ab_eig = Eigen::Map<Eigen::MatrixXd>(
       const_cast<double*>(Ab.data()), n2 + 1, n2 + 1);
   Eigen::EigenSolver<Eigen::MatrixXd> es(Ab_eig, false);
   Eigen::VectorXd absImgPrt = es.eigenvalues().imag().cwiseAbs();
   // sin(alpha t)
   std::vector<double> alphaVec;
-  // È¥µô 0 µÄ complex part
+  // å»æ‰ 0 çš„ complex part
   std::copy_if(absImgPrt.data(), absImgPrt.data() + n2 + 1,
                std::back_inserter(alphaVec),
                [tolerance](double i) { return i > tolerance; });
   std::sort(alphaVec.begin(), alphaVec.end(), std::greater<double>());
-  // È¥µôÖØ¸´µÄÖµ
+  // å»æ‰é‡å¤çš„å€¼
   alphaVec.erase(std::unique(alphaVec.begin(), alphaVec.end(),
                              [tolerance](double a, double b) {
                                return std::abs(a - b) < tolerance;
                              }),
                  alphaVec.end());
-  // TODO: ºóÃæÔÚÕâÀï¼ÓÉÏlog
+  // TODO: åé¢åœ¨è¿™é‡ŒåŠ ä¸Šlog
   // SIRE_ASSERT(alphaVec.size() != 0);
   if (alphaVec.size() == 0) {
     return 1e-6;
@@ -424,7 +424,7 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
 
   std::sort(pois.begin(), pois.end());
   double lowerBound = 1e-12;
-  // TODO: ¿ÉÒÔÉèÖÃÎª·ÂÕæµÄÄ¬ÈÏ²½³¤£¬³¬¹ıÄ¬ÈÏ²½³¤µÄ´©Í¸Ã»±ØÒªµ¥¶À½â½Ó´¥Ê±¼äÁË
+  // TODO: å¯ä»¥è®¾ç½®ä¸ºä»¿çœŸçš„é»˜è®¤æ­¥é•¿ï¼Œè¶…è¿‡é»˜è®¤æ­¥é•¿çš„ç©¿é€æ²¡å¿…è¦å•ç‹¬è§£æ¥è§¦æ—¶é—´äº†
   double upperBound = 0.1;
   std::vector<double> x1t(n2 + 1);
   auto depthEnd = x1t.begin() + nContact;
@@ -433,10 +433,10 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
     cptFormulaXComposeAb(n2 + 1, Ab.data(), poi, x01.data(), x1t.data());
     if (std::find_if(x1t.begin(), depthEnd, [](double x) { return x < 0; }) ==
         depthEnd) {
-      lowerBound = poi;  // xÏòÁ¿ÔªËØÈ«²¿´óÓÚÁã
+      lowerBound = poi;  // xå‘é‡å…ƒç´ å…¨éƒ¨å¤§äºé›¶
       continue;
     } else {
-      upperBound = poi;  // ´æÔÚ¸ºÊı
+      upperBound = poi;  // å­˜åœ¨è´Ÿæ•°
       negativeDepthExists = true;
       break;
     }
@@ -452,18 +452,18 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
     m = (lowerBound + upperBound) / 2;
     // LOG_IF(aris::dynamic::s_is_equal(m, 0.1, tolerance), DEBUG) <<
     cptFormulaXComposeAb(n2 + 1, Ab.data(), m, x01.data(), x1t.data());
-    // TODO: Ìí¼Ó ub - lb¹ıĞ¡Çé¿öµÄÅĞ¶Ï£¬·ñÔòÃ¿´Î¶¼ÒªÅÜÍêÕû¸ömaxIter
+    // TODO: æ·»åŠ  ub - lbè¿‡å°æƒ…å†µçš„åˆ¤æ–­ï¼Œå¦åˆ™æ¯æ¬¡éƒ½è¦è·‘å®Œæ•´ä¸ªmaxIter
     // if (upperBound - lowerBound < tolerance) {
     // if (aris::dynamic::s_is_equal(m, 0.1, tolerance * 5))
     //   m = 0.0001;
     // else
     //   m = -1;
     // }
-    // ÓĞÊıĞ¡ÓÚ tol (¿ÉÒÔµ±×÷¸ù)
+    // æœ‰æ•°å°äº tol (å¯ä»¥å½“ä½œæ ¹)
     if (std::find_if(x1t.begin(), depthEnd, [tolerance](double x) {
           return std::abs(x) < tolerance;
         }) != depthEnd) {
-      // Ã»ÓĞ±È -tol ¸üĞ¡µÄÖµÁË
+      // æ²¡æœ‰æ¯” -tol æ›´å°çš„å€¼äº†
       if (std::find_if(x1t.begin(), depthEnd, [tolerance](double x) {
             return x < -tolerance;
           }) == depthEnd) {
@@ -472,16 +472,16 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
     }
     if (std::find_if(x1t.begin(), depthEnd, [](double x) { return x < 0; }) ==
         depthEnd) {
-      lowerBound = m;  // xÏòÁ¿ÔªËØÈ«²¿´óÓÚÁã
+      lowerBound = m;  // xå‘é‡å…ƒç´ å…¨éƒ¨å¤§äºé›¶
     } else {
-      upperBound = m;  // ´æÔÚ¸ºÊı
+      upperBound = m;  // å­˜åœ¨è´Ÿæ•°
     }
   }
   if (i == maxIter) m = -1;
   return m;
 }
 
-/// @brief Í¨¹ı»ı·Ö¹«Ê½¼ÆËã½Ó´¥Æ½¾ùÁ¦
+/// @brief é€šè¿‡ç§¯åˆ†å…¬å¼è®¡ç®—æ¥è§¦å¹³å‡åŠ›
 ///
 /// f (k ix) + (d x) dt / (tc - t0)
 /// @param[in] nContact
@@ -538,8 +538,8 @@ auto preprocessContactInfo(
         engine.queryGeometryPoolById(pair.id_B);
     SIRE_DEMAND(geometry_A_ptr != nullptr);
     SIRE_DEMAND(geometry_B_ptr != nullptr);
-    // ±ê¼Ç ground Ïà¹ØµÄidx£¬¼ÆËãcpiµÄÕæÊµ´óĞ¡
-    // Ä¬ÈÏÊÇÁ½¸ö¼ÓËÙ¶Èa
+    // æ ‡è®° ground ç›¸å…³çš„idxï¼Œè®¡ç®—cpiçš„çœŸå®å¤§å°
+    // é»˜è®¤æ˜¯ä¸¤ä¸ªåŠ é€Ÿåº¦a
     prtIdVector[2 * i] = geometry_A_ptr->partId();
     prtIdVector[2 * i + 1] = geometry_B_ptr->partId();
   }
@@ -579,13 +579,13 @@ auto cptInverseNormalCpiMatrix(
     interaction.setMakI(&*mak_i);
     interaction.setMakJ(&*mak_j);
   };
-  // ³õÊ¼»¯Ò»Ğ©ÖØ¸´Ê¹ÓÃµÄ±äÁ¿
+  // åˆå§‹åŒ–ä¸€äº›é‡å¤ä½¿ç”¨çš„å˜é‡
   auto& forcePool = model.forcePool();
   auto& partPool = model.partPool();
   sire::Size testForceIdxOffset = forcePool.size();
 
   const sire::Size n = preservedPairsIdx.size();
-  // ¸øÁ¦²¢¼ÆËãÖÊÁ¿¾ØÕó
+  // ç»™åŠ›å¹¶è®¡ç®—è´¨é‡çŸ©é˜µ
   const double fceValue = 10.0;
   double testFce[3] = {0, 0, fceValue};
   for (Size i{0}; i < n; ++i) {
@@ -599,7 +599,7 @@ auto cptInverseNormalCpiMatrix(
           &partPool.at(model.ground().id()).markerPool().at(0));
       fce.resetModel(&model);
       fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id ¿ÉÒÔÏÈ²»¹Ü
+      // force id å¯ä»¥å…ˆä¸ç®¡
       init_interaction(fce, &model);
     }
   }
@@ -673,13 +673,13 @@ auto cptInverseCpiMatrix(
     interaction.setMakI(&*mak_i);
     interaction.setMakJ(&*mak_j);
   };
-  // ³õÊ¼»¯Ò»Ğ©ÖØ¸´Ê¹ÓÃµÄ±äÁ¿
+  // åˆå§‹åŒ–ä¸€äº›é‡å¤ä½¿ç”¨çš„å˜é‡
   auto& forcePool = model.forcePool();
   auto& partPool = model.partPool();
   sire::Size testForceIdxOffset = forcePool.size();
 
   const sire::Size n = preservedPairsIdx.size();
-  // ¸øÁ¦²¢¼ÆËãÖÊÁ¿¾ØÕó
+  // ç»™åŠ›å¹¶è®¡ç®—è´¨é‡çŸ©é˜µ
   const double fceValue = 10.0;
   double testFce[3] = {0, 0, fceValue};
   for (Size i{0}; i < n; ++i) {
@@ -693,7 +693,7 @@ auto cptInverseCpiMatrix(
           &partPool.at(model.ground().id()).markerPool().at(0));
       fce.resetModel(&model);
       fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id ¿ÉÒÔÏÈ²»¹Ü
+      // force id å¯ä»¥å…ˆä¸ç®¡
       init_interaction(fce, &model);
     }
   }
@@ -768,17 +768,17 @@ auto cptCpiMatrix(
     interaction.setMakI(&*mak_i);
     interaction.setMakJ(&*mak_j);
   };
-  // ³õÊ¼»¯Ò»Ğ©ÖØ¸´Ê¹ÓÃµÄ±äÁ¿
+  // åˆå§‹åŒ–ä¸€äº›é‡å¤ä½¿ç”¨çš„å˜é‡
   auto& forcePool = model.forcePool();
   auto& partPool = model.partPool();
   sire::Size testForceIdxOffset = forcePool.size();
-  // ÔÚĞŞ¸Ä forcePool Ö®Ç°¼ÇÂ¼forcePoolµÄ active ×´Ì¬
+  // åœ¨ä¿®æ”¹ forcePool ä¹‹å‰è®°å½•forcePoolçš„ active çŠ¶æ€
   FceActiveStateRecorder recorder(&model);
-  // ½«ÔÚ forcePool ÖĞµÄÁ¦È«²¿ deactivate
+  // å°†åœ¨ forcePool ä¸­çš„åŠ›å…¨éƒ¨ deactivate
   for (auto& fce : forcePool) fce.activate(false);
 
   const sire::Size n = preservedPairsIdx.size();
-  // ¸øÁ¦²¢¼ÆËãÖÊÁ¿¾ØÕó
+  // ç»™åŠ›å¹¶è®¡ç®—è´¨é‡çŸ©é˜µ
   const double fceValue1 = 10.0;
   const double fceValue2 = 50.0;
   double testFce1[3] = {0, 0, fceValue1};
@@ -796,7 +796,7 @@ auto cptCpiMatrix(
           &partPool.at(model.ground().id()).markerPool().at(0));
       fce.resetModel(&model);
       fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id ¿ÉÒÔÏÈ²»¹Ü
+      // force id å¯ä»¥å…ˆä¸ç®¡
       init_interaction(fce, &model);
     }
   }
@@ -880,11 +880,11 @@ auto filterPairsAndPreprocessInfo(
 
 struct AverageForceContactSolver::Imp {
   unique_ptr<core::MaterialManager> material_manager_;
-  // ÏûºÄÏµÊı
+  // æ¶ˆè€—ç³»æ•°
   double default_cr_;
-  // Ä¦²ÁÏµÊı
+  // æ‘©æ“¦ç³»æ•°
   double default_cof_;
-  // ËÙ¶ÈãĞÖµ velocity threshold
+  // é€Ÿåº¦é˜ˆå€¼ velocity threshold
   double default_tv_;
   double default_k_;
   double default_d_;
@@ -941,7 +941,7 @@ auto AverageForceContactSolver::defaultVelocityThreshold() noexcept -> double {
 }
 // clang-format off
 // 
-// ÖÊÁ¿¾ØÕóµÄ¸ñÊ½£¬¼ÙÉèÓĞ n ¸öÅö×²µã
+// è´¨é‡çŸ©é˜µçš„æ ¼å¼ï¼Œå‡è®¾æœ‰ n ä¸ªç¢°æ’ç‚¹
 // I[num1][A|B][num2][A|B][x|y|z 1][x|y|z 2]
 // I: inertia; 
 // num1: idx of contact point which give force
@@ -951,7 +951,7 @@ auto AverageForceContactSolver::defaultVelocityThreshold() noexcept -> double {
 // x|y|z 1: contact force 3 direction 
 // x|y|z 2: influenced contact point 3 direction
 //
-// eg: µÚÒ»¸öÅö×²µãµÄ¶ÔPrtAÇĞÏòx·½ÏòµÄ½Ó´¥Á¦¶Ô¸÷¸öÅö×²µãµÄ½Ó´¥¸Ë¼şA/BµÄ±ÈÖµÖÊÁ¿
+// eg: ç¬¬ä¸€ä¸ªç¢°æ’ç‚¹çš„å¯¹PrtAåˆ‡å‘xæ–¹å‘çš„æ¥è§¦åŠ›å¯¹å„ä¸ªç¢°æ’ç‚¹çš„æ¥è§¦æ†ä»¶A/Bçš„æ¯”å€¼è´¨é‡
 // [I1A1Axx I1A1Axy I1A1Axz I1A1Bxx I1A1Bxy I1A1Bxz ... I1AnAxx I1AnAxy I1AnAxz I1AnBxx I1AnBxy I1AnBxz]
 // [I1A1Ayx I1A1Ayy I1A1Ayz I1A1Byx I1A1Byy I1A1Byz ... I1AnAyx I1AnAyy I1AnAyz I1AnByx I1AnByy I1AnByz]
 // [I1A1Azx I1A1Azy I1A1Azz I1A1Bzx I1A1Bzy I1A1Bzz ... I1AnAzx I1AnAzy I1AnAzz I1AnBzx I1AnBzy I1AnBzz]
@@ -967,30 +967,30 @@ auto AverageForceContactSolver::defaultVelocityThreshold() noexcept -> double {
 // [InB1Ayx InB1Ayy InB1Ayz InB1Byx InB1Byy InB1Byz ... InBnAyx InBnAyy InBnAyz InBnByx InBnByy InBnByz]
 // [InB1Azx InB1Azy InB1Azz InB1Bzx InB1Bzy InB1Bzz ... InBnAzx InBnAzy InBnAzz InBnBzx InBnBzy InBnBzz] 6n x 6n
 //
-// ¾ØÕóµÄÁãÔªºÍÎŞÏŞÔª´ú±íµÄÒâË¼£º
-// ÁãÔª£º±íÊ¾µÈÊ½ÓÒ±ßÊÜµ½µÄÁ¦²»»áµ¼ÖÂ×ó±ßµÄÄ³Ò»ÌØ¶¨½Ó´¥µã²úÉúÌØ¶¨·½ÏòµÄ¼ÓËÙ¶È
-// ÎŞÏŞÔª£ºÓëÁãÔªµÄÒâÒåÒ»ÖÂ£¬Ò²ÊÇÎŞÂÛÓÒ±ßÊÜµ½ÔõÃ´ÑùµÄÁ¦×ó±ß¶¼²»»á²úÉúÏàÓ¦µÄ¼ÓËÙ¶È
+// çŸ©é˜µçš„é›¶å…ƒå’Œæ— é™å…ƒä»£è¡¨çš„æ„æ€ï¼š
+// é›¶å…ƒï¼šè¡¨ç¤ºç­‰å¼å³è¾¹å—åˆ°çš„åŠ›ä¸ä¼šå¯¼è‡´å·¦è¾¹çš„æŸä¸€ç‰¹å®šæ¥è§¦ç‚¹äº§ç”Ÿç‰¹å®šæ–¹å‘çš„åŠ é€Ÿåº¦
+// æ— é™å…ƒï¼šä¸é›¶å…ƒçš„æ„ä¹‰ä¸€è‡´ï¼Œä¹Ÿæ˜¯æ— è®ºå³è¾¹å—åˆ°æ€ä¹ˆæ ·çš„åŠ›å·¦è¾¹éƒ½ä¸ä¼šäº§ç”Ÿç›¸åº”çš„åŠ é€Ÿåº¦
 // 
-// Í¨¹ıÅö×²¼ì²âµÃµ½µÄÅö×²µãĞÅÏ¢£¬Åö×²µãµÄÎ»×Ë¾ØÕó¼ÆËãµÃµ½¹ßÁ¿¾ØÕó
-// Í¨¹ı aris ¿½±´¹ıÀ´µÄ init_interaction À´³õÊ¼»¯ÖØĞÂ¼ÓÈëµÄ fce
-// Step1£º¼ÇÂ¼modelµÄ fce µÄactive×´Ì¬Çé¿ö£¬²¢È«²¿ÉèÖÃÎª deactive
-// Step2: ±éÀúÅö×²µã£¬¼ÇÂ¼Åö×²µãµÄ¸Ë¼şµÄ vs Óë as
-// Step3: Ñ­»·¸øÁ¦£¬¼ÆËã¸÷¸ö½Ó´¥µã¸Ë¼şµÄ·´Ó¦£¬ÎŞ·´Ó¦¼ÇÂ¼Îª0¶ø²»ÊÇÕıÎŞÇî f / m = a
+// é€šè¿‡ç¢°æ’æ£€æµ‹å¾—åˆ°çš„ç¢°æ’ç‚¹ä¿¡æ¯ï¼Œç¢°æ’ç‚¹çš„ä½å§¿çŸ©é˜µè®¡ç®—å¾—åˆ°æƒ¯é‡çŸ©é˜µ
+// é€šè¿‡ aris æ‹·è´è¿‡æ¥çš„ init_interaction æ¥åˆå§‹åŒ–é‡æ–°åŠ å…¥çš„ fce
+// Step1ï¼šè®°å½•modelçš„ fce çš„activeçŠ¶æ€æƒ…å†µï¼Œå¹¶å…¨éƒ¨è®¾ç½®ä¸º deactive
+// Step2: éå†ç¢°æ’ç‚¹ï¼Œè®°å½•ç¢°æ’ç‚¹çš„æ†ä»¶çš„ vs ä¸ as
+// Step3: å¾ªç¯ç»™åŠ›ï¼Œè®¡ç®—å„ä¸ªæ¥è§¦ç‚¹æ†ä»¶çš„ååº”ï¼Œæ— ååº”è®°å½•ä¸º0è€Œä¸æ˜¯æ­£æ— ç©· f / m = a
 //
-// ÖÊÁ¿¾ØÕóÔÚ½Ó´¥µã´¦µÄÎ¢·Ö·½³Ì
+// è´¨é‡çŸ©é˜µåœ¨æ¥è§¦ç‚¹å¤„çš„å¾®åˆ†æ–¹ç¨‹
 // I a = F
-// ÆäÖĞ I µÄ¸ñÊ½ÓÉÉÏ±ßµÄ¾ØÕó¸ø³ö£¬ÓÉ´Ë£¬a Óë F µÄ¸ñÊ½ÈçÏÂ£¨ÓÉ¶Ô½ÇÏßÔªËØ¾ö¶¨£¬²¢ÓÉ·Ç¶Ô½ÇÏßÔªËØÑéÖ¤£©
+// å…¶ä¸­ I çš„æ ¼å¼ç”±ä¸Šè¾¹çš„çŸ©é˜µç»™å‡ºï¼Œç”±æ­¤ï¼Œa ä¸ F çš„æ ¼å¼å¦‚ä¸‹ï¼ˆç”±å¯¹è§’çº¿å…ƒç´ å†³å®šï¼Œå¹¶ç”±éå¯¹è§’çº¿å…ƒç´ éªŒè¯ï¼‰
 // a = [a1Ax a1Ay a1Az a1Bx a1By a1Bz ... anAx anAy anAz anBx anBy anBz]'; 6n x 1
 // F = [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]'; 6n x 1
-// Ä¦²ÁÁ¦¶ÔÁ½¸öÎïÌåÀ´ËµÔÚÍ¬Ò»×ø±êÏµÏÂ´óĞ¡ÏàÍ¬·½ÏòÏà·´£¬·ÖÎöÁ¦·Ö½âºó¶Ô x y ·½ÏòµÄÇĞÏò¼ÓËÙ¶ÈµÄÓ°Ïì£¬ËùÒÔÒ²ÊÇÏà¼õ
-// ËùÒÔĞèÒªÏÈ¶Ô¾ØÕó I ÇóÄæ¾ØÕóµÃµ½ a = I^-1 F
-// ²¢ÔÚ¶ÔÓ¦ÏîÏà¼õ£¬µÃµ½»ùÓÚ½Ó´¥Ä£ĞÍµÄ¶àµã½Ó´¥¹«Ê½¾ØÕó
+// æ‘©æ“¦åŠ›å¯¹ä¸¤ä¸ªç‰©ä½“æ¥è¯´åœ¨åŒä¸€åæ ‡ç³»ä¸‹å¤§å°ç›¸åŒæ–¹å‘ç›¸åï¼Œåˆ†æåŠ›åˆ†è§£åå¯¹ x y æ–¹å‘çš„åˆ‡å‘åŠ é€Ÿåº¦çš„å½±å“ï¼Œæ‰€ä»¥ä¹Ÿæ˜¯ç›¸å‡
+// æ‰€ä»¥éœ€è¦å…ˆå¯¹çŸ©é˜µ I æ±‚é€†çŸ©é˜µå¾—åˆ° a = I^-1 F
+// å¹¶åœ¨å¯¹åº”é¡¹ç›¸å‡ï¼Œå¾—åˆ°åŸºäºæ¥è§¦æ¨¡å‹çš„å¤šç‚¹æ¥è§¦å…¬å¼çŸ©é˜µ
 // a = [a1Ax-a1Bx a1Ay-a1By a1Az-a1Bz ... anAx-anBy anAx-anBy anAz-anBz]'; 3n x 1
-// F = I^-1 * [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]' È»ºó¶ÔÓ¦ÏîÄ¿Ïà¼õ; 3n x 1
+// F = I^-1 * [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]' ç„¶åå¯¹åº”é¡¹ç›®ç›¸å‡; 3n x 1
 // 
-// ·½·¨Ò»£ºÊ¹ÓÃµ±Ç°Ê±¿Ì×´Ì¬¼ÆËãÇĞÏòÄ¦²ÁÁ¦´óĞ¡£¬½«ÇĞÏòÄ¦²ÁÁ¦Ö±½Ó´øÈë¶¯Á¦Ñ§£¬×îºó»á³ÉÎª·¨ÏòÆ½ºâ¾ØÕóµÄÍâÁ¦ÏîÄ¿£¬
-//        ²»ĞèÒª½«ÇĞÏòÎÊÌâÒıÈëÆ½ºâ¾ØÕó£¬Ö±½Ó´úÈë¶¯Á¦Ñ§Ó¦¸Ã»á²úÉúÒ»ÖÂµÄĞ§¹û¡£
-// ·½·¨¶ş£º½«ÇĞÏòÎÊÌâÓë·¨ÏòÎÊÌâÒıÈë¹«Ê½Óë´ó¾ØÕóÍ¬Ê±Çó½â¡£
+// æ–¹æ³•ä¸€ï¼šä½¿ç”¨å½“å‰æ—¶åˆ»çŠ¶æ€è®¡ç®—åˆ‡å‘æ‘©æ“¦åŠ›å¤§å°ï¼Œå°†åˆ‡å‘æ‘©æ“¦åŠ›ç›´æ¥å¸¦å…¥åŠ¨åŠ›å­¦ï¼Œæœ€åä¼šæˆä¸ºæ³•å‘å¹³è¡¡çŸ©é˜µçš„å¤–åŠ›é¡¹ç›®ï¼Œ
+//        ä¸éœ€è¦å°†åˆ‡å‘é—®é¢˜å¼•å…¥å¹³è¡¡çŸ©é˜µï¼Œç›´æ¥ä»£å…¥åŠ¨åŠ›å­¦åº”è¯¥ä¼šäº§ç”Ÿä¸€è‡´çš„æ•ˆæœã€‚
+// æ–¹æ³•äºŒï¼šå°†åˆ‡å‘é—®é¢˜ä¸æ³•å‘é—®é¢˜å¼•å…¥å…¬å¼ä¸å¤§çŸ©é˜µåŒæ—¶æ±‚è§£ã€‚
 // clang-format on
 auto AverageForceContactSolver::cptContactPointInertiaMatrix(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -1025,7 +1025,7 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
     interaction.setMakI(&*mak_i);
     interaction.setMakJ(&*mak_j);
   };
-  // ³õÊ¼»¯Ò»Ğ©ÖØ¸´Ê¹ÓÃµÄ±äÁ¿
+  // åˆå§‹åŒ–ä¸€äº›é‡å¤ä½¿ç”¨çš„å˜é‡
   auto enginePtr = physicsEnginePtr();
   SIRE_ASSERT(enginePtr != nullptr);
   auto modelPtr = enginePtr->currentModel();
@@ -1036,12 +1036,12 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
   Size testForceIdxOffset = forcePool.size();
   // Size testForceIdxOffset = 0;
   const double fceValue = 10.0;
-  // ³õÊ¼»¯½á¹ûÈİÆ÷
+  // åˆå§‹åŒ–ç»“æœå®¹å™¨
   const Size cpiWidth = 6 * numContactPoint;
   cpi.resize(cpiWidth * cpiWidth);
-  // ÔÚĞŞ¸Ä forcePool Ö®Ç°¼ÇÂ¼forcePoolµÄ active ×´Ì¬
+  // åœ¨ä¿®æ”¹ forcePool ä¹‹å‰è®°å½•forcePoolçš„ active çŠ¶æ€
   FceActiveStateRecorder recorder(modelPtr);
-  // ½«ÔÚ forcePool ÖĞµÄÁ¦È«²¿ deactivate
+  // å°†åœ¨ forcePool ä¸­çš„åŠ›å…¨éƒ¨ deactivate
   for (auto& fce : forcePool) fce.activate(false);
   // add generalForce to forcePool() in Model and init
   typedef std::map<sire::geometry::GeometryId, std::array<double, 6>>
@@ -1068,17 +1068,17 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
 
     fcea.resetModel(modelPtr);
     fcea.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-    // force id ¿ÉÒÔÏÈ²»¹Ü
+    // force id å¯ä»¥å…ˆä¸ç®¡
     init_interaction(fcea, modelPtr);
     fceb.resetModel(modelPtr);
     fceb.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-    // force id ¿ÉÒÔÏÈ²»¹Ü
+    // force id å¯ä»¥å…ˆä¸ç®¡
     init_interaction(fceb, modelPtr);
     for (Size j = 0; j < 2; ++j) {
       auto& prt = partPool[contactPrt[j]];
       PrtAsVsType::iterator lbofPrt =
           contactPrtVsMap.lower_bound(contactPrt[j]);
-      // Èç¹û prt_id ÔÚ contactPrtVsMap ÖĞÕÒ²»µ½£¬¼ÆËãAsÓëVs²¢´æÈëmap
+      // å¦‚æœ prt_id åœ¨ contactPrtVsMap ä¸­æ‰¾ä¸åˆ°ï¼Œè®¡ç®—Asä¸Vså¹¶å­˜å…¥map
       if (lbofPrt == contactPrtVsMap.end() ||
           contactPrtVsMap.key_comp()(contactPrt[j], lbofPrt->first)) {
         std::array<double, 6> vs{0};
@@ -1090,11 +1090,11 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
   }
   // std::cout << aris::core::toXmlString(*modelPtr) << std::endl;
 
-  // ¸øÁ¦²¢¼ÆËãÖÊÁ¿¾ØÕó
+  // ç»™åŠ›å¹¶è®¡ç®—è´¨é‡çŸ©é˜µ
   double testFce[3][3] = {{fceValue, 0, 0}, {0, fceValue, 0}, {0, 0, fceValue}};
   const double* gravityAs = modelPtr->environment().gravity();
   for (Size iContact = 0; iContact < numContactPoint; ++iContact) {
-    // ±éÀúĞĞÊ±²»ĞèÒªÅö×²µãµ½µ×ÊÇÄÄ¸ö id_A or id_B
+    // éå†è¡Œæ—¶ä¸éœ€è¦ç¢°æ’ç‚¹åˆ°åº•æ˜¯å“ªä¸ª id_A or id_B
     for (Size i2 = 0; i2 < 2; ++i2) {
       for (Size idir = 0; idir < 3; ++idir) {
         double fs[6];
@@ -1106,7 +1106,7 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
         if (modelPtr->forwardDynamics()) {
           std::cout << "forward dynamic failed" << std::endl;
         }
-        // ¼ÇÂ¼ËùÓĞÅö×²µãµÄAs£¬·½±ãÈ¡ÓÃ
+        // è®°å½•æ‰€æœ‰ç¢°æ’ç‚¹çš„Asï¼Œæ–¹ä¾¿å–ç”¨
         PrtAsVsType contactPrtAsMap;
         for (Size jContact = 0; jContact < numContactPoint; ++jContact) {
           const geometry::CollidableGeometry* geometry_A_ptr =
@@ -1123,16 +1123,16 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
             auto& prt = partPool[contactPrt[j2]];
             PrtAsVsType::iterator lbofPrt =
                 contactPrtAsMap.lower_bound(contactPrt[j2]);
-            // Èç¹û prt_id ÔÚ contactPrtAsMap ÖĞÕÒ²»µ½£¬¼ÆËãAs²¢´æÈëmap
+            // å¦‚æœ prt_id åœ¨ contactPrtAsMap ä¸­æ‰¾ä¸åˆ°ï¼Œè®¡ç®—Aså¹¶å­˜å…¥map
             if (lbofPrt == contactPrtAsMap.end() ||
                 contactPrtAsMap.key_comp()(contactPrt[j2], lbofPrt->first)) {
               if (prt.id() == modelPtr->ground().id()) continue;
               std::array<double, 6> as{0};
               prt.getAs(as.data());
-              // ground µÄ as ¾ÍÊÇ
-              // 0£¬²»»áÓĞÏàÓ¦¼ÓËÙ¶È£¬ÎÒÃÇ·ÂÕæÅö×²ÀïÃæÒª°ÑÕâ²¿·ÖÈ¥µô
-              // ËäÈ»Ò²·ÅÔÚÎÒÃÇµÄcpi¼ÆËã²½ÖèÖĞ£¬µ«ÊÇÖ»ÒªÃ»ÓĞas£¬¶ÔÓ¦ÏîÄ¿¾ÍÒ»Ö±ÊÇÁã£¬
-              // µ±×÷ÎŞÏŞ´óÖÊÁ¿ÎïÌå´¦Àí
+              // ground çš„ as å°±æ˜¯
+              // 0ï¼Œä¸ä¼šæœ‰ç›¸åº”åŠ é€Ÿåº¦ï¼Œæˆ‘ä»¬ä»¿çœŸç¢°æ’é‡Œé¢è¦æŠŠè¿™éƒ¨åˆ†å»æ‰
+              // è™½ç„¶ä¹Ÿæ”¾åœ¨æˆ‘ä»¬çš„cpiè®¡ç®—æ­¥éª¤ä¸­ï¼Œä½†æ˜¯åªè¦æ²¡æœ‰asï¼Œå¯¹åº”é¡¹ç›®å°±ä¸€ç›´æ˜¯é›¶ï¼Œ
+              // å½“ä½œæ— é™å¤§è´¨é‡ç‰©ä½“å¤„ç†
               if (prt.id() != modelPtr->ground().id())
                 aris::dynamic::s_vs(6, gravityAs, as.data());
               contactPrtAsMap.insert(
@@ -1184,24 +1184,24 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
 }
 
 // clang-format off
-/// @brief ¼ÆËã½Ó´¥·¨Ïò¹ßÁ¿¾ØÕó£¬ĞèÒªÈ¥µôgroundÏà¹ØµÄĞĞºÍÁĞ
-/// ´úÂëµÄµÚÒ»¸ö°æ±¾Ö±½Ó¸øÍâÁ¦µÄÇé¿öÏÂ¸ù¾İ¼ÓËÙ¶È¼ÆËã½Ó´¥µã¹ßÁ¿£¬
-/// ÎÊÌâÊÇÈç¹û»úÆ÷ÈË±¾ÉíµÄÁ¦½Ï´ó»òÕßÔË¶¯Çé¿ö´øÀ´µÄ¼ÓËÙ¶ÈÌ«´ó£¬
-/// »áµ¼ÖÂ¼ÆËã³öÀ´µÄ¹ßÁ¿Îª¸ºÊı£¬´ÓÎïÀíÒâÒåÉÏÀ´Ëµ£¬ÔÚ²»¹Ø±ÕÏµÍ³ÄÚ²¿Á¦ÓëÏµÍ³
-/// ×´Ì¬µÄÇé¿öÏÂ£¬Ó¦¸ÃÊ¹ÓÃĞ±ÂÊ×÷ÎªÖÊÁ¿£¬ÒòÎªf = ma·½³ÌÔÚÕâÖÖÇé¿öÏÂ
-/// ²»¹ıÔ­µã£¬ËùÒÔĞèÒªÁ½¸öÁ¦£¬Ëãµ½¼ÓËÙ¶ÈµÄ²îÖµ£¬×÷ÎªfµÄ¼ÆËãÒÀ¾İ
+/// @brief è®¡ç®—æ¥è§¦æ³•å‘æƒ¯é‡çŸ©é˜µï¼Œéœ€è¦å»æ‰groundç›¸å…³çš„è¡Œå’Œåˆ—
+/// ä»£ç çš„ç¬¬ä¸€ä¸ªç‰ˆæœ¬ç›´æ¥ç»™å¤–åŠ›çš„æƒ…å†µä¸‹æ ¹æ®åŠ é€Ÿåº¦è®¡ç®—æ¥è§¦ç‚¹æƒ¯é‡ï¼Œ
+/// é—®é¢˜æ˜¯å¦‚æœæœºå™¨äººæœ¬èº«çš„åŠ›è¾ƒå¤§æˆ–è€…è¿åŠ¨æƒ…å†µå¸¦æ¥çš„åŠ é€Ÿåº¦å¤ªå¤§ï¼Œ
+/// ä¼šå¯¼è‡´è®¡ç®—å‡ºæ¥çš„æƒ¯é‡ä¸ºè´Ÿæ•°ï¼Œä»ç‰©ç†æ„ä¹‰ä¸Šæ¥è¯´ï¼Œåœ¨ä¸å…³é—­ç³»ç»Ÿå†…éƒ¨åŠ›ä¸ç³»ç»Ÿ
+/// çŠ¶æ€çš„æƒ…å†µä¸‹ï¼Œåº”è¯¥ä½¿ç”¨æ–œç‡ä½œä¸ºè´¨é‡ï¼Œå› ä¸ºf = maæ–¹ç¨‹åœ¨è¿™ç§æƒ…å†µä¸‹
+/// ä¸è¿‡åŸç‚¹ï¼Œæ‰€ä»¥éœ€è¦ä¸¤ä¸ªåŠ›ï¼Œç®—åˆ°åŠ é€Ÿåº¦çš„å·®å€¼ï¼Œä½œä¸ºfçš„è®¡ç®—ä¾æ®
 /// f1 = 10N -> f2 = 50N
 /// 
-/// ½Ó´¥·¨ÏòÖÊÁ¿¾ØÕóµÄ¸ñÊ½£¬¼ÙÉèÓĞ n ¸öÅö×²µã
+/// æ¥è§¦æ³•å‘è´¨é‡çŸ©é˜µçš„æ ¼å¼ï¼Œå‡è®¾æœ‰ n ä¸ªç¢°æ’ç‚¹
 /// I[num1][A|B][num2][A|B]
 /// I: inertia; 
 /// num1: idx of contact point which give force
 /// A|B: contact force direction
 /// num2: idx of influenced contact point
 /// A|B: influenced contact point's of PrtA or PrtB
-/// Ö»°üº¬Åö×²µã¼ä·¨ÏòÁ¦µÄ¹ßÁ¿¾ØÕó
+/// åªåŒ…å«ç¢°æ’ç‚¹é—´æ³•å‘åŠ›çš„æƒ¯é‡çŸ©é˜µ
 ///
-/// eg: µÚÒ»¸öÅö×²µãµÄ¶ÔPrtAÇĞÏòx·½ÏòµÄ½Ó´¥Á¦¶Ô¸÷¸öÅö×²µãµÄ½Ó´¥¸Ë¼şA/BµÄ±ÈÖµÖÊÁ¿
+/// eg: ç¬¬ä¸€ä¸ªç¢°æ’ç‚¹çš„å¯¹PrtAåˆ‡å‘xæ–¹å‘çš„æ¥è§¦åŠ›å¯¹å„ä¸ªç¢°æ’ç‚¹çš„æ¥è§¦æ†ä»¶A/Bçš„æ¯”å€¼è´¨é‡
 /// [I1A1Azz I1A1Bzz ... I1AnAzz I1AnBzz]
 /// [I1B1Azz I1B1Bzz ... I1BnAzz I1BnBzz]
 /// [   .       .    ...    .       .   ]
@@ -1209,60 +1209,60 @@ auto AverageForceContactSolver::cptContactPointInertiaMatrix(
 /// [InA1Azz InA1Bxz ... InAnAxz InAnBzz]
 /// [InB1Azz InB1Bzz ... InBnAzz InBnBzz] 2n x 2n
 ///
-/// ¾ØÕóµÄÁãÔªºÍÎŞÏŞÔª´ú±íµÄÒâË¼£º
-/// ÁãÔª£º±íÊ¾µÈÊ½ÓÒ±ßÊÜµ½µÄÁ¦²»»áµ¼ÖÂ×ó±ßµÄÄ³Ò»ÌØ¶¨½Ó´¥µã²úÉúÌØ¶¨·½ÏòµÄ¼ÓËÙ¶È
-/// ÎŞÏŞÔª£ºÓëÁãÔªµÄÒâÒåÒ»ÖÂ£¬Ò²ÊÇÎŞÂÛÓÒ±ßÊÜµ½ÔõÃ´ÑùµÄÁ¦×ó±ß¶¼²»»á²úÉúÏàÓ¦µÄ¼ÓËÙ¶È
+/// çŸ©é˜µçš„é›¶å…ƒå’Œæ— é™å…ƒä»£è¡¨çš„æ„æ€ï¼š
+/// é›¶å…ƒï¼šè¡¨ç¤ºç­‰å¼å³è¾¹å—åˆ°çš„åŠ›ä¸ä¼šå¯¼è‡´å·¦è¾¹çš„æŸä¸€ç‰¹å®šæ¥è§¦ç‚¹äº§ç”Ÿç‰¹å®šæ–¹å‘çš„åŠ é€Ÿåº¦
+/// æ— é™å…ƒï¼šä¸é›¶å…ƒçš„æ„ä¹‰ä¸€è‡´ï¼Œä¹Ÿæ˜¯æ— è®ºå³è¾¹å—åˆ°æ€ä¹ˆæ ·çš„åŠ›å·¦è¾¹éƒ½ä¸ä¼šäº§ç”Ÿç›¸åº”çš„åŠ é€Ÿåº¦
 /// 
-/// Í¨¹ıÅö×²¼ì²âµÃµ½µÄÅö×²µãĞÅÏ¢£¬Åö×²µãµÄÎ»×Ë¾ØÕó¼ÆËãµÃµ½¹ßÁ¿¾ØÕó
-/// Í¨¹ı aris ¿½±´¹ıÀ´µÄ init_interaction À´³õÊ¼»¯ÖØĞÂ¼ÓÈëµÄ fce
-/// Step1£º¼ÇÂ¼modelµÄ fce µÄactive×´Ì¬Çé¿ö£¬²¢È«²¿ÉèÖÃÎª deactive
-/// Step2: ±éÀúÅö×²µã£¬¼ÇÂ¼Åö×²µãµÄ¸Ë¼şµÄ vs Óë as
-/// Step3: Ñ­»·¸øÁ¦£¬¼ÆËã¸÷¸ö½Ó´¥µã¸Ë¼şµÄ·´Ó¦£¬ÎŞ·´Ó¦¼ÇÂ¼Îª0¶ø²»ÊÇÕıÎŞÇî f / m = a
+/// é€šè¿‡ç¢°æ’æ£€æµ‹å¾—åˆ°çš„ç¢°æ’ç‚¹ä¿¡æ¯ï¼Œç¢°æ’ç‚¹çš„ä½å§¿çŸ©é˜µè®¡ç®—å¾—åˆ°æƒ¯é‡çŸ©é˜µ
+/// é€šè¿‡ aris æ‹·è´è¿‡æ¥çš„ init_interaction æ¥åˆå§‹åŒ–é‡æ–°åŠ å…¥çš„ fce
+/// Step1ï¼šè®°å½•modelçš„ fce çš„activeçŠ¶æ€æƒ…å†µï¼Œå¹¶å…¨éƒ¨è®¾ç½®ä¸º deactive
+/// Step2: éå†ç¢°æ’ç‚¹ï¼Œè®°å½•ç¢°æ’ç‚¹çš„æ†ä»¶çš„ vs ä¸ as
+/// Step3: å¾ªç¯ç»™åŠ›ï¼Œè®¡ç®—å„ä¸ªæ¥è§¦ç‚¹æ†ä»¶çš„ååº”ï¼Œæ— ååº”è®°å½•ä¸º0è€Œä¸æ˜¯æ­£æ— ç©· f / m = a
 ///
-/// ÖÊÁ¿¾ØÕóÔÚ½Ó´¥µã´¦µÄÎ¢·Ö·½³Ì
+/// è´¨é‡çŸ©é˜µåœ¨æ¥è§¦ç‚¹å¤„çš„å¾®åˆ†æ–¹ç¨‹
 /// I a = F
-/// ÆäÖĞ I µÄ¸ñÊ½ÓÉÉÏ±ßµÄ¾ØÕó¸ø³ö£¬ÓÉ´Ë£¬a Óë F µÄ¸ñÊ½ÈçÏÂ£¨ÓÉ¶Ô½ÇÏßÔªËØ¾ö¶¨£¬²¢ÓÉ·Ç¶Ô½ÇÏßÔªËØÑéÖ¤£©
+/// å…¶ä¸­ I çš„æ ¼å¼ç”±ä¸Šè¾¹çš„çŸ©é˜µç»™å‡ºï¼Œç”±æ­¤ï¼Œa ä¸ F çš„æ ¼å¼å¦‚ä¸‹ï¼ˆç”±å¯¹è§’çº¿å…ƒç´ å†³å®šï¼Œå¹¶ç”±éå¯¹è§’çº¿å…ƒç´ éªŒè¯ï¼‰
 /// a = [a1Az a1Bz ... anAz anBz]'; 2n x 1
 /// F = [F1Az F1Bz ... FnAz FnBz]'; 2n x 1
-/// Ä¦²ÁÁ¦¶ÔÁ½¸öÎïÌåÀ´ËµÔÚÍ¬Ò»×ø±êÏµÏÂ´óĞ¡ÏàÍ¬·½ÏòÏà·´£¬·ÖÎöÁ¦·Ö½âºó¶Ô x y ·½ÏòµÄÇĞÏò¼ÓËÙ¶ÈµÄÓ°Ïì£¬ËùÒÔÒ²ÊÇÏà¼õ
-/// ËùÒÔĞèÒªÏÈ¶Ô¾ØÕó I ÇóÄæ¾ØÕóµÃµ½ a = I^-1 F
-/// ²¢ÔÚ¶ÔÓ¦ÏîÏà¼õ£¬µÃµ½»ùÓÚ½Ó´¥Ä£ĞÍµÄ¶àµã½Ó´¥¹«Ê½¾ØÕó
+/// æ‘©æ“¦åŠ›å¯¹ä¸¤ä¸ªç‰©ä½“æ¥è¯´åœ¨åŒä¸€åæ ‡ç³»ä¸‹å¤§å°ç›¸åŒæ–¹å‘ç›¸åï¼Œåˆ†æåŠ›åˆ†è§£åå¯¹ x y æ–¹å‘çš„åˆ‡å‘åŠ é€Ÿåº¦çš„å½±å“ï¼Œæ‰€ä»¥ä¹Ÿæ˜¯ç›¸å‡
+/// æ‰€ä»¥éœ€è¦å…ˆå¯¹çŸ©é˜µ I æ±‚é€†çŸ©é˜µå¾—åˆ° a = I^-1 F
+/// å¹¶åœ¨å¯¹åº”é¡¹ç›¸å‡ï¼Œå¾—åˆ°åŸºäºæ¥è§¦æ¨¡å‹çš„å¤šç‚¹æ¥è§¦å…¬å¼çŸ©é˜µ
 /// a = [a1Az-a1Bz ... anAz-anBz]'; n x 1
-/// F = I^-1 * [F1Az F1Bz ... FnAz FnBz]' È»ºó¶ÔÓ¦ÏîÄ¿Ïà¼õ; n x 1
+/// F = I^-1 * [F1Az F1Bz ... FnAz FnBz]' ç„¶åå¯¹åº”é¡¹ç›®ç›¸å‡; n x 1
 /// 
-/// ·½·¨Ò»£ºÊ¹ÓÃµ±Ç°Ê±¿Ì×´Ì¬¼ÆËãÇĞÏòÄ¦²ÁÁ¦´óĞ¡£¬½«ÇĞÏòÄ¦²ÁÁ¦Ö±½Ó´øÈë¶¯Á¦Ñ§£¬×îºó»á³ÉÎª·¨ÏòÆ½ºâ¾ØÕóµÄÍâÁ¦ÏîÄ¿£¬
-///        ²»ĞèÒª½«ÇĞÏòÎÊÌâÒıÈëÆ½ºâ¾ØÕó£¬Ö±½Ó´úÈë¶¯Á¦Ñ§Ó¦¸Ã»á²úÉúÒ»ÖÂµÄĞ§¹û¡£
-/// ×¢ÒâÊÂÏî£º
-///  1. µÃµ½µÄ¼ÓËÙ¶ÈĞèÒª¼õÈ¥ gravityAs ²ÅÄÜÊÇÎÒÃÇµÄÒòÎªÁ¦²úÉúµÄ¼ÓËÙ¶È²ÅÄÜÌí¼Ó¼ÆËãÖÊÁ¿
-/// ÔÚ´´½¨µÄÊ±ºò¼ÇÂ¼ fce µÄ¼¤»î×´Ì¬
-/// ²¢ÔÚÏú»ÙµÄÊ±ºò½«¼ÇÂ¼µÄ×´Ì¬ÉèÖÃ»ØÈ¥£¬·ÅÖÃÔÚ·½·¨µ÷ÓÃÊ±·ÅÖÃ¹ı³ÌÖĞĞŞ¸Äµ¼ÖÂµÄ×´Ì¬²»Ò»ÖÂ
+/// æ–¹æ³•ä¸€ï¼šä½¿ç”¨å½“å‰æ—¶åˆ»çŠ¶æ€è®¡ç®—åˆ‡å‘æ‘©æ“¦åŠ›å¤§å°ï¼Œå°†åˆ‡å‘æ‘©æ“¦åŠ›ç›´æ¥å¸¦å…¥åŠ¨åŠ›å­¦ï¼Œæœ€åä¼šæˆä¸ºæ³•å‘å¹³è¡¡çŸ©é˜µçš„å¤–åŠ›é¡¹ç›®ï¼Œ
+///        ä¸éœ€è¦å°†åˆ‡å‘é—®é¢˜å¼•å…¥å¹³è¡¡çŸ©é˜µï¼Œç›´æ¥ä»£å…¥åŠ¨åŠ›å­¦åº”è¯¥ä¼šäº§ç”Ÿä¸€è‡´çš„æ•ˆæœã€‚
+/// æ³¨æ„äº‹é¡¹ï¼š
+///  1. å¾—åˆ°çš„åŠ é€Ÿåº¦éœ€è¦å‡å» gravityAs æ‰èƒ½æ˜¯æˆ‘ä»¬çš„å› ä¸ºåŠ›äº§ç”Ÿçš„åŠ é€Ÿåº¦æ‰èƒ½æ·»åŠ è®¡ç®—è´¨é‡
+/// åœ¨åˆ›å»ºçš„æ—¶å€™è®°å½• fce çš„æ¿€æ´»çŠ¶æ€
+/// å¹¶åœ¨é”€æ¯çš„æ—¶å€™å°†è®°å½•çš„çŠ¶æ€è®¾ç½®å›å»ï¼Œæ”¾ç½®åœ¨æ–¹æ³•è°ƒç”¨æ—¶æ”¾ç½®è¿‡ç¨‹ä¸­ä¿®æ”¹å¯¼è‡´çš„çŠ¶æ€ä¸ä¸€è‡´
 ///
-/// ¹ØÓÚ¼ÆËãµÄ A b µÄ½âÊÍ
+/// å…³äºè®¡ç®—çš„ A b çš„è§£é‡Š
 /// x(t) = e^(At)(x(0) - A\b) + A\b
-/// ÒòÎªÒªÃ¿¸ö½Ó´¥µãµÄ·¨ÏòµÄÎ»ÒÆÏà¼õ£¬Í¬Ê±£¬Ò»×é½Ó´¥±äÁ¿¿ØÖÆÁËÁ½¸öÎïÌåµÄ×´Ì¬
-/// ĞèÒªÊ¹ÓÃÏÂÃæµÄ¾ØÕó¶Ô I ½øĞĞËõĞ¡£¬²¢Óë½Ó´¥µãµÄ¸Õ¶ÈÓë×èÄáÏà³Ë£¬µÃµ½¾ØÕó K D
+/// å› ä¸ºè¦æ¯ä¸ªæ¥è§¦ç‚¹çš„æ³•å‘çš„ä½ç§»ç›¸å‡ï¼ŒåŒæ—¶ï¼Œä¸€ç»„æ¥è§¦å˜é‡æ§åˆ¶äº†ä¸¤ä¸ªç‰©ä½“çš„çŠ¶æ€
+/// éœ€è¦ä½¿ç”¨ä¸‹é¢çš„çŸ©é˜µå¯¹ I è¿›è¡Œç¼©å°ï¼Œå¹¶ä¸æ¥è§¦ç‚¹çš„åˆšåº¦ä¸é˜»å°¼ç›¸ä¹˜ï¼Œå¾—åˆ°çŸ©é˜µ K D
 /// T = [1 -1 0 ... 0 0  0]
 ///     [0  0 1 -1 ...0  0]
 ///     [.  . .  . ....  .]
 ///     [0 0 0 0 .... 1 -1] n * 2n
-/// K = T * I^-1 * T' * diag(k)  k Óë d ¶¼ÊÇ 1 * n µÄÏòÁ¿
+/// K = T * I^-1 * T' * diag(k)  k ä¸ d éƒ½æ˜¯ 1 * n çš„å‘é‡
 /// D = T * I^-1 * T' * diag(d)
-/// ¾ØÕóÎ¢·Ö·½³ÌµÄ×´Ì¬×ªÒÆ¾ØÕó A ¿ÉÒÔÓÉÈı¿é×é³É£¬ÈçÏÂÍ¼ËùÊ¾
+/// çŸ©é˜µå¾®åˆ†æ–¹ç¨‹çš„çŠ¶æ€è½¬ç§»çŸ©é˜µ A å¯ä»¥ç”±ä¸‰å—ç»„æˆï¼Œå¦‚ä¸‹å›¾æ‰€ç¤º
 /// A = [0 I]
-///     [K D] 2n * 2n µÄ¾ØÕó
-/// ½Ó´¥µã×´Ì¬ÈçÏÂ
-/// x = [d1 ... dn d1' ... dn'] 2 * n  d±íÊ¾½Ó´¥¾àÀë£¨´©Éî£©
+///     [K D] 2n * 2n çš„çŸ©é˜µ
+/// æ¥è§¦ç‚¹çŠ¶æ€å¦‚ä¸‹
+/// x = [d1 ... dn d1' ... dn'] 2 * n  dè¡¨ç¤ºæ¥è§¦è·ç¦»ï¼ˆç©¿æ·±ï¼‰
 /// x' = [d1' ... dn' d1'' ... dn''] 2 * n
-/// x(0) = [ÓÉ»ı·Ö½Ø¶ÏÊ±¼ÇÂ¼µÄ v Óë p ¾ö¶¨]
-/// ÆäÖĞ£¬¹ØÓÚ·ÇÆë´Î·½³ÌµÄ³£ÊıÏî b£¬ĞèÒª¾­¹ıÈçÏÂ¼ÆËã
+/// x(0) = [ç”±ç§¯åˆ†æˆªæ–­æ—¶è®°å½•çš„ v ä¸ p å†³å®š]
+/// å…¶ä¸­ï¼Œå…³äºéé½æ¬¡æ–¹ç¨‹çš„å¸¸æ•°é¡¹ bï¼Œéœ€è¦ç»è¿‡å¦‚ä¸‹è®¡ç®—
 /// F = [FeA1 FeB1 ... FeAn FeBn] 1 * 2n vector -> parameter fext
 /// f = T * I^-1 * F' -> 1 * n vector
 /// b = [0 f] -> 1 * 2n vector
-/// ÆäÖĞµÄ A \ b ·½·¨ Ê¹ÓÃ»ùÓÚHouseholder·½·¨µÄQR·Ö½â¼ÆËã
+/// å…¶ä¸­çš„ A \ b æ–¹æ³• ä½¿ç”¨åŸºäºHouseholderæ–¹æ³•çš„QRåˆ†è§£è®¡ç®—
 /// 
-/// @param[in] penetration_pairs (n x 1) ¼ì²âµ½µÄ½Ó´¥µãĞÅÏ¢
-/// @param[in] T_C_vec (16 x n) ½Ó´¥µãÏà¶ÔÓÚÊÀ½ç×ø±êÏµµÄ×ø±ê£¬½Ó´¥µã×ø±êÏµµÄz·½Ïò´ÓÎïÌåAÖ¸ÏòÎïÌåB£¬Æ½ĞĞ½Ó´¥·½Ïò
-/// @param[out] cpi (2n-g x 2n-g) ½Ó´¥µã¹ßÁ¿¾ØÕó¼ÆËã½á¹û£¨contact point inertia matrix£©g±íÊ¾groundÏà¹ØµÄÊıÄ¿
+/// @param[in] penetration_pairs (n x 1) æ£€æµ‹åˆ°çš„æ¥è§¦ç‚¹ä¿¡æ¯
+/// @param[in] T_C_vec (16 x n) æ¥è§¦ç‚¹ç›¸å¯¹äºä¸–ç•Œåæ ‡ç³»çš„åæ ‡ï¼Œæ¥è§¦ç‚¹åæ ‡ç³»çš„zæ–¹å‘ä»ç‰©ä½“AæŒ‡å‘ç‰©ä½“Bï¼Œå¹³è¡Œæ¥è§¦æ–¹å‘
+/// @param[out] cpi (2n-g x 2n-g) æ¥è§¦ç‚¹æƒ¯é‡çŸ©é˜µè®¡ç®—ç»“æœï¼ˆcontact point inertia matrixï¼‰gè¡¨ç¤ºgroundç›¸å…³çš„æ•°ç›®
 // clang-format on
 auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -1298,7 +1298,7 @@ auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
     interaction.setMakI(&*mak_i);
     interaction.setMakJ(&*mak_j);
   };
-  // ³õÊ¼»¯Ò»Ğ©ÖØ¸´Ê¹ÓÃµÄ±äÁ¿
+  // åˆå§‹åŒ–ä¸€äº›é‡å¤ä½¿ç”¨çš„å˜é‡
   auto enginePtr = physicsEnginePtr();
   SIRE_ASSERT(enginePtr != nullptr);
   auto modelPtr = enginePtr->currentModel();
@@ -1307,9 +1307,9 @@ auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
   auto& forcePool = modelPtr->forcePool();
   auto& partPool = modelPtr->partPool();
   Size testForceIdxOffset = forcePool.size();
-  // ÔÚĞŞ¸Ä forcePool Ö®Ç°¼ÇÂ¼forcePoolµÄ active ×´Ì¬
+  // åœ¨ä¿®æ”¹ forcePool ä¹‹å‰è®°å½•forcePoolçš„ active çŠ¶æ€
   FceActiveStateRecorder recorder(modelPtr);
-  // ½«ÔÚ forcePool ÖĞµÄÁ¦È«²¿ deactivate
+  // å°†åœ¨ forcePool ä¸­çš„åŠ›å…¨éƒ¨ deactivate
   for (auto& fce : forcePool) fce.activate(false);
 
   sire::Size cpiWidth = 2 * n;
@@ -1333,18 +1333,18 @@ auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
           &partPool.at(modelPtr->ground().id()).markerPool().at(0));
       fce.resetModel(modelPtr);
       fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id ¿ÉÒÔÏÈ²»¹Ü
+      // force id å¯ä»¥å…ˆä¸ç®¡
       init_interaction(fce, modelPtr);
       if (contactPrt[j] == modelPtr->ground().id()) {
-        // ±ê¼Ç ground Ïà¹ØµÄidx£¬¼ÆËãcpiµÄÕæÊµ´óĞ¡
+        // æ ‡è®° ground ç›¸å…³çš„idxï¼Œè®¡ç®—cpiçš„çœŸå®å¤§å°
         groundFlag[2 * i + j] = 1;
         --cpiWidth;
       }
     }
   }
-  // ³õÊ¼»¯½á¹ûÈİÆ÷
+  // åˆå§‹åŒ–ç»“æœå®¹å™¨
   cpi.resize(cpiWidth * cpiWidth);
-  // ¸øÁ¦²¢¼ÆËãÖÊÁ¿¾ØÕó
+  // ç»™åŠ›å¹¶è®¡ç®—è´¨é‡çŸ©é˜µ
   const double fceValue1 = 10.0;
   const double fceValue2 = 50.0;
   double testFce1[3] = {0, 0, fceValue1};
@@ -1421,7 +1421,7 @@ auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
   }
   // }
   // ----------------------------------------------------
-  // ------------ ½Ó´¥µã¹ßÁ¿¾ØÕóÇóÄæ ---------------------
+  // ------------ æ¥è§¦ç‚¹æƒ¯é‡çŸ©é˜µæ±‚é€† ---------------------
   // ----------------------------------------------------
   std::vector<double> invCpi(cpiWidth * cpiWidth);
   std::vector<double> u(cpiWidth * cpiWidth), tau(cpiWidth), tau2(cpiWidth);
@@ -1439,7 +1439,7 @@ auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
   aris::dynamic::s_mm(cpiWidth, 2 * n, cpiWidth, invCpi.data(), kdMatrix.data(),
                       temp1.data());
   A.resize(4 * n * n, 0);
-  // TODO: ²»´æÔÚÁ½¸ögroundÏà×²
+  // TODO: ä¸å­˜åœ¨ä¸¤ä¸ªgroundç›¸æ’
   for (Size i{0}, lineIdx{0}; i < n; ++i) {
     A[2 * n * i + n + i] = 1;
     if (!groundFlag[2 * i] && !groundFlag[2 * i]) {
@@ -1477,7 +1477,7 @@ auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
   //     double oddColMinus = extInvCpi[2 * n * 2 * i + 2 * j + 1] -
   //                          extInvCpi[2 * n * (2 * i + 1) + 2 * j + 1];
   //     A[2 * n * i + n + j] = (i == j);
-  //     // ÒòÎª½Ó´¥Á¦·½ÏòÓë´©Éî¼ÓËÙ¶È·½ÏòÒ»¶¨·´Ïò£¬ËùÒÔ¶¼ĞèÒª¼ÓÉÏ¸ººÅ
+  //     // å› ä¸ºæ¥è§¦åŠ›æ–¹å‘ä¸ç©¿æ·±åŠ é€Ÿåº¦æ–¹å‘ä¸€å®šåå‘ï¼Œæ‰€ä»¥éƒ½éœ€è¦åŠ ä¸Šè´Ÿå·
   //     A[2 * n * (i + n) + j] = -stiffness[i] * (evenColMinus - oddColMinus);
   //     A[2 * n * (i + n) + n + j] = -damping[i] * (evenColMinus -
   //     oddColMinus);
@@ -1488,34 +1488,34 @@ auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
 }
 
 // clang-format off
-/// @brief ¼ÆËã³ıÁË½Ó´¥Á¦ÍâµÄËùÓĞÁ¦µ±×÷½Ó´¥Ä£ĞÍÇó½âµÄÍâÁ¦Ïî£¬¼ÙÉè¼ì²âµ½ n ¸ö½Ó´¥µã¡£
-/// ¹ØÓÚ¼ÆËãµÄ A b µÄ½âÊÍ
+/// @brief è®¡ç®—é™¤äº†æ¥è§¦åŠ›å¤–çš„æ‰€æœ‰åŠ›å½“ä½œæ¥è§¦æ¨¡å‹æ±‚è§£çš„å¤–åŠ›é¡¹ï¼Œå‡è®¾æ£€æµ‹åˆ° n ä¸ªæ¥è§¦ç‚¹ã€‚
+/// å…³äºè®¡ç®—çš„ A b çš„è§£é‡Š
 /// x(t) = e^(At)(x(0) - A\b) + A\b
-/// ÒòÎªÒªÃ¿¸ö½Ó´¥µãµÄ·¨ÏòµÄÎ»ÒÆÏà¼õ£¬Í¬Ê±£¬Ò»×é½Ó´¥±äÁ¿¿ØÖÆÁËÁ½¸öÎïÌåµÄ×´Ì¬
-/// ĞèÒªÊ¹ÓÃÏÂÃæµÄ¾ØÕó¶Ô I ½øĞĞËõĞ¡£¬²¢Óë½Ó´¥µãµÄ¸Õ¶ÈÓë×èÄáÏà³Ë£¬µÃµ½¾ØÕó K D
+/// å› ä¸ºè¦æ¯ä¸ªæ¥è§¦ç‚¹çš„æ³•å‘çš„ä½ç§»ç›¸å‡ï¼ŒåŒæ—¶ï¼Œä¸€ç»„æ¥è§¦å˜é‡æ§åˆ¶äº†ä¸¤ä¸ªç‰©ä½“çš„çŠ¶æ€
+/// éœ€è¦ä½¿ç”¨ä¸‹é¢çš„çŸ©é˜µå¯¹ I è¿›è¡Œç¼©å°ï¼Œå¹¶ä¸æ¥è§¦ç‚¹çš„åˆšåº¦ä¸é˜»å°¼ç›¸ä¹˜ï¼Œå¾—åˆ°çŸ©é˜µ K D
 /// T = [1 -1 0 ... 0 0  0]
 ///     [0  0 1 -1 ...0  0]
 ///     [.  . .  . ....  .]
 ///     [0 0 0 0 .... 1 -1] n * 2n
-/// K = T * I^-1 * T' * diag(k)  k Óë d ¶¼ÊÇ 1 * n µÄÏòÁ¿
+/// K = T * I^-1 * T' * diag(k)  k ä¸ d éƒ½æ˜¯ 1 * n çš„å‘é‡
 /// D = T * I^-1 * T' * diag(d)
-/// ¾ØÕóÎ¢·Ö·½³ÌµÄ×´Ì¬×ªÒÆ¾ØÕó A ¿ÉÒÔÓÉÈı¿é×é³É£¬ÈçÏÂÍ¼ËùÊ¾
+/// çŸ©é˜µå¾®åˆ†æ–¹ç¨‹çš„çŠ¶æ€è½¬ç§»çŸ©é˜µ A å¯ä»¥ç”±ä¸‰å—ç»„æˆï¼Œå¦‚ä¸‹å›¾æ‰€ç¤º
 /// A = [0 I]
-///     [K D] 2n * 2n µÄ¾ØÕó
-/// ½Ó´¥µã×´Ì¬ÈçÏÂ
-/// x = [d1 ... dn d1' ... dn'] 2 * n  d±íÊ¾½Ó´¥¾àÀë£¨´©Éî£©
+///     [K D] 2n * 2n çš„çŸ©é˜µ
+/// æ¥è§¦ç‚¹çŠ¶æ€å¦‚ä¸‹
+/// x = [d1 ... dn d1' ... dn'] 2 * n  dè¡¨ç¤ºæ¥è§¦è·ç¦»ï¼ˆç©¿æ·±ï¼‰
 /// x' = [d1' ... dn' d1'' ... dn''] 2 * n
-/// x(0) = [ÓÉ»ı·Ö½Ø¶ÏÊ±¼ÇÂ¼µÄ v Óë p ¾ö¶¨]
-/// ÆäÖĞ£¬¹ØÓÚ·ÇÆë´Î·½³ÌµÄ³£ÊıÏî b£¬ĞèÒª¾­¹ıÈçÏÂ¼ÆËã
+/// x(0) = [ç”±ç§¯åˆ†æˆªæ–­æ—¶è®°å½•çš„ v ä¸ p å†³å®š]
+/// å…¶ä¸­ï¼Œå…³äºéé½æ¬¡æ–¹ç¨‹çš„å¸¸æ•°é¡¹ bï¼Œéœ€è¦ç»è¿‡å¦‚ä¸‹è®¡ç®—
 /// F = [FeA1 FeB1 ... FeAn FeBn] 1 * 2n vector -> parameter fext
 /// f = T * I^-1 * F' -> 1 * n vector
 /// b = [0 f] -> 1 * 2n vector
-/// ÆäÖĞµÄ A \ b ·½·¨ Ê¹ÓÃ»ùÓÚHouseholder·½·¨µÄQR·Ö½â¼ÆËã
+/// å…¶ä¸­çš„ A \ b æ–¹æ³• ä½¿ç”¨åŸºäºHouseholderæ–¹æ³•çš„QRåˆ†è§£è®¡ç®—
 ///        
-/// @param[in] penetration_pairs n x 1 ¼ì²âµ½µÄ½Ó´¥µãĞÅÏ¢
-/// @param[in] T_C_vec 16 x n ½Ó´¥µãÏà¶ÔÓÚÊÀ½ç×ø±êÏµµÄ×ø±ê£¬½Ó´¥µã×ø±êÏµµÄz·½Ïò´ÓÎïÌåBÖ¸ÏòÎïÌåA£¬Æ½ĞĞ½Ó´¥·½Ïò
-/// @param[in] cpi 2n x 2n ½Ó´¥µã¹ßÁ¿¾ØÕó£¨contact point inertia matrix£©
-/// @param[out] fext (2n - g) x 1 ¼ÆËãµÃµ½µÄ·¨ÏòÍâÁ¦½á¹û£¬±íÊ¾Îª [FeA1, FeB1, ... , FeAn, FeBn]£¬È¥µôgroundÏà¹ØµÄÍâÁ¦Ïî
+/// @param[in] penetration_pairs n x 1 æ£€æµ‹åˆ°çš„æ¥è§¦ç‚¹ä¿¡æ¯
+/// @param[in] T_C_vec 16 x n æ¥è§¦ç‚¹ç›¸å¯¹äºä¸–ç•Œåæ ‡ç³»çš„åæ ‡ï¼Œæ¥è§¦ç‚¹åæ ‡ç³»çš„zæ–¹å‘ä»ç‰©ä½“BæŒ‡å‘ç‰©ä½“Aï¼Œå¹³è¡Œæ¥è§¦æ–¹å‘
+/// @param[in] cpi 2n x 2n æ¥è§¦ç‚¹æƒ¯é‡çŸ©é˜µï¼ˆcontact point inertia matrixï¼‰
+/// @param[out] fext (2n - g) x 1 è®¡ç®—å¾—åˆ°çš„æ³•å‘å¤–åŠ›ç»“æœï¼Œè¡¨ç¤ºä¸º [FeA1, FeB1, ... , FeAn, FeBn]ï¼Œå»æ‰groundç›¸å…³çš„å¤–åŠ›é¡¹
 // clang-format on
 auto AverageForceContactSolver::cptContactPrtExtForce(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -1524,9 +1524,9 @@ auto AverageForceContactSolver::cptContactPrtExtForce(
     -> void {
   auto enginePtr = physicsEnginePtr();
   SIRE_ASSERT(enginePtr != nullptr);
-  // TODO: ¿ÉÄÜĞèÒª¹ØµôcontactForce
+  // TODO: å¯èƒ½éœ€è¦å…³æ‰contactForce
   enginePtr->activateContactForce(false);
-  // TODO: ²»ÖªµÀÊÇ·ñĞèÒª£¬¼ÇÂ¼¸Ë¼şµÄ¼ÓËÙ¶ÈÊı¾İ£¬È»ºóÒªÖØĞÂÌî»ØÈ¥
+  // TODO: ä¸çŸ¥é“æ˜¯å¦éœ€è¦ï¼Œè®°å½•æ†ä»¶çš„åŠ é€Ÿåº¦æ•°æ®ï¼Œç„¶åè¦é‡æ–°å¡«å›å»
   auto modelPtr = enginePtr->currentModel();
   SIRE_ASSERT(modelPtr != nullptr);
   Size numContactPoint = penetration_pairs.size();
@@ -1534,7 +1534,7 @@ auto AverageForceContactSolver::cptContactPrtExtForce(
     std::cout << "forward dynamic failed" << std::endl;
   auto& partPool = modelPtr->partPool();
   const sire::Size nContact = penetration_pairs.size();
-  // ±éÀúÅö×²µã£¬ÕÒµ½ËùÓĞÒªÇóµÄ¸Ë¼şÓëÅö×²µãÎ»×Ë
+  // éå†ç¢°æ’ç‚¹ï¼Œæ‰¾åˆ°æ‰€æœ‰è¦æ±‚çš„æ†ä»¶ä¸ç¢°æ’ç‚¹ä½å§¿
   sire::Size cpiIdx{0};
   for (int i{0}; i < nContact; ++i) {
     auto& pair = penetration_pairs[i];
@@ -1567,8 +1567,8 @@ auto AverageForceContactSolver::cptContactPrtExtForce(
   //     [.  . .  . ....  .]
   //     [0 0 0 0 .... 1 -1] n * 2n
   // shrinked inverse cpi matrix = T * I^-1 * T'
-  // ---------------¼ÆËãËõĞ¡ºóµÄ cpi ¾ØÕó  n x n ---------------------
-  // Ö±½Ó¼ÆËã A Óë b£¬Í¨¹ıÖĞ¼ä±äÁ¿´¢´æÒ»Ğ©ÖĞ¼äÖµ
+  // ---------------è®¡ç®—ç¼©å°åçš„ cpi çŸ©é˜µ  n x n ---------------------
+  // ç›´æ¥è®¡ç®— A ä¸ bï¼Œé€šè¿‡ä¸­é—´å˜é‡å‚¨å­˜ä¸€äº›ä¸­é—´å€¼
   // ----------------------------------------------------------------
   for (int i{0}; i < nContact; ++i) {
     b[i] = 0;
@@ -1578,7 +1578,7 @@ auto AverageForceContactSolver::cptContactPrtExtForce(
                             extInvCpi[2 * nContact * (2 * i + 1) + 2 * j];
       double oddColMinus = extInvCpi[2 * nContact * 2 * i + 2 * j + 1] -
                            extInvCpi[2 * nContact * (2 * i + 1) + 2 * j + 1];
-      // ÕâÖĞ¼äÈ·ÊµÓ¦¸ÃÊÇ¼ÓºÅ£¬Ö®ºóĞèÒª²âÊÔÒ»ÏÂ
+      // è¿™ä¸­é—´ç¡®å®åº”è¯¥æ˜¯åŠ å·ï¼Œä¹‹åéœ€è¦æµ‹è¯•ä¸€ä¸‹
       b[nContact + i] +=
           evenColMinus * fext[2 * j] + oddColMinus * fext[2 * j + 1];
     }
@@ -1604,19 +1604,19 @@ auto AverageForceContactSolver::preprocessContactInfo(
         enginePtr->queryGeometryPoolById(penetration_pairs[i].id_B);
     SIRE_DEMAND(geometry_A_ptr != nullptr);
     SIRE_DEMAND(geometry_B_ptr != nullptr);
-    // ±ê¼Ç ground Ïà¹ØµÄidx£¬¼ÆËãcpiµÄÕæÊµ´óĞ¡
-    // Ä¬ÈÏÊÇÁ½¸ö¼ÓËÙ¶Èa
+    // æ ‡è®° ground ç›¸å…³çš„idxï¼Œè®¡ç®—cpiçš„çœŸå®å¤§å°
+    // é»˜è®¤æ˜¯ä¸¤ä¸ªåŠ é€Ÿåº¦a
     variableType[i] = LhsVariableType::TwoAccel;
     prtIdVector[2 * i] = geometry_A_ptr->partId();
     if (prtIdVector[2 * i] == groundId) {
-      // ¼Ù¶¨Ã»ÓĞÁ½¸ö Ground Ïà×²
+      // å‡å®šæ²¡æœ‰ä¸¤ä¸ª Ground ç›¸æ’
       groundFlag[2 * i] = 1;
       variableType[i] = LhsVariableType::OneDelta;
       --cpiWidth;
     }
     prtIdVector[2 * i + 1] = geometry_B_ptr->partId();
     if (prtIdVector[2 * i + 1] == groundId) {
-      // ¼Ù¶¨Ã»ÓĞÁ½¸ö Ground Ïà×²
+      // å‡å®šæ²¡æœ‰ä¸¤ä¸ª Ground ç›¸æ’
       groundFlag[2 * i + 1] = 1;
       variableType[i] = LhsVariableType::OneDelta;
       --cpiWidth;
@@ -1658,7 +1658,7 @@ auto AverageForceContactSolver::cptCpiMatrix(
     interaction.setMakI(&*mak_i);
     interaction.setMakJ(&*mak_j);
   };
-  // ³õÊ¼»¯Ò»Ğ©ÖØ¸´Ê¹ÓÃµÄ±äÁ¿
+  // åˆå§‹åŒ–ä¸€äº›é‡å¤ä½¿ç”¨çš„å˜é‡
   auto enginePtr = physicsEnginePtr();
   SIRE_ASSERT(enginePtr != nullptr);
   auto modelPtr = enginePtr->currentModel();
@@ -1666,13 +1666,13 @@ auto AverageForceContactSolver::cptCpiMatrix(
   auto& forcePool = modelPtr->forcePool();
   auto& partPool = modelPtr->partPool();
   sire::Size testForceIdxOffset = forcePool.size();
-  // ÔÚĞŞ¸Ä forcePool Ö®Ç°¼ÇÂ¼forcePoolµÄ active ×´Ì¬
+  // åœ¨ä¿®æ”¹ forcePool ä¹‹å‰è®°å½•forcePoolçš„ active çŠ¶æ€
   FceActiveStateRecorder recorder(modelPtr);
-  // ½«ÔÚ forcePool ÖĞµÄÁ¦È«²¿ deactivate
+  // å°†åœ¨ forcePool ä¸­çš„åŠ›å…¨éƒ¨ deactivate
   for (auto& fce : forcePool) fce.activate(false);
 
   const sire::Size n = penetration_pairs.size();
-  // ¸øÁ¦²¢¼ÆËãÖÊÁ¿¾ØÕó
+  // ç»™åŠ›å¹¶è®¡ç®—è´¨é‡çŸ©é˜µ
   const double fceValue1 = 10.0;
   const double fceValue2 = 50.0;
   double testFce1[3] = {0, 0, fceValue1};
@@ -1690,7 +1690,7 @@ auto AverageForceContactSolver::cptCpiMatrix(
           &partPool.at(modelPtr->ground().id()).markerPool().at(0));
       fce.resetModel(modelPtr);
       fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id ¿ÉÒÔÏÈ²»¹Ü
+      // force id å¯ä»¥å…ˆä¸ç®¡
       init_interaction(fce, modelPtr);
     }
   }
@@ -1764,8 +1764,8 @@ auto AverageForceContactSolver::cptContactSolverResult(
         enginePtr->queryGeometryPoolById(pair.id_B);
     SIRE_DEMAND(geometry_A_ptr != nullptr);
     SIRE_DEMAND(geometry_B_ptr != nullptr);
-    // ±ê¼Ç ground Ïà¹ØµÄidx£¬¼ÆËãcpiµÄÕæÊµ´óĞ¡
-    // Ä¬ÈÏÊÇÁ½¸ö¼ÓËÙ¶Èa
+    // æ ‡è®° ground ç›¸å…³çš„idxï¼Œè®¡ç®—cpiçš„çœŸå®å¤§å°
+    // é»˜è®¤æ˜¯ä¸¤ä¸ªåŠ é€Ÿåº¦a
     result.prtsA[i] = geometry_A_ptr->partId();
     result.prtsB[i] = geometry_B_ptr->partId();
     result.contactPairIdxMap_.insert(
@@ -1790,11 +1790,11 @@ auto AverageForceContactSolver::cptContactSolverResult(
       preservedPairsIdx, stiffness.data(), damping.data(), x0.data(),
       v0.data());
 
-  // cpiÒòÎªÒªÈ¥µôground£¬ËùÒÔ¿ÉÄÜ²»ÊÇn2µÄ£¬µ«ÊÇ×îºóÏà¼õÖ®ºóÓ¦¸ÃÊÇ n µÄ
-  // ¶ÔÓÚËã³öÀ´µÄcpi£¬ÔÚËãÄæÇ°ÏÈÀàËÆµÃµ½¾ØÕóAµÄ´¦ÀíÒ»ÏÂ£¨Ïà¼õ£©Ó¦¸Ã¾Í¿ÉÒÔ£¬
-  // Í¬Ê±PrtExtForceÒ²²»ÓÃ¹Ü¡£
+  // cpiå› ä¸ºè¦å»æ‰groundï¼Œæ‰€ä»¥å¯èƒ½ä¸æ˜¯n2çš„ï¼Œä½†æ˜¯æœ€åç›¸å‡ä¹‹ååº”è¯¥æ˜¯ n çš„
+  // å¯¹äºç®—å‡ºæ¥çš„cpiï¼Œåœ¨ç®—é€†å‰å…ˆç±»ä¼¼å¾—åˆ°çŸ©é˜µAçš„å¤„ç†ä¸€ä¸‹ï¼ˆç›¸å‡ï¼‰åº”è¯¥å°±å¯ä»¥ï¼Œ
+  // åŒæ—¶PrtExtForceä¹Ÿä¸ç”¨ç®¡ã€‚
   // remove ground related cpi and fext;
-  // ×¢Òâ cpi ¿ÉÄÜÊÇÆæÊı£¬ÒòÎªÒªÈ¥µôÏàÓ¦µÄground£¬µ«AÒ»¶¨ÊÇÅ¼Êı¾ØÕó
+  // æ³¨æ„ cpi å¯èƒ½æ˜¯å¥‡æ•°ï¼Œå› ä¸ºè¦å»æ‰ç›¸åº”çš„groundï¼Œä½†Aä¸€å®šæ˜¯å¶æ•°çŸ©é˜µ
   std::vector<double> A(n2 * n2), b(n2);
   cptDAECoeff(*enginePtr, n, stiffness.data(), damping.data(), stiffScale,
               accelExt.data(), invCpi.data(), A.data(), b.data());
@@ -1803,7 +1803,7 @@ auto AverageForceContactSolver::cptContactSolverResult(
       findMinRootBisection(n, A.data(), b.data(), x0.data(), 1e-10, 200);
   // DLOG(DEBUG) << " b: " << b << " A: " << A << " x0: " << x0 << " minTime: "
   // << minTime << std::endl;
-  // Ã»ÓĞÁãµãµÄÇé¿öÏÂ£¬È¡AÖĞµÄ×î´óÖµ×÷Îª²Î¿¼¼ÆËã²½³¤
+  // æ²¡æœ‰é›¶ç‚¹çš„æƒ…å†µä¸‹ï¼Œå–Aä¸­çš„æœ€å¤§å€¼ä½œä¸ºå‚è€ƒè®¡ç®—æ­¥é•¿
   if (minTime < 0) {
     double maxA = 0;
     for (sire::Size i{0}; i < A.size(); ++i) {
@@ -1985,7 +1985,7 @@ auto AverageForceContactSolver::cptContactSolverResult(
 auto AverageForceContactSolver::cptContactForce(double A, double B, double k,
                                                 double D, double r, double w,
                                                 double t) -> double {
-  // »ı·Ö
+  // ç§¯åˆ†
   double first = (A * k + D * A * r + D * B * w) * r * r *
                  ((std::cos(w * t) * r) + w * std::sin(w * t)) *
                  std::exp(r * t) / (r * r + w * w);
@@ -2066,16 +2066,16 @@ auto AverageForceContactSolver::cptPenaltyODE(double contact_time,
   // imp_->force_contact.push_back(force - F_ext);
 
   // if (sphere_pq[2] > imp_->contact_x_init) {
-  //  //ÓÃËÙ¶È»ØÍËµ½³õÊ¼Åö×²Ãæ
+  //  //ç”¨é€Ÿåº¦å›é€€åˆ°åˆå§‹ç¢°æ’é¢
   //   double temp_x = sphere_pq[2];
   //   double temp_v = sphere_vs[2];
   //   double temp_a = contact_force / m;
   //   sphere_vs[2] = std::sqrt(temp_v * temp_v + 2 * temp_a *
   //   std::abs(imp_->contact_x_init - temp_x));  // a != g sphere_pq[2] =
   //   imp_->contact_x_init; double dt_modify =
-  //       std::abs((sphere_vs[2] - temp_v) / temp_a);  //ÍË»ØµÄÊ±¼ä²î // a != g
+  //       std::abs((sphere_vs[2] - temp_v) / temp_a);  //é€€å›çš„æ—¶é—´å·® // a != g
   //   std::cout << "----out dt_modify" << dt_modify << std::endl;
-  //   sphere_vs[2] += -imp_->g * dt_modify;//Ö»ÓĞÖØÁ¦
+  //   sphere_vs[2] += -imp_->g * dt_modify;//åªæœ‰é‡åŠ›
   //   sphere_pq[2] += sphere_vs[2] * dt_modify;
   // }
 }

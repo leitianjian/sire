@@ -73,14 +73,14 @@ NrtSensor::NrtSensor(
 
 NrtSensorDataProtector::NrtSensorDataProtector(NrtSensor* nrt_sensor)
     : nrt_sensor_(nrt_sensor), data_(nullptr) {
-  // ÕâÀïdata_to_read_Ö¸Ïò×îĞÂµÄÄÚ´æ,ÀıÈçÈç¹ûdata_to_read_Îª2,ÄÇÃ´ÓĞÁ½ÖÖÇé¿ö£º
-  //  1.´ËÊ±ÕıÔÚĞ´ÄÚ´æ0,ÄÚ´æ1¿ÕÏĞ¡£
-  //  2.ÔÚÄ³Ğ©¼«¶ËÌØÊâÊ±¿ÌÏÂ,sensorÕıºÃ¸Õ¸ÕĞ´µ½ÄÚ´æ1,Õı×¼±¸ÊÍ·ÅdataMutex0,²¢ÇÒÖ®ºó×¼±¸½«data_to_read_ÖÃÎª0¡£
-  //    ÎŞÂÛÒÔÉÏÄÄÖÖÇé¿ö,dataMutex2¶¼»á±»Ëø×¡¡£
-  // ½ô½Ó×ÅÒÔÉÏÁ½ÖÖÇé¿ö,¼Ì¶ø»á·¢ÉúÒÔÏÂÇé¿ö£º
-  //  1.ÕıÔÚĞ´ÄÚ´æ0,ÄÚ´æ1¿ÕÏĞ,dataMutex2¶¼»á±»Ëø×¡ºódata_to_read_ÒÀÈ»Îª2,ÄÇÃ´´ËºóÊı¾İÒ»Ö±ÔÚ²Ù×÷ÄÚ´æ2,°²È«¡£
-  //  2.dataMutex2±»Ëø×¡µÄÍ¬Ê±,data_to_read_±»¸üĞÂµ½0,´ËÊ±´«¸ĞÆ÷¿ªÊ¼Ğ´ÄÚ´æ1,ÓÉÓÚdataMutex2±»Ëø,Òò´Ë´«¸ĞÆ÷Ò»Ö±ÎŞ·¨
-  //    ¸üĞÂµ½ÄÚ´æ2£»µ«ÊÇÊı¾İ¶ÁÈ¡µÄÊÇÄÚ´æ0,°²È«¡£
+  // è¿™é‡Œdata_to_read_æŒ‡å‘æœ€æ–°çš„å†…å­˜,ä¾‹å¦‚å¦‚æœdata_to_read_ä¸º2,é‚£ä¹ˆæœ‰ä¸¤ç§æƒ…å†µï¼š
+  //  1.æ­¤æ—¶æ­£åœ¨å†™å†…å­˜0,å†…å­˜1ç©ºé—²ã€‚
+  //  2.åœ¨æŸäº›æç«¯ç‰¹æ®Šæ—¶åˆ»ä¸‹,sensoræ­£å¥½åˆšåˆšå†™åˆ°å†…å­˜1,æ­£å‡†å¤‡é‡Šæ”¾dataMutex0,å¹¶ä¸”ä¹‹åå‡†å¤‡å°†data_to_read_ç½®ä¸º0ã€‚
+  //    æ— è®ºä»¥ä¸Šå“ªç§æƒ…å†µ,dataMutex2éƒ½ä¼šè¢«é”ä½ã€‚
+  // ç´§æ¥ç€ä»¥ä¸Šä¸¤ç§æƒ…å†µ,ç»§è€Œä¼šå‘ç”Ÿä»¥ä¸‹æƒ…å†µï¼š
+  //  1.æ­£åœ¨å†™å†…å­˜0,å†…å­˜1ç©ºé—²,dataMutex2éƒ½ä¼šè¢«é”ä½ådata_to_read_ä¾ç„¶ä¸º2,é‚£ä¹ˆæ­¤åæ•°æ®ä¸€ç›´åœ¨æ“ä½œå†…å­˜2,å®‰å…¨ã€‚
+  //  2.dataMutex2è¢«é”ä½çš„åŒæ—¶,data_to_read_è¢«æ›´æ–°åˆ°0,æ­¤æ—¶ä¼ æ„Ÿå™¨å¼€å§‹å†™å†…å­˜1,ç”±äºdataMutex2è¢«é”,å› æ­¤ä¼ æ„Ÿå™¨ä¸€ç›´æ— æ³•
+  //    æ›´æ–°åˆ°å†…å­˜2ï¼›ä½†æ˜¯æ•°æ®è¯»å–çš„æ˜¯å†…å­˜0,å®‰å…¨ã€‚
 
   do {
     lock_ = std::unique_lock<std::recursive_mutex>(
@@ -150,7 +150,7 @@ auto SensorDataBuffer::retrieveBufferData(
     std::vector<std::unique_ptr<aris::control::SensorData>>& vec,
     sire::Size& count) -> void {
   for (int i = 0; i < vec.size(); ++i) {
-    // Õâ¸öÉÏËøµÄ·½Ê½ÓĞÎÊÌâ
+    // è¿™ä¸ªä¸Šé”çš„æ–¹å¼æœ‰é—®é¢˜
     std::unique_lock<std::recursive_mutex> data_to_read_lock(
         imp_->data_to_read_mutex_, std::defer_lock);
     std::unique_lock<std::recursive_mutex> data_to_write_lock(

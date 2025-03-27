@@ -24,9 +24,9 @@ struct SireProgramMiddleware::Imp {
   int last_error_code_{0}, last_error_line_{0};
 
   std::atomic_bool is_stop_{false}, is_pause_{false};
-  // ÖØÒªµÄÄ£¿éµ¥¶ÀÁĞ³öÀ´
+  // é‡è¦çš„æ¨¡å—å•ç‹¬åˆ—å‡ºæ¥
   unique_ptr<core::SireModuleBase> physics_engine_;
-  // ²»ÄÇÃ´ÖØÒªµÄ¾Í·ÅpoolÀïÃæ
+  // ä¸é‚£ä¹ˆé‡è¦çš„å°±æ”¾poolé‡Œé¢
   unique_ptr<
       aris::core::PointerArray<core::SireModuleBase, aris::core::NamedObject>>
       modules_pool_;
@@ -133,7 +133,7 @@ auto SireProgramMiddleware::executeCmd(
             for (auto& str : imp_->language_parser_.varPool()) {
               auto cut_str = [](std::string_view& input,
                                 const char* c) -> std::string_view {
-                // ´ËÊ±cÖĞ×Ö·ûÊÇ»òµÄ¹ØÏµ //
+                // æ­¤æ—¶cä¸­å­—ç¬¦æ˜¯æˆ–çš„å…³ç³» //
                 auto point = input.find_first_of(c);
                 auto ret = input.substr(0, point);
                 input = point == std::string::npos ? std::string_view()
@@ -328,7 +328,7 @@ auto SireProgramMiddleware::executeCmd(
 
             cs.waitForAllCollection();
 
-            // Èç¹ûÒòÎªÆäËû¹ì¼£³ö´í¶øÈ¡Ïû //
+            // å¦‚æœå› ä¸ºå…¶ä»–è½¨è¿¹å‡ºé”™è€Œå–æ¶ˆ //
             if (ret->executeRetCode() == aris::plan::Plan::PREPARE_CANCELLED ||
                 ret->executeRetCode() == aris::plan::Plan::EXECUTE_CANCELLED) {
               ARIS_PRO_COUT << current_line << "---" << ret->cmdId()
@@ -372,7 +372,7 @@ auto SireProgramMiddleware::executeCmd(
           imp_->is_stop_.store(false);
 
           imp_->auto_thread_ = std::thread([&]() -> void {
-            // ½»»»calculator£¬±£Ö¤Ã¿¸ö³ÌĞò¿ªÊ¼Ê±µÄ±äÁ¿¶¼ÊÇÖ®Ç°µÄ //
+            // äº¤æ¢calculatorï¼Œä¿è¯æ¯ä¸ªç¨‹åºå¼€å§‹æ—¶çš„å˜é‡éƒ½æ˜¯ä¹‹å‰çš„ //
             std::swap(imp_->calculator_,
                       dynamic_cast<aris::dynamic::Model&>(
                           aris::server::ControlServer::instance().model())
@@ -398,7 +398,7 @@ auto SireProgramMiddleware::executeCmd(
                 continue;
               }
 
-              // Åöµ½¶ÏµãÊ±²ÅÕæÕıÖ´ĞĞ //
+              // ç¢°åˆ°æ–­ç‚¹æ—¶æ‰çœŸæ­£æ‰§è¡Œ //
               auto server_execute = [&]() -> int {
                 auto plans = cs.executeCmdInCmdLine(cmd_vec);
                 for (int i = 0; i < plans.size(); ++i) {
@@ -410,7 +410,7 @@ auto SireProgramMiddleware::executeCmd(
                 }
                 cs.waitForAllCollection();
                 for (int i = 0; i < plans.size(); ++i) {
-                  // Èç¹ûÒòÎªÆäËû¹ì¼£³ö´í¶øÈ¡Ïû //
+                  // å¦‚æœå› ä¸ºå…¶ä»–è½¨è¿¹å‡ºé”™è€Œå–æ¶ˆ //
                   if (plans[i]->executeRetCode() ==
                           aris::plan::Plan::PREPARE_CANCELLED ||
                       plans[i]->executeRetCode() ==

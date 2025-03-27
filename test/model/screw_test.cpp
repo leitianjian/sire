@@ -15,15 +15,15 @@ GTEST_TEST(Screw, axe_to_pm) {
   dsp(4, 4, pm);
 }
 
-// ²âÊÔModelÖ®¼äµÄĞÅÏ¢¿½±´
+// æµ‹è¯•Modelä¹‹é—´çš„ä¿¡æ¯æ‹·è´
 GTEST_TEST(Motion, axis_of_motion) {
-  // ³õÊ¼×´Ì¬ÊÇ´¹Ö±×´Ì¬
+  // åˆå§‹çŠ¶æ€æ˜¯å‚ç›´çŠ¶æ€
 //   double a = 0.4;
 //   double b = 0.4;
 //   double c = 0.4;
 //   const double PI = 3.1415926535897932384626433;
 
-//   // ¶¨Òå¹Ø½ÚµÄÎ»ÖÃ£¬ÒÔ¼°ÖáÏß£¬ÓĞ3¸ö×ª¶¯¸±£¬ÖáÏß¶¼ÊÇZÖá
+//   // å®šä¹‰å…³èŠ‚çš„ä½ç½®ï¼Œä»¥åŠè½´çº¿ï¼Œæœ‰3ä¸ªè½¬åŠ¨å‰¯ï¼Œè½´çº¿éƒ½æ˜¯Zè½´
 //   const double joint1_position[3]{0, 0, 0};
 //   const double joint1_axis[3]{0, 0, 1};
 //   const double joint2_position[3]{0, a, 0};
@@ -31,9 +31,9 @@ GTEST_TEST(Motion, axis_of_motion) {
 //   const double joint3_position[3]{0, a + b, 0};
 //   const double joint3_axis[3]{0, 0, 1};
 
-//   // ¶¨Òå3¸ö¸Ë¼şµÄÎ»ÖÃÓë321Å·À­½Ç£¬ÒÔ¼°10Î¬µÄ¹ßÁ¿ÏòÁ¿
-//   // inertia_vectorÎª¹ßÁ¿¾ØÕó£¬ÆäµÄ¶¨ÒåÎª£º[m, m*x, m*y, m*z, Ixx, Iyy, Izz,
-//   // Ixy, Ixz, Iyz]£¬ÆäÖĞx,y,zÎªÖÊĞÄÎ»ÖÃ
+//   // å®šä¹‰3ä¸ªæ†ä»¶çš„ä½ç½®ä¸321æ¬§æ‹‰è§’ï¼Œä»¥åŠ10ç»´çš„æƒ¯é‡å‘é‡
+//   // inertia_vectorä¸ºæƒ¯é‡çŸ©é˜µï¼Œå…¶çš„å®šä¹‰ä¸ºï¼š[m, m*x, m*y, m*z, Ixx, Iyy, Izz,
+//   // Ixy, Ixz, Iyz]ï¼Œå…¶ä¸­x,y,zä¸ºè´¨å¿ƒä½ç½®
 //   const double link1_pos_euler[6]{0, a / 2, 0, PI / 2, 0, 0};
 //   const double link1_intertia_vector[10]{
 //       2, 0, 0, 0, 8.333333333338782e-04, 0.0271, 0.0271, 0, 0, 0};
@@ -45,18 +45,18 @@ GTEST_TEST(Motion, axis_of_motion) {
 //       2, 0, 0, 0, 8.333333333338782e-04, 0.0271, 0.0271, 0, 0, 0};
 //   const double body_intertia_vecter[10]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-//   // ¶¨ÒåÄ©¶ËÎ»ÖÃÓë321Å·À­½Ç
+//   // å®šä¹‰æœ«ç«¯ä½ç½®ä¸321æ¬§æ‹‰è§’
 //   const double body_position_and_euler321[6]{0, a + b + c, 0, PI / 2, 0, 0};
 
-//   // ¶¨ÒåÄ£ĞÍ
+//   // å®šä¹‰æ¨¡å‹
 //   aris::dynamic::Model model;
 
-//   // ÉèÖÃÖØÁ¦,ÖØÁ¦ÔÚyÖá
+//   // è®¾ç½®é‡åŠ›,é‡åŠ›åœ¨yè½´
 //   const double gravity[6]{0.0, -9.81, 0.0, 0.0, 0.0, 0.0};
 //   model.environment().setGravity(gravity);
 
-//   // Ìí¼Ó¸Ë¼ş£¬ÕâÀïpeµÄÒâË¼Îªposition and euler
-//   // angle£¬º¯ÊıµÄ²ÎÊıÖ¸¶¨ÁËÎ»×ËÒÔ¼°¹ßĞÔÏòÁ¿
+//   // æ·»åŠ æ†ä»¶ï¼Œè¿™é‡Œpeçš„æ„æ€ä¸ºposition and euler
+//   // angleï¼Œå‡½æ•°çš„å‚æ•°æŒ‡å®šäº†ä½å§¿ä»¥åŠæƒ¯æ€§å‘é‡
 //   auto& link1 =
 //       model.addPartByPe(link1_pos_euler, "321", link1_intertia_vector);
 //   auto& link2 =
@@ -64,7 +64,7 @@ GTEST_TEST(Motion, axis_of_motion) {
 //   auto& link3 =
 //       model.addPartByPe(link3_pos_euler, "321", link3_intertia_vecter);
 
-//   // Ìí¼Ó¹Ø½Ú£¬Ìí¼Ó×ª¶¯¹Ø½Ú£¬Ç°Á½¸ö²ÎÊıÎª¹Ø½ÚÁ¬½ÓµÄ¸Ë¼ş£¬ºóÁ½¸ö²ÎÊı¶¨ÒåÁË¹Ø½ÚµÄÎ»ÖÃÓëÖáÏß
+//   // æ·»åŠ å…³èŠ‚ï¼Œæ·»åŠ è½¬åŠ¨å…³èŠ‚ï¼Œå‰ä¸¤ä¸ªå‚æ•°ä¸ºå…³èŠ‚è¿æ¥çš„æ†ä»¶ï¼Œåä¸¤ä¸ªå‚æ•°å®šä¹‰äº†å…³èŠ‚çš„ä½ç½®ä¸è½´çº¿
 //   auto& joint1 = model.addRevoluteJoint(link1, model.ground(), joint1_position,
 //                                         joint1_axis);
 //   auto& joint2 =
@@ -72,7 +72,7 @@ GTEST_TEST(Motion, axis_of_motion) {
 //   auto& joint3 =
 //       model.addRevoluteJoint(link3, link2, joint3_position, joint3_axis);
 
-//   // Ìí¼ÓÇı¶¯ Joint1 Îª±»¶¯¹Ø½Ú£¬²»ÓÃ¼Ómotion
+//   // æ·»åŠ é©±åŠ¨ Joint1 ä¸ºè¢«åŠ¨å…³èŠ‚ï¼Œä¸ç”¨åŠ motion
 //   // auto& motion1 = model.addMotion(joint1);
 //   auto& motion2 = model.addMotion(joint2);
 //   auto& motion3 = model.addMotion(joint3);
@@ -85,14 +85,14 @@ GTEST_TEST(Motion, axis_of_motion) {
 //   auto& force3 = model.forcePool().add<aris::dynamic::SingleComponentForce>(
 //       "f3", motion3.makI(), motion3.makJ(), 5);
 
-//   // Ìí¼ÓÄ©¶Ë£¬µÚÒ»¸ö²ÎÊı±íÃ÷Ä©¶ËÎ»ÓÚlink4ÉÏ£¬µÚ¶ş¸ö²ÎÊı±íÃ÷Ä©¶ËµÄÎ»×ËÊÇÏà¶ÔÓÚµØÃæµÄ£¬ºóÁ½¸ö²ÎÊı¶¨ÒåÁËÄ©¶ËµÄÆğÊ¼Î»×Ë
+//   // æ·»åŠ æœ«ç«¯ï¼Œç¬¬ä¸€ä¸ªå‚æ•°è¡¨æ˜æœ«ç«¯ä½äºlink4ä¸Šï¼Œç¬¬äºŒä¸ªå‚æ•°è¡¨æ˜æœ«ç«¯çš„ä½å§¿æ˜¯ç›¸å¯¹äºåœ°é¢çš„ï¼Œåä¸¤ä¸ªå‚æ•°å®šä¹‰äº†æœ«ç«¯çš„èµ·å§‹ä½å§¿
 //   auto& end_effector = model.addGeneralMotionByPe(
 //       link3, model.ground(), body_position_and_euler321, "321");
 
-//   //-------------------------------------------- Ìí¼ÓÇó½âÆ÷
+//   //-------------------------------------------- æ·»åŠ æ±‚è§£å™¨
 //   //--------------------------------------------//
 //   /// [Solver]
-//   // Ìí¼ÓÁ½¸öÇó½âÆ÷£¬²¢ÎªÇó½âÆ÷·ÖÅäÄÚ´æ¡£×¢Òâ£¬Çó½âÆ÷Ò»µ«·ÖÅäÄÚ´æºó£¬Çë²»ÒªÔÙÌí¼Ó»òÉ¾³ı¸Ë¼ş¡¢¹Ø½Ú¡¢Çı¶¯¡¢Ä©¶ËµÈËùÓĞÔªËØ
+//   // æ·»åŠ ä¸¤ä¸ªæ±‚è§£å™¨ï¼Œå¹¶ä¸ºæ±‚è§£å™¨åˆ†é…å†…å­˜ã€‚æ³¨æ„ï¼Œæ±‚è§£å™¨ä¸€ä½†åˆ†é…å†…å­˜åï¼Œè¯·ä¸è¦å†æ·»åŠ æˆ–åˆ é™¤æ†ä»¶ã€å…³èŠ‚ã€é©±åŠ¨ã€æœ«ç«¯ç­‰æ‰€æœ‰å…ƒç´ 
 //   auto& inverse_kinematic_solver =
 //       model.solverPool().add<aris::dynamic::InverseKinematicSolver>();
 //   auto& forward_kinematic_solver =
@@ -111,13 +111,13 @@ GTEST_TEST(Motion, axis_of_motion) {
 //   if (forward_kinematic_solver.kinPos()) throw std::runtime_error("failed!");
 
 //   // [Inverse_Velocity]
-//   // ÏÖÔÚÇóËÙ¶È·´½â£¬Ê×ÏÈÉèÖÃÄ©¶ËµÄÏßËÙ¶ÈºÍ½ÇËÙ¶È
+//   // ç°åœ¨æ±‚é€Ÿåº¦åè§£ï¼Œé¦–å…ˆè®¾ç½®æœ«ç«¯çš„çº¿é€Ÿåº¦å’Œè§’é€Ÿåº¦
 //   double ee_velocity[6]{-0.851312718725369, -2.06524430307223, 0, 0, 0,
 //                         0.0719533168755668};
 
 //   end_effector.setMva(ee_velocity);
 
-//   // Çó½â
+//   // æ±‚è§£
 //   if (inverse_kinematic_solver.kinVel())
 //     throw std::runtime_error("kinematic velocity failed");
 

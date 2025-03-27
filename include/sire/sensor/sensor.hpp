@@ -55,7 +55,6 @@ class SIRE_API SensorBase {
 // template <class DataType>
 // class SIRE_API VirtualSensor : public SensorBase<DataType> {
 //  public:
-//   // ×ÓÄ£¿éË÷Òý //
 //   auto setControlServer(aris::server::ControlServer*) noexcept -> void;
 //   auto controlServer() noexcept -> aris::server::ControlServer*;
 //   auto setModelBase(aris::dynamic::ModelBase*) noexcept -> void;

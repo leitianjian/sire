@@ -4,7 +4,7 @@
 
 #include "sire/core/event_base.hpp"
 using namespace sire::core;
-// 单例没法测试，只能先写了，不管那么多
+// 鍗曚緥娌℃硶娴嬭瘯锛屽彧鑳藉厛鍐欎簡锛屼笉绠￠偅涔堝
 GTEST_TEST(EventBaseRegister, DefaultConstructor) {
   // EventBaseRegister<EventBase> reg;
   // reg.registration("hello");

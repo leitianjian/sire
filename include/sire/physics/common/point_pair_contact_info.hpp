@@ -1,4 +1,4 @@
-﻿#ifndef SIRE_POINT_PAIR_CONTACT_INFO_HPP_
+#ifndef SIRE_POINT_PAIR_CONTACT_INFO_HPP_
 #define SIRE_POINT_PAIR_CONTACT_INFO_HPP_
 #include <algorithm>
 

@@ -8,7 +8,7 @@ struct ContactPairManager::Imp {
       contact_pair_map_;
   std::unordered_set<sire::PartId> impacted_prt_set_;
   std::unordered_set<SortedPair<sire::PartId>> impacted_contact_set_;
-  // 正在接触的Set
+  // 姝ｅ湪鎺ヨЕ鐨凷et
   // std::unordered_set<SortedPair<double>> contacting_set_;
 };
 auto ContactPairManager::init() -> void {}

@@ -39,7 +39,7 @@ auto process_impact_threshold(aris::dynamic::Model* m,
                                 : impact_threshold_2;
   return std::make_pair(impact_threshold_insert, impact_threshold_remove);
 }
-// ĞèÒªÌø¹ı³ıÁË½Ó´¥Á¦µÄÆäËûÁ¦µ¼ÖÂµÄ´óimpact
+// éœ€è¦è·³è¿‡é™¤äº†æ¥è§¦åŠ›çš„å…¶ä»–åŠ›å¯¼è‡´çš„å¤§impact
 auto cpt_prt_contact_impact(simulator::SimulationLoop* s)
     -> std::vector<double> {
   SIRE_DEMAND(s != nullptr);
@@ -61,7 +61,7 @@ auto cpt_prt_contact_impact(simulator::SimulationLoop* s)
   double dt = s->deltaT();
   std::vector<double> result(m->partPool().size());
   for (sire::PartId i = 0; i < m->partPool().size(); ++i) {
-    // Ìø¹ıground
+    // è·³è¿‡ground
     if (i != m->ground().id()) {
       double part_impact = dt * aris::dynamic::s_norm(3, part_fnet[i].data()) /
                            m->partPool().at(i).prtIv()[0];
@@ -81,15 +81,15 @@ auto process_penetration_depth_and_maintain_impact_set(
   // physicsEngine ptr -> handleContact()
   engine_ptr->updateGeometryLocationFromModel();
   std::vector<common::PenetrationAsPointPair> pairs;
-  // Åö×²¼ì²â
+  // ç¢°æ’æ£€æµ‹
   engine_ptr->cptPointPairPenetration(pairs);
 
   using ContactPairMap = std::unordered_map<core::SortedPair<sire::PartId>,
                                             core::ContactPairValue>;
   ContactPairMap& contact_pair_map = manager_ptr->contactPairMap();
-  // 1. ĞŞ¸Ä±í¶ş
-  // ¸ù¾İÅö×²ĞÅÏ¢½áºÏÅö×²µãµÄ¼ÇÂ¼¸üĞÂ±í¶şµÄÅö×²µã¼ÇÂ¼ºÍÅö×²ĞÅÏ¢ depth-init_depth
-  // MapÖĞÓĞµÄ£¬vectorÖĞÃ»ÓĞ£¬¾ÍÉ¾³ı
+  // 1. ä¿®æ”¹è¡¨äºŒ
+  // æ ¹æ®ç¢°æ’ä¿¡æ¯ç»“åˆç¢°æ’ç‚¹çš„è®°å½•æ›´æ–°è¡¨äºŒçš„ç¢°æ’ç‚¹è®°å½•å’Œç¢°æ’ä¿¡æ¯ depth-init_depth
+  // Mapä¸­æœ‰çš„ï¼Œvectorä¸­æ²¡æœ‰ï¼Œå°±åˆ é™¤
   for (ContactPairMap::iterator it = contact_pair_map.begin();
        it != contact_pair_map.end();) {
     if (auto search = std::find_if(pairs.begin(), pairs.end(),
@@ -104,8 +104,8 @@ auto process_penetration_depth_and_maintain_impact_set(
       ++it;
     }
   }
-  // VectorÖĞÓĞµÄ£¬MapÖĞÃ»ÓĞ£¬¾Í²åÈë£¬ÏÈ²»ĞŞ¸ÄĞÂ¼ÓÈëµãµÄ´©Éî£¬¼ÆËãÒ»¸öhuge_impact_prt,
-  // ÔÙĞŞ¸Ä´©Éî½øĞĞ»ı·Ö¡£¼ÇÂ¼Ã»ÓĞ¼õÈ¥´©ÉîµÄĞÂ¼ÓÈëµãµÄindex
+  // Vectorä¸­æœ‰çš„ï¼ŒMapä¸­æ²¡æœ‰ï¼Œå°±æ’å…¥ï¼Œå…ˆä¸ä¿®æ”¹æ–°åŠ å…¥ç‚¹çš„ç©¿æ·±ï¼Œè®¡ç®—ä¸€ä¸ªhuge_impact_prt,
+  // å†ä¿®æ”¹ç©¿æ·±è¿›è¡Œç§¯åˆ†ã€‚è®°å½•æ²¡æœ‰å‡å»ç©¿æ·±çš„æ–°åŠ å…¥ç‚¹çš„index
   std::vector<common::PenetrationAsPointPair*> new_contacts_ptr;
   for (auto& pair : pairs) {
     if (auto search = contact_pair_map.find({pair.id_A, pair.id_B});
@@ -116,24 +116,24 @@ auto process_penetration_depth_and_maintain_impact_set(
       auto& contact_pair_value = contact_pair_map[{pair.id_A, pair.id_B}];
       pair.depth -= contact_pair_value.init_penetration_depth_;
       if (pair.depth < 0) {
-        // ¸üĞÂ¼ÇÂ¼µÄ³õÊ¼´©Éî
+        // æ›´æ–°è®°å½•çš„åˆå§‹ç©¿æ·±
         contact_pair_value.init_penetration_depth_ += pair.depth;
-        // ¼ÇÂ¼ÎªĞÂµÄÅö×²µã
+        // è®°å½•ä¸ºæ–°çš„ç¢°æ’ç‚¹
         // new_contacts_ptr.push_back(&pair);
       }
       // if (contact_pair_value.is_depth_smaller_than_init_depth_) {
-      //   // ¸üĞÂinitial depth
-      //   // Èç¹ûÓÖ¿ªÊ¼½Ó´¥£¬ĞèÒª¿ªÊ¼´¦Àí
+      //   // æ›´æ–°initial depth
+      //   // å¦‚æœåˆå¼€å§‹æ¥è§¦ï¼Œéœ€è¦å¼€å§‹å¤„ç†
       //   if (pair.depth > 0) {
       //     contact_pair_value.is_depth_smaller_than_init_depth_ = false;
       //     new_contacts_ptr.push_back(&pair);
       //   } else {
-      //     // ½«depthÒ»Ö±ÉèÖÃÎªÁã£¬²¢¸üĞÂ¼ÇÂ¼µÄinitial depth
+      //     // å°†depthä¸€ç›´è®¾ç½®ä¸ºé›¶ï¼Œå¹¶æ›´æ–°è®°å½•çš„initial depth
       //     contact_pair_value.init_penetration_depth_ += pair.depth;
       //     pair.depth = 0;
       //   }
       // } else {
-      //   // ĞŞ¸ÄÒÑ¾­ÔÚ±í¶şÖĞµÄµãµÄ´©Éî£¨ÒÑ¾­ÇåÀí¹ı²»ÔÚvectorÖĞµÄ¼ÇÂ¼£©
+      //   // ä¿®æ”¹å·²ç»åœ¨è¡¨äºŒä¸­çš„ç‚¹çš„ç©¿æ·±ï¼ˆå·²ç»æ¸…ç†è¿‡ä¸åœ¨vectorä¸­çš„è®°å½•ï¼‰
       //   if (pair.depth < 0) {
       //     contact_pair_value.is_depth_smaller_than_init_depth_ = true;
       //     contact_pair_value.init_penetration_depth_ += pair.depth;
@@ -153,18 +153,18 @@ auto process_penetration_depth_and_maintain_impact_set(
   //   std::cout << " pair_depth2=" << pairs.at(0).depth << " ";
 
   std::vector<common::PointPairContactInfo> contact_info;
-  // ½Ó´¥Çó½â£¬µÃµ½½Ó´¥Á¦
-  // TODO: ¶ÔÓÚµÚÒ»´ÎÇó½âÃ»±ØÒªÊ¹ÓÃ¶àµã½Ó´¥Çó½â·½·¨£¬Ö±½ÓÓÃ×î»ù±¾µÄ¾ÍĞĞÁË£¬
-  // Õâ¸öÖ»ÊÇºóÃæÏû³ı´©ÉîµÄ²Î¿¼
+  // æ¥è§¦æ±‚è§£ï¼Œå¾—åˆ°æ¥è§¦åŠ›
+  // TODO: å¯¹äºç¬¬ä¸€æ¬¡æ±‚è§£æ²¡å¿…è¦ä½¿ç”¨å¤šç‚¹æ¥è§¦æ±‚è§£æ–¹æ³•ï¼Œç›´æ¥ç”¨æœ€åŸºæœ¬çš„å°±è¡Œäº†ï¼Œ
+  // è¿™ä¸ªåªæ˜¯åé¢æ¶ˆé™¤ç©¿æ·±çš„å‚è€ƒ
   double nextSuggestDt{-1};
   nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
   DLOG(DEBUG) << "next suggest dt1: " << nextSuggestDt;
-  // ÖØÖÃÉÏÒ»Ê±¿Ì¹Ø½ÚºÍforcePoolÉèÖÃµÄÁ¦
-  // TODO(ltj): ¹Ø½ÚµÄ¿ØÖÆÁ¦ÔõÃ´½øÀ´£¬¿ØÖÆÒªÔõÃ´Ğ´
+  // é‡ç½®ä¸Šä¸€æ—¶åˆ»å…³èŠ‚å’ŒforcePoolè®¾ç½®çš„åŠ›
+  // TODO(ltj): å…³èŠ‚çš„æ§åˆ¶åŠ›æ€ä¹ˆè¿›æ¥ï¼Œæ§åˆ¶è¦æ€ä¹ˆå†™
   engine_ptr->resetPartContactForce();
-  // ¸ù¾İ½Ó´¥ĞÅÏ¢½«Á¦ÉèÖÃ»ØmodelµÄforcePool
+  // æ ¹æ®æ¥è§¦ä¿¡æ¯å°†åŠ›è®¾ç½®å›modelçš„forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
-  // ¼ÆËãÃ¿¸ö¸Ë¼şÅö×²Á¦ºÍ¼ÓËÙ¶ÈºÍdtµÄÊı¾İ£¬ÅĞ¶ÏÊÇ·ñÅö×²£¬Åö×²ĞèÒªËõĞ¡²½³¤
+  // è®¡ç®—æ¯ä¸ªæ†ä»¶ç¢°æ’åŠ›å’ŒåŠ é€Ÿåº¦å’Œdtçš„æ•°æ®ï¼Œåˆ¤æ–­æ˜¯å¦ç¢°æ’ï¼Œç¢°æ’éœ€è¦ç¼©å°æ­¥é•¿
   double impact_threshold_insert =
       simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
           "impact_threshold_insert", 5);
@@ -185,16 +185,16 @@ auto process_penetration_depth_and_maintain_impact_set(
       impact_prts_remove.insert(i);
   }
   impact_prts_remove.erase(simulator_ptr->model()->ground().id());
-  // 2. ĞŞ¸Ä±íÒ»£¨Ìí¼ÓĞÂµÄprt£©
+  // 2. ä¿®æ”¹è¡¨ä¸€ï¼ˆæ·»åŠ æ–°çš„prtï¼‰
   using ImpactedPrtSet = std::unordered_set<sire::PartId>;
   ImpactedPrtSet& impacted_prt_set = manager_ptr->impactedPrtSet();
   for (sire::PartId impact_prt : impact_prts_insert) {
     impacted_prt_set.insert(impact_prt);
     // if (!simulator_ptr->contactPairManager()->hasImpactedPrt(impact_prt)) {
-    //   // 1. ¹ı´ó³å»÷µÄ¸Ë¼şÃ»ÓĞ±»¼ÇÂ¼
+    //   // 1. è¿‡å¤§å†²å‡»çš„æ†ä»¶æ²¡æœ‰è¢«è®°å½•
     //   //
-    //   ĞèÒª¼ì²âÅö×²ÁĞ±íÊÇ·ñÓĞĞÂµÄÅö×²ĞèÒª¼ÓÈë£¬Èç¹ûÃ»ÓĞ¾Í²»ĞèÒª¼ÇÂ¼¸Ë¼ş£¨ĞŞ¸Ä±í1£©
-    //   // ĞŞ¸Ä±íÒ»
+    //   éœ€è¦æ£€æµ‹ç¢°æ’åˆ—è¡¨æ˜¯å¦æœ‰æ–°çš„ç¢°æ’éœ€è¦åŠ å…¥ï¼Œå¦‚æœæ²¡æœ‰å°±ä¸éœ€è¦è®°å½•æ†ä»¶ï¼ˆä¿®æ”¹è¡¨1ï¼‰
+    //   // ä¿®æ”¹è¡¨ä¸€
     //   if (auto search = std::find_if(
     //           contact_info.begin(), contact_info.end(),
     //           [&impact_prt](common::PointPairContactInfo& contact) {
@@ -206,7 +206,7 @@ auto process_penetration_depth_and_maintain_impact_set(
     //   }
     // }
   }
-  // 3. ĞŞ¸Ä±íÒ»£¨ÒÆ³ı¼ÇÂ¼£©
+  // 3. ä¿®æ”¹è¡¨ä¸€ï¼ˆç§»é™¤è®°å½•ï¼‰
   for (ImpactedPrtSet::iterator it = impacted_prt_set.begin();
        it != impacted_prt_set.end();) {
     if (auto search = impact_prts_remove.find(*it);
@@ -221,20 +221,20 @@ auto process_penetration_depth_and_maintain_impact_set(
   //     contact_pair.second.is_depth_smaller_than_init_depth_ = true;
   // }
   if (new_contacts_ptr.size() != 0) {
-    // ¼õÈ¥ init_depth£¬ÔÙ¼ÆËãF
+    // å‡å» init_depthï¼Œå†è®¡ç®—F
     for (auto new_contact : new_contacts_ptr) {
       new_contact->depth -=
           contact_pair_map[{new_contact->id_A, new_contact->id_B}]
               .init_penetration_depth_;
     }
     contact_info.clear();
-    // ½Ó´¥Çó½â£¬µÃµ½½Ó´¥Á¦
+    // æ¥è§¦æ±‚è§£ï¼Œå¾—åˆ°æ¥è§¦åŠ›
     nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
     DLOG(DEBUG) << "next suggest dt2: " << nextSuggestDt;
-    // ÖØÖÃÉÏÒ»Ê±¿Ì¹Ø½ÚºÍforcePoolÉèÖÃµÄÁ¦
-    // TODO(ltj): ¹Ø½ÚµÄ¿ØÖÆÁ¦ÔõÃ´½øÀ´£¬¿ØÖÆÒªÔõÃ´Ğ´
+    // é‡ç½®ä¸Šä¸€æ—¶åˆ»å…³èŠ‚å’ŒforcePoolè®¾ç½®çš„åŠ›
+    // TODO(ltj): å…³èŠ‚çš„æ§åˆ¶åŠ›æ€ä¹ˆè¿›æ¥ï¼Œæ§åˆ¶è¦æ€ä¹ˆå†™
     engine_ptr->resetPartContactForce();
-    // ¸ù¾İ½Ó´¥ĞÅÏ¢½«Á¦ÉèÖÃ»ØmodelµÄforcePool
+    // æ ¹æ®æ¥è§¦ä¿¡æ¯å°†åŠ›è®¾ç½®å›modelçš„forcePool
     engine_ptr->cptGlbForceByContactInfo(contact_info);
   }
   return nextSuggestDt;
@@ -280,7 +280,7 @@ auto InitHandler::handle(core::EventBase* e) -> bool {
   InitEvent* event_ptr = dynamic_cast<InitEvent*>(e);
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
   process_penetration_depth_and_maintain_impact_set(simulator_ptr);
-  // Ö®ºó¾Í¿ÉÒÔÕı³£»ı·Ö
+  // ä¹‹åå°±å¯ä»¥æ­£å¸¸ç§¯åˆ†
 
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
@@ -300,7 +300,7 @@ auto StepHandler::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
 auto StepHandler::handle(core::EventBase* e) -> bool {
-  // »ı·Öµ½µ±Ç°event¼ÇÂ¼µÄÊ±¼ä
+  // ç§¯åˆ†åˆ°å½“å‰eventè®°å½•çš„æ—¶é—´
   double dt = e->eventProp().getPropValue("dt");
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   // std::cout << "dt=" << dt << " ";
@@ -310,8 +310,8 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   // if (dt == 0.0000001) std::cout << "dt=" << dt << " ";
   StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
-  // Èç¹ûÕâÒ»ÂÖ¼ì²âÃ»ÓĞÅö×²µã£¨Ê±¼ä²½³¤Óë±ê×¼²½³¤Ò»ÖÂ£©£¬¾ÍÇå³ı¼ÇÂ¼µ½µÄ´©Éî£¨·ÀÖ¹¹ı´©µÄ£©
-  // ¸Ğ¾õ¾Í²»¸ÃÇå³ı£¬¿ÉÒÔÈÃ´©ÉîÍùÉÏĞŞÕı¶ø²»ÊÇÒ»Ö±ÍùÏÂ£¬Ò²²»ĞèÒªimpactPrtSet±êÊ¶ÊÇ·ñÒªËõ¶ÌÊ±¼ä²½³¤£¬Ê±¼ä²½³¤ÓÉÅö×²Çó½â¿ØÖÆ¡£
+  // å¦‚æœè¿™ä¸€è½®æ£€æµ‹æ²¡æœ‰ç¢°æ’ç‚¹ï¼ˆæ—¶é—´æ­¥é•¿ä¸æ ‡å‡†æ­¥é•¿ä¸€è‡´ï¼‰ï¼Œå°±æ¸…é™¤è®°å½•åˆ°çš„ç©¿æ·±ï¼ˆé˜²æ­¢è¿‡ç©¿çš„ï¼‰
+  // æ„Ÿè§‰å°±ä¸è¯¥æ¸…é™¤ï¼Œå¯ä»¥è®©ç©¿æ·±å¾€ä¸Šä¿®æ­£è€Œä¸æ˜¯ä¸€ç›´å¾€ä¸‹ï¼Œä¹Ÿä¸éœ€è¦impactPrtSetæ ‡è¯†æ˜¯å¦è¦ç¼©çŸ­æ—¶é—´æ­¥é•¿ï¼Œæ—¶é—´æ­¥é•¿ç”±ç¢°æ’æ±‚è§£æ§åˆ¶ã€‚
   if (e->eventProp().getPropValueOrDefault("clearInitDepth", 0.0)) {
     DLOG(DEBUG) << "Clear record initial depth";
     manager_ptr->contactPairMap().clear();
@@ -367,15 +367,15 @@ auto process_penetration_depth_and_maintain_impact_set2(
   // physicsEngine ptr -> handleContact()
   engine_ptr->updateGeometryLocationFromModel();
   std::vector<common::PenetrationAsPointPair> pairs;
-  // Åö×²¼ì²â
+  // ç¢°æ’æ£€æµ‹
   engine_ptr->cptPointPairPenetration(pairs);
 
   using ContactPairMap = std::unordered_map<core::SortedPair<sire::PartId>,
                                             core::ContactPairValue>;
   ContactPairMap& contact_pair_map = manager_ptr->contactPairMap();
-  // 1. ĞŞ¸Ä±í¶ş
-  // ¸ù¾İÅö×²ĞÅÏ¢½áºÏÅö×²µãµÄ¼ÇÂ¼¸üĞÂ±í¶şµÄÅö×²µã¼ÇÂ¼ºÍÅö×²ĞÅÏ¢ depth-init_depth
-  // MapÖĞÓĞµÄ£¬vectorÖĞÃ»ÓĞ£¬¾ÍÉ¾³ı
+  // 1. ä¿®æ”¹è¡¨äºŒ
+  // æ ¹æ®ç¢°æ’ä¿¡æ¯ç»“åˆç¢°æ’ç‚¹çš„è®°å½•æ›´æ–°è¡¨äºŒçš„ç¢°æ’ç‚¹è®°å½•å’Œç¢°æ’ä¿¡æ¯ depth-init_depth
+  // Mapä¸­æœ‰çš„ï¼Œvectorä¸­æ²¡æœ‰ï¼Œå°±åˆ é™¤
   for (ContactPairMap::iterator it = contact_pair_map.begin();
        it != contact_pair_map.end();) {
     if (auto search = std::find_if(pairs.begin(), pairs.end(),
@@ -390,8 +390,8 @@ auto process_penetration_depth_and_maintain_impact_set2(
       ++it;
     }
   }
-  // VectorÖĞÓĞµÄ£¬MapÖĞÃ»ÓĞ£¬¾Í²åÈë£¬ÏÈ²»ĞŞ¸ÄĞÂ¼ÓÈëµãµÄ´©Éî£¬¼ÆËãÒ»¸öhuge_impact_prt,
-  // ÔÙĞŞ¸Ä´©Éî½øĞĞ»ı·Ö¡£¼ÇÂ¼Ã»ÓĞ¼õÈ¥´©ÉîµÄĞÂ¼ÓÈëµãµÄindex
+  // Vectorä¸­æœ‰çš„ï¼ŒMapä¸­æ²¡æœ‰ï¼Œå°±æ’å…¥ï¼Œå…ˆä¸ä¿®æ”¹æ–°åŠ å…¥ç‚¹çš„ç©¿æ·±ï¼Œè®¡ç®—ä¸€ä¸ªhuge_impact_prt,
+  // å†ä¿®æ”¹ç©¿æ·±è¿›è¡Œç§¯åˆ†ã€‚è®°å½•æ²¡æœ‰å‡å»ç©¿æ·±çš„æ–°åŠ å…¥ç‚¹çš„index
   std::vector<common::PenetrationAsPointPair*> new_contacts_ptr;
   for (auto& pair : pairs) {
     DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
@@ -405,21 +405,21 @@ auto process_penetration_depth_and_maintain_impact_set2(
       auto& contact_pair_value = contact_pair_map[{pair.id_A, pair.id_B}];
       pair.depth -= contact_pair_value.init_penetration_depth_;
       if (pair.depth < 0) {
-        // ¸üĞÂ¼ÇÂ¼µÄ³õÊ¼´©Éî
+        // æ›´æ–°è®°å½•çš„åˆå§‹ç©¿æ·±
         contact_pair_value.init_penetration_depth_ += pair.depth;
       }
     }
   }
   std::vector<common::PointPairContactInfo> contact_info;
-  // ½Ó´¥Çó½â£¬µÃµ½½Ó´¥Á¦
-  // TODO: ¶ÔÓÚµÚÒ»´ÎÇó½âÃ»±ØÒªÊ¹ÓÃ¶àµã½Ó´¥Çó½â·½·¨£¬Ö±½ÓÓÃ×î»ù±¾µÄ¾ÍĞĞÁË£¬
-  // Õâ¸öÖ»ÊÇºóÃæÏû³ı´©ÉîµÄ²Î¿¼
+  // æ¥è§¦æ±‚è§£ï¼Œå¾—åˆ°æ¥è§¦åŠ›
+  // TODO: å¯¹äºç¬¬ä¸€æ¬¡æ±‚è§£æ²¡å¿…è¦ä½¿ç”¨å¤šç‚¹æ¥è§¦æ±‚è§£æ–¹æ³•ï¼Œç›´æ¥ç”¨æœ€åŸºæœ¬çš„å°±è¡Œäº†ï¼Œ
+  // è¿™ä¸ªåªæ˜¯åé¢æ¶ˆé™¤ç©¿æ·±çš„å‚è€ƒ
   double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
   nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info_out);
-  // ÖØÖÃÉÏÒ»Ê±¿Ì¹Ø½ÚºÍforcePoolÉèÖÃµÄÁ¦
-  // TODO(ltj): ¹Ø½ÚµÄ¿ØÖÆÁ¦ÔõÃ´½øÀ´£¬¿ØÖÆÒªÔõÃ´Ğ´
+  // é‡ç½®ä¸Šä¸€æ—¶åˆ»å…³èŠ‚å’ŒforcePoolè®¾ç½®çš„åŠ›
+  // TODO(ltj): å…³èŠ‚çš„æ§åˆ¶åŠ›æ€ä¹ˆè¿›æ¥ï¼Œæ§åˆ¶è¦æ€ä¹ˆå†™
   engine_ptr->resetPartContactForce();
-  // ¸ù¾İ½Ó´¥ĞÅÏ¢½«Á¦ÉèÖÃ»ØmodelµÄforcePool
+  // æ ¹æ®æ¥è§¦ä¿¡æ¯å°†åŠ›è®¾ç½®å›modelçš„forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info_out);
   return nextSuggestDt;
 }
@@ -458,32 +458,32 @@ auto process_penetration_depth_and_maintain_impact_set3(
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
   aris::dynamic::Model* model_ptr = simulator_ptr->model();
-  // »ı·Öºóµ÷ÕûÒ»ÏÂ
+  // ç§¯åˆ†åè°ƒæ•´ä¸€ä¸‹
 
   // physicsEngine ptr -> handleContact()
   engine_ptr->updateGeometryLocationFromModel();
   std::vector<common::PenetrationAsPointPair> pairs;
-  // Åö×²¼ì²â
+  // ç¢°æ’æ£€æµ‹
   engine_ptr->cptPointPairPenetration(pairs);
   if(pairs.size() == 0) {
     manager_ptr->contactPairMap().clear();
     engine_ptr->resetPartContactForce();
     return 0.0;
   }
-  // ----------------- ¼ÆËãÅö×²²úÉúµÄ³õËÙ¶ÈÓëÅö×²µãµÄ×ø±êÏµ
-  // ---------------------- Ã¿¸öÅö×²µã¹¹½¨µÄ×ø±êÏµ±£´æµÄÎ»ÖÃ£¬Ê¹ÓÃpm±£´æ
+  // ----------------- è®¡ç®—ç¢°æ’äº§ç”Ÿçš„åˆé€Ÿåº¦ä¸ç¢°æ’ç‚¹çš„åæ ‡ç³»
+  // ---------------------- æ¯ä¸ªç¢°æ’ç‚¹æ„å»ºçš„åæ ‡ç³»ä¿å­˜çš„ä½ç½®ï¼Œä½¿ç”¨pmä¿å­˜
   const sire::Size num_contacts = pairs.size();
   std::vector<std::array<double, 16>> T_C_vec;
   T_C_vec.resize(num_contacts);
   for (sire::Size i{0}; i < num_contacts; ++i) {
-    // Ê¹ÓÃ nhat_AB_w ¹¹½¨µ±Ç°Åö×²µãµÄ T ¾ØÕó
+    // ä½¿ç”¨ nhat_AB_w æ„å»ºå½“å‰ç¢°æ’ç‚¹çš„ T çŸ©é˜µ
     aris::dynamic::s_sov_axes2pm(pairs[i].p_WC.data(), pairs[i].nhat_AB_W.data(),
                                  pairs[i].nhat_AB_W.data(), T_C_vec[i].data(),
                                  "zx");
   }
 
-  std::vector<std::array<double, 3>> v0W_vec;  // ÊÀ½ç×ø±êÏµ½Ó´¥µãËÙ¶È¡£
-  std::vector<std::array<double, 3>> v0C_vec;  // ÊÀ½ç×ø±êÏµ½Ó´¥µãËÙ¶È¡£
+  std::vector<std::array<double, 3>> v0W_vec;  // ä¸–ç•Œåæ ‡ç³»æ¥è§¦ç‚¹é€Ÿåº¦ã€‚
+  std::vector<std::array<double, 3>> v0C_vec;  // ä¸–ç•Œåæ ‡ç³»æ¥è§¦ç‚¹é€Ÿåº¦ã€‚
   v0W_vec.resize(2 * num_contacts);
   v0C_vec.resize(2 * num_contacts);
   engine_ptr->cptContactVelocityAB(pairs, v0W_vec);
@@ -495,9 +495,9 @@ auto process_penetration_depth_and_maintain_impact_set3(
   using ContactPairMap = std::unordered_map<core::SortedPair<sire::PartId>,
                                             core::ContactPairValue>;
   ContactPairMap& contact_pair_map = manager_ptr->contactPairMap();
-  // 1. ĞŞ¸Ä±í¶ş
-  // ¸ù¾İÅö×²ĞÅÏ¢½áºÏÅö×²µãµÄ¼ÇÂ¼¸üĞÂ±í¶şµÄÅö×²µã¼ÇÂ¼ºÍÅö×²ĞÅÏ¢ depth-init_depth
-  // MapÖĞÓĞµÄ£¬vectorÖĞÃ»ÓĞ£¬¾ÍÉ¾³ı
+  // 1. ä¿®æ”¹è¡¨äºŒ
+  // æ ¹æ®ç¢°æ’ä¿¡æ¯ç»“åˆç¢°æ’ç‚¹çš„è®°å½•æ›´æ–°è¡¨äºŒçš„ç¢°æ’ç‚¹è®°å½•å’Œç¢°æ’ä¿¡æ¯ depth-init_depth
+  // Mapä¸­æœ‰çš„ï¼Œvectorä¸­æ²¡æœ‰ï¼Œå°±åˆ é™¤
   for (ContactPairMap::iterator it = contact_pair_map.begin();
        it != contact_pair_map.end();) {
     if (auto search = std::find_if(pairs.begin(), pairs.end(),
@@ -512,8 +512,8 @@ auto process_penetration_depth_and_maintain_impact_set3(
       ++it;
     }
   }
-  // VectorÖĞÓĞµÄ£¬MapÖĞÃ»ÓĞ£¬¾Í²åÈë
-  // ÔÙĞŞ¸Ä´©Éî½øĞĞ»ı·Ö¡£¼ÇÂ¼Ã»ÓĞ¼õÈ¥´©ÉîµÄĞÂ¼ÓÈëµãµÄindex
+  // Vectorä¸­æœ‰çš„ï¼ŒMapä¸­æ²¡æœ‰ï¼Œå°±æ’å…¥
+  // å†ä¿®æ”¹ç©¿æ·±è¿›è¡Œç§¯åˆ†ã€‚è®°å½•æ²¡æœ‰å‡å»ç©¿æ·±çš„æ–°åŠ å…¥ç‚¹çš„index
   std::vector<sire::Size> adjustPositionPairIdx;
   for (sire::Size i{0}; i < pairs.size(); ++ i) {
     auto& pair = pairs[i];
@@ -544,8 +544,8 @@ auto process_penetration_depth_and_maintain_impact_set3(
     Eigen::Matrix<double, 3, 1> new_cp =
         (std::abs(vCb[2]) / sumVnAbs) * ab_depth_vec + pair.p_WCb;
         Eigen::Matrix<double, 3, 1> dpa = (std::abs(vCa[2]) / sumVnAbs) * ab_depth_vec;
-    // Ò»¸öprt¶à¸ö½Ó´¥µãÔõÃ´°ì£¿
-    // ÏÈ²»¹Ü
+    // ä¸€ä¸ªprtå¤šä¸ªæ¥è§¦ç‚¹æ€ä¹ˆåŠï¼Ÿ
+    // å…ˆä¸ç®¡
     auto* geometry_A = engine_ptr->queryGeometryPoolById(pairs[i].id_A);
     auto* geometry_B = engine_ptr->queryGeometryPoolById(pairs[i].id_B);
     SIRE_ASSERT(geometry_A != nullptr && geometry_B != nullptr);
@@ -590,7 +590,7 @@ auto process_penetration_depth_and_maintain_impact_set3(
     init_interaction(jointPool[i + tempJointIdxOffset], model_ptr);
   }
 
-  // µ÷ÓÃ FK solver µÄÄÚ´æ·ÖÅä·½·¨ÖØĞÂ·ÖÅäÄÚ´æ
+  // è°ƒç”¨ FK solver çš„å†…å­˜åˆ†é…æ–¹æ³•é‡æ–°åˆ†é…å†…å­˜
   model_ptr->solverPool().at(1).allocateMemory();
   model_ptr->forwardKinematics();
 
@@ -605,15 +605,15 @@ auto process_penetration_depth_and_maintain_impact_set3(
   model_ptr->solverPool().at(1).allocateMemory();
 
   std::vector<common::PointPairContactInfo> contact_info;
-  // ½Ó´¥Çó½â£¬µÃµ½½Ó´¥Á¦
-  // TODO: ¶ÔÓÚµÚÒ»´ÎÇó½âÃ»±ØÒªÊ¹ÓÃ¶àµã½Ó´¥Çó½â·½·¨£¬Ö±½ÓÓÃ×î»ù±¾µÄ¾ÍĞĞÁË£¬
-  // Õâ¸öÖ»ÊÇºóÃæÏû³ı´©ÉîµÄ²Î¿¼
+  // æ¥è§¦æ±‚è§£ï¼Œå¾—åˆ°æ¥è§¦åŠ›
+  // TODO: å¯¹äºç¬¬ä¸€æ¬¡æ±‚è§£æ²¡å¿…è¦ä½¿ç”¨å¤šç‚¹æ¥è§¦æ±‚è§£æ–¹æ³•ï¼Œç›´æ¥ç”¨æœ€åŸºæœ¬çš„å°±è¡Œäº†ï¼Œ
+  // è¿™ä¸ªåªæ˜¯åé¢æ¶ˆé™¤ç©¿æ·±çš„å‚è€ƒ
   double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
   nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
-  // ÖØÖÃÉÏÒ»Ê±¿Ì¹Ø½ÚºÍforcePoolÉèÖÃµÄÁ¦
-  // TODO(ltj): ¹Ø½ÚµÄ¿ØÖÆÁ¦ÔõÃ´½øÀ´£¬¿ØÖÆÒªÔõÃ´Ğ´
+  // é‡ç½®ä¸Šä¸€æ—¶åˆ»å…³èŠ‚å’ŒforcePoolè®¾ç½®çš„åŠ›
+  // TODO(ltj): å…³èŠ‚çš„æ§åˆ¶åŠ›æ€ä¹ˆè¿›æ¥ï¼Œæ§åˆ¶è¦æ€ä¹ˆå†™
   engine_ptr->resetPartContactForce();
-  // ¸ù¾İ½Ó´¥ĞÅÏ¢½«Á¦ÉèÖÃ»ØmodelµÄforcePool
+  // æ ¹æ®æ¥è§¦ä¿¡æ¯å°†åŠ›è®¾ç½®å›modelçš„forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   return nextSuggestDt;
 }
@@ -628,8 +628,8 @@ auto InitHandler1::handle(core::EventBase* e) -> bool {
   // initLog();
   // logCurrentState(0, 1, simulator_ptr);
   std::vector<common::PointPairContactInfo> contact_info_result;
-  process_penetration_depth_and_maintain_impact_set3(simulator_ptr, contact_info_result);
-  // Ö®ºó¾Í¿ÉÒÔÕı³£»ı·Ö
+  process_penetration_depth_and_maintain_impact_set2(simulator_ptr, contact_info_result);
+  // ä¹‹åå°±å¯ä»¥æ­£å¸¸ç§¯åˆ†
 
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
@@ -650,18 +650,18 @@ auto StepHandler1::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
 auto StepHandler1::handle(core::EventBase* e) -> bool {
-  // »ı·Öµ½µ±Ç° event ¼ÇÂ¼µÄÊ±¼ä
+  // ç§¯åˆ†åˆ°å½“å‰ event è®°å½•çš„æ—¶é—´
   double dt = e->eventProp().getPropValue("dt");
   DLOG(DEBUG) << "-------------- integrate with dt " << dt << " --------------";
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);
   
-  // »ñÈ¡½Ó´¥ĞÅÏ¢
+  // è·å–æ¥è§¦ä¿¡æ¯
   std::vector<common::PointPairContactInfo> contact_info_result;
   double suggestDt =
       process_penetration_depth_and_maintain_impact_set2(simulator_ptr, contact_info_result);
   
-  // ¼ÇÂ¼Ä£ĞÍ×´Ì¬ºÍ½Ó´¥ĞÅÏ¢
+  // è®°å½•æ¨¡å‹çŠ¶æ€å’Œæ¥è§¦ä¿¡æ¯
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
                                    *simulator_ptr->model(),
                                    contact_info_result);

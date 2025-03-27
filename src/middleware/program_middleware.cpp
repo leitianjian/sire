@@ -123,7 +123,7 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
             for (auto& str : imp_->language_parser_.varPool()) {
               auto cut_str = [](std::string_view& input,
                                 const char* c) -> std::string_view {
-                // ´ËÊ±cÖÐ×Ö·ûÊÇ»òµÄ¹ØÏµ //
+                // æ­¤æ—¶cä¸­å­—ç¬¦æ˜¯æˆ–çš„å…³ç³» //
                 auto point = input.find_first_of(c);
                 auto ret = input.substr(0, point);
                 input = point == std::string::npos ? std::string_view()
@@ -318,7 +318,7 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
 
             cs.waitForAllCollection();
 
-            // Èç¹ûÒòÎªÆäËû¹ì¼£³ö´í¶øÈ¡Ïû //
+            // å¦‚æžœå› ä¸ºå…¶ä»–è½¨è¿¹å‡ºé”™è€Œå–æ¶ˆ //
             if (ret->executeRetCode() == aris::plan::Plan::PREPARE_CANCELLED ||
                 ret->executeRetCode() == aris::plan::Plan::EXECUTE_CANCELLED) {
               ARIS_PRO_COUT << current_line << "---" << ret->cmdId()
@@ -362,7 +362,7 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
           imp_->is_stop_.store(false);
 
           imp_->auto_thread_ = std::thread([&]() -> void {
-            // ½»»»calculator£¬±£Ö¤Ã¿¸ö³ÌÐò¿ªÊ¼Ê±µÄ±äÁ¿¶¼ÊÇÖ®Ç°µÄ //
+            // äº¤æ¢calculatorï¼Œä¿è¯æ¯ä¸ªç¨‹åºå¼€å§‹æ—¶çš„å˜é‡éƒ½æ˜¯ä¹‹å‰çš„ //
             std::swap(imp_->calculator_,
                       dynamic_cast<aris::dynamic::Model&>(
                           aris::server::ControlServer::instance().model())
@@ -388,7 +388,7 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
                 continue;
               }
 
-              // Åöµ½¶ÏµãÊ±²ÅÕæÕýÖ´ÐÐ //
+              // ç¢°åˆ°æ–­ç‚¹æ—¶æ‰çœŸæ­£æ‰§è¡Œ //
               auto server_execute = [&]() -> int {
                 auto plans = cs.executeCmdInCmdLine(cmd_vec);
                 for (int i = 0; i < plans.size(); ++i) {
@@ -400,7 +400,7 @@ auto ProgramMiddleware::executeCmd(std::string_view str,
                 }
                 cs.waitForAllCollection();
                 for (int i = 0; i < plans.size(); ++i) {
-                  // Èç¹ûÒòÎªÆäËû¹ì¼£³ö´í¶øÈ¡Ïû //
+                  // å¦‚æžœå› ä¸ºå…¶ä»–è½¨è¿¹å‡ºé”™è€Œå–æ¶ˆ //
                   if (plans[i]->executeRetCode() ==
                           aris::plan::Plan::PREPARE_CANCELLED ||
                       plans[i]->executeRetCode() ==

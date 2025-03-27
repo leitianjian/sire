@@ -38,8 +38,8 @@ SphereCollisionGeometry::SphereCollisionGeometry(double radius, int part_id,
     : CollidableGeometry(prt_pm, part_id, is_dynamic), sphereShape(radius) {}
 SphereCollisionGeometry::~SphereCollisionGeometry() = default;
 
-// �������ڲ���from_json to_json���壬
-// ʹ�ú궨���������json����ת����from_json to_json�ķ�������
+// 借助类内部的from_json to_json定义，
+// 使用宏定义完成用于json类型转换的from_json to_json的方法定义
 SIRE_DEFINE_JSON_OUTER_TWO(SphereCollisionGeometry)
 
 ARIS_REGISTRATION {

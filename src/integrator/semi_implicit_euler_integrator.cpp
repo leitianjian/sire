@@ -16,7 +16,7 @@ auto SemiImplicitEulerIntegrator::doStep(double dt) -> bool {
     std::cout << "forward dynamic failed" << std::endl;
     return false;
   }
-  // ¶ÔÓÚÃ¿¸öPart£¬´Óas»ı·Öµ½vsÖ®ºó»ı·Öµ½ps£¬²¢ÉèÖÃ»ØÈ¥
+  // å¯¹äºæ¯ä¸ªPartï¼Œä»asç§¯åˆ†åˆ°vsä¹‹åç§¯åˆ†åˆ°psï¼Œå¹¶è®¾ç½®å›å»
   // double as_buffer[6]{0}, vs_buffer[6]{0}, pm_buffer[16]{0}, ps_buffer[6]{0};
   double vs_buffer[6]{0}, ps_buffer[6]{0};
   const double* as; const double* pm;
@@ -39,14 +39,14 @@ auto SemiImplicitEulerIntegrator::doStep(double dt) -> bool {
     part.setPm(pm_result);
   }
 
-  // ¸ù¾İ¸üĞÂµÄ¸Ë¼şÏà¹ØµÄĞÅÏ¢¸üĞÂMotionµÄÖµ
+  // æ ¹æ®æ›´æ–°çš„æ†ä»¶ç›¸å…³çš„ä¿¡æ¯æ›´æ–°Motionçš„å€¼
   for (std::size_t i = 0; i < motion_pool_length_; ++i) {
     auto& motion = model_ptr_->motionPool().at(i);
     motion.updA();
     motion.updV();
     motion.updP();
   }
-  // µ÷ÕûÓë¸Ë¼şÏà¹ØµÄmarker×ø±êÓë¸Ë¼şÎ»×Ë£¨×îĞ¡¶ş³Ë£©
+  // è°ƒæ•´ä¸æ†ä»¶ç›¸å…³çš„markeråæ ‡ä¸æ†ä»¶ä½å§¿ï¼ˆæœ€å°äºŒä¹˜ï¼‰
   model_ptr_->forwardKinematics();
   model_ptr_->forwardKinematicsVel();
   for (std::size_t i = 0; i < general_motion_pool_length_; ++i) {

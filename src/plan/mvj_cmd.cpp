@@ -398,7 +398,7 @@ auto SireMoveJ::prepareNrt() -> void {
 auto SireMoveJ::executeRT() -> int {
   auto mvj_param = std::any_cast<SireMoveJParam>(&this->param());
 
-  // 取得起始位置 //
+  // 鍙栧緱璧峰浣嶇疆 //
   double p, v, a;
   static sire::Size max_total_count;
   if (count() == 1) {

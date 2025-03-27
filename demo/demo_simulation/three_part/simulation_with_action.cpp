@@ -9,8 +9,8 @@
 
 namespace sire::plan {
 struct GetParam {
-  std::vector<std::vector<double>> part_pq;  // ÔõÃ´»ñµÃ body_pq?
-  std::vector<std::vector<double>> part_vs;  // ÔõÃ´»ñµÃ body_pq?
+  std::vector<std::vector<double>> part_pq;  // æ€ä¹ˆè·å¾— body_pq?
+  std::vector<std::vector<double>> part_vs;  // æ€ä¹ˆè·å¾— body_pq?
   std::vector<double> motors_v;
   std::vector<double> motors_p;
   std::vector<double> motors_a;
@@ -83,7 +83,7 @@ auto SimulationWithAction::prepareNrt() -> void {
   }
   // reset
   if (reset_flag > 0) {
-    auto xmlpath = std::filesystem::absolute(".");  // »ñÈ¡µ±Ç°¹¤³ÌËùÔÚµÄÂ·¾¶
+    auto xmlpath = std::filesystem::absolute(".");  // è·å–å½“å‰å·¥ç¨‹æ‰€åœ¨çš„è·¯å¾„
     const std::string xmlfile = "model.xml";
     //auto& cs = aris::server::ControlServer::instance();
     xmlpath = xmlpath / xmlfile;
@@ -115,18 +115,18 @@ auto SimulationWithAction::prepareNrt() -> void {
       }
     }
 
-    // ±»¶¯¹Ø½Ú½Ç¶ÈËæ»ú»¯
+    // è¢«åŠ¨å…³èŠ‚è§’åº¦éšæœºåŒ–
     double joint_pos[6] = {0, 0, 0, 0, 0, position[0]};
     model()->jointPool().at(0).makI()->setPe(
         *model()->jointPool().at(0).makJ(), joint_pos, "123");
-    // Ö÷¶¯¹Ø½Ú½Ç¶ÈËæ»ú»¯
+    // ä¸»åŠ¨å…³èŠ‚è§’åº¦éšæœºåŒ–
     model()->motionPool().at(0).setMp(position[1]);
     model()->motionPool().at(1).setMp(position[2]);
     model()->forwardKinematics();
-    // imp_->frame_skip_ = 0;                          // resetÊ±ÉèÖÃ·ÂÕæ0²½
+    // imp_->frame_skip_ = 0;                          // resetæ—¶è®¾ç½®ä»¿çœŸ0æ­¥
     
-  } else {                                          // resetÊ±²»ÉèÖÃforce
-    simulator.step(delay);  // ÉèÖÃÑÓ³Ù
+  } else {                                          // resetæ—¶ä¸è®¾ç½®force
+    simulator.step(delay);  // è®¾ç½®å»¶è¿Ÿ
     for (sire::Size i = 0; i < model()->motionPool().size(); ++i) {
       dynamic_cast<aris::dynamic::SingleComponentForce&>(
           model()->forcePool().at(i))

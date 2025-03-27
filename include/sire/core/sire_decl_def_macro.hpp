@@ -7,8 +7,8 @@
   type_name(type_name&&) = delete;              \
   void operator=(type_name&&) = delete;
 
-// ¶ÔÓÚstruct ImpÖĞµÄunique_ptrÃ»ÓĞcopyÏà¹ØµÄ¹¹Ôìº¯Êı
-// ¶¨ÒåÓÃÓÚmove constructorµÄºê
+// å¯¹äºstruct Impä¸­çš„unique_ptræ²¡æœ‰copyç›¸å…³çš„æ„é€ å‡½æ•°
+// å®šä¹‰ç”¨äºmove constructorçš„å®
 #define SIRE_DECLARE_MOVE_CTOR(type_name) \
   type_name(type_name&& other);           \
   type_name& operator=(type_name&& other);

@@ -25,8 +25,8 @@ struct EventManager::Imp {
   map<sire::Size, sire::Size> trigger_event_map_;
   map<sire::Size, sire::Size> event_handler_map_;
   // std::list<std::unique_ptr<TriggerBase>> immediate_trigger_list_;
-  // // ²»»áÖ±½ÓÓ°Ïìevent ºÍ
-  // handler£¬ĞèÒª¶¨Ê±¼ÓÈëonce_trigger£¬µ±×÷µ¥´Î´¥·¢Æ÷´¦Àí
+  // // ä¸ä¼šç›´æ¥å½±å“event å’Œ
+  // handlerï¼Œéœ€è¦å®šæ—¶åŠ å…¥once_triggerï¼Œå½“ä½œå•æ¬¡è§¦å‘å™¨å¤„ç†
   // std::list<std::unique_ptr<TriggerBase>> conditional_trigger_list_;
   std::list<std::unique_ptr<EventBase>> event_list_;
   std::list<std::unique_ptr<EventBase>>::iterator header_;
