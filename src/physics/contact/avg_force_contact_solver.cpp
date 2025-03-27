@@ -1810,7 +1810,7 @@ auto AverageForceContactSolver::cptContactSolverResult(
       double temp = std::abs(A[i]);
       if (temp > maxA) maxA = temp;
     }
-    double timeAuto = std::pow(10, -2 - int(floor(std::log10(maxA)) / 2));
+    double timeAuto = std::pow(10, - 2 - int(floor(std::log10(maxA)) / 2));
     double dt = enginePtr->simLoopPtr()->deltaT();
     minTime = dt > timeAuto ? timeAuto : dt;
   }
@@ -1896,7 +1896,9 @@ auto AverageForceContactSolver::cptContactSolverResult(
                 << " " << v0[3 * i + 1] << " ft1: " << result.ft[2 * i]
                 << " ft2: " << result.ft[2 * i + 1] << " fn: " << result.fn[idx]
                 << " depth: " << penetration_pairs[idx].depth
-                << " pos: " << penetration_pairs[idx].p_WC.transpose();
+                << " pos: " << penetration_pairs[idx].p_WC.transpose()
+                << " n1: " << penetration_pairs[idx].p_WCa.transpose()
+                << " n2: " << penetration_pairs[idx].p_WCb.transpose();
   }
   imp_->prevResult = result;
   // for (sire::Size i{0}; i < n; ++i) {

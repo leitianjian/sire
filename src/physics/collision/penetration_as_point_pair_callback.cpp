@@ -48,10 +48,10 @@ auto PenetrationAsPointPairCallback::calcDistance(
   // normal, equidistant to the contact point. Recall that depth
   // is non-negative, so depth * nhat_AB_W points from object A to object B.
   // Ac to Bc is negative depth * nhat_AB_W
-  pair_data->p_WCa =
-      contact.pos + 0.5 * pair_data->depth * pair_data->nhat_AB_W;
-  pair_data->p_WCb =
-      contact.pos - 0.5 * pair_data->depth * pair_data->nhat_AB_W;
+  pair_data->p_WCa = contact.nearest_points[0];
+      // contact.pos + 0.5 * pair_data->depth * pair_data->nhat_AB_W;
+  pair_data->p_WCb = contact.nearest_points[1];
+      // contact.pos - 0.5 * pair_data->depth * pair_data->nhat_AB_W;
   pair_data->p_WC = contact.pos;
 
   pair_data->id_A = filter_->queryGeometryIdByPtr(

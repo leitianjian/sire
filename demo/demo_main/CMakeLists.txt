@@ -36,7 +36,7 @@ install(
 		${INSTALL_DESTINATION}
 )
 
-set(CONFIG_FILES "box_sliding.xml")
+# set(CONFIG_FILES "box_sliding.xml")
 
 if(${CONFIG_EXISTS})
 	install(FILES ${CONFIG_FILES} DESTINATION ${INSTALL_DESTINATION})

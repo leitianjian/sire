@@ -297,6 +297,27 @@ auto PhysicsEngine::cptContactVelocityB2A(
   aris::dynamic::s_inv_pm_dot_v3(T_contact.data(), vel_B, v_contact.data());
 }
 
+auto PhysicsEngine::cptContactVelocityAB(
+    const std::vector<common::PenetrationAsPointPair>& pairs,
+    std::vector<std::array<double, 3>>& v_contact) -> void {
+  for (sire::Size i{0}; i < pairs.size(); ++i) {
+    double vs_A[6], vs_B[6], vel_A[3], vel_B[3];
+    auto* geometry_A = queryGeometryPoolById(pairs[i].id_A);
+    auto* geometry_B = queryGeometryPoolById(pairs[i].id_B);
+    SIRE_ASSERT(geometry_A != nullptr && geometry_B != nullptr);
+    auto pmA = const_cast<aris::dynamic::double4x4&>(imp_->model_ptr_->partPool().at(geometry_A->partId()).pm());
+    double a = pmA[2][1];
+    imp_->model_ptr_->partPool().at(geometry_A->partId()).getVs(vs_A);
+    imp_->model_ptr_->partPool().at(geometry_B->partId()).getVs(vs_B);
+    aris::dynamic::s_vs2vp(vs_A, pairs[i].p_WC.data(), v_contact[2 * i].data());
+    aris::dynamic::s_vs2vp(vs_B, pairs[i].p_WC.data(),
+                           v_contact[2 * i + 1].data());
+    // aris::dynamic::s_vs(3, vel_A, vel_B);
+    // aris::dynamic::s_inv_pm_dot_v3(T_contact.data(), vel_B,
+    // v_contact.data());
+  }
+}
+
 auto PhysicsEngine::setContactForceIdxSize(int contact_force_idx,
                                            sire::Size contact_force_size)
     -> void {

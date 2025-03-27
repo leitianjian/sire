@@ -48,6 +48,7 @@ auto SemiImplicitEulerIntegrator::doStep(double dt) -> bool {
   }
   // 调整与杆件相关的marker坐标与杆件位姿（最小二乘）
   model_ptr_->forwardKinematics();
+  model_ptr_->forwardKinematicsVel();
   for (std::size_t i = 0; i < general_motion_pool_length_; ++i) {
     auto& general_motion = model_ptr_->generalMotionPool().at(i);
     general_motion.updA();

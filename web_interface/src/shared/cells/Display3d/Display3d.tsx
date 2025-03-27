@@ -196,7 +196,7 @@ function RobotMesh({ poses, scales }: RobotMeshProps) {
   const processed_pose = useMemo(
     () =>
       geometry_pool?.map((geometry: SireGeometry, i) => {
-        return evaluate_pose(geometry, poses?.at(i), geometry_pm_data?.at(i));
+        return evaluate_pose(geometry, poses?.at(geometry.part_id), geometry_pm_data?.at(i));
       }),
     [poses]
   );

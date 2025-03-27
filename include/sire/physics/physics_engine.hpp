@@ -101,6 +101,9 @@ class SIRE_API PhysicsEngine {
   auto cptContactVelocityB2A(const common::PenetrationAsPointPair& penetration,
                              const std::array<double, 16>& T_contact,
                              std::array<double, 3>& v_contact) -> void;
+  auto cptContactVelocityAB(
+      const std::vector<common::PenetrationAsPointPair>& pairs,
+      std::vector<std::array<double, 3>>& v_contact) -> void;
 
   // engine state getter
   inline auto numGeometries() -> sire::Size { return geometryPool().size(); }
