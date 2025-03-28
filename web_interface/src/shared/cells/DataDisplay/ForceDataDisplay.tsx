@@ -89,7 +89,7 @@ const ChartDisplay: React.FC = () => {
   // 配置 ECharts 图表
   const options = {
     title: { text: "数据变化趋势", left: "center" },
-    tooltip: { trigger: "axis" },
+    tooltip: { trigger: 'axis' as const },
     legend: {
       data: chartData.map((item) => item.label),
       bottom: 0,
