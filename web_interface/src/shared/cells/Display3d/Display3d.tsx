@@ -54,6 +54,9 @@ import {
   Quaternion,
   PerspectiveCamera as pc,
   Vector3,
+  Color,
+  ArrowHelper,
+  Euler,
 } from "three";
 
 import {
@@ -65,6 +68,24 @@ import {
   SireMeshGeometry,
   SireSphereGeometry,
 } from "~/types/lib";
+
+interface Screw {
+  force: Vector3;  // 前三维：力向量 (Fx, Fy, Fz)
+  moment: Vector3; // 后三维：力矩向量 (Mx, My, Mz)
+  position: Vector3; // 前三维：位置 (X, Y, Z)
+  orientation: Quaternion; // 后三维转换为四元数的方向
+}
+
+interface ContactForce {
+  contact_force: number[];
+  contact_point_pe: number[];
+}
+
+interface ContactForcesProps {
+  forces?: Screw[];
+  forceScale?: number;
+  momentScale?: number;
+}
 
 interface CellProps {
   prefixCls: string;
@@ -97,6 +118,108 @@ interface ModelProps {
   position?: Vector3Type;
   quaternion?: Vector4Type;
 }
+
+// 欧拉角转四元数工具函数
+const eulerToQuaternion = (rx: number, ry: number, rz: number) => {
+  const q = new Quaternion();
+  q.setFromEuler(new Euler(rx, ry, rz));
+  return q;
+};
+
+// 解析6维旋量数据
+const parseScrewData = (data: any = []): Screw[] => {
+  // 直接展开数据（兼容 data 是 ContactForce[] 或 ContactForce[][] 的情况）
+  const flatData = Array.isArray(data[0]?.contact_force) ? data : data.flat();
+
+  return flatData.flatMap((d: { contact_force: (number | undefined)[]; contact_point_pe: number[]; }) => {
+    // 保留原有的空值检查
+    if (!d || !d.contact_force || !d.contact_point_pe) {
+      // console.warn("Null or invalid contact force data:", d);
+      return {
+        force: new Vector3(0, 0, 0),
+        moment: new Vector3(0, 0, 0),
+        position: new Vector3(0, 0, 0),
+        orientation: new Quaternion(),
+      };
+    }
+    // 强制解析（假设 contact_force 和 contact_point_pe 一定是 6 元素数组）
+    return {
+      force: new Vector3(d.contact_force[0], d.contact_force[1], d.contact_force[2]),
+      moment: new Vector3(d.contact_force[3], d.contact_force[4], d.contact_force[5]),
+      position: new Vector3(d.contact_point_pe[0], d.contact_point_pe[1], d.contact_point_pe[2]),
+      orientation: eulerToQuaternion(
+        d.contact_point_pe[3], 
+        d.contact_point_pe[4], 
+        d.contact_point_pe[5]
+      ),
+    };
+  });
+};
+
+const ContactForces = ({ 
+  forces, 
+  forceScale = 0.001,
+  momentScale = 0.01 
+}: ContactForcesProps) => {
+  const parsedForces = useMemo(() => forces ?? [], [forces]);
+  if (!parsedForces.length) return null;
+
+  return (
+    <>
+      {parsedForces.map((screw, index) => {
+        // 力可视化参数
+        const forceMagnitude = screw.force.length();
+        const forceDirection = screw.force.clone().normalize();
+        
+        // 力矩可视化参数
+        const momentMagnitude = screw.moment.length();
+        const momentDirection = screw.moment.clone().normalize();
+
+        return (
+          <group 
+            key={`contact-${index}`}
+            position={screw.position}
+            quaternion={screw.orientation}
+          >
+            {/* 力箭头 (红色) */}
+            {forceMagnitude > 0.1 && (
+              <primitive
+                object={new ArrowHelper(
+                  forceDirection,
+                  new Vector3(0, 0, 0),
+                  forceMagnitude * forceScale,
+                  0xff0000, // 红色
+                  forceMagnitude * forceScale * 0.2,
+                  forceMagnitude * forceScale * 0.1
+                )}
+              />
+            )}
+
+            {/* 力矩箭头 (蓝色) */}
+            {momentMagnitude > 0.1 && (
+              <primitive
+                object={new ArrowHelper(
+                  momentDirection,
+                  new Vector3(0, 0, 0),
+                  momentMagnitude * momentScale,
+                  0x0000ff, // 蓝色
+                  momentMagnitude * momentScale * 0.2,
+                  momentMagnitude * momentScale * 0.1
+                )}
+              />
+            )}
+
+            {/* 接触点标记 (绿色球体) */}
+            <mesh position={[0, 0, 0]}>
+              <sphereGeometry args={[0.02, 16, 16]} />
+              <meshBasicMaterial color={0x00ff00} />
+            </mesh>
+          </group>
+        );
+      })}
+    </>
+  );
+};
 
 const FBXModel = ({
   path,
@@ -334,7 +457,8 @@ const Display3d = (props: CellProps) => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
-
+  const [contactForces, setContactForces] = useState<ContactForce[]>([]);
+  const screws = useMemo(() => parseScrewData(contactForces), [contactForces]);
   const CanvasCapturer = () => {
     const { gl } = useThree();
     useEffect(() => {
@@ -410,6 +534,7 @@ const Display3d = (props: CellProps) => {
 
         setCurrentFrameIndex(0);
         setIsPlaying(false);
+        setContactForces(data.contact_info);
         if (playbackInterval.current) {
           clearInterval(playbackInterval.current);
         }
@@ -435,6 +560,7 @@ const Display3d = (props: CellProps) => {
         setTotalDuration(data.timeindex[data.timeindex.length - 1] || 0);
         setCurrentFrameIndex(0);
         setIsPlaying(false);
+        setContactForces(data.contact_info);
         if (playbackInterval.current) clearInterval(playbackInterval.current);
       } catch (error) {
         console.error("Invalid JSON file");
@@ -664,6 +790,12 @@ const Display3d = (props: CellProps) => {
               poses={
                 uploadedData.length > 0 ? uploadedData[currentFrameIndex] : pose
               }
+            />
+            <ContactForces 
+              forces={screws}
+              // frameIndex={currentFrameIndex}
+              forceScale={0.0005} 
+              momentScale={0.0002}
             />
           </View>
           <View index={2} className={`${prefixCls}-three-axes`}>
