@@ -82,7 +82,7 @@ interface ContactForce {
 }
 
 interface ContactForcesProps {
-  forces?: Screw[];
+  forces?: Screw;
   forceScale?: number;
   momentScale?: number;
 }
@@ -161,65 +161,59 @@ const ContactForces = ({
   forceScale = 0.001,
   momentScale = 0.01 
 }: ContactForcesProps) => {
-  const parsedForces = useMemo(() => forces ?? [], [forces]);
-  if (!parsedForces.length) return null;
+  if (!forces) return null;
+
+  // 力可视化参数
+  const forceMagnitude = forces.force.length();
+  const forceDirection = forces.force.clone().normalize();
+  
+  // 力矩可视化参数
+  const momentMagnitude = forces.moment.length();
+  const momentDirection = forces.moment.clone().normalize();
 
   return (
-    <>
-      {parsedForces.map((screw, index) => {
-        // 力可视化参数
-        const forceMagnitude = screw.force.length();
-        const forceDirection = screw.force.clone().normalize();
-        
-        // 力矩可视化参数
-        const momentMagnitude = screw.moment.length();
-        const momentDirection = screw.moment.clone().normalize();
+    <group 
+      position={forces.position}
+      quaternion={forces.orientation}
+    >
+      {/* 力箭头 (红色) */}
+      {forceMagnitude > 0.1 && (
+        <primitive
+          object={new ArrowHelper(
+            forceDirection,
+            forces.position,
+            forceMagnitude * forceScale,
+            0xff0000, // 红色
+            forceMagnitude * forceScale * 0.2,
+            forceMagnitude * forceScale * 0.1
+          )}
+        />
+      )}
 
-        return (
-          <group 
-            key={`contact-${index}`}
-            position={screw.position}
-            quaternion={screw.orientation}
-          >
-            {/* 力箭头 (红色) */}
-            {forceMagnitude > 0.1 && (
-              <primitive
-                object={new ArrowHelper(
-                  forceDirection,
-                  new Vector3(0, 0, 0),
-                  forceMagnitude * forceScale,
-                  0xff0000, // 红色
-                  forceMagnitude * forceScale * 0.2,
-                  forceMagnitude * forceScale * 0.1
-                )}
-              />
-            )}
+      {/* 力矩箭头 (蓝色) */}
+      {momentMagnitude > 0.1 && (
+        <primitive
+          object={new ArrowHelper(
+            momentDirection,
+            // new Vector3(0, 0, 0),
+            forces.position,
+            momentMagnitude * momentScale,
+            0x0000ff, // 蓝色
+            momentMagnitude * momentScale * 0.2,
+            momentMagnitude * momentScale * 0.1
+          )}
+        />
+      )}
 
-            {/* 力矩箭头 (蓝色) */}
-            {momentMagnitude > 0.1 && (
-              <primitive
-                object={new ArrowHelper(
-                  momentDirection,
-                  new Vector3(0, 0, 0),
-                  momentMagnitude * momentScale,
-                  0x0000ff, // 蓝色
-                  momentMagnitude * momentScale * 0.2,
-                  momentMagnitude * momentScale * 0.1
-                )}
-              />
-            )}
-
-            {/* 接触点标记 (绿色球体) */}
-            <mesh position={[0, 0, 0]}>
-              <sphereGeometry args={[0.02, 16, 16]} />
-              <meshBasicMaterial color={0x00ff00} />
-            </mesh>
-          </group>
-        );
-      })}
-    </>
+      {/* 接触点标记 (绿色球体) */}
+      <mesh position={forces.position}>
+        <sphereGeometry args={[0.02, 16, 16]} />
+        <meshBasicMaterial color={0x00ff00} />
+      </mesh>
+    </group>
   );
 };
+
 
 const FBXModel = ({
   path,
@@ -792,7 +786,7 @@ const Display3d = (props: CellProps) => {
               }
             />
             <ContactForces 
-              forces={screws}
+              forces={screws[currentFrameIndex]}
               // frameIndex={currentFrameIndex}
               forceScale={0.0005} 
               momentScale={0.0002}
