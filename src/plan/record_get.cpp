@@ -94,6 +94,7 @@ auto RecordGet::prepareNrt() -> void {
       contact_json["contact_point_pe"] = std::vector<double>(contact.contact_point_pe(), contact.contact_point_pe() + 6);
       contact_json["separation_speed"] = contact.separation_speed();
       contact_json["slip_speed"] = contact.slip_speed();
+      contact_json["contact_force_vector"] = std::vector<double>(contact.contact_force_vector(), contact.contact_force_vector() + 3);
       contact_info_array.push_back(contact_json);
     }
     contact_info_json.push_back(contact_info_array);  // 将当前 Record 的 contactInfos 数据加入外层数组

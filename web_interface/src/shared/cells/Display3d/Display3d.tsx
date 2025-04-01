@@ -129,11 +129,11 @@ const eulerToQuaternion = (rx: number, ry: number, rz: number) => {
 // 解析6维旋量数据
 const parseScrewData = (data: any = []): Screw[] => {
   // 直接展开数据（兼容 data 是 ContactForce[] 或 ContactForce[][] 的情况）
-  const flatData = Array.isArray(data[0]?.contact_force) ? data : data.flat();
+  const flatData = Array.isArray(data[0]?.contact_force_vector) ? data : data.flat();
 
-  return flatData.flatMap((d: { contact_force: (number | undefined)[]; contact_point_pe: number[]; }) => {
+  return flatData.flatMap((d: { contact_force_vector: (number | undefined)[]; contact_point_pe: number[]; }) => {
     // 保留原有的空值检查
-    if (!d || !d.contact_force || !d.contact_point_pe) {
+    if (!d || !d.contact_force_vector || !d.contact_point_pe) {
       // console.warn("Null or invalid contact force data:", d);
       return {
         force: new Vector3(0, 0, 0),
@@ -144,8 +144,9 @@ const parseScrewData = (data: any = []): Screw[] => {
     }
     // 强制解析（假设 contact_force 和 contact_point_pe 一定是 6 元素数组）
     return {
-      force: new Vector3(d.contact_force[0], d.contact_force[1], d.contact_force[2]),
-      moment: new Vector3(d.contact_force[3], d.contact_force[4], d.contact_force[5]),
+      force: new Vector3(d.contact_force_vector[0], d.contact_force_vector[1], d.contact_force_vector[2]),
+      // moment: new Vector3(d.contact_force[3], d.contact_force[4], d.contact_force[5]),
+      moment: new Vector3(0, 0, 0), // TODO: 这里的 moment 数据暂时不需要
       position: new Vector3(d.contact_point_pe[0], d.contact_point_pe[1], d.contact_point_pe[2]),
       orientation: eulerToQuaternion(
         d.contact_point_pe[3], 
@@ -159,7 +160,7 @@ const parseScrewData = (data: any = []): Screw[] => {
 const ContactForces = ({ 
   forces, 
   forceScale = 0.001,
-  momentScale = 0.01 
+  // momentScale = 0.01 
 }: ContactForcesProps) => {
   if (!forces) return null;
 
@@ -168,13 +169,11 @@ const ContactForces = ({
   const forceDirection = forces.force.clone().normalize();
   
   // 力矩可视化参数
-  const momentMagnitude = forces.moment.length();
-  const momentDirection = forces.moment.clone().normalize();
+  // const momentMagnitude = forces.moment.length();
+  // const momentDirection = forces.moment.clone().normalize();
 
   return (
     <group 
-      position={forces.position}
-      quaternion={forces.orientation}
     >
       {/* 力箭头 (红色) */}
       {forceMagnitude > 0.1 && (
@@ -191,11 +190,10 @@ const ContactForces = ({
       )}
 
       {/* 力矩箭头 (蓝色) */}
-      {momentMagnitude > 0.1 && (
+      {/* {momentMagnitude > 0.1 && (
         <primitive
           object={new ArrowHelper(
             momentDirection,
-            // new Vector3(0, 0, 0),
             forces.position,
             momentMagnitude * momentScale,
             0x0000ff, // 蓝色
@@ -203,13 +201,15 @@ const ContactForces = ({
             momentMagnitude * momentScale * 0.1
           )}
         />
-      )}
+      )} */}
 
       {/* 接触点标记 (绿色球体) */}
-      <mesh position={forces.position}>
-        <sphereGeometry args={[0.02, 16, 16]} />
-        <meshBasicMaterial color={0x00ff00} />
-      </mesh>
+      {forces.position.lengthSq() !== 0 && (
+        <mesh position={forces.position}>
+          <sphereGeometry args={[0.02, 16, 16]} />
+          <meshBasicMaterial color={0x00ff00} />
+        </mesh>
+      )}
     </group>
   );
 };
