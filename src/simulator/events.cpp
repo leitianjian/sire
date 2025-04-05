@@ -15,6 +15,7 @@
 #include "sire/core/sire_fixed_joint.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
+#include "sire/physics/utils.hpp"
 
 namespace sire::simulator {
 using namespace sire::physics;
@@ -157,7 +158,7 @@ auto process_penetration_depth_and_maintain_impact_set(
   // TODO: 对于第一次求解没必要使用多点接触求解方法，直接用最基本的就行了，
   // 这个只是后面消除穿深的参考
   double nextSuggestDt{-1};
-  nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
+  // nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
   DLOG(DEBUG) << "next suggest dt1: " << nextSuggestDt;
   // 重置上一时刻关节和forcePool设置的力
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
@@ -229,7 +230,7 @@ auto process_penetration_depth_and_maintain_impact_set(
     }
     contact_info.clear();
     // 接触求解，得到接触力
-    nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
+    // nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
     DLOG(DEBUG) << "next suggest dt2: " << nextSuggestDt;
     // 重置上一时刻关节和forcePool设置的力
     // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
@@ -415,7 +416,7 @@ auto process_penetration_depth_and_maintain_impact_set2(
   // TODO: 对于第一次求解没必要使用多点接触求解方法，直接用最基本的就行了，
   // 这个只是后面消除穿深的参考
   double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
-  nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info_out);
+  // nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info_out);
   // 重置上一时刻关节和forcePool设置的力
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
   engine_ptr->resetPartContactForce();
@@ -465,7 +466,7 @@ auto process_penetration_depth_and_maintain_impact_set3(
   std::vector<common::PenetrationAsPointPair> pairs;
   // 碰撞检测
   engine_ptr->cptPointPairPenetration(pairs);
-  if(pairs.size() == 0) {
+  if (pairs.size() == 0) {
     manager_ptr->contactPairMap().clear();
     engine_ptr->resetPartContactForce();
     return 0.0;
@@ -477,9 +478,9 @@ auto process_penetration_depth_and_maintain_impact_set3(
   T_C_vec.resize(num_contacts);
   for (sire::Size i{0}; i < num_contacts; ++i) {
     // 使用 nhat_AB_w 构建当前碰撞点的 T 矩阵
-    aris::dynamic::s_sov_axes2pm(pairs[i].p_WC.data(), pairs[i].nhat_AB_W.data(),
-                                 pairs[i].nhat_AB_W.data(), T_C_vec[i].data(),
-                                 "zx");
+    aris::dynamic::s_sov_axes2pm(
+        pairs[i].p_WC.data(), pairs[i].nhat_AB_W.data(),
+        pairs[i].nhat_AB_W.data(), T_C_vec[i].data(), "zx");
   }
 
   std::vector<std::array<double, 3>> v0W_vec;  // 世界坐标系接触点速度。
@@ -488,8 +489,10 @@ auto process_penetration_depth_and_maintain_impact_set3(
   v0C_vec.resize(2 * num_contacts);
   engine_ptr->cptContactVelocityAB(pairs, v0W_vec);
   for (sire::Size i{0}; i < num_contacts; ++i) {
-    aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), v0W_vec[2 * i].data(), v0C_vec[2 * i].data());
-    aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), v0W_vec[2 * i + 1].data(), v0C_vec[2 * i + 1].data());
+    aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), v0W_vec[2 * i].data(),
+                                   v0C_vec[2 * i].data());
+    aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), v0W_vec[2 * i + 1].data(),
+                                   v0C_vec[2 * i + 1].data());
   }
 
   using ContactPairMap = std::unordered_map<core::SortedPair<sire::PartId>,
@@ -515,7 +518,7 @@ auto process_penetration_depth_and_maintain_impact_set3(
   // Vector中有的，Map中没有，就插入
   // 再修改穿深进行积分。记录没有减去穿深的新加入点的index
   std::vector<sire::Size> adjustPositionPairIdx;
-  for (sire::Size i{0}; i < pairs.size(); ++ i) {
+  for (sire::Size i{0}; i < pairs.size(); ++i) {
     auto& pair = pairs[i];
     DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
                 << " depth: " << pair.depth;
@@ -540,10 +543,12 @@ auto process_penetration_depth_and_maintain_impact_set3(
     const double sumVnAbs = (std::abs(vCa[2]) + std::abs(vCb[2]));
 
     Eigen::Matrix<double, 3, 1> ab_depth_vec = pair.p_WCa - pair.p_WCb;
-    Eigen::Matrix<double, 3, 1> dpb = (std::abs(vCb[2]) / sumVnAbs) * ab_depth_vec;
+    Eigen::Matrix<double, 3, 1> dpb =
+        (std::abs(vCb[2]) / sumVnAbs) * ab_depth_vec;
     Eigen::Matrix<double, 3, 1> new_cp =
         (std::abs(vCb[2]) / sumVnAbs) * ab_depth_vec + pair.p_WCb;
-        Eigen::Matrix<double, 3, 1> dpa = (std::abs(vCa[2]) / sumVnAbs) * ab_depth_vec;
+    Eigen::Matrix<double, 3, 1> dpa =
+        (std::abs(vCa[2]) / sumVnAbs) * ab_depth_vec;
     // 一个prt多个接触点怎么办？
     // 先不管
     auto* geometry_A = engine_ptr->queryGeometryPoolById(pairs[i].id_A);
@@ -564,17 +569,18 @@ auto process_penetration_depth_and_maintain_impact_set3(
     T_C_vec[i][7] = new_cp[1];
     T_C_vec[i][11] = new_cp[2];
 
-    sire::core::FixedJoint::add2ModelAbs(model_ptr, prtA,
-      prtB, new_cp.data(), new_cp.data());
+    sire::core::FixedJoint::add2ModelAbs(model_ptr, prtA, prtB, new_cp.data(),
+                                         new_cp.data());
     DLOG(DEBUG) << "new_cp: " << new_cp.transpose();
-    
+
     auto lowerBoundPrt = updatedMakerPoolSize.lower_bound(prtA.id());
     if (lowerBoundPrt != updatedMakerPoolSize.end() &&
         !(updatedMakerPoolSize.key_comp()(lowerBoundPrt->first, prtA.id()))) {
       ++lowerBoundPrt->second;
     } else {
       updatedMakerPoolSize.insert(
-          lowerBoundPrt, std::map<sire::Size, sire::Size>::value_type(prtA.id(), 1));
+          lowerBoundPrt,
+          std::map<sire::Size, sire::Size>::value_type(prtA.id(), 1));
     }
     lowerBoundPrt = updatedMakerPoolSize.lower_bound(prtB.id());
     if (lowerBoundPrt != updatedMakerPoolSize.end() &&
@@ -609,7 +615,7 @@ auto process_penetration_depth_and_maintain_impact_set3(
   // TODO: 对于第一次求解没必要使用多点接触求解方法，直接用最基本的就行了，
   // 这个只是后面消除穿深的参考
   double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
-  nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
+  // nextSuggestDt = engine_ptr->cptContactInfo(pairs, contact_info);
   // 重置上一时刻关节和forcePool设置的力
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
   engine_ptr->resetPartContactForce();
@@ -617,32 +623,203 @@ auto process_penetration_depth_and_maintain_impact_set3(
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   return nextSuggestDt;
 }
+auto adjustPenetrationPosition(
+    simulator::SimulationLoop* simulator_ptr,
+    std::vector<common::PenetrationAsPointPair>& pairs,
+    std::vector<std::array<double, 16>>& T_C_vec,
+    std::vector<sire::Size>& adjustPositionPairIdx) {
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  auto& partPool = model_ptr->partPool();
+  // ----------------- 计算碰撞产生的初速度与碰撞点的坐标系 ------------------
+  //  每个碰撞点构建的坐标系保存的位置，使用pm保存
+  const sire::Size num_contacts = pairs.size();
+
+  std::vector<std::array<double, 3>> v0W_vec;  // 世界坐标系接触点速度。
+  std::vector<std::array<double, 3>> v0C_vec;  // 世界坐标系接触点速度。
+  v0W_vec.resize(2 * num_contacts);
+  v0C_vec.resize(2 * num_contacts);
+  engine_ptr->cptContactVelocityAB(pairs, v0W_vec);
+  for (sire::Size i{0}; i < num_contacts; ++i) {
+    aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), v0W_vec[2 * i].data(),
+                                   v0C_vec[2 * i].data());
+    aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), v0W_vec[2 * i + 1].data(),
+                                   v0C_vec[2 * i + 1].data());
+  }
+
+  std::map<sire::Size, sire::Size> updatedMakerPoolSize;
+  std::vector<std::array<double, 3>> movement;
+  auto safe_div = [](double number, double denominator) -> double {
+    return denominator == 0.0 ? 0.0 : number / denominator;
+  };
+  for (sire::Size idx{0}; idx < adjustPositionPairIdx.size(); ++idx) {
+    sire::Size i{adjustPositionPairIdx[idx]};
+    const auto& pair = pairs[i];
+    const auto& vCa = v0C_vec[2 * i];
+    const auto& vCb = v0C_vec[2 * i + 1];
+    const double sumVnAbs = (std::abs(vCa[2]) + std::abs(vCb[2]));
+
+    Eigen::Matrix<double, 3, 1> ab_depth_vec = pair.p_WCa - pair.p_WCb;
+    Eigen::Matrix<double, 3, 1> dpb =
+        safe_div(std::abs(vCb[2]), sumVnAbs) * ab_depth_vec;
+    Eigen::Matrix<double, 3, 1> new_cp =
+        safe_div(std::abs(vCb[2]), sumVnAbs) * ab_depth_vec + pair.p_WCb;
+    Eigen::Matrix<double, 3, 1> dpa =
+        safe_div(std::abs(vCa[2]), sumVnAbs) * ab_depth_vec;
+    // 一个prt多个接触点怎么办？
+    // 先不管
+    auto* geometry_A = engine_ptr->queryGeometryPoolById(pairs[i].id_A);
+    auto* geometry_B = engine_ptr->queryGeometryPoolById(pairs[i].id_B);
+    SIRE_ASSERT(geometry_A != nullptr && geometry_B != nullptr);
+
+    if (geometry_A->partId() != model_ptr->ground().id()) {
+      movement.push_back({-dpa[0], -dpa[1], -dpa[2]});
+    }
+
+    if (geometry_B->partId() != model_ptr->ground().id()) {
+      movement.push_back({dpb[0], dpb[1], dpb[2]});
+    }
+  }
+  double sum[3]{0}, mean[3]{0};
+  for (sire::Size i{0}; i < movement.size(); ++i) {
+    sum[0] += movement[i][0];
+    sum[1] += movement[i][1];
+    sum[2] += movement[i][2];
+  }
+
+  mean[0] = safe_div(sum[0], movement.size());
+  mean[1] = safe_div(sum[1], movement.size());
+  mean[2] = safe_div(sum[2], movement.size());
+
+  for (sire::Size i{1}; i < partPool.size(); ++i) {
+    auto& prt = partPool.at(i);
+    auto pm = const_cast<aris::dynamic::double4x4&>(prt.pm());
+    pm[0][3] += mean[0];
+    pm[1][3] += mean[1];
+    pm[2][3] += mean[2];
+  }
+  for (sire::Size idx{0}; idx < adjustPositionPairIdx.size(); ++idx) {
+    sire::Size i{adjustPositionPairIdx[idx]};
+    const auto& pair = pairs[i];
+    T_C_vec[i][3] += mean[0];
+    T_C_vec[i][7] += mean[1];
+    T_C_vec[i][11] += mean[2];
+  }
+}
+auto process_penetration_depth_and_maintain_impact_set4(
+    simulator::SimulationLoop* simulator_ptr,
+    std::vector<common::PenetrationAsPointPair>& pairs,
+    std::vector<std::array<double, 16>>& T_C_vec) -> void {
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  auto& partPool = model_ptr->partPool();
+
+  // 1. 修改contact_pair_map
+  using ContactPairMap = std::unordered_map<core::SortedPair<sire::PartId>,
+                                            core::ContactPairValue>;
+  ContactPairMap& contact_pair_map = manager_ptr->contactPairMap();
+  // 根据碰撞信息结合碰撞点的记录更新contact_pair_map的碰撞点记录和碰撞信息
+  // depth-init_depth 删除Map中有的记录但是没有被碰撞检测到的
+  for (ContactPairMap::iterator it = contact_pair_map.begin();
+       it != contact_pair_map.end();) {
+    if (auto search = std::find_if(pairs.begin(), pairs.end(),
+                                   [it](common::PenetrationAsPointPair& pair) {
+                                     return it->first ==
+                                            core::SortedPair<sire::PartId>(
+                                                pair.id_A, pair.id_B);
+                                   });
+        search == pairs.end()) {
+      contact_pair_map.erase(it++);
+    } else {
+      ++it;
+    }
+  }
+  // Vector中有的，Map中没有，就插入
+  // 再修改穿深进行积分。记录没有减去穿深的新加入点的index
+  bool newContact{false};
+  std::vector<sire::Size> adjustPositionPairIdx;
+  for (sire::Size i{0}; i < pairs.size(); ++i) {
+    auto& pair = pairs[i];
+    DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
+                << " depth: " << pair.depth;
+    if (auto search = contact_pair_map.find({pair.id_A, pair.id_B});
+        search == contact_pair_map.end()) {
+      contact_pair_map.insert({{pair.id_A, pair.id_B}, {pair.depth, false}});
+      newContact = true;
+      adjustPositionPairIdx.push_back(i);
+      pair.depth = 0;
+    } else {
+      auto& contact_pair_value = contact_pair_map[{pair.id_A, pair.id_B}];
+      pair.depth -= contact_pair_value.init_penetration_depth_;
+      if (pair.depth < 0) {
+        // 更新记录的初始穿深
+        contact_pair_value.init_penetration_depth_ += pair.depth;
+      }
+    }
+  }
+
+  if (newContact) {
+    adjustPenetrationPosition(simulator_ptr, pairs, T_C_vec,
+                              adjustPositionPairIdx);
+  }
+}
 auto InitEvent1::init() -> void {}
 auto InitHandler1::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
 auto InitHandler1::handle(core::EventBase* e) -> bool {
   InitEvent1* event_ptr = dynamic_cast<InitEvent1*>(e);
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
   simulator_ptr->timer().reset();
   // initLog();
   // logCurrentState(0, 1, simulator_ptr);
-  std::vector<common::PointPairContactInfo> contact_info_result;
-  process_penetration_depth_and_maintain_impact_set2(simulator_ptr, contact_info_result);
-  // 之后就可以正常积分
+  engine_ptr->updateGeometryLocationFromModel();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  // 碰撞检测
+  engine_ptr->cptPointPairPenetration(pairs);
 
+  double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
+  std::vector<common::PointPairContactInfo> contact_info;
+  if (pairs.size() != 0) {
+    std::vector<std::array<double, 16>> T_C_vec;
+    cptContactFrame(pairs, T_C_vec);
+
+    process_penetration_depth_and_maintain_impact_set4(simulator_ptr, pairs,
+                                                       T_C_vec);
+
+    nextSuggestDt = engine_ptr->cptContactInfo(pairs, T_C_vec, contact_info);
+    // 重置上一时刻关节和forcePool设置的力
+    // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+    engine_ptr->resetPartContactForce();
+    // 根据接触信息将力设置回model的forcePool
+    engine_ptr->cptGlbForceByContactInfo(contact_info);
+
+  } else {
+    manager_ptr->contactPairMap().clear();
+    engine_ptr->resetPartContactForce();
+  }
+  // 记录模型状态和接触信息
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+                                   *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
-  step_event->eventProp().addProp(
-      "dt", manager_ptr->impactedPrtSet().empty()
-                ? simulator_ptr->deltaT()
-                : simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
-                      "shrink_dt", 1e-5));
-  simulator_ptr->eventManager().addEvent(std::move(step_event));
+  double nextDt = simulator_ptr->deltaT();
 
+  if (nextSuggestDt > 0 && nextSuggestDt < simulator_ptr->deltaT()) {
+    nextDt = nextSuggestDt;
+  }
+  DLOG_IF(nextSuggestDt > 0, DEBUG)
+      << "dt: " << nextDt << " suggestDt: " << nextSuggestDt;
+  step_event->eventProp().addProp("dt", nextDt);
+  simulator_ptr->eventManager().addEvent(std::move(step_event));
   return true;
-  // Add Step Trigger to trigger list in Event Manager
-  // EventManager ptr
 }
 
 auto StepEvent1::init() -> void {}
@@ -655,41 +832,52 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
   DLOG(DEBUG) << "-------------- integrate with dt " << dt << " --------------";
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);
-  
-  // 获取接触信息
-  std::vector<common::PointPairContactInfo> contact_info_result;
-  double suggestDt =
-      process_penetration_depth_and_maintain_impact_set2(simulator_ptr, contact_info_result);
-  
+
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
+
+  // initLog();
+  // logCurrentState(0, 1, simulator_ptr);
+  engine_ptr->updateGeometryLocationFromModel();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  // 碰撞检测
+  engine_ptr->cptPointPairPenetration(pairs);
+
+  double nextSuggestDt{pairs.size() ? -1.0 : 0.0};
+  std::vector<common::PointPairContactInfo> contact_info;
+  if (pairs.size() != 0) {
+    std::vector<std::array<double, 16>> T_C_vec;
+    cptContactFrame(pairs, T_C_vec);
+
+    process_penetration_depth_and_maintain_impact_set4(simulator_ptr, pairs,
+                                                       T_C_vec);
+
+    nextSuggestDt = engine_ptr->cptContactInfo(pairs, T_C_vec, contact_info);
+    // 重置上一时刻关节和forcePool设置的力
+    // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+    engine_ptr->resetPartContactForce();
+    // 根据接触信息将力设置回model的forcePool
+    engine_ptr->cptGlbForceByContactInfo(contact_info);
+  } else {
+    manager_ptr->contactPairMap().clear();
+    engine_ptr->resetPartContactForce();
+  }
   // 记录模型状态和接触信息
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
-                                   *simulator_ptr->model(),
-                                   contact_info_result);
-  
-  StepEvent* event_ptr = dynamic_cast<StepEvent*>(e);
-  // core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
-  // if (e->eventProp().getPropValueOrDefault("clearInitDepth", 0.0)) {
-  //   DLOG(DEBUG) << "Clear record initial depth";
-  //   manager_ptr->contactPairMap().clear();
-  // }
+                                   *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
-  double nextDt =
-      (suggestDt == 0)
-          ? simulator_ptr->deltaT()
-          : simulator_ptr->getGlobalVariablePool().getPropValueOrDefault(
-                "shrink_dt", 0.0005);
-  if (suggestDt > 0 && suggestDt < simulator_ptr->deltaT()) {
-    nextDt = suggestDt;
+  double nextDt = simulator_ptr->deltaT();
+
+  if (nextSuggestDt > 0 && nextSuggestDt < simulator_ptr->deltaT()) {
+    nextDt = nextSuggestDt;
   }
-  DLOG_IF(suggestDt > 0, DEBUG)
-      << "dt: " << nextDt << " suggestDt: " << suggestDt;
-  // if (nextDt == simulator_ptr->deltaT() &&
-  //     manager_ptr->impactedPrtSet().empty()) {
-  //   step_event->eventProp().addProp("clearInitDepth", 1);
-  // } else {
-  //   step_event->eventProp().addProp("clearInitDepth", 0);
-  // }
+  DLOG_IF(nextSuggestDt > 0, DEBUG)
+      << "dt: " << nextDt << " suggestDt: " << nextSuggestDt;
   step_event->eventProp().addProp("dt", nextDt);
   simulator_ptr->eventManager().addEvent(std::move(step_event));
   return true;

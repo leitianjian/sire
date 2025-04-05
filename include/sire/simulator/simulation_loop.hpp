@@ -80,6 +80,8 @@ class SIRE_API SimulationLoop {
 
   auto deltaT() -> double;
   auto setDeltaT(double delta_t_in) -> void;
+  auto ctrlT() -> double;
+  auto setCtrlT(double ctrlt_) -> void;
   auto targetRealtimeRate() -> double;
   auto realtimeRate() -> double;
   auto setRealtimeRate(double rate) -> void;

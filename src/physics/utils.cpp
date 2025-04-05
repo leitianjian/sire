@@ -1,16 +1,28 @@
 #include "sire/physics/utils.hpp"
 
+#include <aris/dynamic/kinematics.hpp>
 #include <aris/dynamic/model.hpp>
 
 #include "sire/core/constants.hpp"
 #include "sire/core/sire_assert.hpp"
 
-namespace sire::simulator {
+namespace sire::physics {
 using aris::dynamic::GeneralForce;
 using aris::dynamic::SingleComponentForce;
-auto compareAndCopy(const Geometry* src, Geometry* dest) -> void {
-  // 检查内部是否一致 
 
+auto cptContactFrame(std::vector<common::PenetrationAsPointPair>& pairs,
+                     std::vector<std::array<double, 16>>& frames) -> void {
+  frames.resize(pairs.size());
+  for (sire::Size i{0}; i < pairs.size(); ++i) {
+    // 使用 nhat_AB_w 构建当前碰撞点的 T 矩阵
+    aris::dynamic::s_sov_axes2pm(
+        pairs[i].p_WC.data(), pairs[i].nhat_AB_W.data(),
+        pairs[i].nhat_AB_W.data(), frames[i].data(), "zx");
+  }
+}
+
+auto compareAndCopy(const Geometry* src, Geometry* dest) -> void {
+  // 检查内部是否一致
 }
 
 auto compareAndCopy(const GeometryPool* src, GeometryPool* dest) -> void {
@@ -37,19 +49,17 @@ auto compareAndCopy(const Part* src, Part* dest) -> void {
 }
 auto compareAndCopy(const PartPool* src, PartPool* dest) -> void {
   if (src->size() != dest->size()) {
-  
   } else {
-  // 检查内部是否一致
-  
+    // 检查内部是否一致
   }
-  for (sire::Size i = 0; i < src->size(); ++ i) {
+  for (sire::Size i = 0; i < src->size(); ++i) {
   }
 }
 auto compareAndCopy(const Model* src, Model* dest) -> void {
   // 1. 确保两个Model结构一致
   //   (a) part pool结构检测
-    // copy part pool data
-    SIRE_ASSERT(src->partPool().size() == dest->partPool().size());
+  // copy part pool data
+  SIRE_ASSERT(src->partPool().size() == dest->partPool().size());
   sire::Size part_size = src->partPool().size();
   for (int i = 0; i < part_size; ++i) {
     dest->partPool().at(i).setPm(*src->partPool().at(i).pm());
@@ -101,4 +111,4 @@ auto compareAndCopy(const Model* src, Model* dest) -> void {
     }
   }
 }
-}  // namespace sire::simulator
+}  // namespace sire::physics

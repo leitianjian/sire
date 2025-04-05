@@ -20,7 +20,7 @@ auto InitHandler::init(simulator::SimulationLoop* simulator) -> void {
 }
 auto InitHandler::handle(core::EventBase* e) -> bool {
   InitEvent1* event_ptr = dynamic_cast<InitEvent1*>(e);
-  // Ö®ºó¾Í¿ÉÒÔÕı³£»ı·Ö
+  // ä¹‹åå°±å¯ä»¥æ­£å¸¸ç§¯åˆ†
 
   std::unique_ptr<core::EventBase> step_event =
       simulator_ptr->createEventById(1);
@@ -34,7 +34,7 @@ auto StepHandler::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
 auto StepHandler::handle(core::EventBase* e) -> bool {
-  // »ı·Öµ½µ±Ç°event¼ÇÂ¼µÄÊ±¼ä
+  // ç§¯åˆ†åˆ°å½“å‰eventè®°å½•çš„æ—¶é—´
   double dt = e->eventProp().getPropValue("dt");
   simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   simulator_ptr->timer().updateSimTime(dt);

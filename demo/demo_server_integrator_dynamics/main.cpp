@@ -3,7 +3,7 @@
 
 #include <aris.hpp>
 
-auto xmlpath = std::filesystem::absolute(".");  // 获取当前工程所在的路径
+auto xmlpath = std::filesystem::absolute(".");  // 鑾峰彇褰撳墠宸ョ▼鎵�鍦ㄧ殑璺緞
 const std::string xmlfile = "sire.xml";
 
 int main(int argc, char* argv[]) {
@@ -12,7 +12,7 @@ int main(int argc, char* argv[]) {
   aris::core::fromXmlFile(cs, xmlpath);
   cs.init();
 
-  // 开启控制器服务
+  // 寮�鍚帶鍒跺櫒鏈嶅姟
   try {
     cs.start();
     cs.executeCmd("md");

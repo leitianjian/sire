@@ -46,6 +46,7 @@ struct SimulationLoop::Imp {
 
   // all time represent in seconds;
   double dt_;
+  double ctrlt_;
   std::chrono::system_clock::time_point current_time_;
   std::chrono::system_clock::time_point start_time_;
   std::int64_t sim_count_;
@@ -309,6 +310,11 @@ auto SimulationLoop::setDeltaT(double delta_t_in) -> void {
   SIRE_ASSERT(delta_t_in >= 0);
   imp_->dt_ = delta_t_in;
 }
+auto SimulationLoop::ctrlT() -> double { return imp_->ctrlt_; }
+auto SimulationLoop::setCtrlT(double ctrlt) -> void {
+  SIRE_ASSERT(ctrlt >= 0);
+  imp_->ctrlt_ = ctrlt;
+}
 auto SimulationLoop::targetRealtimeRate() -> double {
   return imp_->timer_.targetRealtimeRate();
 }
@@ -346,6 +352,7 @@ ARIS_REGISTRATION {
 
   aris::core::class_<SimulationLoop>("SimulationLoop")
       .prop("dt", &SimulationLoop::setDeltaT, &SimulationLoop::deltaT)
+      .prop("ctrlt", &SimulationLoop::setCtrlT, &SimulationLoop::ctrlT)
       .prop("realtime_rate", &SimulationLoop::setRealtimeRate,
             &SimulationLoop::realtimeRate)
       .prop("sim_duration", &SimulationLoop::setSimDuration,

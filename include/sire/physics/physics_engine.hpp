@@ -136,12 +136,13 @@ class SIRE_API PhysicsEngine {
 
   auto cptContactInfo(
       const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      const std::vector<std::array<double, 16>>& T_C_vec,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
 
   auto handleContact() -> void;
-  // 给每个杆件配备一个GeneralForce的Componenet，用来设置接触力
+  // 缁欐瘡涓潌浠堕厤澶囦竴涓狦eneralForce鐨凜omponenet锛岀敤鏉ヨ缃帴瑙﹀姏
   auto initPartContactForce2Model() -> void;
   auto resetPartContactForce() -> void;
   auto setForcePoolSimulation() -> void;

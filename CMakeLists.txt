@@ -117,6 +117,26 @@ install(DIRECTORY include/sire/core DESTINATION include/sire)
 
 add_subdirectory(src/log)
 
+add_library(sire_actuator OBJECT)
+target_compile_definitions(sire_actuator PRIVATE sire_lib_EXPORTS)
+target_compile_features(sire_actuator PUBLIC cxx_std_17)
+target_sources(sire_actuator 
+	PRIVATE 
+		"src/actuator/actuator.cpp"
+	PUBLIC 
+		"include/sire/actuator/actuator.hpp"
+	)
+target_include_directories(sire_actuator
+	PUBLIC
+		$<INSTALL_INTERFACE:include> 
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+	PRIVATE
+		${PROJECT_SOURCE_DIR}/src
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+	)
+install(DIRECTORY include/sire/actuator DESTINATION include/sire)
+
 # TODO(ltj)  Physics cmakelist to sub-directory
 # Build lib physics of sire
 add_library(sire_physics OBJECT)
@@ -147,7 +167,7 @@ target_sources(sire_physics
 		"src/physics/common/point_pair_contact_info.cpp"
 		"src/physics/common/motion_force.cpp"
 		"src/physics/physics_engine.cpp"
-		# "src/physics/utils.cpp"
+		"src/physics/utils.cpp"
 	PUBLIC 
 		"include/sire/physics/geometry/collidable.hpp"
 		"include/sire/physics/geometry/collidable_geometry.hpp"
@@ -169,7 +189,7 @@ target_sources(sire_physics
 		"include/sire/physics/common/motion_force.hpp"
 		"include/sire/physics/physics_engine.hpp"
 		"include/sire/physics/physics.hpp"
-		# "include/sire/physics/utils.hpp"
+		"include/sire/physics/utils.hpp"
 	)
 target_include_directories(sire_physics
 	PUBLIC
@@ -231,12 +251,14 @@ target_sources(sire_simulator
 		"src/simulator/events.cpp"
 		"src/simulator/simulation_result.cpp"
 		"src/simulator/simulator_modules.cpp"
+		"src/simulator/event_generator.cpp"
 	PUBLIC 
 	  "include/sire/simulator/recorder.hpp"
 		"include/sire/simulator/simulation_loop.hpp"
 		"include/sire/simulator/events.hpp"
 		"include/sire/simulator/simulation_result.hpp"
 		"include/sire/simulator/simulator_modules.hpp"
+		"include/sire/simulator/event_generator.hpp"
 	)
 
 target_include_directories(sire_simulator

@@ -1810,7 +1810,7 @@ auto AverageForceContactSolver::cptContactSolverResult(
       double temp = std::abs(A[i]);
       if (temp > maxA) maxA = temp;
     }
-    double timeAuto = std::pow(10, - 2 - int(floor(std::log10(maxA)) / 2));
+    double timeAuto = std::pow(10, - 1 - int(floor(std::log10(maxA)) / 2));
     double dt = enginePtr->simLoopPtr()->deltaT();
     minTime = dt > timeAuto ? timeAuto : dt;
   }

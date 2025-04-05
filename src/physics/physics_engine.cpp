@@ -345,12 +345,12 @@ auto PhysicsEngine::numDynamicGeometries() -> sire::Size {
   return imp_->collision_detection_->numDynamicGeometries();
 }
 auto PhysicsEngine::handleContact() -> void {
-  std::vector<common::PenetrationAsPointPair> pairs;
-  this->cptPointPairPenetration(pairs);
-  this->resetPartContactForce();
-  std::vector<common::PointPairContactInfo> contact_info;
-  this->cptContactInfo(pairs, contact_info);
-  this->cptGlbForceByContactInfo(contact_info);
+  // std::vector<common::PenetrationAsPointPair> pairs;
+  // this->cptPointPairPenetration(pairs);
+  // this->resetPartContactForce();
+  // std::vector<common::PointPairContactInfo> contact_info;
+  // this->cptContactInfo(pairs, contact_info);
+  // this->cptGlbForceByContactInfo(contact_info);
 }
 auto PhysicsEngine::updateGeometryLocationFromModel() -> void {
   if (imp_->collision_detection_flag_) {
@@ -373,20 +373,12 @@ auto PhysicsEngine::computePointPairPenetration()
 }
 auto PhysicsEngine::cptContactInfo(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    const std::vector<std::array<double, 16>>& T_C_vec,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
   const sire::Size num_contacts = penetration_pairs.size();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
-  // 每个碰撞点构建的坐标系保存的位置，使用pm保存
-  std::vector<std::array<double, 16>> T_C_vec;
-  T_C_vec.resize(num_contacts);
-  for (int i = 0; i < num_contacts; ++i) {
-    const auto& pair = penetration_pairs[i];
-    // 使用 nhat_AB_w 构建当前碰撞点的 T 矩阵
-    aris::dynamic::s_sov_axes2pm(pair.p_WC.data(), pair.nhat_AB_W.data(),
-                                 pair.nhat_AB_W.data(), T_C_vec.at(i).data(),
-                                 "zx");
-  }
+
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);

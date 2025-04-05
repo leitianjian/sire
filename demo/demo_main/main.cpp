@@ -5,7 +5,7 @@
 
 #include "sire/core/sire_log.hpp"
 
-// auto xmlpath = std::filesystem::absolute(".");  // 获取当前工程所在的路径
+// auto xmlpath = std::filesystem::absolute(".");  // 鑾峰彇褰撳墠宸ョ▼鎵�鍦ㄧ殑璺緞
 // const std::string xmlfile = "config.xml";
 // int main(int argc, char* argv[]) {
 //   auto& cs = aris::server::ControlServer::instance();
@@ -51,7 +51,7 @@ int main() {
       configPath.erase(0, 1);                   // erase the first character
       configPath.erase(configPath.size() - 1);  // erase the last character
     }
-    auto xmlpath = std::filesystem::path(configPath);  // 获取当前工程所在的路径
+    auto xmlpath = std::filesystem::path(configPath);  // 鑾峰彇褰撳墠宸ョ▼鎵�鍦ㄧ殑璺緞
     aris::core::fromXmlFile(cs, xmlpath);
     cs.init();
     csLoaded = true;
