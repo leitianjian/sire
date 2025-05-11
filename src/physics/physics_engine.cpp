@@ -446,11 +446,15 @@ auto PhysicsEngine::cptContactInfo(
     core::screw::s_fpm2fs(f_Bc_C, T_C_vec.at(i).data(), fs);
     double pe_C[6];
     aris::dynamic::s_pm2pe(T_C_vec.at(i).data(), pe_C);
+    // 世界坐标系下的三维接触力
+    double f_C[3];
+    aris::dynamic::s_pm_dot_v3(
+        T_C_vec.at(i).data(), f_Bc_C, f_C);  // f_C = T_C * f_Bc_C
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
     contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
-                            pe_C, separation_speed, slip_speed, pair});
+                            pe_C, separation_speed, slip_speed, pair, f_C});
   }
   return solver_result.dt;
 }
