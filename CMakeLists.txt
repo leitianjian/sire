@@ -22,6 +22,12 @@ endif(WIN32)
 
 include(cmake_macros/base.cmake)
 
+find_package(pybind11 REQUIRED)
+find_package(Python REQUIRED COMPONENTS Development.Module)
+
+set(PYTHON_MODULE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python_modules")
+file(MAKE_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR})
+
 find_pkg_path(aris aris)
 
 find_pkg_path(assimp assimp)
@@ -369,6 +375,48 @@ target_include_directories(sire_sensor
 install(DIRECTORY include/sire/sensor DESTINATION include/sire)
 
 # Build library for sire
+
+# 添加 Python 绑定模块
+add_library(sire_python MODULE)
+target_sources(sire_python
+  PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/python/sire_bindings.cpp"  # 新建的绑定文件
+)
+target_link_libraries(sire_python
+  PRIVATE
+    sire_lib  # 链接主库
+    pybind11::module
+		sire_core
+		sire_log
+		sire_server
+		sire_middleware
+		sire_integrator
+		sire_simulator
+		sire_sensor
+		sire_physics
+    ${PUB_RELY_LINK_LIB}  # 继承第三方依赖
+)
+target_include_directories(sire_python
+  PRIVATE
+    ${PYTHON_INCLUDE_DIRS}
+    ${pybind11_INCLUDE_DIRS}
+)
+
+# 设置模块输出名称和路径
+set_target_properties(sire_python PROPERTIES
+  OUTPUT_NAME "sire_python"
+  PREFIX ""
+  SUFFIX ".pyd"  # Windows 后缀
+  LIBRARY_OUTPUT_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR}
+)
+
+# 复制运行时依赖的 DLL 到输出目录（Windows 特有）
+add_custom_command(TARGET sire_python POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E copy
+    $<TARGET_FILE:sire_lib>
+    ${PYTHON_MODULE_OUTPUT_DIR}/
+)
+
 add_library(sire_lib 
 	SHARED 
 		$<TARGET_OBJECTS:sire_core>
@@ -431,6 +479,17 @@ install(
 	DESTINATION 
 		include
 	)
+
+# 安装 Python 模块
+install(TARGETS sire_python
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/python"
+)
+
+# 安装依赖 DLL（可选）
+install(FILES
+  $<TARGET_FILE:sire_lib>
+  DESTINATION "${CMAKE_INSTALL_PREFIX}/python"
+)
 
 ## install config ##
 include(CMakePackageConfigHelpers)

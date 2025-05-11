@@ -18,7 +18,8 @@ class PointPairContactInfo {
   PointPairContactInfo(sire::PartId partId_A, sire::PartId partId_B,
                        const double* fs_WC, const double* pe_WC,
                        double separation_speed, double slip_speed,
-                       const PenetrationAsPointPair& point_pair)
+                       const PenetrationAsPointPair& point_pair,
+                       const double* f_WC)
       : point_pair_(point_pair),
         partId_A_(partId_A),
         partId_B_(partId_B),
@@ -28,6 +29,7 @@ class PointPairContactInfo {
         slip_speed_(slip_speed) {
     std::copy(fs_WC, fs_WC + 6, fs_WC_);
     std::copy(pe_WC, pe_WC + 6, pe_WC_);
+    std::copy(f_WC, fs_WC + 3, f_WC_);
   };
   ~PointPairContactInfo(){};
   ARIS_DEFINE_BIG_FOUR(PointPairContactInfo);
@@ -39,6 +41,8 @@ class PointPairContactInfo {
   const double* contact_force() const { return fs_WC_; };
 
   const double* contact_point_pe() const { return pe_WC_; };
+
+  const double* contact_force_vector() const { return f_WC_; };
 
   double slip_speed() const { return slip_speed_; };
 
@@ -57,6 +61,8 @@ class PointPairContactInfo {
   double fs_WC_[6];
   /** Contact point position euler angle 313 in world frame*/
   double pe_WC_[6];
+  /** Contact force vetor in world frame*/
+  double f_WC_[3];
   /** The penetration depth. Should be positive*/
   double separation_speed_;
   double slip_speed_;
