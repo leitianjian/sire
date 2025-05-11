@@ -127,7 +127,7 @@ auto SimulationWithAction::prepareNrt() -> void {
     
   } else {                                          // reset时不设置force
     simulator.step(delay);  // 设置延迟
-    for (sire::Size i = 0; i < model()->motionPool().size(); ++i) {
+    for (sire::Size i = 0; i < model()->forcePool().size(); ++i) {
       dynamic_cast<aris::dynamic::SingleComponentForce&>(
           model()->forcePool().at(i))
           .setFce(par.motors_f[i]);

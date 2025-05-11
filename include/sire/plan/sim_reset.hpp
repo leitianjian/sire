@@ -1,16 +1,17 @@
 #ifndef SIRE_SIM_RESET_COMMAND_H_
 #define SIRE_SIM_RESET_COMMAND_H_
 
+#include <sire_lib_export.h>
+
 #include <aris.hpp>
 
 namespace sire::plan {
-class SimReset
+class SIRE_API SimReset
     : public aris::core::CloneObject<SimReset, aris::plan::Plan> {
  public:
   auto virtual prepareNrt() -> void override;
-  virtual ~SimReset() = default;
-  explicit SimReset(
-      const std::string& name = "SimReset_plan");
+  virtual ~SimReset();
+  explicit SimReset(const std::string& name = "SimReset_plan");
   ARIS_DECLARE_BIG_FOUR(SimReset);
 
  private:

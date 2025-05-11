@@ -9,7 +9,7 @@
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/core/sorted_pair.hpp"
 namespace sire::core {
-class MaterialManager {
+class SIRE_API MaterialManager {
  public:
   MaterialManager();
   virtual ~MaterialManager();

@@ -3,6 +3,7 @@
 
 #include <array>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <sire_lib_export.h>
@@ -21,14 +22,6 @@ class SimulationLoop;
 namespace physics {
 class SIRE_API PhysicsEngine {
  public:
-  auto currentModel() const -> aris::dynamic::Model*;
-  auto resetSimLoopPtr(simulator::SimulationLoop* simLoop) -> void;
-  auto simLoopPtr() -> simulator::SimulationLoop*;
-  // Config get set method
-  auto collisionDetectionFlag() const -> bool;
-  auto setCollisionDetectionFlag(bool flag) -> void;
-  auto contactSolverFlag() const -> bool;
-  auto setContactSolverFlag(bool flag) -> void;
   // collision_detection //
   auto resetCollisionDetection(
       collision::CollisionDetection* collision_detection_in) -> void;
@@ -57,19 +50,25 @@ class SIRE_API PhysicsEngine {
   auto geometryPool() noexcept
       -> aris::core::PointerArray<geometry::CollidableGeometry,
                                   aris::dynamic::Geometry>&;
-
   auto queryGeometryPoolById(const GeometryId& id) const
       -> geometry::CollidableGeometry*;
   auto queryGeometryPoolById(const GeometryId& id)
       -> geometry::CollidableGeometry* {
     return const_cast<const PhysicsEngine*>(this)->queryGeometryPoolById(id);
   };
-
-  // objects map
   auto dynamicObjectsMap()
       -> std::unordered_map<GeometryId, geometry::CollidableGeometry*>&;
   auto anchoredObjectsMap()
       -> std::unordered_map<GeometryId, geometry::CollidableGeometry*>&;
+
+  auto currentModel() const -> aris::dynamic::Model*;
+  auto resetSimLoopPtr(simulator::SimulationLoop* simLoop) -> void;
+  auto simLoopPtr() -> simulator::SimulationLoop*;
+  // Config get set method
+  auto collisionDetectionFlag() const -> bool;
+  auto setCollisionDetectionFlag(bool flag) -> void;
+  auto contactSolverFlag() const -> bool;
+  auto setContactSolverFlag(bool flag) -> void;
 
   // continuous collision detection
   // will insert some time value which should be processed.
@@ -104,6 +103,7 @@ class SIRE_API PhysicsEngine {
   auto cptContactVelocityAB(
       const std::vector<common::PenetrationAsPointPair>& pairs,
       std::vector<std::array<double, 3>>& v_contact) -> void;
+  auto fwdActuators() -> void;
 
   // engine state getter
   inline auto numGeometries() -> sire::Size { return geometryPool().size(); }
@@ -138,6 +138,11 @@ class SIRE_API PhysicsEngine {
       const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       const std::vector<std::array<double, 16>>& T_C_vec,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
+  auto cptContactInfo(
+      double suggestTime,
+      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      const std::vector<std::array<double, 16>>& T_C_vec,
+      std::vector<common::PointPairContactInfo>& contact_info) -> double;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
 
@@ -145,6 +150,7 @@ class SIRE_API PhysicsEngine {
   // 给每个杆件配备一个GeneralForce的Componenet，用来设置接触力
   auto initPartContactForce2Model() -> void;
   auto resetPartContactForce() -> void;
+  auto resetMotionForce() -> void;
   auto setForcePoolSimulation() -> void;
 
   auto saveInitialModel(aris::dynamic::Model& model) -> void;

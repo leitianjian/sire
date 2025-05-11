@@ -5,7 +5,13 @@
 #include <string>
 #include <thread>
 
+#include <coal/broadphase/broadphase_callbacks.h>
+#include <coal/broadphase/broadphase_collision_manager.h>
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/broadphase/default_broadphase_callbacks.h>
+#include <coal/collision.h>
+#include <coal/collision_data.h>
+#include <coal/collision_object.h>
 #include <coal/distance.h>
 #include <coal/math/transform.h>
 #include <coal/mesh_loader/assimp.h>
@@ -23,6 +29,8 @@
 #include "sire/physics/physics_engine.hpp"
 
 namespace sire::physics::collision {
+using namespace coal;
+
 struct CollisionDetection::Imp {
   // Owned resources
   DynamicAABBTreeCollisionManager dynamic_tree_;
@@ -132,13 +140,6 @@ auto CollisionDetection::computePointPairPenetration(
   imp_->dynamic_tree_.collide(&callback);
   imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
   return true;
-}
-
-auto CollisionDetection::collidedObjects(CollidedObjectsCallback& callback_out)
-    -> bool {
-  imp_->dynamic_tree_.collide(&callback_out);
-  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback_out);
-  return callback_out.data.result.isCollision();
 }
 auto CollisionDetection::numDynamicGeometries() -> sire::Size {
   return imp_->dynamic_tree_.size();

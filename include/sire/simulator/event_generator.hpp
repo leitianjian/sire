@@ -8,11 +8,11 @@
 
 #include "sire/core/contact_pair_manager.hpp"
 #include "sire/core/event_base.hpp"
-#include "sire/core/event_manager.hpp"
 #include "sire/core/prop_map.hpp"
 #include "sire/integrator/integrator_base.hpp"
 #include "sire/physics/physics_engine.hpp"
 #include "sire/sensor/sensor.hpp"
+#include "sire/simulator/event_manager.hpp"
 #include "sire/simulator/events.hpp"
 #include "sire/simulator/simulation_loop.hpp"
 
@@ -68,10 +68,10 @@ class SIRE_API EventGenerator {
         static_cast<const EventGenerator&>(*this).getGlobalVariablePool());
   }
 
-  auto resetEventManager(core::EventManager* manager) -> void;
-  auto eventManager() const -> const core::EventManager&;
-  auto eventManager() -> core::EventManager& {
-    return const_cast<core::EventManager&>(
+  auto resetEventManager(simulator::EventManager* manager) -> void;
+  auto eventManager() const -> const simulator::EventManager&;
+  auto eventManager() -> simulator::EventManager& {
+    return const_cast<simulator::EventManager&>(
         static_cast<const EventGenerator*>(this)->eventManager());
   }
 

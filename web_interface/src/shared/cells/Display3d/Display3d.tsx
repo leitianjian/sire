@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import {
   Canvas,
+  ObjectMap,
   useLoader,
   useThree,
   Vector3 as Vector3Type,
@@ -24,11 +25,22 @@ import {
   PerspectiveCamera,
   View,
   Billboard,
+  useProgress,
+  useGLTF,
+  useFBX,
   Text,
+  Html,
 } from "@react-three/drei";
 
-import { STLLoader } from "three/examples/jsm/loaders/STLLoader";
-import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
+import {
+  STLLoader,
+  FBXLoader,
+  OBJLoader,
+  ColladaLoader,
+  MTLLoader,
+  Collada,
+} from "three/examples/jsm/Addons";
+// import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
 // import { BackSide, PerspectiveCamera, Plane, Vector3 } from 'three';
 import {
   getGeometryPm,
@@ -61,6 +73,7 @@ import {
   PositionType,
   QuaternionType,
   SireBoxGeometry,
+  SireCapsuleGeometry,
   SireGeometry,
   SireMeshGeometry,
   SireSphereGeometry,
@@ -105,7 +118,7 @@ const FBXModel = ({
   position = default_position,
   quaternion = default_quaternion,
 }: ModelProps) => {
-  const fbx: Group = useMemo(() => useLoader(FBXLoader, path), [path]);
+  const fbx = useMemo(() => useLoader(FBXLoader, path), [path]);
   fbx.children.forEach((mesh) => {
     (mesh as Mesh).material = material;
     (mesh as Mesh).castShadow = true;
@@ -125,7 +138,7 @@ const STLModel = ({
   position = default_position,
   quaternion = default_quaternion,
 }: ModelProps) => {
-  const stl: BufferGeometry = useMemo(() => useLoader(STLLoader, path), [path]);
+  const stl = useMemo(() => useLoader(STLLoader, path), [path]);
   return (
     <mesh
       material={material}
@@ -138,6 +151,140 @@ const STLModel = ({
     </mesh>
   );
 };
+
+const DAEModel = ({
+  path,
+  material = default_material,
+  scale = default_scale,
+  position = default_position,
+  quaternion = default_quaternion,
+}: ModelProps) => {
+  const dae: ObjectMap = useMemo(() => useLoader(ColladaLoader, path), [path]);
+  return (
+    <mesh
+      material={material}
+      position={position}
+      quaternion={quaternion}
+      scale={scale}
+      castShadow={true}
+    >
+      <primitive object={dae} attach="geometry" />
+    </mesh>
+  );
+};
+
+const OBJModel = ({
+  path,
+  material = default_material,
+  scale = default_scale,
+  position = default_position,
+  quaternion = default_quaternion,
+}: ModelProps) => {
+  // const materials = useLoader(MTLLoader, "");
+  const obj = useMemo(
+    () =>
+      useLoader(OBJLoader, path, (loader) => {
+        // materials.preload();
+        // loader.setMaterials(materials);
+      }),
+    [path, material]
+  );
+
+  const geometry = useMemo(() => {
+    let g;
+    obj.traverse((c) => {
+      if (c instanceof Mesh) {
+        g = c.geometry;
+      }
+    });
+    return g;
+  }, [obj]);
+  return (
+    <mesh
+      geometry={geometry}
+      material={material}
+      position={position}
+      quaternion={quaternion}
+      scale={scale}
+      castShadow={true}
+    />
+  );
+};
+
+function Loader() {
+  const { progress } = useProgress();
+  return <Html>{progress}% loaded</Html>;
+}
+
+function MeshModel({
+  path,
+  material = default_material,
+  scale = default_scale,
+  position = default_position,
+  quaternion = default_quaternion,
+}: ModelProps) {
+  const fileType = useMemo(() => {
+    const extension = path.split(".").pop()?.toLowerCase();
+    return extension || "";
+  }, [path]);
+
+  try {
+    switch (fileType) {
+      case "fbx":
+        return (
+          <Suspense fallback={<Loader />}>
+            <FBXModel
+              path={path}
+              position={position}
+              quaternion={quaternion}
+              material={material}
+              scale={scale}
+            />
+          </Suspense>
+        );
+      case "stl":
+        return (
+          <Suspense fallback={<Loader />}>
+            <STLModel
+              path={path}
+              position={position}
+              quaternion={quaternion}
+              material={material}
+              scale={scale}
+            />
+          </Suspense>
+        );
+      case "dae":
+        return (
+          <Suspense fallback={<Loader />}>
+            <DAEModel
+              path={path}
+              position={position}
+              quaternion={quaternion}
+              material={material}
+              scale={scale}
+            />
+          </Suspense>
+        );
+      case "obj":
+        return (
+          <Suspense fallback={<Loader />}>
+            <OBJModel
+              path={path}
+              position={position}
+              quaternion={quaternion}
+              material={material}
+              scale={scale}
+            />
+          </Suspense>
+        );
+      default:
+        return <Html>Unsupported format: {fileType}</Html>;
+    }
+  } catch (error) {
+    return <Html>Error loading model: {(error as Error).message}</Html>;
+  }
+}
 
 interface RobotMeshProps {
   poses?: number[][];
@@ -197,7 +344,11 @@ function RobotMesh({ poses, scales }: RobotMeshProps) {
   const processed_pose = useMemo(
     () =>
       geometry_pool?.map((geometry: SireGeometry, i) => {
-        return evaluate_pose(geometry, poses?.at(geometry.part_id), geometry_pm_data?.at(i));
+        return evaluate_pose(
+          geometry,
+          poses?.at(geometry.part_id),
+          geometry_pm_data?.at(i)
+        );
       }),
     [poses]
   );
@@ -247,9 +398,26 @@ function RobotMesh({ poses, scales }: RobotMeshProps) {
                 />
               </mesh>
             );
+          case "capsule":
+            return (
+              <mesh
+                material={material}
+                position={position}
+                quaternion={quaternion}
+                castShadow={true}
+                receiveShadow={i == 0}
+              >
+                <capsuleGeometry
+                  args={[
+                    (geometry as SireCapsuleGeometry).radius,
+                    (geometry as SireCapsuleGeometry).length,
+                  ]}
+                />
+              </mesh>
+            );
           case "mesh":
             return (
-              <FBXModel
+              <MeshModel
                 path={(geometry as SireMeshGeometry).resource_path}
                 position={position}
                 quaternion={quaternion}
@@ -333,7 +501,9 @@ const Display3d = (props: CellProps) => {
   const [recording, setRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
-  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(null);
+  const [canvasElement, setCanvasElement] = useState<HTMLCanvasElement | null>(
+    null
+  );
 
   const CanvasCapturer = () => {
     const { gl } = useThree();
@@ -354,10 +524,10 @@ const Display3d = (props: CellProps) => {
       try {
         recordedChunksRef.current = [];
         const stream = canvasElement.captureStream(30);
-        
+
         mediaRecorderRef.current = new MediaRecorder(stream, {
-          mimeType: 'video/webm;codecs=vp9',
-          videoBitsPerSecond: 2_500_000
+          mimeType: "video/webm;codecs=vp9",
+          videoBitsPerSecond: 2_500_000,
         });
 
         mediaRecorderRef.current.ondataavailable = (e) => {
@@ -365,9 +535,11 @@ const Display3d = (props: CellProps) => {
         };
 
         mediaRecorderRef.current.onstop = () => {
-          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+          const blob = new Blob(recordedChunksRef.current, {
+            type: "video/webm",
+          });
           const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
+          const a = document.createElement("a");
           a.href = url;
           a.download = `recording-${Date.now()}.webm`;
           a.click();
@@ -429,7 +601,7 @@ const Display3d = (props: CellProps) => {
         if (!data.partpq || !data.timeindex) {
           throw new Error("Invalid JSON format");
         }
-  
+
         setUploadedData(data.partpq);
         setTimeIndices(data.timeindex);
         setTotalDuration(data.timeindex[data.timeindex.length - 1] || 0);
@@ -548,7 +720,7 @@ const Display3d = (props: CellProps) => {
                   e.preventDefault();
                   const file = e.dataTransfer.files?.[0];
                   if (file && file.type === "application/json") {
-                    handleFileFromDrop(file);  // 调用统一处理逻辑
+                    handleFileFromDrop(file); // 调用统一处理逻辑
                   } else {
                     alert("请上传 .json 文件");
                   }
@@ -561,8 +733,8 @@ const Display3d = (props: CellProps) => {
             <div className={`${prefixCls}-progress-wrapper`}>
               <div className={`${prefixCls}-progress-main`}>
                 {/* 播放按钮 */}
-                <button 
-                  className={`${prefixCls}-play-button`} 
+                <button
+                  className={`${prefixCls}-play-button`}
                   onClick={togglePlayback}
                 >
                   {isPlaying ? "暂停" : "播放"}
@@ -570,7 +742,7 @@ const Display3d = (props: CellProps) => {
 
                 <div className={`${prefixCls}-progress-group`}>
                   {/* 帧进度条 + 信息 */}
-                  <input 
+                  <input
                     type="range"
                     className={`${prefixCls}-progress-frame`}
                     min="0"
@@ -601,19 +773,20 @@ const Display3d = (props: CellProps) => {
                     disabled={!uploadedData.length}
                   />
                   <div className={`${prefixCls}-progress-info`}>
-                    时间: {timeIndices[currentFrameIndex]?.toFixed(3) || 0}s / {totalDuration.toFixed(3)}s
+                    时间: {timeIndices[currentFrameIndex]?.toFixed(3) || 0}s /{" "}
+                    {totalDuration.toFixed(3)}s
                   </div>
                 </div>
               </div>
             </div>
-            <button 
+            <button
               onClick={handleRecord}
               className={`
                 ${prefixCls}-record-button
-                ${recording ? `${prefixCls}-recording` : ''}
+                ${recording ? `${prefixCls}-recording` : ""}
               `}
             >
-              {recording ? '停止录制' : '开始录制'}
+              {recording ? "停止录制" : "开始录制"}
             </button>
           </div>
           <RedoOutlined
@@ -709,7 +882,7 @@ const Display3d = (props: CellProps) => {
             eventSource={eventSrcRef}
             camera={{
               fov: 50,
-              near: 0.1
+              near: 0.1,
             }}
             gl={{
               antialias: true,

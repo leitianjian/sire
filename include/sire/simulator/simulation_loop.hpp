@@ -8,7 +8,6 @@
 
 #include "sire/core/contact_pair_manager.hpp"
 #include "sire/core/event_base.hpp"
-#include "sire/core/event_manager.hpp"
 #include "sire/core/handler_base.hpp"
 #include "sire/core/module_base.hpp"
 #include "sire/core/sire_decl_def_macro.hpp"
@@ -17,6 +16,8 @@
 #include "sire/integrator/integrator_base.hpp"
 #include "sire/physics/physics_engine.hpp"
 #include "sire/sensor/sensor.hpp"
+#include "sire/simulator/controller.hpp"
+#include "sire/simulator/event_manager.hpp"
 #include "sire/simulator/recorder.hpp"
 
 namespace sire {
@@ -30,15 +31,6 @@ class SIRE_API SimulationLoop {
   using SensorPool = aris::core::PointerArray<sensor::SensorBase>;
 
  public:
-  // Event 相关
-  auto createTriggerById(sire::Size trigger_id)
-      -> std::unique_ptr<core::TriggerBase>;
-  auto createEventById(sire::Size event_id) -> std::unique_ptr<core::EventBase>;
-  auto createHandlerById(sire::Size handler_id)
-      -> std::unique_ptr<core::HandlerBase>;
-
-  auto createEventByTriggerId(sire::Size trigger_id)
-      -> std::unique_ptr<core::EventBase>;
   auto createHandlerByEventId(sire::Size event_id)
       -> std::unique_ptr<core::HandlerBase>;
 
@@ -71,11 +63,18 @@ class SIRE_API SimulationLoop {
         static_cast<const SimulationLoop&>(*this).getGlobalVariablePool());
   }
 
-  auto resetEventManager(core::EventManager* manager) -> void;
-  auto eventManager() const -> const core::EventManager&;
-  auto eventManager() -> core::EventManager& {
-    return const_cast<core::EventManager&>(
+  auto resetEventManager(simulator::EventManager* manager) -> void;
+  auto eventManager() const -> const simulator::EventManager&;
+  auto eventManager() -> simulator::EventManager& {
+    return const_cast<simulator::EventManager&>(
         static_cast<const SimulationLoop*>(this)->eventManager());
+  }
+
+  auto resetController(simulator::Controller* ctrlPtr) -> void;
+  auto controller() const -> const simulator::Controller&;
+  auto controller() -> simulator::Controller& {
+    return const_cast<simulator::Controller&>(
+        static_cast<const SimulationLoop*>(this)->controller());
   }
 
   auto deltaT() -> double;

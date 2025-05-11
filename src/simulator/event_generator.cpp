@@ -36,7 +36,7 @@ struct EventGenerator::Imp {
   map<sire::Size, std::string> handler_pool_;
   map<sire::Size, std::unique_ptr<EventBase> (*)()> event_creator_;
   map<sire::Size, std::unique_ptr<HandlerBase> (*)()> handler_creator_;
-  std::unique_ptr<core::EventManager> event_manager_;
+  std::unique_ptr<simulator::EventManager> event_manager_;
 
   core::ContactPairManager contact_pair_manager_;
 
@@ -89,7 +89,6 @@ auto EventGenerator::init() -> void {
   // imp_->event_manager_.addImmediateTrigger(std::move(init_trigger));
   std::unique_ptr<EventBase> init_event = createEventById(0);
   imp_->event_manager_->addEvent(std::move(init_event));
-  imp_->event_manager_->init();
 
   // 正确设置model中的力
   imp_->physics_engine_ptr_->initPartContactForce2Model();
@@ -106,7 +105,7 @@ auto EventGenerator::generateEvents() -> std::unique_ptr<core::EventBase> {
   double nextCtrlTime = prevCtrlTime + ctrlTime;
   double nextSimTime = prevSimTime + nextSuggestTime;
   std::unique_ptr<core::EventBase> step_event =
-      simulationLoopPtr()->createEventById(1);
+      simulationLoopPtr()->eventManager().createEventById(1);
   if (nextSimTime < nextCtrlTime) {
     step_event->eventProp().addProp("dt", nextSimTime);
     simulationLoopPtr()->eventManager().addEvent(std::move(step_event));
@@ -176,10 +175,10 @@ auto EventGenerator::physicsEnginePtr() const -> const physics::PhysicsEngine* {
 auto EventGenerator::collisionDetection() -> void {
   imp_->physics_engine_ptr_->hasCollision();
 }
-auto EventGenerator::resetEventManager(core::EventManager* manager) -> void {
+auto EventGenerator::resetEventManager(simulator::EventManager* manager) -> void {
   imp_->event_manager_.reset(manager);
 }
-auto EventGenerator::eventManager() const -> const core::EventManager& {
+auto EventGenerator::eventManager() const -> const simulator::EventManager& {
   return *imp_->event_manager_;
 }
 auto EventGenerator::targetRealtimeRate() -> double {
@@ -215,7 +214,7 @@ ARIS_REGISTRATION {
   auto getGlobalVariablePool = [](EventGenerator* p) -> core::PropMap {
     return p->getGlobalVariablePool();
   };
-  typedef core::EventManager& (EventGenerator::*EventManagerFunc)();
+  typedef simulator::EventManager& (EventGenerator::*EventGeneratorFunc)();
 
   aris::core::class_<EventGenerator>("EventGenerator")
       .prop("realtime_rate", &EventGenerator::setRealtimeRate,
@@ -225,6 +224,6 @@ ARIS_REGISTRATION {
       .prop("global_variable_pool", &setGlobalVariablePool,
             &getGlobalVariablePool)
       .prop("event_manager", &EventGenerator::resetEventManager,
-            EventManagerFunc(&EventGenerator::eventManager));
+            EventGeneratorFunc(&EventGenerator::eventManager));
 }
 }  // namespace sire::simulator

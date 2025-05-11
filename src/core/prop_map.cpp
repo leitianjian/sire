@@ -63,6 +63,9 @@ auto PropMap::fromString(std::string_view str) -> bool {
   str = trim(str);
   str.remove_prefix(1);
   str.remove_suffix(1);
+  if (str.empty()) {
+    return true;
+  }
   const std::string_view delimiter = ",";
   size_t pos = 0;
   std::string_view pair;

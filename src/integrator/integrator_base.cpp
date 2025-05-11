@@ -9,8 +9,8 @@
 
 namespace sire::simulator {
 struct IntegratorBase::Imp {
-  double step_size_;
-  sire::Size data_length_;
+  double step_size_{0.001};
+  sire::Size data_length_{0};
   physics::PhysicsEngine* engine_ptr_{nullptr};
 };
 auto IntegratorBase::init(physics::PhysicsEngine* engine) -> void {

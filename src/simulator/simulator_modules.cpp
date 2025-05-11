@@ -1,16 +1,19 @@
 #include "sire/simulator/simulator_modules.hpp"
 
 #include "sire/core/sire_assert.hpp"
+#include "sire/integrator/semi_implicit_euler_integrator.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/physics/physics_engine.hpp"
 
 namespace sire::simulator {
 struct SimulatorModules::Imp {
   physics::PhysicsEngine* engine_ptr_;
-  std::unique_ptr<IntegratorPool> integrator_pool_;
-  std::unique_ptr<SensorPool> sensor_pool_;
+  std::unique_ptr<IntegratorPool> integrator_pool_{new IntegratorPool()};
+  std::unique_ptr<SensorPool> sensor_pool_{new SensorPool()};
 };
-SimulatorModules::SimulatorModules() : imp_(new Imp) {}
+SimulatorModules::SimulatorModules() : imp_(new Imp) {
+  imp_->integrator_pool_->add<sire::simulator::SemiImplicitEulerIntegrator>();
+}
 SimulatorModules::~SimulatorModules() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(SimulatorModules);
 

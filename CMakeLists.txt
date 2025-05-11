@@ -51,7 +51,6 @@ target_sources(sire_core
 		"src/core/trigger_base.cpp"
 		"src/core/event_base.cpp"
 		"src/core/handler_base.cpp"
-		"src/core/event_manager.cpp"
 		#"src/core/init_trigger.cpp"
 		"src/core/nice_type_name.cpp"
 		"src/core/timer.cpp"
@@ -60,6 +59,8 @@ target_sources(sire_core
 		"src/core/geometry/shape_calculator.cpp"
 		"src/core/geometry/box_shape.cpp"
 		"src/core/geometry/box_geometry.cpp"
+		"src/core/geometry/capsule_shape.cpp"
+		"src/core/geometry/capsule_geometry.cpp"
 		"src/core/geometry/mesh_shape.cpp"
 		"src/core/geometry/mesh_geometry.cpp"
 		"src/core/geometry/sphere_shape.cpp"
@@ -85,7 +86,6 @@ target_sources(sire_core
 		"include/sire/core/trigger_base.hpp"
 		"include/sire/core/event_base.hpp"
 		"include/sire/core/handler_base.hpp"
-		"include/sire/core/event_manager.hpp"
 		#"include/sire/core/init_trigger.hpp"
 		"include/sire/core/timer.hpp"
 		"include/sire/core/material_pair_prop.hpp"
@@ -98,6 +98,8 @@ target_sources(sire_core
 		"include/sire/core/geometry/sphere_geometry.hpp"
 		"include/sire/core/geometry/box_shape.hpp"
 		"include/sire/core/geometry/box_geometry.hpp"
+		"include/sire/core/geometry/capsule_shape.hpp"
+		"include/sire/core/geometry/capsule_geometry.hpp"
 		"include/sire/core/geometry/mesh_shape.hpp"
 		"include/sire/core/geometry/mesh_geometry.hpp"
 		"include/sire/core/geometry/geometry_base.hpp"
@@ -154,6 +156,7 @@ target_sources(sire_physics
 		"src/physics/geometry/collidable_geometry.cpp"
 		"src/physics/geometry/sphere_collision_geometry.cpp"
 		"src/physics/geometry/box_collision_geometry.cpp"
+		"src/physics/geometry/capsule_collision_geometry.cpp"
 		"src/physics/geometry/mesh_collision_geometry.cpp"
 		"src/physics/contact/contact_solver.cpp"
 		"src/physics/contact/stiffness_damping_contact_solver.cpp"
@@ -173,6 +176,7 @@ target_sources(sire_physics
 		"include/sire/physics/geometry/collidable_geometry.hpp"
 		"include/sire/physics/geometry/sphere_collision_geometry.hpp"
 		"include/sire/physics/geometry/box_collision_geometry.hpp"
+		"include/sire/physics/geometry/capsule_collision_geometry.hpp"
 		"include/sire/physics/geometry/mesh_collision_geometry.hpp"
 		"include/sire/physics/contact/contact_solver.hpp"
 		"include/sire/physics/contact/stiffness_damping_contact_solver.hpp"
@@ -196,10 +200,10 @@ target_include_directories(sire_physics
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/physics DESTINATION include/sire)
@@ -226,10 +230,10 @@ target_include_directories(sire_integrator
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/integrator DESTINATION include/sire)
@@ -251,14 +255,20 @@ target_sources(sire_simulator
 		"src/simulator/events.cpp"
 		"src/simulator/simulation_result.cpp"
 		"src/simulator/simulator_modules.cpp"
-		"src/simulator/event_generator.cpp"
+		# "src/simulator/event_generator.cpp"
+		"src/simulator/event_manager.cpp"
+		"src/simulator/controller.cpp"
+		"src/simulator/joint_constraint_solver.cpp"
 	PUBLIC 
 	  "include/sire/simulator/recorder.hpp"
 		"include/sire/simulator/simulation_loop.hpp"
 		"include/sire/simulator/events.hpp"
 		"include/sire/simulator/simulation_result.hpp"
 		"include/sire/simulator/simulator_modules.hpp"
-		"include/sire/simulator/event_generator.hpp"
+		# "include/sire/simulator/event_generator.hpp"
+		"include/sire/simulator/event_manager.hpp"
+		"include/sire/simulator/controller.hpp"
+		"include/sire/simulator/joint_constraint_solver.hpp"
 	)
 
 target_include_directories(sire_simulator
@@ -266,10 +276,10 @@ target_include_directories(sire_simulator
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/simulator DESTINATION include/sire)
@@ -362,10 +372,10 @@ target_include_directories(sire_middleware
 		$<INSTALL_INTERFACE:include> 
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 	)
 install(DIRECTORY include/sire/middleware DESTINATION include/sire)
@@ -401,6 +411,7 @@ add_library(sire_lib
 		$<TARGET_OBJECTS:sire_simulator>
 		$<TARGET_OBJECTS:sire_server>
 		$<TARGET_OBJECTS:sire_sensor>
+		$<TARGET_OBJECTS:sire_actuator>
 	)
 generate_export_header(sire_lib EXPORT_MACRO_NAME SIRE_API)
 target_compile_features(sire_lib PUBLIC cxx_std_17)

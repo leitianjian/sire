@@ -7,19 +7,11 @@
 
 #include <sire_lib_export.h>
 
-#include <coal/broadphase/broadphase_callbacks.h>
-#include <coal/broadphase/broadphase_collision_manager.h>
-#include <coal/broadphase/default_broadphase_callbacks.h>
-#include <coal/collision.h>
-#include <coal/collision_data.h>
-#include <coal/collision_object.h>
-
 #include <aris/core/expression_calculator.hpp>
 #include <aris/dynamic/model.hpp>
 
 #include "sire/core/constants.hpp"
 #include "sire/core/geometry/shape_base.hpp"
-#include "sire/physics/collision/collided_objects_callback.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
@@ -28,7 +20,6 @@ namespace sire::physics {
 class PhysicsEngine;
 namespace collision {
 using namespace std;
-using namespace coal;
 
 /* drake-based implementation
  * filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
@@ -50,7 +41,6 @@ class SIRE_API CollisionDetection {
   auto updateAnchoredGeometriesMananger() -> void;
   auto numDynamicGeometries() -> sire::Size;
   auto hasCollisions() -> bool;
-  auto collidedObjects(CollidedObjectsCallback& callback) -> bool;
   auto computePointPairPenetration(
       std::vector<common::PenetrationAsPointPair>& contacts) -> bool;
   auto init(physics::PhysicsEngine* engine_ptr) -> void;

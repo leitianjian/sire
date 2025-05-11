@@ -62,6 +62,12 @@ if __name__ == "__main__":
         type=pathlib.Path,
         help="toolchain setting path (.cmake file)",
     )
+    parser.add_argument(
+        "--http-proxy",
+        default="",
+        type=str,
+        help="http proxy to env",
+    )
     parser.add_argument('-r', "--rm-cache-reconfig", action="store_true", help="delete cache and reconfigure")
     parser.add_argument('-rec', "--rerun-config", action="store_true", help="reconfigure")
     parser.add_argument('-rmc', "--rm-cache", action="store_true", help="remove cmake cache")
@@ -83,7 +89,9 @@ if __name__ == "__main__":
     USE_NINJA = which("ninja", env=my_env) is not None
     if "CMAKE_GENERATOR" in my_env:
         USE_NINJA = my_env["CMAKE_GENERATOR"].lower() == "ninja"
-
+    if options.http_proxy != "":
+        my_env["HTTP_PROXY"] = options.http_proxy
+        my_env["HTTPS_PROXY"] = options.http_proxy
     if USE_NINJA:
         my_env["CMAKE_GENERATOR"] = "ninja"
 

@@ -22,6 +22,7 @@ target_link_libraries(${sire_demo}
 		sire_simulator
 		sire_sensor
 		sire_physics
+		sire_actuator
 		${PUB_RELY_LINK_LIB}
 )
 

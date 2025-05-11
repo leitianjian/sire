@@ -149,7 +149,7 @@ target_include_directories(collision_detection_test
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
@@ -164,6 +164,7 @@ target_link_libraries(collision_detection_test
 		sire_middleware
 		sire_server
 		sire_integrator
+		sire_actuator
 		${PUB_RELY_LINK_LIB}
 )
 
@@ -190,7 +191,7 @@ target_include_directories(geometry_serialization_test
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${hpp-fcl_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
@@ -204,6 +205,7 @@ target_link_libraries(geometry_serialization_test
 		sire_middleware
 		sire_server
 		sire_integrator
+		sire_actuator
 		${PUB_RELY_LINK_LIB}
 )
 
@@ -304,4 +306,4 @@ endif(WIN32)
 include(GoogleTest)
 
 # set not to run test post build
-gtest_discover_tests(collision_detection_test sorted_pair_test multi_contact_mass_matrix force_screw_test)
+# gtest_discover_tests(collision_detection_test sorted_pair_test multi_contact_mass_matrix force_screw_test)

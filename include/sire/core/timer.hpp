@@ -22,7 +22,10 @@ class Timer {
     if (desired_realtime > Clock::now())
       std::this_thread::sleep_until(desired_realtime);
   }
-  auto updateSimTime(double dt) -> void { sim_time_ += dt; };
+  auto updateSimTime(double dt) -> double {
+    sim_time_ += dt;
+    return sim_time_;
+  };
   auto init() -> void { begin_time_ = Clock::now(); }
   auto reset() -> void {
     sim_time_ = 0.0;

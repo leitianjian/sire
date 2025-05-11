@@ -1,11 +1,11 @@
 #include "sire/plan/sim_play.hpp"
 
+#include <random>
+
 #include "sire/core/constants.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/server/interface.hpp"
-
-#include <random>
 
 namespace sire::plan {
 struct GetParam {
@@ -32,22 +32,20 @@ auto SimPlay::prepareNrt() -> void {
   auto& cs = *controlServer();
   auto& middleware = dynamic_cast<middleware::SireMiddleware&>(cs.middleWare());
   auto& simulator = middleware.simulationLoop();
-  if (!simulator.isRunning()){
+  if (!simulator.isRunning()) {
     simulator.start();
   }
   return;
 }
-SimPlay::SimPlay(const std::string& name)
-    : imp_(new Imp) {
-  aris::core::fromXmlString(
-      command(),
-      "<Command name=\"sim_play\">"
-      "</Command>");
+SimPlay::~SimPlay() = default;
+SimPlay::SimPlay(const std::string& name) : imp_(new Imp) {
+  aris::core::fromXmlString(command(),
+                            "<Command name=\"sim_play\">"
+                            "</Command>");
 }
 ARIS_DEFINE_BIG_FOUR_CPP(SimPlay);
 
 ARIS_REGISTRATION {
-  aris::core::class_<SimPlay>("SimPlay")
-      .inherit<aris::plan::Plan>();
+  aris::core::class_<SimPlay>("SimPlay").inherit<aris::plan::Plan>();
 }
 }  // namespace sire::plan

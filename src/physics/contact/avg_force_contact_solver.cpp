@@ -1811,15 +1811,20 @@ auto AverageForceContactSolver::cptContactSolverResult(
       if (temp > maxA) maxA = temp;
     }
     double timeAuto = std::pow(10, - 1 - int(floor(std::log10(maxA)) / 2));
-    double dt = enginePtr->simLoopPtr()->deltaT();
-    minTime = dt > timeAuto ? timeAuto : dt;
+    minTime = result.dt > timeAuto ? timeAuto : result.dt;
+    result.dt = minTime;
+  } else {
+    if (minTime > result.dt) {
+      minTime = result.dt;
+    } else {
+      result.dt = minTime;
+    }
   }
   std::vector<double> avgFce(n);
   cptAvgContactFce(n, A.data(), b.data(), x0.data(), 0, minTime,
                    stiffness.data(), damping.data(), avgFce.data());
   // sire::Size avgFceIdx{0};
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
-  result.dt = minTime;
   DLOG(DEBUG) << " minTime: " << minTime << " b: " << b << " A: " << A
               << " x0: " << x0;
   for (sire::Size i{0}; i < n; ++i) {

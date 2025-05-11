@@ -1,6 +1,7 @@
 #include "sire/physics/collision/penetration_as_point_pair_callback.hpp"
 
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/collision.h>
 #include <coal/distance.h>
 #include <coal/math/transform.h>
 
@@ -13,8 +14,8 @@
 namespace sire::physics::collision {
 auto PenetrationAsPointPairCallback::calcDistance(
     const CollisionObject* a, const CollisionObject* b,
-    const CollisionRequest& request,
-    common::PenetrationAsPointPair* pair_data) -> void {
+    const CollisionRequest& request, common::PenetrationAsPointPair* pair_data)
+    -> void {
   SIRE_DEMAND(pair_data != nullptr);
 
   CollisionResult result;
@@ -49,9 +50,9 @@ auto PenetrationAsPointPairCallback::calcDistance(
   // is non-negative, so depth * nhat_AB_W points from object A to object B.
   // Ac to Bc is negative depth * nhat_AB_W
   pair_data->p_WCa = contact.nearest_points[0];
-      // contact.pos + 0.5 * pair_data->depth * pair_data->nhat_AB_W;
+  // contact.pos + 0.5 * pair_data->depth * pair_data->nhat_AB_W;
   pair_data->p_WCb = contact.nearest_points[1];
-      // contact.pos - 0.5 * pair_data->depth * pair_data->nhat_AB_W;
+  // contact.pos - 0.5 * pair_data->depth * pair_data->nhat_AB_W;
   pair_data->p_WC = contact.pos;
 
   pair_data->id_A = filter_->queryGeometryIdByPtr(
@@ -60,9 +61,9 @@ auto PenetrationAsPointPairCallback::calcDistance(
       const_cast<CollisionObject*>(b)->collisionGeometry().get());
 }
 
-auto PenetrationAsPointPairCallback::collide(
-    CollisionObject* fcl_object_A_ptr,
-    CollisionObject* fcl_object_B_ptr) -> bool {
+auto PenetrationAsPointPairCallback::collide(CollisionObject* fcl_object_A_ptr,
+                                             CollisionObject* fcl_object_B_ptr)
+    -> bool {
   SIRE_DEMAND(point_pairs != nullptr);
 
   // keep the query order smaller geometry id as a.
@@ -84,16 +85,14 @@ auto PenetrationAsPointPairCallback::collide(
   calcDistance(fcl_object_A_ptr, fcl_object_B_ptr, request, &penetration);
   if (penetration.depth >= 0) {
     point_pairs->push_back(penetration);
-    //std::cout << penetration.depth << std::endl;
+    // std::cout << penetration.depth << std::endl;
   }
   return false;
 }
 PenetrationAsPointPairCallback::PenetrationAsPointPairCallback(
     CollisionFilter* filter_in,
     vector<common::PenetrationAsPointPair>* point_pairs_in)
-    : CollisionCallBackBase(),
-      filter_(filter_in),
-      point_pairs(point_pairs_in) {
+    : CollisionCallBackBase(), filter_(filter_in), point_pairs(point_pairs_in) {
   request.num_max_contacts = 1;
   request.enable_contact = true;
   request.gjk_tolerance = 2e-12;

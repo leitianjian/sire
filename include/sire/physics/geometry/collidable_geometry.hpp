@@ -10,7 +10,7 @@
 
 namespace sire::physics::geometry {
 class CollidableGeometry : public sire::geometry::GeometryOnPart,
-                                    public Collidable {
+                           public Collidable {
  public:
   auto virtual updateLocation(const double* prt_pm) -> void override;
   auto virtual init() -> void override;

@@ -34,7 +34,7 @@ IncludeCategories:
   Priority: 50
 # Other libraries' h files (with quotes).
 - Regex:    '^"'
-  Priority: 40
+  Priority: 60
 
 # Format raw string literals with a `pb` or `proto` tag as proto.
 # RawStringFormats:

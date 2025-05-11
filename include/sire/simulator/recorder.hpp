@@ -28,7 +28,7 @@ class Record {
   std::vector<sire::physics::common::PointPairContactInfo> contactInfos;
 };
 
-class Recorder : aris::core::NamedObject {
+class Recorder : public aris::core::NamedObject {
  public:
   sire::Size timeDuration;
   sire::Size recordSize;

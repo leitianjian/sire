@@ -3,8 +3,6 @@
 #include <algorithm>
 #include <map>
 
-#include "log/easyloggingConfig.hpp"
-
 #include <aris/core/reflection.hpp>
 #include <aris/core/serialization.hpp>
 #include <aris/dynamic/math_matrix.hpp>
@@ -12,6 +10,7 @@
 #include <aris/dynamic/model_interaction.hpp>
 #include <aris/server/control_server.hpp>
 
+#include "sire/actuator/actuator.hpp"
 #include "sire/core/force_screw.hpp"
 #include "sire/core/geometry/geometry_base.hpp"
 #include "sire/core/sire_assert.hpp"
@@ -19,9 +18,12 @@
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 #include "sire/physics/common/point_pair_contact_info.hpp"
 #include "sire/physics/contact/contact_solver_result.hpp"
-#include "sire/physics/contact/stiffness_damping_contact_solver.hpp"
+// #include "sire/physics/contact/stiffness_damping_contact_solver.hpp"
+#include "sire/physics/contact/avg_force_contact_solver.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
 #include "sire/physics/geometry/sphere_collision_geometry.hpp"
+
+#include "log/easyloggingConfig.hpp"
 
 namespace sire::physics {
 using namespace std;
@@ -80,7 +82,7 @@ struct PhysicsEngine::Imp {
                 geometry::CollidableGeometry, aris::dynamic::Geometry>>()),
         collision_detection_(std::make_unique<collision::CollisionDetection>()),
         contact_solver_(
-            std::make_unique<contact::StiffnessDampingContactSolver>()),
+            std::make_unique<contact::AverageForceContactSolver>()),
         collision_filter_(std::make_unique<collision::CollisionFilter>()),
         model_ptr_(nullptr),
         part_pool_ptr_(nullptr),
@@ -305,7 +307,8 @@ auto PhysicsEngine::cptContactVelocityAB(
     auto* geometry_A = queryGeometryPoolById(pairs[i].id_A);
     auto* geometry_B = queryGeometryPoolById(pairs[i].id_B);
     SIRE_ASSERT(geometry_A != nullptr && geometry_B != nullptr);
-    auto pmA = const_cast<aris::dynamic::double4x4&>(imp_->model_ptr_->partPool().at(geometry_A->partId()).pm());
+    auto pmA = const_cast<aris::dynamic::double4x4&>(
+        imp_->model_ptr_->partPool().at(geometry_A->partId()).pm());
     double a = pmA[2][1];
     imp_->model_ptr_->partPool().at(geometry_A->partId()).getVs(vs_A);
     imp_->model_ptr_->partPool().at(geometry_B->partId()).getVs(vs_B);
@@ -410,6 +413,47 @@ auto PhysicsEngine::cptContactInfo(
   }
   return solver_result.dt;
 }
+auto PhysicsEngine::cptContactInfo(
+    double suggestTime,
+    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    const std::vector<std::array<double, 16>>& T_C_vec,
+    std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  const sire::Size num_contacts = penetration_pairs.size();
+  // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
+  contact::ContactSolverResult solver_result;
+  solver_result.dt = suggestTime;
+
+  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
+  imp_->contact_solver_->cptContactSolverResult(
+      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
+  std::vector<double>& fn = solver_result.fn;
+  std::vector<double>& ft = solver_result.ft;
+  std::vector<double>& vn = solver_result.vn;
+  std::vector<double>& vt = solver_result.vt;
+
+  SIRE_DEMAND(fn.size() >= num_contacts);
+  SIRE_DEMAND(ft.size() >= 2 * num_contacts);
+  SIRE_DEMAND(vn.size() >= num_contacts);
+  SIRE_DEMAND(vt.size() >= 2 * num_contacts);
+  for (int i = 0; i < num_contacts; ++i) {
+    // std::cout << "fn=" << fn[i] << " ";
+    const auto& pair = penetration_pairs[i];
+    // f of contact based on contact frame;
+    double f_Bc_C[3]{ft[2 * i], ft[2 * i + 1], fn[i]};
+    // 将接触坐标系下的力转换到世界坐标系
+    double fs[6];
+    core::screw::s_fpm2fs(f_Bc_C, T_C_vec.at(i).data(), fs);
+    double pe_C[6];
+    aris::dynamic::s_pm2pe(T_C_vec.at(i).data(), pe_C);
+    double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
+    double separation_speed = vn[i];
+    // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
+                            pe_C, separation_speed, slip_speed, pair});
+  }
+  return solver_result.dt;
+}
 auto PhysicsEngine::initPartContactForce2Model() -> void {
   // 初始化并使Model的ForcePool符合条件
   // 0. 设置电机力的Force，主要使用在动力学求解时
@@ -430,6 +474,10 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
         std::string("mf_" + std::to_string(i)), motion_pool.at(i).makI(),
         motion_pool.at(i).makJ(), 5);
     force.setFce(0);
+    if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion_pool[i]);
+        actuator != nullptr) {
+      actuator->setFcePtr(&force);
+    }
   }
   imp_->contact_force_idx_ = motion_size;
   for (int i = 0; i < part_size; ++i) {
@@ -449,12 +497,25 @@ auto PhysicsEngine::resetPartContactForce() -> void {
   auto& force_pool = imp_->model_ptr_->forcePool();
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
-  for (int i = 0; i < motion_size; ++i) {
-    dynamic_cast<SingleComponentForce&>(force_pool.at(i)).setFce(0);
-  }
+  // for (int i = 0; i < imp_->contact_force_size_; ++i) {
+  //   dynamic_cast<SingleComponentForce&>(force_pool.at(i +
+  //   imp_->contact_force_idx_)).setFce(0);
+  // }
   for (sire::Size i = motion_size; i < part_size + motion_size; ++i) {
     dynamic_cast<GeneralForce&>(force_pool.at(i))
         .setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
+  }
+}
+auto PhysicsEngine::resetMotionForce() -> void {
+  using aris::dynamic::GeneralForce;
+  using aris::dynamic::SingleComponentForce;
+  const sire::Size motion_size = imp_->model_ptr_->motionPool().size();
+  const sire::Size part_size = imp_->part_size_;
+  auto& force_pool = imp_->model_ptr_->forcePool();
+  auto& motion_pool = imp_->model_ptr_->motionPool();
+  auto& part_pool = imp_->model_ptr_->partPool();
+  for (int i = 0; i < motion_size; ++i) {
+    dynamic_cast<SingleComponentForce&>(force_pool.at(i)).setFce(0);
   }
 }
 auto PhysicsEngine::saveInitialModel(aris::dynamic::Model& model) -> void {
@@ -494,6 +555,20 @@ auto PhysicsEngine::cptGlbForceByContactInfo(
   }
   return true;
 }
+auto PhysicsEngine::fwdActuators() -> void {
+  auto& model = *imp_->model_ptr_;
+  auto& motionPool = model.motionPool();
+  for (sire::Size i{0}; i < motionPool.size(); ++i) {
+    auto& motion = motionPool[i];
+    if (!motion.active()) continue;
+    if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion);
+        actuator != nullptr) {
+      // std::cout << i << " ";
+      actuator->forward();
+    }
+  }
+}
+
 ARIS_REGISTRATION {
   aris::core::class_<aris::core::PointerArray<geometry::CollidableGeometry,
                                               aris::dynamic::Geometry>>(

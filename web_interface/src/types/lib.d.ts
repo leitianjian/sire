@@ -44,6 +44,12 @@ export interface SireBoxGeometry extends SireGeometryOnPart{
   height: number;
 }
 
+export interface SireCapsuleGeometry extends SireGeometryOnPart{
+  shape_type: string;
+  radius: number;
+  length: number;
+}
+
 export interface SireMeshGeometry extends SireGeometryOnPart{
   shape_type: string;
   resource_path: string;

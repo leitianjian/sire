@@ -189,13 +189,15 @@
 		<SireHttpInterface name="http_interface" document_root="D:\Documents\code\sire\web_interface\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SimulationLoop __prop_name__="simulator" dt="0.001" realtime_rate="0.5" sim_duration="12" global_variable_pool="{impact_threshold_insert:0.5,impact_threshold_remove:0.2,shrink_dt:0.001}">
+		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="0.5" sim_duration="12" global_variable_pool="{impact_threshold_insert:0.5,impact_threshold_remove:0.2,shrink_dt:0.001}">
 			<EventManager __prop_name__="event_manager">
 				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
 					<EventHandlerIdPair event_id="0" handler_id="0"/>
 					<EventHandlerIdPair event_id="1" handler_id="1"/>
+					<EventHandlerIdPair event_id="2" handler_id="2"/>
 				</EventHandlerPairPool>
 			</EventManager>
+			<ZeroForce __prop_name__="controller"/>
 		</SimulationLoop>
 		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
 			<CollisionDetection __prop_name__="collision_detection"/>

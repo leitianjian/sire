@@ -5,7 +5,13 @@
 #include <string>
 #include <thread>
 
+#include <coal/broadphase/broadphase_callbacks.h>
+#include <coal/broadphase/broadphase_collision_manager.h>
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/broadphase/default_broadphase_callbacks.h>
+#include <coal/collision.h>
+#include <coal/collision_data.h>
+#include <coal/collision_object.h>
 #include <coal/distance.h>
 #include <coal/math/transform.h>
 #include <coal/shape/geometric_shapes.h>
@@ -16,6 +22,7 @@
 #include "sire/core/constants.hpp"
 
 namespace sire::physics::collision {
+using namespace coal;
 struct CollisionFilter::Imp {
   FilterState filter_state_;
   unordered_map<CollisionGeometry*, GeometryId> geometry_map_;
@@ -47,8 +54,8 @@ auto CollisionFilter::addGeometry(GeometryId id, CollisionObject* obj_ptr)
     return true;
   }
 }
-auto CollisionFilter::updateGeometry(GeometryId id,
-                                     CollisionObject* obj_ptr) -> bool {
+auto CollisionFilter::updateGeometry(GeometryId id, CollisionObject* obj_ptr)
+    -> bool {
   if (containsGeometry(id)) {
     imp_->geometry_map_[obj_ptr->collisionGeometry().get()] = id;
     return true;

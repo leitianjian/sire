@@ -25,7 +25,7 @@ struct ContactSolverResult {
     vn.resize(num_contacts, 0);
     vt.resize(2 * num_contacts, 0);
     if (num_contacts != 0) isEmpty_ = false;
-    dt = (isEmpty_) ? 0.0 : -1.0;
+    // dt = (isEmpty_) ? 0.0 : -1.0;
   }
   void reset() {
     prtsA.clear();

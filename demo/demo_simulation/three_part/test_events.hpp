@@ -2,7 +2,7 @@
 #define THREE_PART_EVENT_HPP_
 
 #include "sire/core/event_base.hpp"
-#include "sire/core/event_manager.hpp"
+#include "sire/simulator/event_manager.hpp"
 #include "sire/core/handler_base.hpp"
 #include "sire/core/trigger_base.hpp"
 #include "sire/simulator/simulation_loop.hpp"
@@ -14,7 +14,7 @@ class InitEvent1 final : public core::EventBase {
   auto init() -> void override;
   simulator::SimulationLoop* simulator_ptr;
   physics::PhysicsEngine* engine_ptr;
-  core::EventManager* manager_ptr;
+  simulator::EventManager* manager_ptr;
 };
 class InitHandler final : public core::HandlerBase {
  public:
@@ -31,7 +31,7 @@ class StepEvent final : public core::EventBase {
   auto init() -> void override;
   simulator::SimulationLoop* simulator_ptr;
   physics::PhysicsEngine* engine_ptr;
-  core::EventManager* manager_ptr;
+  simulator::EventManager* manager_ptr;
 };
 class StepHandler final : public core::HandlerBase {
  public:

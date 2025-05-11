@@ -12,6 +12,8 @@
 #include "sire/core/sire_assert.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/sensor/sensor.hpp"
+#include "sire/simulator/controller.hpp"
+#include "sire/simulator/joint_constraint_solver.hpp"
 #include "sire/simulator/simulator_modules.hpp"
 
 namespace sire::simulator {
@@ -23,20 +25,13 @@ struct SimulationLoop::Imp {
   simulator::SimulatorModules* simulator_modules_ptr_;
   IntegratorPool* integrator_pool_ptr_;
   SensorPool* sensor_pool_ptr_;
+  // std::vector<aris::dynamic::Model*> model_pool_{2};
+  aris::dynamic::Model* model_ptr_;
 
   // 用来保存全局变量，使用xml配置，在trigger event handle中可以使用
   core::PropMap global_variable_pool_;
-  // Event相关
-  // BaseFactory<TriggerBase>* trigger_factory_;
-  core::EventBaseFactory* event_factory_;
-  core::HandlerBaseFactory* handler_factory_;
-  map<sire::Size, std::string> trigger_pool_;
-  map<sire::Size, std::string> event_pool_;
-  map<sire::Size, std::string> handler_pool_;
-  map<sire::Size, std::unique_ptr<TriggerBase> (*)()> trigger_creator_;
-  map<sire::Size, std::unique_ptr<EventBase> (*)()> event_creator_;
-  map<sire::Size, std::unique_ptr<HandlerBase> (*)()> handler_creator_;
-  std::unique_ptr<core::EventManager> event_manager_;
+  std::unique_ptr<simulator::EventManager> event_manager_{new simulator::EventManager()};
+  std::unique_ptr<Controller> ctrlPtr_{new Controller()};
 
   core::ContactPairManager contact_pair_manager_;
 
@@ -45,8 +40,8 @@ struct SimulationLoop::Imp {
   double simDuration_{60};
 
   // all time represent in seconds;
-  double dt_;
-  double ctrlt_;
+  double dt_{0.001};
+  double ctrlt_{0.001};
   std::chrono::system_clock::time_point current_time_;
   std::chrono::system_clock::time_point start_time_;
   std::int64_t sim_count_;
@@ -65,12 +60,6 @@ struct SimulationLoop::Imp {
   const std::function<void(aris::server::ControlServer&, SimulationLoop&,
                            std::any&)>* get_data_func_{nullptr};
   std::any* get_data_{nullptr};
-
-  // std::vector<aris::dynamic::Model*> model_pool_{2};
-  aris::dynamic::Model* model_ptr_;
-  Imp()
-      : event_factory_(&core::EventBaseFactory::instance()),
-        handler_factory_(&core::HandlerBaseFactory::instance()) {}
 };
 
 SimulationLoop::SimulationLoop() : imp_(new Imp) {}
@@ -106,19 +95,17 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   // imp_->event_manager_.engine_ptr_ = imp_->physics_engine_ptr_;
 
   imp_->timer_.init();
-  // imp_->trigger_pool_ = imp_->trigger_factory_->idNamePair();
-  // imp_->trigger_creator_ = imp_->trigger_factory_->map();
-  imp_->event_pool_ = imp_->event_factory_->idNamePair();
-  imp_->event_creator_ = imp_->event_factory_->map();
-  imp_->handler_pool_ = imp_->handler_factory_->idNamePair();
-  imp_->handler_creator_ = imp_->handler_factory_->map();
 
   // create init trigger to event manager (must at id = 0)
   // std::unique_ptr<TriggerBase> init_trigger = createTriggerById(0);
   // imp_->event_manager_.addImmediateTrigger(std::move(init_trigger));
-  std::unique_ptr<EventBase> init_event = createEventById(0);
+  std::unique_ptr<EventBase> init_event =
+      this->eventManager().createEventById(0);
   imp_->event_manager_->addEvent(std::move(init_event));
-  imp_->event_manager_->init();
+  imp_->event_manager_->init(this);
+  imp_->ctrlPtr_->init(this);
+
+  imp_->model_ptr_->solverPool().add<solver::JointConstraintSolver>();
 
   // 正确设置model中的力
   imp_->physics_engine_ptr_->initPartContactForce2Model();
@@ -153,6 +140,7 @@ auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
     imp_->can_get_data_.store(false);
     if (handler->handle(header)) {
       imp_->can_get_data_.store(true);
+      // imp_->event_manager_->generateEvent();
       if (pause_if_fast) {
         imp_->timer_.pauseIfTooFast();
       }
@@ -188,7 +176,7 @@ auto SimulationLoop::start() -> void {
       step(1, true);
     }
     std::cout << imp_->recorder_.records.size() << std::endl;
-});
+  });
 }
 auto SimulationLoop::isRunning() -> bool {
   return imp_->is_simulation_running_.load();
@@ -197,37 +185,9 @@ auto SimulationLoop::pause() -> void {
   imp_->is_simulation_running_.store(false);
   imp_->simulation_thread.join();
 }
-auto SimulationLoop::createTriggerById(sire::Size trigger_id)
-    -> std::unique_ptr<TriggerBase> {
-  std::unique_ptr<TriggerBase> new_trigger =
-      imp_->trigger_creator_[trigger_id]();
-  new_trigger->setTriggerId(trigger_id);
-  new_trigger->setTriggerType(imp_->trigger_pool_[trigger_id]);
-  return new_trigger;
-}
-auto SimulationLoop::createEventById(sire::Size event_id)
-    -> std::unique_ptr<EventBase> {
-  std::unique_ptr<EventBase> new_event = imp_->event_creator_[event_id]();
-  new_event->setEventId(event_id);
-  new_event->setEventType(imp_->event_pool_[event_id]);
-  return std::move(new_event);
-}
-auto SimulationLoop::createHandlerById(sire::Size handler_id)
-    -> std::unique_ptr<HandlerBase> {
-  std::unique_ptr<HandlerBase> new_handler =
-      imp_->handler_creator_[handler_id]();
-  new_handler->setHandlerId(handler_id);
-  new_handler->setHandlerType(imp_->handler_pool_[handler_id]);
-  return new_handler;
-}
-auto SimulationLoop::createEventByTriggerId(sire::Size trigger_id)
-    -> std::unique_ptr<EventBase> {
-  return createEventById(
-      imp_->event_manager_->getEventIdByTriggerId(trigger_id));
-}
 auto SimulationLoop::createHandlerByEventId(sire::Size event_id)
     -> std::unique_ptr<HandlerBase> {
-  return createHandlerById(
+  return this->eventManager().createHandlerById(
       imp_->event_manager_->getHandlerIdByEventId(event_id));
 }
 auto SimulationLoop::model() noexcept -> aris::dynamic::Model* {
@@ -299,11 +259,19 @@ auto SimulationLoop::resolveContact() -> void {
 auto SimulationLoop::collisionDetection() -> void {
   imp_->physics_engine_ptr_->hasCollision();
 }
-auto SimulationLoop::resetEventManager(core::EventManager* manager) -> void {
+auto SimulationLoop::resetEventManager(simulator::EventManager* manager)
+    -> void {
   imp_->event_manager_.reset(manager);
 }
-auto SimulationLoop::eventManager() const -> const core::EventManager& {
+auto SimulationLoop::eventManager() const -> const simulator::EventManager& {
   return *imp_->event_manager_;
+}
+auto SimulationLoop::resetController(simulator::Controller* ctrlPtr) -> void {
+  SIRE_ASSERT(ctrlPtr != nullptr);
+  imp_->ctrlPtr_.reset(ctrlPtr);
+}
+auto SimulationLoop::controller() const -> const simulator::Controller& {
+  return *imp_->ctrlPtr_;
 }
 auto SimulationLoop::deltaT() -> double { return imp_->dt_; }
 auto SimulationLoop::setDeltaT(double delta_t_in) -> void {
@@ -348,18 +316,21 @@ ARIS_REGISTRATION {
   auto getGlobalVariablePool = [](SimulationLoop* p) -> core::PropMap {
     return p->getGlobalVariablePool();
   };
-  typedef core::EventManager& (SimulationLoop::*EventManagerFunc)();
+  typedef simulator::EventManager& (SimulationLoop::*EventManagerFunc)();
+  typedef simulator::Controller& (SimulationLoop::*ControllerFunc)();
 
   aris::core::class_<SimulationLoop>("SimulationLoop")
       .prop("dt", &SimulationLoop::setDeltaT, &SimulationLoop::deltaT)
       .prop("ctrlt", &SimulationLoop::setCtrlT, &SimulationLoop::ctrlT)
       .prop("realtime_rate", &SimulationLoop::setRealtimeRate,
-            &SimulationLoop::realtimeRate)
+            &SimulationLoop::targetRealtimeRate)
       .prop("sim_duration", &SimulationLoop::setSimDuration,
             &SimulationLoop::simDuration)
       .prop("global_variable_pool", &setGlobalVariablePool,
             &getGlobalVariablePool)
       .prop("event_manager", &SimulationLoop::resetEventManager,
-            EventManagerFunc(&SimulationLoop::eventManager));
+            EventManagerFunc(&SimulationLoop::eventManager))
+      .prop("controller", &SimulationLoop::resetController,
+            ControllerFunc(&SimulationLoop::controller));
 }
 }  // namespace sire::simulator

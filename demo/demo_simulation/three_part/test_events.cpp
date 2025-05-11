@@ -9,8 +9,8 @@
 #include <aris/dynamic/screw.hpp>
 
 #include "sire/core/base_factory.hpp"
-#include "sire/core/event_manager.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
+#include "sire/simulator/event_manager.hpp"
 
 namespace sire::three_part {
 using namespace sire::physics;
@@ -23,7 +23,7 @@ auto InitHandler::handle(core::EventBase* e) -> bool {
   // 之后就可以正常积分
 
   std::unique_ptr<core::EventBase> step_event =
-      simulator_ptr->createEventById(1);
+      simulator_ptr->eventManager().createEventById(1);
   step_event->eventProp().addProp("dt", simulator_ptr->deltaT());
   simulator_ptr->eventManager().addEvent(std::move(step_event));
 
@@ -41,7 +41,7 @@ auto StepHandler::handle(core::EventBase* e) -> bool {
   // if (dt == 0.0000001) std::cout << "dt=" << dt << " ";
 
   std::unique_ptr<core::EventBase> step_event =
-      simulator_ptr->createEventById(1);
+      simulator_ptr->eventManager().createEventById(1);
   step_event->eventProp().addProp("dt", simulator_ptr->deltaT());
   // if (!manager_ptr->impactedPrtSet().empty()) {
   //   std::cout

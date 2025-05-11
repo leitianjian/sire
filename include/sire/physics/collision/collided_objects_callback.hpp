@@ -5,6 +5,7 @@
 
 #include <coal/broadphase/broadphase_callbacks.h>
 #include <coal/broadphase/broadphase_collision_manager.h>
+#include <coal/broadphase/default_broadphase_callbacks.h>
 #include <coal/collision_data.h>
 #include <coal/collision_object.h>
 
@@ -14,14 +15,12 @@ namespace sire::physics::collision {
 using namespace std;
 using namespace coal;
 // Stored collided object when collision detected
-class SIRE_API CollidedObjectsCallback : public CollisionCallBackBase {
+class CollidedObjectsCallback : public CollisionCallBackBase {
  public:
   CollisionData data;
   bool collide(CollisionObject* o1, CollisionObject* o2) override;
-  auto addCollidedObject(CollisionObject* o1, CollisionObject* o2)
-      -> void;
-  auto queryCollidedObject(CollisionObject* o1, CollisionObject* o2)
-      -> bool;
+  auto addCollidedObject(CollisionObject* o1, CollisionObject* o2) -> void;
+  auto queryCollidedObject(CollisionObject* o1, CollisionObject* o2) -> bool;
   auto collidedObjectMap() -> set<CollisionObjectsPair>&;
   CollidedObjectsCallback(CollisionFilter* filter);
   virtual ~CollidedObjectsCallback() = default;

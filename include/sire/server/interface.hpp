@@ -14,7 +14,7 @@
 #include <aris/server/interface.hpp>
 
 namespace sire::server {
-class MeshcatInterface : public aris::server::Interface {
+class SIRE_API MeshcatInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;
   auto virtual close() -> void override;
@@ -32,7 +32,7 @@ class MeshcatInterface : public aris::server::Interface {
   struct Imp;
   std::unique_ptr<Imp> imp_;
 };
-class ProgramWebInterface : public aris::server::Interface {
+class SIRE_API ProgramWebInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;
   auto virtual close() -> void override;
@@ -61,7 +61,7 @@ class ProgramWebInterface : public aris::server::Interface {
 };
 auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret,
                      bool print_flag) -> std::string;
-class HttpInterface : public aris::server::Interface {
+class SIRE_API HttpInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;
   auto virtual close() -> void override;

@@ -1,6 +1,7 @@
 #include "sire/physics/collision/collided_objects_callback.hpp"
 
 #include <coal/broadphase/broadphase_dynamic_AABB_tree.h>
+#include <coal/collision_data.h>
 #include <coal/distance.h>
 #include <coal/math/transform.h>
 
@@ -10,8 +11,8 @@
 #include "sire/physics/geometry/collidable_geometry.hpp"
 
 namespace sire::physics::collision {
-auto CollidedObjectsCallback::collide(CollisionObject* o1,
-                                      CollisionObject* o2) -> bool {
+auto CollidedObjectsCallback::collide(CollisionObject* o1, CollisionObject* o2)
+    -> bool {
   // NOTE: Here and below, false is returned regardless of whether collision
   // is detected or not because true tells the broadphase manager to terminate.
   // Since we want *all* collisions, we return false.
@@ -35,8 +36,7 @@ auto CollidedObjectsCallback::collidedObjectMap()
   return collidedObjectMap_;
 }
 auto CollidedObjectsCallback::addCollidedObject(CollisionObject* o1,
-                                                CollisionObject* o2)
-    -> void {
+                                                CollisionObject* o2) -> void {
   if (o1 == o2) return;
   GeometryId id_1 =
       filter_->queryGeometryIdByPtr(o1->collisionGeometry().get());
@@ -50,8 +50,7 @@ auto CollidedObjectsCallback::addCollidedObject(CollisionObject* o1,
   }
 }
 auto CollidedObjectsCallback::queryCollidedObject(CollisionObject* o1,
-                                                  CollisionObject* o2)
-    -> bool {
+                                                  CollisionObject* o2) -> bool {
   if (o1 == o2) return true;
   GeometryId id_1 =
       filter_->queryGeometryIdByPtr(o1->collisionGeometry().get());

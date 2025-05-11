@@ -5,6 +5,7 @@
 #include <aris/core/reflection.hpp>
 
 #include "sire/core/geometry/box_shape.hpp"
+#include "sire/core/geometry/capsule_shape.hpp"
 #include "sire/core/geometry/sphere_shape.hpp"
 #include "sire/core/nice_type_name.hpp"
 #include "sire/core/sire_assert.hpp"
@@ -17,9 +18,9 @@ void ShapeCalculator::ImplementGeometry(const BoxShape&, void*) {
   ThrowUnsupportedGeometry("Box");
 }
 
-// void ShapeCalculator::ImplementGeometry(const Capsule&, void*) {
-//   ThrowUnsupportedGeometry("Capsule");
-// }
+void ShapeCalculator::ImplementGeometry(const CapsuleShape&, void*) {
+  ThrowUnsupportedGeometry("Capsule");
+}
 
 // void ShapeCalculator::ImplementGeometry(const Convex&, void*) {
 //   ThrowUnsupportedGeometry("Convex");
@@ -56,6 +57,10 @@ void ShapeCalculator::ThrowUnsupportedGeometry(const std::string& shape_name) {
 }
 void ShapeToName::ImplementGeometry(const BoxShape& box, void*) {
   string_ = "box";
+}
+
+void ShapeToName::ImplementGeometry(const CapsuleShape& capsule, void*) {
+  string_ = "capsule";
 }
 
 // void ShapeToString::ImplementGeometry(const Capsule& capsule, void*) {
@@ -113,12 +118,20 @@ void ShapeToInertia::ImplementGeometry(const SphereShape& sphere,
   double ixyz = 0.4 * iv[0] * sphere.radius() * sphere.radius();
   iv[4] = iv[5] = iv[6] = ixyz;
 }
-void ShapeToInertia::ImplementGeometry(const BoxShape& box,
-                                       void* user_data) {
+void ShapeToInertia::ImplementGeometry(const BoxShape& box, void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double mass = iv[0], x{box.width()}, y{box.length()}, z{box.height()};
   iv[4] = mass * (y * y + z * z) / 12;  // ix
   iv[5] = mass * (x * x + z * z) / 12;  // iy
   iv[6] = mass * (x * x + y * y) / 12;  // iz
+}
+void ShapeToInertia::ImplementGeometry(const CapsuleShape& capsule,
+                                       void* user_data) {
+  double* iv = static_cast<double*>(user_data);
+  double mass = iv[0], radius{capsule.radius()}, length{capsule.length()};
+  // ShapeCalculator::ThrowUnsupportedGeometry("");
+  // iv[4] = mass * (y * y + z * z) / 12;  // ix
+  // iv[5] = mass * (x * x + z * z) / 12;  // iy
+  // iv[6] = mass * (x * x + y * y) / 12;  // iz
 }
 }  // namespace sire::geometry
