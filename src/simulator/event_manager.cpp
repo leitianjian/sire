@@ -129,7 +129,7 @@ auto EventManager::cptNextCtrlSimSuggestDt() -> double {
   SIRE_ASSERT(ctrlDt > 0);
   double nextCtrlTime = imp_->prevCtrlTime_ + ctrlDt;
   double nextSimTime = imp_->prevIntTime_ + simDt;
-  std::cout << "next ctrl time " << nextCtrlTime << " next sim time "
+  DLOG(DEBUG) << "next ctrl time " << nextCtrlTime << " next sim time "
             << nextSimTime << std::endl;
   if (nextCtrlTime < nextSimTime ||
       aris::dynamic::s_is_equal(nextCtrlTime, nextSimTime, 1e-8)) {
@@ -174,7 +174,7 @@ auto EventManager::setNextEventId(sire::Size nextEventId) -> void {
   imp_->nextEventId_ = nextEventId;
 }
 auto EventManager::isEventListEmpty() -> bool {
-  return imp_->header_ != imp_->event_list_.end();
+  return imp_->header_ == imp_->event_list_.end();
 }
 auto EventManager::eventListHeader() -> core::EventBase* {
   return imp_->header_->get();

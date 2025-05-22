@@ -13,6 +13,7 @@
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/sensor/sensor.hpp"
 #include "sire/simulator/controller.hpp"
+#include "sire/simulator/event_manager.hpp"
 #include "sire/simulator/joint_constraint_solver.hpp"
 #include "sire/simulator/simulator_modules.hpp"
 
@@ -30,7 +31,8 @@ struct SimulationLoop::Imp {
 
   // 用来保存全局变量，使用xml配置，在trigger event handle中可以使用
   core::PropMap global_variable_pool_;
-  std::unique_ptr<simulator::EventManager> event_manager_{new simulator::EventManager()};
+  std::unique_ptr<simulator::EventManager> event_manager_{
+      new simulator::EventManager()};
   std::unique_ptr<Controller> ctrlPtr_{new Controller()};
 
   core::ContactPairManager contact_pair_manager_;
@@ -63,7 +65,16 @@ struct SimulationLoop::Imp {
 };
 
 SimulationLoop::SimulationLoop() : imp_(new Imp) {}
-SimulationLoop::~SimulationLoop() = default;
+SimulationLoop::~SimulationLoop() {
+  imp_->is_data_fetch_running_.store(false);
+  if (imp_->data_fetch_thread.joinable()) {
+    imp_->data_fetch_thread.join();
+  }
+  imp_->is_simulation_running_.store(false);
+  if (imp_->simulation_thread.joinable()) {
+    imp_->simulation_thread.join();
+  }
+}
 SIRE_DEFINE_MOVE_CTOR_CPP(SimulationLoop);
 
 // 初始化自己掌控的资源和获取挂在其他节点下的资源
@@ -110,14 +121,21 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   // 正确设置model中的力
   imp_->physics_engine_ptr_->initPartContactForce2Model();
   imp_->model_ptr_->init();
+  // double p[1]{0.916};
+  // imp_->model_ptr_->motionPool()[2].setP(p);
+  // imp_->model_ptr_->motionPool()[5].setP(p);
+  // imp_->model_ptr_->motionPool()[8].setP(p);
+  // imp_->model_ptr_->motionPool()[11].setP(p);
+  // imp_->model_ptr_->forwardKinematics();
 
   // 开始允许获取数据
   imp_->is_data_fetch_running_.store(true);
   imp_->data_fetch_thread = std::thread([this]() {
     while (imp_->is_data_fetch_running_) {
-      while (!(imp_->if_get_data_.load() && imp_->can_get_data_.load()))
+      while (imp_->is_data_fetch_running_ &&
+             !(imp_->if_get_data_.load() && imp_->can_get_data_.load()))
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-
+      if (!imp_->is_data_fetch_running_) break;
       imp_->get_data_func_->operator()(aris::server::ControlServer::instance(),
                                        *this, *imp_->get_data_);
       imp_->if_get_data_ready_.store(true);  // 原子操作
@@ -172,11 +190,21 @@ auto SimulationLoop::start() -> void {
   imp_->simulation_thread = std::thread([this]() {
     while (imp_->is_simulation_running_ &&
            imp_->timer_.simTime() < imp_->simDuration_ &&
-           imp_->event_manager_->isEventListEmpty()) {
+           !imp_->event_manager_->isEventListEmpty()) {
       step(1, true);
     }
     std::cout << imp_->recorder_.records.size() << std::endl;
   });
+}
+auto SimulationLoop::isTimeout() -> bool {
+  if (imp_->timer_.simTime() >= imp_->simDuration_ - 1e-8)
+    return true;
+  else
+    return false;
+}
+auto SimulationLoop::simTime() -> double { return imp_->timer_.simTime(); }
+auto SimulationLoop::isEventListEmpty() -> bool {
+  return imp_->event_manager_->isEventListEmpty();
 }
 auto SimulationLoop::isRunning() -> bool {
   return imp_->is_simulation_running_.load();
@@ -184,6 +212,11 @@ auto SimulationLoop::isRunning() -> bool {
 auto SimulationLoop::pause() -> void {
   imp_->is_simulation_running_.store(false);
   imp_->simulation_thread.join();
+}
+auto SimulationLoop::recordsToJson() -> nlohmann::json {
+  nlohmann::json j;
+  imp_->recorder_.to_json(j);
+  return j;
 }
 auto SimulationLoop::createHandlerByEventId(sire::Size event_id)
     -> std::unique_ptr<HandlerBase> {

@@ -110,5 +110,64 @@ class SIRE_API CtrlEvent1 final : public core::EventBase {
    auto handle(core::EventBase* e) -> bool override;
    simulator::SimulationLoop* simulator_ptr;
  };
+
+ // without initial penetration elimination
+ class SIRE_API InitEvent2 final : public core::EventBase {
+ public:
+  InitEvent2() : EventBase() {}
+  ~InitEvent2() = default;
+  auto init() -> void override;
+  simulator::SimulationLoop* simulator_ptr;
+  physics::PhysicsEngine* engine_ptr;
+  simulator::EventManager* manager_ptr;
+};
+class SIRE_API InitHandler2 final : public core::HandlerBase {
+ public:
+  InitHandler2() : HandlerBase() {}
+  ~InitHandler2() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
+class SIRE_API StepEvent2 final : public core::EventBase {
+ public:
+  StepEvent2() : EventBase() {
+    setEventType("Step2");
+    setEventId(kStepEventId);
+  }
+  ~StepEvent2() = default;
+  auto init() -> void override;
+  simulator::SimulationLoop* simulator_ptr;
+  physics::PhysicsEngine* engine_ptr;
+  simulator::EventManager* manager_ptr;
+};
+class SIRE_API StepHandler2 final : public core::HandlerBase {
+ public:
+  StepHandler2() : HandlerBase() {}
+  ~StepHandler2() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
+class SIRE_API CtrlEvent2 final : public core::EventBase {
+  public:
+  CtrlEvent2() : EventBase() {
+    setEventType("Ctrl2");
+    setEventId(kCtrlEventId);
+  }
+   ~CtrlEvent2() = default;
+   auto init() -> void override;
+   simulator::SimulationLoop* simulator_ptr;
+   physics::PhysicsEngine* engine_ptr;
+   simulator::EventManager* manager_ptr;
+ };
+ class SIRE_API CtrlHandler2 final : public core::HandlerBase {
+  public:
+  CtrlHandler2() : HandlerBase() {}
+   ~CtrlHandler2() = default;
+   auto init(simulator::SimulationLoop* simulator) -> void override;
+   auto handle(core::EventBase* e) -> bool override;
+   simulator::SimulationLoop* simulator_ptr;
+ };
 }  // namespace sire::simulator
 #endif

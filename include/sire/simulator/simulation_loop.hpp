@@ -13,6 +13,7 @@
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/core/timer.hpp"
 #include "sire/core/trigger_base.hpp"
+#include "sire/ext/json.hpp"
 #include "sire/integrator/integrator_base.hpp"
 #include "sire/physics/physics_engine.hpp"
 #include "sire/sensor/sensor.hpp"
@@ -98,7 +99,9 @@ class SIRE_API SimulationLoop {
       std::any& get_data) -> void;
 
   auto timer() -> core::Timer&;
+  auto simTime() -> double;
   auto recorder() -> simulator::Recorder&;
+  auto recordsToJson() -> nlohmann::json;
   auto simDuration() -> double;
   auto setSimDuration(double simDuration) -> void;
   // TODO(leitianjian)：
@@ -108,12 +111,8 @@ class SIRE_API SimulationLoop {
   auto restoreModel() -> void;
 
   // operation to control simulator outside //
-  auto tickOnStep() -> void {
-    // model -> forwardDynamics()
-    // model -> integratePartAs()
-    // model -> integrateMotionAs()
-    // model -> forwardKinematics() 最小二乘
-  }
+  auto isTimeout() -> bool;
+  auto isEventListEmpty() -> bool;
   auto init(middleware::SireMiddleware* middleware) -> void;
   auto start() -> void;
   auto isRunning() -> bool;

@@ -99,19 +99,31 @@ target_link_libraries(material_manager_test
 		${PUB_RELY_LINK_LIB}
 )
 
-# add_executable(model_data_copy_test "model/model_data_copy_test")
+# add_executable(model_data_copy_test "model/model_data_copy_test.cpp")
 # target_compile_features(model_data_copy_test PUBLIC cxx_std_17)
 # target_include_directories(model_data_copy_test
-# PRIVATE
-# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-# ${aris_INCLUDE_DIRS}
+# 	PRIVATE
+# 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+# 		${aris_INCLUDE_DIRS}
+# 		${coal_INCLUDE_DIRS}
+# 		${ASSIMP_INCLUDE_DIRS}
+# 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 # )
-#
 # target_link_libraries(model_data_copy_test
-# PRIVATE
-# GTest::gtest_main
-# ${PUB_RELY_LINK_LIB}
+# 	PRIVATE
+# 		GTest::gtest_main
+# 		Eigen3::Eigen
+# 		sire_physics
+# 		sire_log
+# 		sire_core
+# 		sire_simulator
+# 		sire_middleware
+# 		sire_server
+# 		sire_integrator
+# 		sire_actuator
+# 		${PUB_RELY_LINK_LIB}
 # )
+
 add_executable(screw_test "model/screw_test.cpp")
 target_compile_features(screw_test PUBLIC cxx_std_17)
 target_include_directories(screw_test
@@ -209,59 +221,6 @@ target_link_libraries(geometry_serialization_test
 		${PUB_RELY_LINK_LIB}
 )
 
-# add_executable(cam_backend_test
-# "cam_backend/cam_backend_test.cpp")
-# target_compile_features(cam_backend_test PUBLIC cxx_std_17)
-#
-# target_include_directories(cam_backend_test
-# PRIVATE
-# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-# ${aris_INCLUDE_DIRS}
-# ${PROJECT_BINARY_DIR}
-# ${hpp-fcl_INCLUDE_DIRS}
-# ${ASSIMP_INCLUDE_DIRS}
-# ${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-# )
-#
-# target_link_libraries(cam_backend_test
-# PRIVATE
-# GTest::gtest_main
-# sire_physics
-# sire_cam_backend
-# sire_core
-# sire_simulator
-# sire_middleware
-# sire_server
-# sire_integrator
-# ${PUB_RELY_LINK_LIB}
-# )
-
-# add_executable(cam_backend_collision_test
-# "cam_backend/collision_test.cpp")
-# target_compile_features(cam_backend_collision_test PUBLIC cxx_std_17)
-#
-# target_include_directories(cam_backend_collision_test
-# PRIVATE
-# $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-# ${aris_INCLUDE_DIRS}
-# ${PROJECT_BINARY_DIR}
-# ${hpp-fcl_INCLUDE_DIRS}
-# ${ASSIMP_INCLUDE_DIRS}
-# ${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-# )
-#
-# target_link_libraries(cam_backend_collision_test
-# PRIVATE
-# GTest::gtest_main
-# sire_physics
-# sire_cam_backend
-# sire_core
-# sire_simulator
-# sire_middleware
-# sire_server
-# sire_integrator
-# ${PUB_RELY_LINK_LIB}
-# )
 if(WIN32)
 	string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
 
@@ -280,6 +239,7 @@ if(WIN32)
 
 	add_custom_command(TARGET collision_detection_test POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy
+		"${CMAKE_CURRENT_SOURCE_DIR}/model/a1_modified.xml"
 		"${TARGET_ARIS_PATH}/lib/${CMAKE_BUILD_TYPE_LOWER}/aris_lib.dll"
 		"${TARGET_HPP_FCL_PATH}/bin/coal.dll"
 		"${VCPKG_DLL_PREFIX}/assimp-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:d>.dll"

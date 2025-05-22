@@ -7,12 +7,16 @@
 #include <pybind11/complex.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <sire/core/constants.hpp>
 
 #include <aris.hpp>
-namespace py = pybind11;
 
-PYBIND11_MODULE(sire_python, m) {
+#include "sire/core/constants.hpp"
+#include "sire/middleware/sire_middleware.hpp"
+
+#include "pybind11_json.hpp"
+namespace py = pybind11;
+using namespace pybind11::literals;
+PYBIND11_MODULE(sire, m) {
   // 常量绑定
   m.attr("kPosQuatSize") = sire::kPosQuatSize;
   // 配置文件读取
@@ -61,6 +65,48 @@ PYBIND11_MODULE(sire_python, m) {
       PyErr_SetString(PyExc_RuntimeError, "Unknown C++ exception");
     }
   });
+  py::class_<sire::simulator::SimulationLoop>(m, "SimulationLoop")
+      .def(py::init<>())
+      .def("start", &sire::simulator::SimulationLoop::start)
+      .def("step", &sire::simulator::SimulationLoop::step, "frame_skip"_a = 1,
+           "pause_if_fast"_a = false)
+      .def("isTimeout", &sire::simulator::SimulationLoop::isTimeout)
+      .def("isRunning", &sire::simulator::SimulationLoop::isRunning)
+      .def("isEventListEmpty",
+           &sire::simulator::SimulationLoop::isEventListEmpty)
+      .def("recordsToJson", &sire::simulator::SimulationLoop::recordsToJson)
+      .def("simTime", &sire::simulator::SimulationLoop::simTime)
+      .def("stop", &sire::simulator::SimulationLoop::stop)
+      .def("pause", &sire::simulator::SimulationLoop::pause)
+      .def("isRunning", &sire::simulator::SimulationLoop::isRunning)
+      .def("setDeltaT", &sire::simulator::SimulationLoop::setDeltaT)
+      .def("deltaT", &sire::simulator::SimulationLoop::deltaT)
+      .def("ctrlT", &sire::simulator::SimulationLoop::ctrlT)
+      .def("realtimeRate", &sire::simulator::SimulationLoop::realtimeRate)
+      .def("setRealtimeRate",
+           &sire::simulator::SimulationLoop::setRealtimeRate);
+
+  m.def(
+      "simulator",
+      [](aris::server::ControlServer& self)
+          -> sire::simulator::SimulationLoop& {
+        auto* middleware_ptr =
+            dynamic_cast<sire::middleware::SireMiddleware*>(&self.middleWare());
+        if (!middleware_ptr) {
+          throw std::runtime_error(
+              "middleWare() is not of type SireMiddleware");
+        }
+        auto& middleware = *middleware_ptr;
+        return middleware.simulationLoop();
+      },
+      py::return_value_policy::reference_internal);
+
+  m.def(
+      "model",
+      [](aris::server::ControlServer& self) -> aris::dynamic::Model& {
+        return dynamic_cast<aris::dynamic::Model&>(self.model());
+      },
+      py::return_value_policy::reference_internal);
 
   py::class_<aris::server::ControlServer,
              std::unique_ptr<aris::server::ControlServer, py::nodelete>>(
@@ -77,7 +123,16 @@ PYBIND11_MODULE(sire_python, m) {
       .def("model",
            py::overload_cast<>(&aris::server::ControlServer::model, py::const_),
            py::return_value_policy::reference_internal)
-      .def("runCmdLine", &aris::server::ControlServer::runCmdLine);
+      .def("runCmdLine", &aris::server::ControlServer::runCmdLine)
+      .def(
+          "simulator",
+          [](aris::server::ControlServer& self)
+              -> sire::simulator::SimulationLoop& {
+            auto& middleware = dynamic_cast<sire::middleware::SireMiddleware&>(
+                self.middleWare());
+            return middleware.simulationLoop();
+          },
+          py::return_value_policy::reference);
 
   py::class_<aris::dynamic::DeltaParam>(m, "DeltaParam")
       .def(py::init<>())  // 默认构造函数
@@ -97,6 +152,58 @@ PYBIND11_MODULE(sire_python, m) {
              self.solverPool().add<aris::dynamic::InverseDynamicSolver>();
              self.solverPool().add<aris::dynamic::ForwardDynamicSolver>();
            })
+      .def("displayInitJson",
+           [](aris::dynamic::Model& self) -> nlohmann::json {
+             // get control server config of geometry in part pool
+             nlohmann::json geo_pool;
+             // 取出 Part下面的每一个geometry
+             nlohmann::json displayInitJson = nlohmann::json::object();
+             for (sire::Size i = 0; i < self.partPool().size(); ++i) {
+               nlohmann::json json;
+               aris::dynamic::Part& part = self.partPool().at(i);
+               std::array<double, 16> buffer;
+               for (sire::Size j = 0; j < part.geometryPool().size(); ++j) {
+                 dynamic_cast<sire::geometry::GeometryBase&>(
+                     part.geometryPool().at(j))
+                     .to_json(json);
+                 aris::dynamic::s_vc(
+                     16,
+                     const_cast<double*>(
+                         *dynamic_cast<sire::geometry::GeometryBase&>(
+                              part.geometryPool().at(j))
+                              .pm()),
+                     buffer.data());
+                 json["init_pm"] = buffer;
+                 geo_pool.push_back(json);
+               }
+             }
+             // 设置part相关初始化的信息
+             nlohmann::json part_init_config;
+             part_init_config.push_back(
+                 std::array<double, sire::kPosQuatSize>({0, 0, 0, 0, 0, 0, 1}));
+             for (sire::Size i = 1; i < self.partPool().size(); ++i) {
+               aris::dynamic::Part& part = self.partPool().at(i);
+               std::array<double, sire::kPosQuatSize> part_pq_buffer;
+               part.getPq(part_pq_buffer.data());
+               part_init_config.push_back(part_pq_buffer);
+             }
+             displayInitJson["geometry_pool"] = geo_pool;
+             displayInitJson["part_init_config"] = part_init_config;
+             return displayInitJson;
+           })
+      .def("numLinks",
+           [](const aris::dynamic::Model& self) -> int {
+             return (int)self.partPool().size();
+           })  // 获取连杆数
+      .def(
+          "link",
+          [](const aris::dynamic::Model& self, int i) -> aris::dynamic::Part& {
+            if (i < 0 || i >= self.partPool().size()) {
+              throw std::out_of_range("Index out of range");
+            }
+            return const_cast<aris::dynamic::Part&>(self.partPool().at(i));
+          },
+          py::return_value_policy::reference_internal)  // 获取连杆
       .def(
           "addPartByPe",
           [](aris::dynamic::Model& self, const std::vector<double>& pe,
@@ -135,10 +242,12 @@ PYBIND11_MODULE(sire_python, m) {
                                           axis.data());
           },
           py::return_value_policy::reference_internal)
+      .def("addMotion", py::overload_cast<>(&aris::dynamic::Model::addMotion),
+           py::return_value_policy::reference_internal)  // 添加驱动
       .def("addMotion",
-           py::overload_cast<>(&aris::dynamic::Model::addMotion), py::return_value_policy::reference_internal)  // 添加驱动
-      .def("addMotion", py::overload_cast<aris::dynamic::Joint&>(
-                            &aris::dynamic::Model::addMotion), py::return_value_policy::reference_internal)  // 添加驱动
+           py::overload_cast<aris::dynamic::Joint&>(
+               &aris::dynamic::Model::addMotion),
+           py::return_value_policy::reference_internal)  // 添加驱动
       // .def("addGeneralMotionByPe",
       // &aris::dynamic::Model::addGeneralMotionByPe) // 添加末端
       .def(
@@ -213,8 +322,8 @@ PYBIND11_MODULE(sire_python, m) {
                &aris::dynamic::Model::generalMotionPool),
            py::return_value_policy::reference_internal)
       .def("generalMotionPool",
-           static_cast<const aris::core::PointerArray<
-               aris::dynamic::MotionBase, aris::dynamic::Element>& (
+           static_cast<const aris::core::PointerArray<aris::dynamic::MotionBase,
+                                                      aris::dynamic::Element>& (
                aris::dynamic::Model::*)() const>(
                &aris::dynamic::Model::generalMotionPool),
            py::return_value_policy::reference_internal)
@@ -252,7 +361,9 @@ PYBIND11_MODULE(sire_python, m) {
               aris::dynamic::Model::*)()>(&aris::dynamic::Model::simulatorPool),
           py::return_value_policy::reference_internal);  // 未重载还需修改
 
-  py::class_<aris::dynamic::Part>(m, "Part");
+  py::class_<aris::dynamic::Part>(m, "Part")
+      .def(py::init<>())
+      .def("name", &aris::dynamic::Part::name);
   py::class_<aris::dynamic::Joint>(m, "Joint");
   py::class_<aris::dynamic::RevoluteJoint, aris::dynamic::Joint>(
       m, "RevoluteJoint");

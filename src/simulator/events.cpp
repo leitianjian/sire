@@ -960,16 +960,215 @@ auto CtrlHandler1::handle(core::EventBase* e) -> bool {
   simulator_ptr->eventManager().addEvent(std::move(eventPtr));
   return true;
 }
+
+// without initial penetration elimination
+auto InitEvent2::init() -> void {}
+auto InitHandler2::init(simulator::SimulationLoop* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto InitHandler2::handle(core::EventBase* e) -> bool {
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
+  simulator_ptr->timer().reset();
+  DLOG(DEBUG) << "initial handler current time: "
+              << simulator_ptr->timer().simTime();
+  simulator_ptr->controller().control();
+  engine_ptr->fwdActuators();
+  // initLog();
+  // logCurrentState(0, 1, simulator_ptr);
+  engine_ptr->updateGeometryLocationFromModel();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  // 碰撞检测
+  engine_ptr->cptPointPairPenetration(pairs);
+  simulator_ptr->eventManager().updateCtrlSimTime(0, 0);
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
+
+  double nextSuggestDt{nextCtrlSimSuggestDt};
+  std::vector<common::PointPairContactInfo> contact_info;
+  std::vector<std::array<double, 16>> T_C_vec;
+  cptContactFrame(pairs, T_C_vec);
+
+  // process_penetration_depth_and_maintain_impact_set4(simulator_ptr, pairs,
+  //                                                    T_C_vec);
+
+  // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+  nextSuggestDt = engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs,
+                                             T_C_vec, contact_info);
+  // 重置上一时刻关节和forcePool设置的力
+  engine_ptr->resetPartContactForce();
+  // 根据接触信息将力设置回model的forcePool
+  engine_ptr->cptGlbForceByContactInfo(contact_info);
+  // 记录模型状态和接触信息
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+                                   *simulator_ptr->model(), contact_info);
+  std::unique_ptr<core::EventBase> eventPtr{nullptr};
+  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+    // 添加 stepEvents
+    eventPtr = simulator_ptr->eventManager().createEventById(1);
+    eventPtr->eventProp().addProp("isCtrl", 0.0);
+  } else {
+    core::EventId nextEventId = simulator_ptr->eventManager().nextEventId();
+    eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
+    eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
+  }
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  eventPtr->eventProp().addProp("dt", nextSuggestDt);
+  simulator_ptr->eventManager().addEvent(std::move(eventPtr));
+  return true;
+}
+
+auto StepEvent2::init() -> void {}
+auto StepHandler2::init(simulator::SimulationLoop* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto StepHandler2::handle(core::EventBase* e) -> bool {
+  // 积分到当前 event 记录的时间
+  double dt = e->eventProp().getPropValue("dt");
+  DLOG(DEBUG) << "------------ step integrate with dt " << dt << " -----------";
+  if (dt > 0) {
+    simulator_ptr->integratorPoolPtr()->at(0).step(dt);
+  }
+  double currentTime = simulator_ptr->timer().updateSimTime(dt);
+  DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
+  simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
+
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
+
+  // initLog();
+  // logCurrentState(0, 1, simulator_ptr);
+  engine_ptr->updateGeometryLocationFromModel();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  // 碰撞检测
+  engine_ptr->cptPointPairPenetration(pairs);
+
+  double nextSuggestDt{nextCtrlSimSuggestDt};
+  std::vector<common::PointPairContactInfo> contact_info;
+  std::vector<std::array<double, 16>> T_C_vec;
+  cptContactFrame(pairs, T_C_vec);
+
+  // process_penetration_depth_and_maintain_impact_set4(simulator_ptr, pairs,
+  //                                                    T_C_vec);
+
+  // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+  nextSuggestDt = engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs,
+                                             T_C_vec, contact_info);
+  // 重置上一时刻关节和forcePool设置的力
+  engine_ptr->resetPartContactForce();
+  // 根据接触信息将力设置回model的forcePool
+  engine_ptr->cptGlbForceByContactInfo(contact_info);
+  // 记录模型状态和接触信息
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+                                   *simulator_ptr->model(), contact_info);
+  std::unique_ptr<core::EventBase> eventPtr{nullptr};
+  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+    // 添加 stepEvents
+    eventPtr = simulator_ptr->eventManager().createEventById(1);
+    eventPtr->eventProp().addProp("isCtrl", 0.0);
+  } else {
+    core::EventId nextEventId = simulator_ptr->eventManager().nextEventId();
+    eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
+    eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
+  }
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  eventPtr->eventProp().addProp("dt", nextSuggestDt);
+  simulator_ptr->eventManager().addEvent(std::move(eventPtr));
+  return true;
+}
+auto CtrlEvent2::init() -> void {}
+auto CtrlHandler2::init(simulator::SimulationLoop* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto CtrlHandler2::handle(core::EventBase* e) -> bool {
+  // 积分到当前 event 记录的时间
+  double dt = e->eventProp().getPropValue("dt");
+  DLOG(DEBUG) << "----------- ctrl integrate with dt " << dt << " -----------";
+  if (dt > 0) {
+    simulator_ptr->integratorPoolPtr()->at(0).step(dt);
+  }
+  
+  double currentTime = simulator_ptr->timer().updateSimTime(dt);
+  DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
+  simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
+
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
+  simulator_ptr->controller().control();
+  engine_ptr->fwdActuators();
+
+  // initLog();
+  // logCurrentState(0, 1, simulator_ptr);
+  engine_ptr->updateGeometryLocationFromModel();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  // 碰撞检测
+  engine_ptr->cptPointPairPenetration(pairs);
+
+  double nextSuggestDt{nextCtrlSimSuggestDt};
+  std::vector<common::PointPairContactInfo> contact_info;
+  std::vector<std::array<double, 16>> T_C_vec;
+  cptContactFrame(pairs, T_C_vec);
+
+  // process_penetration_depth_and_maintain_impact_set4(simulator_ptr, pairs,
+  //                                                    T_C_vec);
+
+  // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+  nextSuggestDt = engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs,
+                                             T_C_vec, contact_info);
+  // 重置上一时刻关节和forcePool设置的力
+  engine_ptr->resetPartContactForce();
+  // 根据接触信息将力设置回model的forcePool
+  engine_ptr->cptGlbForceByContactInfo(contact_info);
+  // 记录模型状态和接触信息
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+                                   *simulator_ptr->model(), contact_info);
+  std::unique_ptr<core::EventBase> eventPtr{nullptr};
+  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+    // 添加 stepEvents
+    eventPtr = simulator_ptr->eventManager().createEventById(1);
+    eventPtr->eventProp().addProp("isCtrl", 0.0);
+  } else {
+    core::EventId nextEventId = simulator_ptr->eventManager().nextEventId();
+    eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
+    eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
+  }
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  eventPtr->eventProp().addProp("dt", nextSuggestDt);
+  simulator_ptr->eventManager().addEvent(std::move(eventPtr));
+  return true;
+}
 ARIS_REGISTRATION {
   // core::EventRegister<InitEvent>::registration("initial", 0);
   // core::EventRegister<StepEvent>::registration("step", 1);
   // core::HandlerRegister<InitHandler>::registration("initial", 0);
   // core::HandlerRegister<StepHandler>::registration("step", 1);
-  core::EventRegister<InitEvent1>::registration("initial1", 0);
-  core::EventRegister<StepEvent1>::registration("step1", 1);
-  core::EventRegister<CtrlEvent1>::registration("ctrl1", 2);
+  core::EventRegister<InitEvent1>::registration("initial1", kInitEventId);
+  core::EventRegister<StepEvent1>::registration("step1", kStepEventId);
+  core::EventRegister<CtrlEvent1>::registration("ctrl1", kCtrlEventId);
   core::HandlerRegister<InitHandler1>::registration("initial1", 0);
   core::HandlerRegister<StepHandler1>::registration("step1", 1);
   core::HandlerRegister<CtrlHandler1>::registration("ctrl1", 2);
+  core::HandlerRegister<InitHandler2>::registration("initial2", 3);
+  core::HandlerRegister<StepHandler2>::registration("step2", 4);
+  core::HandlerRegister<CtrlHandler2>::registration("ctrl2", 5);
 }
 }  // namespace sire::simulator

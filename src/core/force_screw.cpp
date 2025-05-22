@@ -158,7 +158,8 @@ auto matrix_norm(sire::Size m, sire::Size n, const double* A, const int type)
       }
       return max;
     case 2:
-      THROW_FILE_LINE("Matrix Euclidean norm not implemented");
+    default:
+      THROW_FILE_LINE("Matrix Euclidean norm and others not implemented");
       return -1;
   }
 }
