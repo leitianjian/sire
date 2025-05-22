@@ -78,6 +78,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--build-demo", action="store_true", help="build demonstration examples")
     parser.add_argument("--build-test", action="store_true", help="build test cases")
+    parser.add_argument("--build-python", action="store_true", help="build python bindings")
+    parser.add_argument(
+        "--python-path",
+        type=pathlib.Path,
+        help="python.dev install path",
+    )
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--release', action='store_true')
     group.add_argument('--debug', action='store_true')
@@ -107,6 +113,7 @@ if __name__ == "__main__":
     cmake_args = {
         "BUILD_DEMO": True if options.build_demo else False,
         "BUILD_TEST": True if options.build_test else False,
+        "BUILD_PYTHON": True if options.build_python else False,
     }
     if options.toolchain_path is not None:
         cmake_args["CMAKE_TOOLCHAIN_FILE"] = str(options.toolchain_path)
@@ -121,9 +128,10 @@ if __name__ == "__main__":
             continue
 
         cmake_args.update({
-            "TARGET_ARIS_PATH": str(options.aris_path / build_type), 
+            "TARGET_ARIS_PATH": str(options.aris_path), 
             "TARGET_HPP_FCL_PATH": str(options.fcl_path / build_type), 
             "TARGET_STDUUID_PATH": str(options.uuid_path / build_type),
+            # "TARGET_PYTHON_PATH": str(options.python_path),
             "CMAKE_BUILD_TYPE": build_type,
             })
         my_env["CMAKE_BUILD_TYPE"] = build_type

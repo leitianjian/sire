@@ -26,7 +26,7 @@ def _mkdir_p(d: str) -> None:
 class CMake:
     "Manages cmake."
 
-    def __init__(self, base_dir: str, build_dir: Optional[str], install_dir: Optional[str], env: os._Environ[str] = os.environ) -> None:
+    def __init__(self, base_dir: str, build_dir: Optional[str], install_dir: Optional[str], env: os._Environ[str] = os.environ, splitReleaseDebug: bool = False) -> None:
         self._cmake_command = CMake._get_cmake_command(env=env)
         self.build_type = self.BuildType(env.get("CMAKE_BUILD_TYPE", "Release"))
         self.base_dir = base_dir
@@ -48,7 +48,8 @@ class CMake:
             self.install_dir = os.path.join(self.base_dir, install_dir)
         
         self.build_dir = os.path.join(self.build_dir, self.build_type.build_type_string)
-        self.install_dir = os.path.join(self.install_dir, self.build_type.build_type_string)
+        if splitReleaseDebug:
+            self.install_dir = os.path.join(self.install_dir, self.build_type.build_type_string)
         self.config_args = []
         self.build_args = []
 
@@ -137,8 +138,6 @@ class CMake:
 
     def configure(
         self,
-        # cmake_python_library: Optional[str],
-        # build_python: bool,
         # build_test: bool,
         my_env: Dict[str, str],
         reconfig: bool,
@@ -356,14 +355,18 @@ def build_project(
     env: os._Environ[str] = os.environ,
     **kwargs: CMakeValue,
 ) -> None:
-    cmake = CMake(base_dir=project_path, build_dir=build_dir, install_dir=install_dir, env=env)
+    splitReleaseDebug = kwargs.get("splitReleaseDebug", False)
+    cmake = CMake(base_dir=project_path, build_dir=build_dir, install_dir=install_dir, env=env, splitReleaseDebug=splitReleaseDebug)
     cmake.defines(
-                #   SIRE_BUILD_VERSION=version,
-                #   BUILD_DEMO=check_env_flag("BUILD_DEMO", env=env),
-                #   BUILD_TEST=check_env_flag("BUILD_TEST", env=env),
-                #   CMAKE_TOOLCHAIN_FILE=cmake_toolchain_file,
-                  **kwargs,
-                  )
+            # PYTHON_EXECUTABLE=sys.executable,
+            Python_EXECUTABLE=sys.executable,
+            PYTHON_EXECUTABLE=sys.executable,
+            #   SIRE_BUILD_VERSION=version,
+            #   BUILD_DEMO=check_env_flag("BUILD_DEMO", env=env),
+            #   BUILD_TEST=check_env_flag("BUILD_TEST", env=env),
+            #   CMAKE_TOOLCHAIN_FILE=cmake_toolchain_file,
+              **kwargs,
+              )
     cmake.configure(
         env, rerun_config, rm_cache
     )

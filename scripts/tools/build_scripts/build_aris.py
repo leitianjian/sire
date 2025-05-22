@@ -111,7 +111,7 @@ if __name__ == "__main__":
         '-i',
         "--install-dir",
         type=pathlib.Path,
-        help="Aris isntall directory",
+        help="Aris install directory",
     )
     parser.add_argument('-r', "--rm-cache-reconfig", action="store_true", help="delete cache and reconfigure")
     parser.add_argument('-rec', "--rerun-config", action="store_true", help="reconfigure")
@@ -139,6 +139,7 @@ if __name__ == "__main__":
         options.debug = True
         options.release = True
     
+    kwargs: CMakeValue = {"splitReleaseDebug": False}
     build_aris(
         aris_path=str(options.base_path),
         build_dir=None if options.build_dir is None else str(options.build_dir),
@@ -154,4 +155,5 @@ if __name__ == "__main__":
         build_demo=options.build_demo,
         build_release=options.release,
         build_debug=options.debug,
+        **kwargs
     )
