@@ -29,7 +29,7 @@ class PointPairContactInfo {
         slip_speed_(slip_speed) {
     std::copy(fs_WC, fs_WC + 6, fs_WC_);
     std::copy(pe_WC, pe_WC + 6, pe_WC_);
-    std::copy(f_WC, fs_WC + 3, f_WC_);
+    std::copy(f_WC, f_WC + 3, f_WC_);
   };
   ~PointPairContactInfo(){};
   ARIS_DEFINE_BIG_FOUR(PointPairContactInfo);
