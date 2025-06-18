@@ -10,6 +10,7 @@
 
 #include <aris.hpp>
 
+#include "sire/actuator/actuator.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 
@@ -549,4 +550,26 @@ PYBIND11_MODULE(sire, m) {
             return self[index];  // 假设 self 支持 operator[]
           },
           py::return_value_policy::reference_internal);
+
+  py::enum_<sire::actuator::ControlTarget>(m, "ControlTarget")
+      .value("Position", sire::actuator::ControlTarget::Position)
+      .value("Velocity", sire::actuator::ControlTarget::Velocity)
+      .value("Acceleration", sire::actuator::ControlTarget::Acceleration)
+      .export_values();
+
+  py::class_<sire::actuator::ActuatorSISO, aris::dynamic::Motion>(
+      m, "ActuatorSISO")
+      .def(py::init<const std::string&, aris::dynamic::Marker*,
+                    aris::dynamic::Marker*, aris::Size, const double*, double,
+                    double, bool>(),
+           py::arg("name") = "actuator_siso", py::arg("makI") = nullptr,
+           py::arg("makJ") = nullptr, py::arg("component_axis") = 2,
+           py::arg("frc_coe") = nullptr, py::arg("mp_offset") = 0.0,
+           py::arg("mp_factor") = 1.0, py::arg("active") = true)
+      .def("forward", &sire::actuator::ActuatorSISO::forward)
+      .def("setDesiredValue", &sire::actuator::ActuatorSISO::setDesiredValue)
+      .def("cptOutput", &sire::actuator::ActuatorSISO::cptOutput)
+      .def_static("add2Model", &sire::actuator::ActuatorSISO::add2Model,
+                  py::return_value_policy::reference, py::arg("model"),
+                  py::arg("joint"));
 }
