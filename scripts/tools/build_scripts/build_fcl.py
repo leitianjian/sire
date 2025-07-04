@@ -122,6 +122,7 @@ if __name__ == "__main__":
     cmake_args = {}
     if options.toolchain_path is not None:
         cmake_args["CMAKE_TOOLCHAIN_FILE"] = str(options.toolchain_path)
+    cmake_args["splitReleaseDebug"] = True
     build_fcl(
         fcl_path=str(options.base_path),
         build_dir=None if options.build_dir is None else str(options.build_dir),

@@ -51,6 +51,7 @@ def build_uuid(
             continue
         uuid_env["CMAKE_BUILD_TYPE"] = build_type
         cmake_args["CMAKE_BUILD_TYPE"] = build_type
+        cmake_args["splitReleaseDebug"] = True
         build_project(
             project_path=str(uuid_path),
             build_dir=build_dir,
