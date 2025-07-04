@@ -39,6 +39,9 @@ macro(INSTALL_DLL)
           "${VCPKG_DLL_PREFIX}/assimp-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:d>.dll"
           "${VCPKG_DLL_PREFIX}/zlib$<$<CONFIG:Debug>:d>1.dll"
           "${VCPKG_DLL_PREFIX}/pugixml.dll"
+          "${VCPKG_DLL_PREFIX}/poly2tri.dll"
+          "${VCPKG_DLL_PREFIX}/kubazip.dll"
+          "${VCPKG_DLL_PREFIX}/minizip.dll"
           "${VCPKG_DLL_PREFIX}/boost_serialization-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll"
           # "${VCPKG_DLL_PREFIX}/boost_serialization-vc${MSVC_TOOLSET_VERSION}-mt-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll"
           "${VCPKG_DLL_PREFIX}/boost_filesystem-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll"
@@ -61,7 +64,7 @@ add_subdirectory(demo_simulation)
 add_subdirectory(demo_main)
 
 # add_custom_target(gentest COMMAND ${CMAKE_COMMAND} -E echo "\"$<$<CONFIG:Debug>:-g;-O0>,$<PLATFORM_ID>\"")
-add_custom_target(gentest COMMAND ${CMAKE_COMMAND} -E echo "\"${VCPKG_DLL_PREFIX}/boost_filesystem-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll\"")
+# add_custom_target(gentest COMMAND ${CMAKE_COMMAND} -E echo "\"${VCPKG_DLL_PREFIX}/boost_filesystem-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll\"")
 
 # add_subdirectory(demo_model_init)
 
