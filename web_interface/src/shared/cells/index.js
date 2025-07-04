@@ -39,7 +39,7 @@ export default {
   // RealtimeChart,
   // Debugger,
   // Logger,
-  // Unknown,
+  Unknown,
   //ViewThree,
   // ViewThree2,
   chartDisplay,
