@@ -130,9 +130,9 @@ auto EventManager::cptNextCtrlSimSuggestDt() -> double {
   double nextCtrlTime = imp_->prevCtrlTime_ + ctrlDt;
   double nextSimTime = imp_->prevIntTime_ + simDt;
   DLOG(DEBUG) << "next ctrl time " << nextCtrlTime << " next sim time "
-            << nextSimTime << std::endl;
+              << nextSimTime;
   if (nextCtrlTime < nextSimTime ||
-      aris::dynamic::s_is_equal(nextCtrlTime, nextSimTime, 1e-8)) {
+      aris::dynamic::s_is_equal(nextCtrlTime, nextSimTime, 1e-6)) {
     nextCtrlSimSuggestDt =
         nextCtrlTime - imp_->simulationLoopPtr_->timer().simTime();
     imp_->nextEventId_ = 2;

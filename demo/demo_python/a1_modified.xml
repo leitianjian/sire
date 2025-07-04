@@ -223,9 +223,9 @@
         <SimulationLoop __prop_name__="simulation_loop" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="4" global_variable_pool="{}">
             <EventManager __prop_name__="event_manager">
                 <EventHandlerPairPool __prop_name__="event_handler_pair_pool">
-                    <EventHandlerIdPair event_id="0" handler_id="0"/>
-                    <EventHandlerIdPair event_id="1" handler_id="1"/>
-                    <EventHandlerIdPair event_id="2" handler_id="2"/>
+                    <EventHandlerIdPair event_id="0" handler_id="6"/>
+                    <EventHandlerIdPair event_id="1" handler_id="7"/>
+                    <EventHandlerIdPair event_id="2" handler_id="8"/>
                 </EventHandlerPairPool>
             </EventManager>
             <ZeroPosition __prop_name__="controller"/>

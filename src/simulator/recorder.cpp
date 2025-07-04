@@ -6,6 +6,9 @@ auto Recorder::record(
     double time, aris::dynamic::Model& model,
     const std::vector<sire::physics::common::PointPairContactInfo>&
         contactInfos) -> void {
+  if (model.forwardDynamics()) {
+    std::cout << "Model forward dynamics failed." << std::endl;
+  }
   auto& prtPool = model.partPool();
   sire::Size prtSize = prtPool.size();
   Record cr;
@@ -25,6 +28,8 @@ auto Recorder::record(
 }
 SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
   nlohmann::json part_pq_json = nlohmann::json::array();  // 外层数组，长度=records.size()
+  nlohmann::json part_vs_json = nlohmann::json::array();  // 外层数组，长度=records.size()
+  nlohmann::json part_as_json = nlohmann::json::array();  // 外层数组，长度=records.size()
   nlohmann::json contact_info_json = nlohmann::json::array();  // 外层数组，长度=records.size()
   for (const auto& record : records) {  // 遍历每个 Record
     // 处理 partPqs 数据
@@ -34,24 +39,34 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
     }
     part_pq_json.push_back(prt_pq_array);  // 将当前 Record 数据加入外层数组
 
+    // 处理 partVs 数据
+    nlohmann::json prt_vs_array;  // 每个 Record 的 prtVs 数组
+    for (const auto& vs : record.prtVs) {  // 遍历 prtVs 中的每个 std::array
+      prt_vs_array.push_back(std::vector<double>(vs.begin(), vs.end()));
+    }
+    part_vs_json.push_back(prt_vs_array);  // 将当前 Record 数据加入外层数组
+
+    // 处理 partAs 数据
+    nlohmann::json prt_as_array;  // 每个 Record 的 prtAs 数组
+    for (const auto& as : record.prtAs) {  // 遍历 prtAs 中的每个 std::array
+      prt_as_array.push_back(std::vector<double>(as.begin(), as.end()));
+    }
+    part_as_json.push_back(prt_as_array);  // 将当前 Record 数据加入外层数组
+
     // 处理 contactInfos 数据
     nlohmann::json contact_info_array;  // 每个 Record 的 contactInfos 数组
     for (const auto& contact : record.contactInfos) {  // 遍历 contactInfos 中的每个 PointPairContactInfo
-      nlohmann::json contact_json;
-      contact_json["partId_A"] = contact.partId_A();
-      contact_json["partId_B"] = contact.partId_B();
-      contact_json["contact_force"] = std::vector<double>(contact.contact_force(), contact.contact_force() + 6);
-      contact_json["contact_point_pe"] = std::vector<double>(contact.contact_point_pe(), contact.contact_point_pe() + 6);
-      contact_json["separation_speed"] = contact.separation_speed();
-      contact_json["slip_speed"] = contact.slip_speed();
-      contact_json["contact_force_vector"] = std::vector<double>(contact.contact_force_vector(), contact.contact_force_vector() + 3);
-      contact_info_array.push_back(contact_json);
+      nlohmann::json contactJson;  // 用于存储每个 PointPairContactInfo 的 JSON 对象
+      contact.to_json(contactJson);
+      contact_info_array.push_back(contactJson);
     }
     contact_info_json.push_back(contact_info_array);  // 将当前 Record 的 contactInfos 数据加入外层数组
   }
 
-  j["partpq"] = part_pq_json;             // 添加 partpq 数据
-  j["timeindex"] = timeIndices;  // 添加 timeindex 数据
-  j["contact_info"] = contact_info_json;  // 添加 contact_info 数据
+  j["partPq"] = part_pq_json;  // 添加 partpq 数据
+  j["partVs"] = part_vs_json;  // 添加 partpq 数据
+  j["partAs"] = part_as_json;  // 添加 partpq 数据
+  j["timeIndex"] = timeIndices;  // 添加 timeindex 数据
+  j["contactInfo"] = contact_info_json;  // 添加 contact_info 数据
 }
 }  // namespace sire::simulator

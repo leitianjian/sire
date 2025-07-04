@@ -1804,7 +1804,7 @@ auto AverageForceContactSolver::cptContactSolverResult(
   // DLOG(DEBUG) << " b: " << b << " A: " << A << " x0: " << x0 << " minTime: "
   // << minTime << std::endl;
   // 没有零点的情况下，取A中的最大值作为参考计算步长
-  if (minTime < 0) {
+  if (minTime <= 0) {
     double maxA = 0;
     for (sire::Size i{0}; i < A.size(); ++i) {
       double temp = std::abs(A[i]);

@@ -32,6 +32,16 @@ class PointPairContactInfo {
     std::copy(f_WC, f_WC + 3, f_WC_);
   };
   ~PointPairContactInfo(){};
+  SIRE_DEFINE_TO_JSON_HEAD(PointPairContactInfo) {
+      j["partId_A"] = partId_A_;
+      j["partId_B"] = partId_B_;
+      j["contactWrench"] = std::vector<double>(fs_WC_, fs_WC_ + 6);
+      j["contactForce"] = std::vector<double>(f_WC_, f_WC_ + 3);
+      j["contact_point_pe"] = std::vector<double>(pe_WC_, pe_WC_ + 6);
+      j["separation_speed"] = separation_speed_;
+      point_pair_.to_json(j["point_pair"]);
+      j["slip_speed"] = slip_speed_;
+}
   ARIS_DEFINE_BIG_FOUR(PointPairContactInfo);
 
   sire::PartId partId_A() const { return partId_A_; }

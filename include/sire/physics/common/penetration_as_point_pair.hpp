@@ -26,7 +26,11 @@ struct PenetrationAsPointPair {
     std::swap(p_WCa, p_WCb);
     nhat_AB_W = -nhat_AB_W;
   }
-
+  SIRE_DEFINE_TO_JSON_HEAD(PenetrationAsPointPair) {
+      j["geomIdA"] = id_A;
+      j["geomIdB"] = id_B;
+      j["depth"] = depth;
+}
   /** The id of the first geometry in the contact. */
   sire::geometry::GeometryId id_A;
   /** The id of the second geometry in the contact. */
