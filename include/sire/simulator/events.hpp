@@ -91,28 +91,28 @@ class SIRE_API StepHandler1 final : public core::HandlerBase {
   simulator::SimulationLoop* simulator_ptr;
 };
 class SIRE_API CtrlEvent1 final : public core::EventBase {
-  public:
+ public:
   CtrlEvent1() : EventBase() {
     setEventType("Ctrl1");
     setEventId(kCtrlEventId);
   }
-   ~CtrlEvent1() = default;
-   auto init() -> void override;
-   simulator::SimulationLoop* simulator_ptr;
-   physics::PhysicsEngine* engine_ptr;
-   simulator::EventManager* manager_ptr;
- };
- class SIRE_API CtrlHandler1 final : public core::HandlerBase {
-  public:
+  ~CtrlEvent1() = default;
+  auto init() -> void override;
+  simulator::SimulationLoop* simulator_ptr;
+  physics::PhysicsEngine* engine_ptr;
+  simulator::EventManager* manager_ptr;
+};
+class SIRE_API CtrlHandler1 final : public core::HandlerBase {
+ public:
   CtrlHandler1() : HandlerBase() {}
-   ~CtrlHandler1() = default;
-   auto init(simulator::SimulationLoop* simulator) -> void override;
-   auto handle(core::EventBase* e) -> bool override;
-   simulator::SimulationLoop* simulator_ptr;
- };
+  ~CtrlHandler1() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
 
- // without initial penetration elimination
- class SIRE_API InitEvent2 final : public core::EventBase {
+// without initial penetration elimination
+class SIRE_API InitEvent2 final : public core::EventBase {
  public:
   InitEvent2() : EventBase() {}
   ~InitEvent2() = default;
@@ -150,24 +150,49 @@ class SIRE_API StepHandler2 final : public core::HandlerBase {
   simulator::SimulationLoop* simulator_ptr;
 };
 class SIRE_API CtrlEvent2 final : public core::EventBase {
-  public:
+ public:
   CtrlEvent2() : EventBase() {
     setEventType("Ctrl2");
     setEventId(kCtrlEventId);
   }
-   ~CtrlEvent2() = default;
-   auto init() -> void override;
-   simulator::SimulationLoop* simulator_ptr;
-   physics::PhysicsEngine* engine_ptr;
-   simulator::EventManager* manager_ptr;
- };
- class SIRE_API CtrlHandler2 final : public core::HandlerBase {
-  public:
+  ~CtrlEvent2() = default;
+  auto init() -> void override;
+  simulator::SimulationLoop* simulator_ptr;
+  physics::PhysicsEngine* engine_ptr;
+  simulator::EventManager* manager_ptr;
+};
+class SIRE_API CtrlHandler2 final : public core::HandlerBase {
+ public:
   CtrlHandler2() : HandlerBase() {}
-   ~CtrlHandler2() = default;
-   auto init(simulator::SimulationLoop* simulator) -> void override;
-   auto handle(core::EventBase* e) -> bool override;
-   simulator::SimulationLoop* simulator_ptr;
- };
+  ~CtrlHandler2() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
+// without adjustPenetrationPosition
+class SIRE_API InitHandler3 final : public core::HandlerBase {
+ public:
+  InitHandler3() : HandlerBase() {}
+  ~InitHandler3() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
+class SIRE_API StepHandler3 final : public core::HandlerBase {
+ public:
+  StepHandler3() : HandlerBase() {}
+  ~StepHandler3() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
+class SIRE_API CtrlHandler3 final : public core::HandlerBase {
+ public:
+  CtrlHandler3() : HandlerBase() {}
+  ~CtrlHandler3() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
 }  // namespace sire::simulator
 #endif
