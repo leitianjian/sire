@@ -811,7 +811,9 @@ auto InitHandler1::handle(core::EventBase* e) -> bool {
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
-  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  if (nextCtrlSimSuggestDt - nextSuggestDt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);
@@ -820,8 +822,6 @@ auto InitHandler1::handle(core::EventBase* e) -> bool {
     eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
     eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
   }
-  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
-              << " suggestDt: " << nextSuggestDt;
   eventPtr->eventProp().addProp("dt", nextSuggestDt);
   simulator_ptr->eventManager().addEvent(std::move(eventPtr));
   return true;
@@ -877,7 +877,9 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
-  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  if (nextCtrlSimSuggestDt - nextSuggestDt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);
@@ -886,8 +888,6 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
     eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
     eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
   }
-  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
-              << " suggestDt: " << nextSuggestDt;
   eventPtr->eventProp().addProp("dt", nextSuggestDt);
   simulator_ptr->eventManager().addEvent(std::move(eventPtr));
   return true;
@@ -945,7 +945,9 @@ auto CtrlHandler1::handle(core::EventBase* e) -> bool {
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
-  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  if (nextCtrlSimSuggestDt - nextSuggestDt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);
@@ -954,8 +956,6 @@ auto CtrlHandler1::handle(core::EventBase* e) -> bool {
     eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
     eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
   }
-  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
-              << " suggestDt: " << nextSuggestDt;
   eventPtr->eventProp().addProp("dt", nextSuggestDt);
   simulator_ptr->eventManager().addEvent(std::move(eventPtr));
   return true;
@@ -1007,7 +1007,9 @@ auto InitHandler2::handle(core::EventBase* e) -> bool {
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
-  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  if (nextCtrlSimSuggestDt - nextSuggestDt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);
@@ -1016,8 +1018,6 @@ auto InitHandler2::handle(core::EventBase* e) -> bool {
     eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
     eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
   }
-  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
-              << " suggestDt: " << nextSuggestDt;
   eventPtr->eventProp().addProp("dt", nextSuggestDt);
   simulator_ptr->eventManager().addEvent(std::move(eventPtr));
   return true;
@@ -1073,7 +1073,9 @@ auto StepHandler2::handle(core::EventBase* e) -> bool {
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
-  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  if (nextCtrlSimSuggestDt - nextSuggestDt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);
@@ -1082,8 +1084,6 @@ auto StepHandler2::handle(core::EventBase* e) -> bool {
     eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
     eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
   }
-  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
-              << " suggestDt: " << nextSuggestDt;
   eventPtr->eventProp().addProp("dt", nextSuggestDt);
   simulator_ptr->eventManager().addEvent(std::move(eventPtr));
   return true;
@@ -1141,7 +1141,9 @@ auto CtrlHandler2::handle(core::EventBase* e) -> bool {
   simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
-  if (nextSuggestDt < nextCtrlSimSuggestDt) {
+  DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
+              << " suggestDt: " << nextSuggestDt;
+  if (nextCtrlSimSuggestDt - nextSuggestDt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);
