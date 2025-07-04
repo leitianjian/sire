@@ -6,7 +6,7 @@ import os
 import platform
 import sys
 import shutil
-from distutils.version import LooseVersion
+from looseversion import LooseVersion
 from subprocess import CalledProcessError, check_call, check_output
 from typing import Any, cast, Dict, List, Optional
 
