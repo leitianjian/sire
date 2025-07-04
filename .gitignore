@@ -48,6 +48,8 @@ install_manifest.txt
 /install_loc
 /CMakeSettings.json
 
+# for log
+*.log
 # for vscode
 .vscode/
 build/
