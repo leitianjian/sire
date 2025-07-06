@@ -407,10 +407,10 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
                                return std::abs(a - b) < tolerance;
                              }),
                  alphaVec.end());
-  // TODO: 后面在这里加上log
   // SIRE_ASSERT(alphaVec.size() != 0);
   if (alphaVec.size() == 0) {
-    return 1e-6;
+    DLOG(DEBUG) << "Contact without split, no imaginary part";
+    return -1;
   }
   // double temp[2]{sire::PI, 2 * sire::PI};
   std::vector<double> pois(4 * alphaVec.size());
@@ -442,7 +442,7 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
     }
   }
   if (!negativeDepthExists) {
-    DLOG(WARNING) << "Contact without split";
+    DLOG(WARNING) << "Contact without split, negative depth not exists";
     return -1;
   }
   // bisection

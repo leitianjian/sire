@@ -50,19 +50,19 @@ auto ZeroForce::control() -> void {
   }
 }
 auto ZeroPosition::control() -> void {
-  auto& motionPool = Controller::modelPtr()->motionPool();
-  std::vector<double> target_q(motionPool.size());
-  for (sire::Size i{0}; i < motionPool.size(); ++i) {
-    target_q[i] = 0.0;
-  }
-  // target_q[0] = 0.01;
-  for (sire::Size i{0}; i < motionPool.size(); ++i) {
-    if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motionPool[i]);
-        actuator != nullptr) {
-      actuator->setDesiredValue(target_q[i]);
-    }
-    // motionPool[i].setP(dq.data() + i);
-  }
+  // auto& motionPool = Controller::modelPtr()->motionPool();
+  // std::vector<double> target_q(motionPool.size());
+  // for (sire::Size i{0}; i < motionPool.size(); ++i) {
+  //   target_q[i] = 0.0;
+  // }
+  // // target_q[0] = 0.01;
+  // for (sire::Size i{0}; i < motionPool.size(); ++i) {
+  //   if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motionPool[i]);
+  //       actuator != nullptr) {
+  //     actuator->setDesiredValue(target_q[i]);
+  //   }
+  //   // motionPool[i].setP(dq.data() + i);
+  // }
 }
 ARIS_REGISTRATION {
   aris::core::class_<Controller>("SireController");
