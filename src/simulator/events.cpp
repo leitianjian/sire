@@ -859,7 +859,7 @@ auto InitHandler1::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), 0,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -925,7 +925,7 @@ auto StepHandler1::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -993,7 +993,7 @@ auto CtrlHandler1::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -1055,7 +1055,7 @@ auto InitHandler2::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), 0,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -1121,7 +1121,7 @@ auto StepHandler2::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -1189,7 +1189,7 @@ auto CtrlHandler2::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -1250,7 +1250,7 @@ auto InitHandler3::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), 0,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -1314,7 +1314,7 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -1382,7 +1382,7 @@ auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(),
+  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
                                    *simulator_ptr->model(), contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt

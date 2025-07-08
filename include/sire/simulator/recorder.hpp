@@ -24,6 +24,7 @@ namespace sire::simulator {
 class Record {
  public:
   double timeIndex;
+  double dt;
   std::vector<std::array<double, 7>> prtPqs;
   std::vector<std::array<double, 6>> prtVs;
   std::vector<std::array<double, 6>> prtAs;
@@ -35,13 +36,15 @@ class Recorder : public aris::core::NamedObject {
   sire::Size timeDuration;
   sire::Size recordSize;
   std::vector<double> timeIndices;
+  std::vector<double> dts; // 每个记录的时间间隔
   std::vector<Record> records;
-  auto record(double time, aris::dynamic::Model& model,
+  auto record(double time, double dt, aris::dynamic::Model& model,
               const std::vector<sire::physics::common::PointPairContactInfo>&
                   contactInfos) -> void;
   SIRE_DECLARE_JSON_INTER_TWO
   auto reset() -> void {
     timeIndices.clear();
+    dts.clear();
     records.clear();
     recordSize = 0;
     timeDuration = 0;

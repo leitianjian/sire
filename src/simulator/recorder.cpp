@@ -3,7 +3,7 @@
 #include "sire/physics/common/point_pair_contact_info.hpp"
 namespace sire::simulator {
 auto Recorder::record(
-    double time, aris::dynamic::Model& model,
+    double time, double dt, aris::dynamic::Model& model,
     const std::vector<sire::physics::common::PointPairContactInfo>&
         contactInfos) -> void {
   if (model.forwardDynamics()) {
@@ -13,6 +13,7 @@ auto Recorder::record(
   sire::Size prtSize = prtPool.size();
   Record cr;
   cr.timeIndex = time;
+  cr.dt = dt;
   cr.prtPqs.resize(prtSize);
   cr.prtVs.resize(prtSize);
   cr.prtAs.resize(prtSize);
@@ -25,6 +26,7 @@ auto Recorder::record(
   cr.contactInfos = contactInfos;
   records.push_back(std::move(cr));
   timeIndices.push_back(time);
+  dts.push_back(dt);
 }
 SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
   nlohmann::json part_pq_json = nlohmann::json::array();  // 外层数组，长度=records.size()
@@ -67,6 +69,7 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
   j["partVs"] = part_vs_json;  // 添加 partpq 数据
   j["partAs"] = part_as_json;  // 添加 partpq 数据
   j["timeIndex"] = timeIndices;  // 添加 timeindex 数据
+  j["dts"] = dts;  // 添加 timeindex 数据
   j["contactInfo"] = contact_info_json;  // 添加 contact_info 数据
 }
 }  // namespace sire::simulator
