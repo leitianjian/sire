@@ -1,10 +1,10 @@
 import sys
 import numpy as np
 from math import sin, cos
-sys.path.append("D:/code/new/sire/install/python/release")
+sys.path.append("D:/code/sire/install/python/debug")
 import sire
 cs = sire.ControlServer.instance()
-sire.fromXmlFile(cs, 'D:/code/new/sire/demo/demo_python/a1_modified.xml')
+sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/a1_modified.xml')
 cs.init()
 simulator = sire.simulator(cs)
 model = cs.model()
@@ -99,44 +99,44 @@ while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
   target_q = [0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8] # 这个才是对的角度，目前的角度都反了
   
   # 控制四条腿的运动
-  duty_ratio = 0.75  # 支撑相比例
-  swing_time = (1.0 - duty_ratio) / gait.frequency
-  stance_time = duty_ratio / gait.frequency
+  # duty_ratio = 0.75  # 支撑相比例
+  # swing_time = (1.0 - duty_ratio) / gait.frequency
+  # stance_time = duty_ratio / gait.frequency
   
-  leg_origins = {
-            0: np.array([0.25, -0.1, -0.27]),  # FR
-            1: np.array([0.25, 0.1, -0.27]),  # FL
-            2: np.array([-0.25, -0.1, -0.27]),  # RR
-            3: np.array([-0.25, 0.1, -0.27]),  # RL
-        }
-  for leg in range(4):
-    phase = (sim_time * gait.frequency + leg_phase[leg]) % 1.0
-    side_sign = 1 if leg in [0, 2] else -1
+  # leg_origins = {
+  #           0: np.array([0.25, -0.1, -0.27]),  # FR
+  #           1: np.array([0.25, 0.1, -0.27]),  # FL
+  #           2: np.array([-0.25, -0.1, -0.27]),  # RR
+  #           3: np.array([-0.25, 0.1, -0.27]),  # RL
+  #       }
+  # for leg in range(4):
+  #   phase = (sim_time * gait.frequency + leg_phase[leg]) % 1.0
+  #   side_sign = 1 if leg in [0, 2] else -1
 
-    # 生成足端轨迹（相对身体）
-    foot_target_local = foot_trajectory(
-      phase * (swing_time + stance_time),
-      swing_time=swing_time,
-      stance_time=stance_time,
-      step_height=0.1,
-      step_length=-0.15
-    )
-    foot_relevent_xpos = [0, 0.085, -0.25]
-    # foot_relevent_xpos[1] = foot_relevent_xpos[1] * side_sign
-    foot_relevent_xpos = foot_relevent_xpos + foot_target_local
-    x, y, z = foot_relevent_xpos
+  #   # 生成足端轨迹（相对身体）
+  #   foot_target_local = foot_trajectory(
+  #     phase * (swing_time + stance_time),
+  #     swing_time=swing_time,
+  #     stance_time=stance_time,
+  #     step_height=0.1,
+  #     step_length=-0.15
+  #   )
+  #   foot_relevent_xpos = [0, 0.085, -0.25]
+  #   # foot_relevent_xpos[1] = foot_relevent_xpos[1] * side_sign
+  #   foot_relevent_xpos = foot_relevent_xpos + foot_target_local
+  #   x, y, z = foot_relevent_xpos
             
 
-    ik_ans = inverse_kinematics(x, y, z, init_angles)
-    if ik_ans is None:
-      continue
-    joint_angles = ik_ans
-    joint_angles[0] = -0.1 * side_sign  # abduction补偿，因为正常站不稳
-    fp = forward_kinematics(joint_angles[0], joint_angles[1], joint_angles[2])
+  #   ik_ans = inverse_kinematics(x, y, z, init_angles)
+  #   if ik_ans is None:
+  #     continue
+  #   joint_angles = ik_ans
+  #   joint_angles[0] = -0.1 * side_sign  # abduction补偿，因为正常站不稳
+  #   fp = forward_kinematics(joint_angles[0], joint_angles[1], joint_angles[2])
 
-    target_q[leg * 3 + 0] = joint_angles[0]
-    target_q[leg * 3 + 1] = joint_angles[1]
-    target_q[leg * 3 + 2] = joint_angles[2]
+  #   target_q[leg * 3 + 0] = joint_angles[0]
+  #   target_q[leg * 3 + 1] = joint_angles[1]
+  #   target_q[leg * 3 + 2] = joint_angles[2]
     
   motionPool = model.motionPool()
   for i in range(12):
@@ -230,8 +230,8 @@ def binarySearch(timeIndices, time):
 
 def animateRobotByRecords(records, frameRate, vis):
   from meshcat.animation import Animation
-  partpq = records['partpq']
-  timeIndices = records['timeindex']
+  partpq = records['partPq']
+  timeIndices = records['timeIndex']
   anim = Animation()
   anim.default_framerate = frameRate
 
@@ -252,7 +252,7 @@ def animateRobotByRecords(records, frameRate, vis):
 
 import meshcat
 vis = meshcat.Visualizer()
-resourcePath = "D:/code/new/sire/web_interface/public"
+resourcePath = "D:/code/sire/web_interface/public"
 robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
 animateRobotByRecords(result, 1000, vis)
 # vis.jupyter_cell()

@@ -109,6 +109,10 @@ class SIRE_API ActuatorSISO : public ActuatorTemplate<1, 1> {
     return dynamic_cast<aris::dynamic::SingleComponentForce*>(this->fcePtr_);
   };
   auto setDesiredValue(double dv) -> void;
+  auto setKp(double kp) -> void;
+  auto kp() -> double;
+  auto setKd(double kd) -> void;
+  auto kd() -> double;
 
   virtual ~ActuatorSISO();
   explicit ActuatorSISO(const std::string& name = "actuator_siso",
@@ -116,7 +120,8 @@ class SIRE_API ActuatorSISO : public ActuatorTemplate<1, 1> {
                         aris::dynamic::Marker* makJ = nullptr,
                         Size component_axis = 2,
                         const double* frc_coe = nullptr, double mp_offset = 0.0,
-                        double mp_factor = 1.0, bool active = true);
+                        double mp_factor = 1.0, bool active = true,
+                        double kp = 50.0, double kd = 2.0);
   ARIS_DECLARE_BIG_FOUR(ActuatorSISO);
 
  private:

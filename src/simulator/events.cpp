@@ -796,15 +796,11 @@ auto process_penetration_depth_and_maintain_impact_set5(
   }
   // Vector中有的，Map中没有，就插入
   // 再修改穿深进行积分。记录没有减去穿深的新加入点的index
-  std::vector<sire::Size> adjustPositionPairIdx;
   for (sire::Size i{0}; i < pairs.size(); ++i) {
     auto& pair = pairs[i];
-    DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
-                << " depth: " << pair.depth;
     if (auto search = contact_pair_map.find({pair.id_A, pair.id_B});
         search == contact_pair_map.end()) {
       contact_pair_map.insert({{pair.id_A, pair.id_B}, {pair.depth, false}});
-      adjustPositionPairIdx.push_back(i);
       pair.depth = 0;
     } else {
       auto& contact_pair_value = contact_pair_map[{pair.id_A, pair.id_B}];
@@ -814,6 +810,8 @@ auto process_penetration_depth_and_maintain_impact_set5(
         contact_pair_value.init_penetration_depth_ += pair.depth;
       }
     }
+    DLOG(DEBUG) << "contact detected id: " << pair.id_A << " " << pair.id_B
+                << " depth: " << pair.depth;
   }
 }
 auto InitEvent1::init() -> void {}
