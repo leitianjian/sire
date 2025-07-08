@@ -5,17 +5,24 @@
 
 #include "sire/core/sire_assert.hpp"
 
+#include "log/easyloggingConfig.hpp"
+
 namespace sire::actuator {
 struct ActuatorSISO::Imp {
   ControlTarget ctrlTar_;
-  double desiredValue_;
+  double desiredValue_{0};
+  double kp_{50.0}, kd_{2.0};  // Proportional and derivative gains
 };
 ActuatorSISO::ActuatorSISO(const std::string& name, aris::dynamic::Marker* makI,
                            aris::dynamic::Marker* makJ, Size component_axis,
                            const double* frc_coe, double mp_offset,
-                           double mp_factor, bool active)
+                           double mp_factor, bool active, double kp, double kd)
     : ActuatorTemplate<1, 1>(name, makI, makJ, component_axis, frc_coe,
-                             mp_offset, mp_factor, active), imp_(std::make_unique<Imp>()) {};
+                             mp_offset, mp_factor, active),
+      imp_(std::make_unique<Imp>()) {
+  imp_->kp_ = kp;
+  imp_->kd_ = kd;
+};
 ActuatorSISO::~ActuatorSISO() = default;
 auto ActuatorSISO::forward() -> void {
   SIRE_ASSERT(fcePtr() != nullptr);
@@ -24,17 +31,27 @@ auto ActuatorSISO::forward() -> void {
       fce != nullptr) {
     fce->setFce(cptOutput(imp_->desiredValue_ - mp()));
   }
+  // DLOG(DEBUG) << "ActuatorSISO::forward() called, "
+  //     << "desiredValue: " << imp_->desiredValue_ << ", "
+  //     << "mp: " << mp() << ", "
+  //     << "mv: " << mv() << ", "
+  //     << "force: " << cptOutput(imp_->desiredValue_ - mp());
   // }
   // force = kp * input + kv * dot_input + bias;
 };
+auto ActuatorSISO::setKp(double kp) -> void { imp_->kp_ = kp; }
+auto ActuatorSISO::kp() -> double { return imp_->kp_; }
+auto ActuatorSISO::setKd(double kd) -> void { imp_->kd_ = kd; }
+auto ActuatorSISO::kd() -> double { return imp_->kd_; }
 auto ActuatorSISO::setDesiredValue(double dv) -> void {
   imp_->desiredValue_ = dv;
 }
 auto ActuatorSISO::cptOutput(double input) -> double {
   // double force = -500 * (mp()) - 10 * mv();
-  double force = 100 * (input) - 2 * mv();
+  double force = imp_->kp_ * input - imp_->kd_ * mv();
   // force = kp * input + kv * dot_input + bias;
-  // std::cout << force << " " << input << " " << imp_->desiredValue_ << " " << mp() << " " << mv() << std::endl;
+  // std::cout << force << " " << input << " " << imp_->desiredValue_ << " " <<
+  // mp() << " " << mv() << std::endl;
   return force;
 };
 // ARIS_DEFINE_BIG_FOUR_CPP(ActuatorSISO);
@@ -63,6 +80,9 @@ ARIS_REGISTRATION {
             if (name == "position") *type = ControlTarget::Position;
           });
 
-  aris::core::class_<ActuatorSISO>("Actuator").inherit<aris::dynamic::Motion>();
+  aris::core::class_<ActuatorSISO>("Actuator")
+      .inherit<aris::dynamic::Motion>()
+      .prop("kp", &ActuatorSISO::setKp, &ActuatorSISO::kp)
+      .prop("kd", &ActuatorSISO::setKd, &ActuatorSISO::kd);
 }
 }  // namespace sire::actuator
