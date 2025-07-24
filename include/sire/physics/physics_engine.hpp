@@ -135,14 +135,19 @@ class SIRE_API PhysicsEngine {
       -> std::vector<common::PenetrationAsPointPair>;
 
   auto cptContactInfo(
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      const std::vector<std::array<double, 16>>& T_C_vec,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<std::array<double, 16>>& T_C_vec,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
   auto cptContactInfo(
       double suggestTime,
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      const std::vector<std::array<double, 16>>& T_C_vec,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<std::array<double, 16>>& T_C_vec,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
+  auto cptContactInfo(
+    double suggestTime,
+    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    std::vector<common::PointPairContactInfo>& contact_info) -> double;
+  auto recordsContactCptInfo() -> void;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
 

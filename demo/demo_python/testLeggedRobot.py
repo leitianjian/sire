@@ -1,13 +1,6 @@
 import sys
 import numpy as np
 from math import sin, cos
-sys.path.append("D:/code/sire/install/python/debug")
-import sire
-cs = sire.ControlServer.instance()
-sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/a1_modified.xml')
-cs.init()
-simulator = sire.simulator(cs)
-model = cs.model()
 
 def foot_trajectory(phase_time, swing_time, stance_time, step_height, step_length):
     """
@@ -66,7 +59,6 @@ def inverse_kinematics(x, y, z, theta_init, l1=0.08505, l2=0.2, l3=0.2):
             return None
     
     return theta
-        
 
 def compute_J(q, L1=0.08505, L2=0.2, L3=0.2):
     theta1, theta2, theta3 = q
@@ -80,74 +72,6 @@ class GaitParams:
     self.amplitude = 0.3
     self.frequency = 0.5
     self.phase_offset = np.pi / 2
-    
-gait = GaitParams()
-
-leg_phase = {
-    0: 0.5,   # FR
-    1: 0.0,  # FL
-    2: 0.0,   # RR
-    3: 0.5   # RL
-}
-
-init_angles = np.array([0, -0.9, 1.8])
-
-# 仿真控制循环
-while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
-  sim_time = simulator.simTime()
-  # target_q = [0, -0.9, 1.8, 0, -0.9, 1.8, 0, -0.9, 1.8, 0, -0.9, 1.8]
-  target_q = [0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8] # 这个才是对的角度，目前的角度都反了
-  
-  # 控制四条腿的运动
-  # duty_ratio = 0.75  # 支撑相比例
-  # swing_time = (1.0 - duty_ratio) / gait.frequency
-  # stance_time = duty_ratio / gait.frequency
-  
-  # leg_origins = {
-  #           0: np.array([0.25, -0.1, -0.27]),  # FR
-  #           1: np.array([0.25, 0.1, -0.27]),  # FL
-  #           2: np.array([-0.25, -0.1, -0.27]),  # RR
-  #           3: np.array([-0.25, 0.1, -0.27]),  # RL
-  #       }
-  # for leg in range(4):
-  #   phase = (sim_time * gait.frequency + leg_phase[leg]) % 1.0
-  #   side_sign = 1 if leg in [0, 2] else -1
-
-  #   # 生成足端轨迹（相对身体）
-  #   foot_target_local = foot_trajectory(
-  #     phase * (swing_time + stance_time),
-  #     swing_time=swing_time,
-  #     stance_time=stance_time,
-  #     step_height=0.1,
-  #     step_length=-0.15
-  #   )
-  #   foot_relevent_xpos = [0, 0.085, -0.25]
-  #   # foot_relevent_xpos[1] = foot_relevent_xpos[1] * side_sign
-  #   foot_relevent_xpos = foot_relevent_xpos + foot_target_local
-  #   x, y, z = foot_relevent_xpos
-            
-
-  #   ik_ans = inverse_kinematics(x, y, z, init_angles)
-  #   if ik_ans is None:
-  #     continue
-  #   joint_angles = ik_ans
-  #   joint_angles[0] = -0.1 * side_sign  # abduction补偿，因为正常站不稳
-  #   fp = forward_kinematics(joint_angles[0], joint_angles[1], joint_angles[2])
-
-  #   target_q[leg * 3 + 0] = joint_angles[0]
-  #   target_q[leg * 3 + 1] = joint_angles[1]
-  #   target_q[leg * 3 + 2] = joint_angles[2]
-    
-  motionPool = model.motionPool()
-  for i in range(12):
-    motion = model.motionPool()[i]
-    if isinstance(motion, sire.ActuatorSISO):
-        motion.setDesiredValue(target_q[i])
-  simulator.step(1, False)
-
-displayInitJson = model.displayInitJson()
-result = simulator.recordsToJson()
-print("Simulation finished, records loaded")
 
 def pq2tfmatrix(pq):
   import meshcat.transformations as tf
@@ -169,7 +93,6 @@ def robotInit(numLinks, resource_path, displayInitJson, vis):
   import meshcat.geometry as g
   import numpy as np
   robot = vis['robot']
-  numLinks = model.numLinks()
   partInitConfig = displayInitJson['part_init_config']
   for i in range(numLinks):
     robot[str(i)].set_transform(pq2tfmatrix(partInitConfig[i]))
@@ -228,7 +151,7 @@ def binarySearch(timeIndices, time):
 
   return min(int(low), len(timeIndices) - 1)
 
-def animateRobotByRecords(records, frameRate, vis):
+def animateRobotByRecords(numLinks, records, frameRate, vis):
   from meshcat.animation import Animation
   partpq = records['partPq']
   timeIndices = records['timeIndex']
@@ -244,19 +167,101 @@ def animateRobotByRecords(records, frameRate, vis):
     currentIdx = binarySearch(timeIndices, currentTime)
     with anim.at_frame(vis, i) as frame:
       try:
-        setRobotPq(model.numLinks(), frame, partpq[currentIdx])
+        setRobotPq(numLinks, frame, partpq[currentIdx])
       except Exception as e:
         print("Error setting robot pq at time", currentTime, ":", e)
 
   vis.set_animation(anim)
 
-import meshcat
-vis = meshcat.Visualizer()
-resourcePath = "D:/code/sire/web_interface/public"
-robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
-animateRobotByRecords(result, 1000, vis)
-# vis.jupyter_cell()
-input("按 Enter 键退出程序...")
-import json
-with open("result.json", "w", encoding="utf-8") as f:
-    json.dump(result, f, ensure_ascii=False, indent=2)
+def main():
+  sys.path.append("D:/code/sire/install/python/debug")
+  import sire
+  cs = sire.ControlServer.instance()
+  sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/a1_modified.xml')
+  cs.init()
+  simulator = sire.simulator(cs)
+  model = cs.model()
+  gait = GaitParams()
+
+  leg_phase = {
+      0: 0.5,   # FR
+      1: 0.0,  # FL
+      2: 0.0,   # RR
+      3: 0.5   # RL
+  }
+
+  init_angles = np.array([0, -0.9, 1.8])
+
+  # 仿真控制循环
+  while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
+    sim_time = simulator.simTime()
+    # target_q = [0, -0.9, 1.8, 0, -0.9, 1.8, 0, -0.9, 1.8, 0, -0.9, 1.8]
+    target_q = [0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8] # 这个才是对的角度，目前的角度都反了
+    # target_q = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # 这个才是对的角度，目前的角度都反了
+
+    # 控制四条腿的运动
+    # duty_ratio = 0.75  # 支撑相比例
+    # swing_time = (1.0 - duty_ratio) / gait.frequency
+    # stance_time = duty_ratio / gait.frequency
+
+    # leg_origins = {
+    #           0: np.array([0.25, -0.1, -0.27]),  # FR
+    #           1: np.array([0.25, 0.1, -0.27]),  # FL
+    #           2: np.array([-0.25, -0.1, -0.27]),  # RR
+    #           3: np.array([-0.25, 0.1, -0.27]),  # RL
+    #       }
+    # for leg in range(4):
+    #   phase = (sim_time * gait.frequency + leg_phase[leg]) % 1.0
+    #   side_sign = 1 if leg in [0, 2] else -1
+
+    #   # 生成足端轨迹（相对身体）
+    #   foot_target_local = foot_trajectory(
+    #     phase * (swing_time + stance_time),
+    #     swing_time=swing_time,
+    #     stance_time=stance_time,
+    #     step_height=0.1,
+    #     step_length=-0.15
+    #   )
+    #   foot_relevent_xpos = [0, 0.085, -0.25]
+    #   # foot_relevent_xpos[1] = foot_relevent_xpos[1] * side_sign
+    #   foot_relevent_xpos = foot_relevent_xpos + foot_target_local
+    #   x, y, z = foot_relevent_xpos
+
+
+    #   ik_ans = inverse_kinematics(x, y, z, init_angles)
+    #   if ik_ans is None:
+    #     continue
+    #   joint_angles = ik_ans
+    #   joint_angles[0] = -0.1 * side_sign  # abduction补偿，因为正常站不稳
+    #   fp = forward_kinematics(joint_angles[0], joint_angles[1], joint_angles[2])
+
+    #   target_q[leg * 3 + 0] = joint_angles[0]
+    #   target_q[leg * 3 + 1] = joint_angles[1]
+    #   target_q[leg * 3 + 2] = joint_angles[2]
+
+    motionPool = model.motionPool()
+    for i in range(12):
+      motion = model.motionPool()[i]
+      if isinstance(motion, sire.ActuatorSISO):
+          motion.setDesiredValue(target_q[i])
+    simulator.step(1, False)
+  simulator.recordsContactCptInfo()
+  displayInitJson = model.displayInitJson()
+  result = simulator.recordsToJson()
+  print("Simulation finished, records loaded")
+  import meshcat
+  vis = meshcat.Visualizer()
+  resourcePath = "D:/code/sire/web_interface/public"
+  robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
+  animateRobotByRecords(model.numLinks(), result, 1000, vis)
+  # vis.jupyter_cell()
+  del simulator
+  input("按 Enter 键退出程序...")
+  import json
+  with open("result.json", "w", encoding="utf-8") as f:
+      json.dump(result, f, ensure_ascii=False, indent=2)
+
+if __name__ == "__main__":
+  import gc
+  main()
+  gc.collect()  # 强制垃圾回收，避免内存泄漏

@@ -18,7 +18,7 @@
 					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{100, 100, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="L1" active="true" pe="{0,0,0.52,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
+			<Part name="L1" active="true" pe="{0,0,0.6,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="box_center" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>
@@ -80,7 +80,7 @@
 		<SireHttpInterface name="http_interface" document_root="D:\code\sire\web_interface\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="60" global_variable_pool="{}">
+		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="0.4" global_variable_pool="{}">
 			<EventManager __prop_name__="event_manager">
 				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
 					<EventHandlerIdPair event_id="0" handler_id="6"/>
@@ -92,13 +92,13 @@
 		</SimulationLoop>
 		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
 			<CollisionDetection __prop_name__="collision_detection"/>
-			<AverageForceContactSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
+			<ContactPositionForceSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
 				<MaterialManager default_prop="{k:1.4e8,d:1500,cr:0.2}">
 					<MaterialPairPropPool>
 						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2e8,d:10000,cr:0.4,cof:0.2,threshold_velocity:1e-1}"/>
 					</MaterialPairPropPool>
 				</MaterialManager>
-			</AverageForceContactSolver>
+			</ContactPositionForceSolver>
 			<GeometryPoolObject __prop_name__="dynamic_geometry_pool">
 				<BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="steel" contact_prop="{k:2.8e8,d:2000}" side="{100, 100, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
 				<SphereCollisionGeometry id="1" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2e8,d:10000}" radius="0.1" pm="{1,0,0,0.5,0,1,0,0.5,0,0,1,-0.4,0,0,0,1}"/>

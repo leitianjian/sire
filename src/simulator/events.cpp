@@ -767,8 +767,7 @@ auto process_penetration_depth_and_maintain_impact_set4(
 }
 auto process_penetration_depth_and_maintain_impact_set5(
     simulator::SimulationLoop* simulator_ptr,
-    std::vector<common::PenetrationAsPointPair>& pairs,
-    std::vector<std::array<double, 16>>& T_C_vec) -> void {
+    std::vector<common::PenetrationAsPointPair>& pairs) -> void {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
   aris::dynamic::Model* model_ptr = simulator_ptr->model();
@@ -798,6 +797,8 @@ auto process_penetration_depth_and_maintain_impact_set5(
   // 再修改穿深进行积分。记录没有减去穿深的新加入点的index
   for (sire::Size i{0}; i < pairs.size(); ++i) {
     auto& pair = pairs[i];
+    DLOG(DEBUG) << "real contact detected id: " << pair.id_A << " " << pair.id_B
+                << " depth: " << pair.depth;
     if (auto search = contact_pair_map.find({pair.id_A, pair.id_B});
         search == contact_pair_map.end()) {
       contact_pair_map.insert({{pair.id_A, pair.id_B}, {pair.depth, false}});
@@ -1218,6 +1219,7 @@ auto InitHandler3::handle(core::EventBase* e) -> bool {
   SIRE_ASSERT(model_ptr != nullptr);
   SIRE_ASSERT(manager_ptr != nullptr);
   simulator_ptr->timer().reset();
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   DLOG(DEBUG) << "initial handler current time: "
               << simulator_ptr->timer().simTime();
   simulator_ptr->controller().control();
@@ -1235,10 +1237,7 @@ auto InitHandler3::handle(core::EventBase* e) -> bool {
   double nextSuggestDt{nextCtrlSimSuggestDt};
   std::vector<common::PointPairContactInfo> contact_info;
   std::vector<std::array<double, 16>> T_C_vec;
-  cptContactFrame(pairs, T_C_vec);
-
-  process_penetration_depth_and_maintain_impact_set5(simulator_ptr, pairs,
-                                                     T_C_vec);
+  process_penetration_depth_and_maintain_impact_set5(simulator_ptr, pairs);
 
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
   nextSuggestDt = engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs,
@@ -1248,8 +1247,9 @@ auto InitHandler3::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), 0,
-                                   *simulator_ptr->model(), contact_info);
+  simulator_ptr->recorder().recordDt(0);
+  simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
+  simulator_ptr->recorder().recordContactInfo(contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << nextSuggestDt;
@@ -1277,6 +1277,7 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
     simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   }
   double currentTime = simulator_ptr->timer().updateSimTime(dt);
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
   simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
   double nextCtrlSimSuggestDt =
@@ -1288,6 +1289,8 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
   SIRE_ASSERT(engine_ptr != nullptr);
   SIRE_ASSERT(model_ptr != nullptr);
   SIRE_ASSERT(manager_ptr != nullptr);
+  // 重置上一时刻关节和forcePool设置的力
+  engine_ptr->resetPartContactForce();
 
   // initLog();
   // logCurrentState(0, 1, simulator_ptr);
@@ -1298,22 +1301,20 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
 
   double nextSuggestDt{nextCtrlSimSuggestDt};
   std::vector<common::PointPairContactInfo> contact_info;
-  std::vector<std::array<double, 16>> T_C_vec;
-  cptContactFrame(pairs, T_C_vec);
 
-  process_penetration_depth_and_maintain_impact_set5(simulator_ptr, pairs,
-                                                     T_C_vec);
+  process_penetration_depth_and_maintain_impact_set5(simulator_ptr, pairs);
 
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
-  nextSuggestDt = engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs,
-                                             T_C_vec, contact_info);
+  nextSuggestDt =
+      engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs, contact_info);
   // 重置上一时刻关节和forcePool设置的力
   engine_ptr->resetPartContactForce();
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
-                                   *simulator_ptr->model(), contact_info);
+  simulator_ptr->recorder().recordDt(dt);
+  simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
+  simulator_ptr->recorder().recordContactInfo(contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << nextSuggestDt;
@@ -1343,6 +1344,7 @@ auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   }
 
   double currentTime = simulator_ptr->timer().updateSimTime(dt);
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
   simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
   double nextCtrlSimSuggestDt =
@@ -1354,6 +1356,7 @@ auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   SIRE_ASSERT(engine_ptr != nullptr);
   SIRE_ASSERT(model_ptr != nullptr);
   SIRE_ASSERT(manager_ptr != nullptr);
+  engine_ptr->resetPartContactForce();
   simulator_ptr->controller().control();
   engine_ptr->fwdActuators();
 
@@ -1366,22 +1369,20 @@ auto CtrlHandler3::handle(core::EventBase* e) -> bool {
 
   double nextSuggestDt{nextCtrlSimSuggestDt};
   std::vector<common::PointPairContactInfo> contact_info;
-  std::vector<std::array<double, 16>> T_C_vec;
-  cptContactFrame(pairs, T_C_vec);
 
-  process_penetration_depth_and_maintain_impact_set5(simulator_ptr, pairs,
-                                                     T_C_vec);
-
+  process_penetration_depth_and_maintain_impact_set5(simulator_ptr, pairs);
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
-  nextSuggestDt = engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs,
-                                             T_C_vec, contact_info);
+  nextSuggestDt =
+      engine_ptr->cptContactInfo(nextCtrlSimSuggestDt, pairs, contact_info);
+
   // 重置上一时刻关节和forcePool设置的力
   engine_ptr->resetPartContactForce();
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().record(simulator_ptr->timer().simTime(), dt,
-                                   *simulator_ptr->model(), contact_info);
+  simulator_ptr->recorder().recordDt(dt);
+  simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
+  simulator_ptr->recorder().recordContactInfo(contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << nextSuggestDt;

@@ -71,6 +71,8 @@ PYBIND11_MODULE(sire, m) {
       .def("start", &sire::simulator::SimulationLoop::start)
       .def("step", &sire::simulator::SimulationLoop::step, "frame_skip"_a = 1,
            "pause_if_fast"_a = false)
+      .def("recordsContactCptInfo",
+           &sire::simulator::SimulationLoop::recordsContactCptInfo)
       .def("isTimeout", &sire::simulator::SimulationLoop::isTimeout)
       .def("isRunning", &sire::simulator::SimulationLoop::isRunning)
       .def("isEventListEmpty",

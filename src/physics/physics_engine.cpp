@@ -374,16 +374,16 @@ auto PhysicsEngine::computePointPairPenetration()
   return pairs;
 }
 auto PhysicsEngine::cptContactInfo(
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec,
+    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    std::vector<std::array<double, 16>>& T_C_vec,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
-  const sire::Size num_contacts = penetration_pairs.size();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
 
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  const sire::Size num_contacts = penetration_pairs.size();
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
@@ -418,10 +418,9 @@ auto PhysicsEngine::cptContactInfo(
 }
 auto PhysicsEngine::cptContactInfo(
     double suggestTime,
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec,
+    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    std::vector<std::array<double, 16>>& T_C_vec,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
-  const sire::Size num_contacts = penetration_pairs.size();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
   solver_result.dt = suggestTime;
@@ -429,6 +428,7 @@ auto PhysicsEngine::cptContactInfo(
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  const sire::Size num_contacts = penetration_pairs.size();
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
@@ -460,6 +460,54 @@ auto PhysicsEngine::cptContactInfo(
                             pe_C, separation_speed, slip_speed, pair, f_C});
   }
   return solver_result.dt;
+}
+auto PhysicsEngine::cptContactInfo(
+    double suggestTime,
+    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
+  contact::ContactSolverResult solver_result;
+  solver_result.dt = suggestTime;
+  std::vector<std::array<double, 16>> T_C_vec;
+
+  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
+  imp_->contact_solver_->cptContactSolverResult(
+      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  const sire::Size num_contacts = penetration_pairs.size();
+  // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
+  std::vector<double>& fn = solver_result.fn;
+  std::vector<double>& ft = solver_result.ft;
+  std::vector<double>& vn = solver_result.vn;
+  std::vector<double>& vt = solver_result.vt;
+
+  SIRE_DEMAND(fn.size() >= num_contacts);
+  SIRE_DEMAND(ft.size() >= 2 * num_contacts);
+  SIRE_DEMAND(vn.size() >= num_contacts);
+  SIRE_DEMAND(vt.size() >= 2 * num_contacts);
+  for (int i = 0; i < num_contacts; ++i) {
+    // std::cout << "fn=" << fn[i] << " ";
+    const auto& pair = penetration_pairs[i];
+    // f of contact based on contact frame;
+    double f_Bc_C[3]{ft[2 * i], ft[2 * i + 1], fn[i]};
+    // 将接触坐标系下的力转换到世界坐标系
+    double fs[6];
+    core::screw::s_fpm2fs(f_Bc_C, T_C_vec.at(i).data(), fs);
+    double pe_C[6];
+    aris::dynamic::s_pm2pe(T_C_vec.at(i).data(), pe_C);
+    // 世界坐标系下的三维接触力
+    double f_C[3];
+    aris::dynamic::s_pm_dot_v3(T_C_vec.at(i).data(), f_Bc_C,
+                               f_C);  // f_C = T_C * f_Bc_C
+    double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
+    double separation_speed = vn[i];
+    // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
+                            pe_C, separation_speed, slip_speed, pair, f_C});
+  }
+  return solver_result.dt;
+}
+auto PhysicsEngine::recordsContactCptInfo() -> void {
+  imp_->contact_solver_->debugByRecords();
 }
 auto PhysicsEngine::initPartContactForce2Model() -> void {
   // 初始化并使Model的ForcePool符合条件

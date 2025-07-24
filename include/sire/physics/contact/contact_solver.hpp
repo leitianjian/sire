@@ -36,9 +36,13 @@ class SIRE_API ContactSolver {
 
   virtual auto cptContactSolverResult(
       const aris::dynamic::Model* current_state,
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      const std::vector<std::array<double, 16>>& T_C_vec,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<std::array<double, 16>>& T_C_vec,
       ContactSolverResult& result) -> void = 0;
+  virtual auto debugByRecords() -> void {
+    // Default implementation does nothing.
+    // Derived classes can override this method to implement debugging behavior.
+  }
 
  private:
   physics::PhysicsEngine* engine_ptr_{nullptr};

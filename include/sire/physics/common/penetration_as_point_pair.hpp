@@ -27,10 +27,14 @@ struct PenetrationAsPointPair {
     nhat_AB_W = -nhat_AB_W;
   }
   SIRE_DEFINE_TO_JSON_HEAD(PenetrationAsPointPair) {
-      j["geomIdA"] = id_A;
-      j["geomIdB"] = id_B;
-      j["depth"] = depth;
-}
+    j["geomIdA"] = id_A;
+    j["geomIdB"] = id_B;
+    j["depth"] = depth;
+  }
+  bool compareById(const PenetrationAsPointPair& other) const {
+    return (id_A == other.id_A && id_B == other.id_B) ||
+           (id_B == other.id_A && id_A == other.id_B);
+  }
   /** The id of the first geometry in the contact. */
   sire::geometry::GeometryId id_A;
   /** The id of the second geometry in the contact. */

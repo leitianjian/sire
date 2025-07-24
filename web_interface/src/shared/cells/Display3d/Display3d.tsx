@@ -685,16 +685,16 @@ const Display3d = (props: CellProps) => {
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        if (!data.partpq || !data.timeindex) {
+        if (!data.partPq || !data.timeIndex) {
           alert("Invalid JSON format!");
           // throw new Error("Invalid JSON format");
           return;
         }
         setFileName(file.name);
         // 提取 partpq 和 timeindex
-        setUploadedData(data.partpq);
-        setTimeIndices(data.timeindex);
-        setTotalDuration(data.timeindex[data.timeindex.length - 1] || 0);
+        setUploadedData(data.partPq);
+        setTimeIndices(data.timeIndex);
+        setTotalDuration(data.timeIndex[data.timeIndex.length - 1] || 0);
 
         setCurrentFrameIndex(0);
         setIsPlaying(false);
@@ -715,13 +715,13 @@ const Display3d = (props: CellProps) => {
     reader.onload = (event) => {
       try {
         const data = JSON.parse(event.target?.result as string);
-        if (!data.partpq || !data.timeindex) {
+        if (!data.partPq || !data.timeIndex) {
           throw new Error("Invalid JSON format");
         }
 
-        setUploadedData(data.partpq);
-        setTimeIndices(data.timeindex);
-        setTotalDuration(data.timeindex[data.timeindex.length - 1] || 0);
+        setUploadedData(data.partPq);
+        setTimeIndices(data.timeIndex);
+        setTotalDuration(data.timeIndex[data.timeIndex.length - 1] || 0);
         setCurrentFrameIndex(0);
         setIsPlaying(false);
         setContactForces(data.contact_info);

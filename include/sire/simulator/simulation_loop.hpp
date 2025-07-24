@@ -101,6 +101,7 @@ class SIRE_API SimulationLoop {
   auto timer() -> core::Timer&;
   auto simTime() -> double;
   auto recorder() -> simulator::Recorder&;
+  auto recordsContactCptInfo() -> void;
   auto recordsToJson() -> nlohmann::json;
   auto simDuration() -> double;
   auto setSimDuration(double simDuration) -> void;

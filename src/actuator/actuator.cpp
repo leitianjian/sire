@@ -30,14 +30,12 @@ auto ActuatorSISO::forward() -> void {
   if (auto* fce = dynamic_cast<aris::dynamic::SingleComponentForce*>(fcePtr());
       fce != nullptr) {
     fce->setFce(cptOutput(imp_->desiredValue_ - mp()));
+    // DLOG(DEBUG) << "ActuatorSISO::forward() called, "
+    //             << "desiredValue: " << imp_->desiredValue_ << ", "
+    //             << "mp: " << mp() << ", "
+    //             << "mv: " << mv() << ", "
+    //             << "force: " << cptOutput(imp_->desiredValue_ - mp());
   }
-  // DLOG(DEBUG) << "ActuatorSISO::forward() called, "
-  //     << "desiredValue: " << imp_->desiredValue_ << ", "
-  //     << "mp: " << mp() << ", "
-  //     << "mv: " << mv() << ", "
-  //     << "force: " << cptOutput(imp_->desiredValue_ - mp());
-  // }
-  // force = kp * input + kv * dot_input + bias;
 };
 auto ActuatorSISO::setKp(double kp) -> void { imp_->kp_ = kp; }
 auto ActuatorSISO::kp() -> double { return imp_->kp_; }

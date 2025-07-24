@@ -29,6 +29,7 @@ class Record {
   std::vector<std::array<double, 6>> prtVs;
   std::vector<std::array<double, 6>> prtAs;
   std::vector<sire::physics::common::PointPairContactInfo> contactInfos;
+  std::vector<double> interestedData;
 };
 
 class Recorder : public aris::core::NamedObject {
@@ -36,8 +37,16 @@ class Recorder : public aris::core::NamedObject {
   sire::Size timeDuration;
   sire::Size recordSize;
   std::vector<double> timeIndices;
-  std::vector<double> dts; // 每个记录的时间间隔
+  std::vector<double> dts;  // 每个记录的时间间隔
   std::vector<Record> records;
+  auto addRecord(double time) -> void;
+  auto recordModelState(aris::dynamic::Model& model) -> void;
+  auto recordDt(double dt) -> void;
+  auto recordContactInfo(
+      const std::vector<sire::physics::common::PointPairContactInfo>&
+          contactInfos) -> void;
+  auto setInterestedDataSize(sire::Size size) -> void;
+  auto recordInterestedData(sire::Size idx, double data) -> void;
   auto record(double time, double dt, aris::dynamic::Model& model,
               const std::vector<sire::physics::common::PointPairContactInfo>&
                   contactInfos) -> void;

@@ -154,10 +154,10 @@ target_link_libraries(force_screw_test
 
 find_package(Eigen3 REQUIRED NO_MODULE)
 
-add_executable(collision_detection_test
+add_executable(physics_engine_test
 	"physics/collision/physics_engine_test.cpp")
-target_compile_features(collision_detection_test PUBLIC cxx_std_17)
-target_include_directories(collision_detection_test
+target_compile_features(physics_engine_test PUBLIC cxx_std_17)
+target_include_directories(physics_engine_test
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
@@ -165,7 +165,7 @@ target_include_directories(collision_detection_test
 		${ASSIMP_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
-target_link_libraries(collision_detection_test
+target_link_libraries(physics_engine_test
 	PRIVATE
 		GTest::gtest_main
 		Eigen3::Eigen
@@ -232,12 +232,12 @@ if(WIN32)
 		endif()
 	endif(DEFINED VCPKG_INSTALLED_DIR)
 
-	add_custom_command(TARGET collision_detection_test POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:collision_detection_test> $<TARGET_FILE_DIR:collision_detection_test>
+	add_custom_command(TARGET physics_engine_test POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:physics_engine_test> $<TARGET_FILE_DIR:physics_engine_test>
 		COMMAND_EXPAND_LISTS
 	)
 
-	add_custom_command(TARGET collision_detection_test POST_BUILD
+	add_custom_command(TARGET physics_engine_test POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy
 		# "${CMAKE_CURRENT_SOURCE_DIR}/model/a1_modified.xml"
 		"${TARGET_ARIS_PATH}/lib/${CMAKE_BUILD_TYPE_LOWER}/aris_lib.dll"
@@ -247,7 +247,7 @@ if(WIN32)
 		"${VCPKG_DLL_PREFIX}/pugixml.dll"
 		"${VCPKG_DLL_PREFIX}/boost_serialization-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll"
 		"${VCPKG_DLL_PREFIX}/boost_filesystem-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll"
-		$<TARGET_FILE_DIR:collision_detection_test>
+		$<TARGET_FILE_DIR:physics_engine_test>
 	)
 
 	# add_custom_command(TARGET collision_detection_test POST_BUILD

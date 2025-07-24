@@ -1,5 +1,5 @@
-#ifndef SIRE_AVG_FORCE_CONTACT_SOLVER_HPP_
-#define SIRE_AVG_FORCE_CONTACT_SOLVER_HPP_
+#ifndef SIRE_CONTACT_POSITION_FORCE_SOLVER_HPP_
+#define SIRE_CONTACT_POSITION_FORCE_SOLVER_HPP_
 
 #include <array>
 #include <map>
@@ -27,7 +27,7 @@
 #include "sire/physics/contact/contact_solver_result.hpp"
 
 namespace sire::physics {
-namespace contact {
+namespace contact::contact_force {
 using namespace coal;
 // TODO: 手动去掉两个ground相关的碰撞。
 enum class LhsVariableType { OneDelta, TwoAccel };
@@ -94,11 +94,11 @@ auto filterPairsAndPreprocessInfo(
     std::vector<sire::PartId>& prtIdVector, std::vector<double>& accelExt,
     std::vector<double>& invCpiResult) -> void;
 /* contact-based implementation */
-class SIRE_API AverageForceContactSolver : public ContactSolver {
+class SIRE_API ContactPositionForceSolver : public ContactSolver {
  public:
-  AverageForceContactSolver();
-  virtual ~AverageForceContactSolver();
-  SIRE_DECLARE_MOVE_CTOR(AverageForceContactSolver);
+  ContactPositionForceSolver();
+  virtual ~ContactPositionForceSolver();
+  SIRE_DECLARE_MOVE_CTOR(ContactPositionForceSolver);
   virtual auto doInit(physics::PhysicsEngine* engine_ptr) -> void override {};
 
   // Material manager
@@ -111,55 +111,14 @@ class SIRE_API AverageForceContactSolver : public ContactSolver {
   auto defaultCr() noexcept -> double;
   auto setDefaultVelocityThreshold(double tv) noexcept -> void;
   auto defaultVelocityThreshold() noexcept -> double;
+  auto debugByRecords() -> void override;
   virtual auto cptContactSolverResult(
       const aris::dynamic::Model* current_state,
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       std::vector<std::array<double, 16>>& T_C_vec, ContactSolverResult& result)
       -> void override;
-  // compute contact point inertia matrix (aka. cpi)
-  // Problem1: Model copy and copy subsystem or Model calc in place and reset
-  // normally Solution1: 尝试梳理仿真 Model
-  // 重置当时进行了哪些步骤，在这里应该要用的上
-  // 当时是直接从Model里面重新读来解决的，就是要解决物理引擎里面指针的问题
-  // Problem2: Model里面的例如 SingleComponentForce
-  // 设置过控制的值，这个时候再添加generalForce并 init model
-  //     会不会导致之前的控制失效
-  // Solution2: ForcePool的修改好像不用
-  // model->init()，因为本质上没有修改求解器和其他部分，只要自己初始化了就行
-  // 我们这些加入的测试接触点的惯量的力也是在执行完之后就需要销毁的，可以看看
-  // helpResetRAII的操作。
-  auto cptContactPointInertiaMatrix(
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      const std::vector<std::array<double, 16>>& T_C_vec,
-      std::vector<double>& cpi) -> void;
-  // 只计算碰撞点法向接触方向上的惯量矩阵，如果有 nContact 个碰撞点，
-  // 返回的矩阵大小为 2*nContact x 2*nContact
-  auto cptContactPointNormalInertiaMatrix(
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      const std::vector<std::array<double, 16>>& T_C_vec,
-      const double* stiffness, const double* damping, std::vector<double>& cpi,
-      std::vector<double>& extInvCpi, std::vector<double>& A) -> sire::Size;
-  // result: 2 * nContact * 1 vector with all collided prt normal fext
-  auto cptContactPrtExtForce(
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      const std::vector<std::array<double, 16>>& T_C_vec, const double* cpi,
-      sire::Size cpiWidth, const double* extInvCpi, double* fext, double* b)
-      -> void;
-  auto preprocessContactInfo(
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      sire::PartId* prtIdVector, LhsVariableType* variableType, int* groundFlag)
-      -> sire::Size;
-  auto cptCpiMatrix(
-      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      const std::vector<std::array<double, 16>>& T_C_vec,
-      const sire::PartId* prtIdVector, sire::Size cpiWidth,
-      const int* groundFlag, double* cpi) -> void;
 
  private:
-  auto cptContactForce(double A, double B, double k, double D, double r,
-                       double w, double t) -> double;
-  auto cptPenaltyODE(double contact_time, double projected_start_diff_v,
-                     double cr, double m, double k, double delta_t) -> double;
   struct Imp;
   std::unique_ptr<Imp> imp_;
 };

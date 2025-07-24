@@ -1,4 +1,4 @@
-#include "sire/physics/contact/avg_force_contact_solver.hpp"
+#include "sire/physics/contact/contact_position_force_solver.hpp"
 
 #include <array>
 #include <cmath>
@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 
+#include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/Eigenvalues>
 
 #include <aris/core/reflection.hpp>
@@ -32,7 +33,7 @@
 
 #include "log/easyloggingConfig.hpp"
 
-namespace sire::physics::contact {
+namespace sire::physics::contact::contact_force {
 using PartPool =
     aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>;
 class FceActiveStateRecorder {
@@ -47,6 +48,35 @@ class FceActiveStateRecorder {
     for (auto& fce : model_->forcePool()) fce.activate(fce_active_[fce.id()]);
   }
 };
+// clang-format off
+/// @brief 计算除了接触力外的所有力当作接触模型求解的外力项，假设检测到 n 个接触点。
+/// 关于计算的 A b 的解释
+/// x(t) = e^(At)(x(0) - A\b) + A\b
+/// 因为要每个接触点的法向的位移相减，同时，一组接触变量控制了两个物体的状态
+/// 需要使用下面的矩阵对 I 进行缩小，并与接触点的刚度与阻尼相乘，得到矩阵 K D
+/// T = [1 -1 0 ... 0 0  0]
+///     [0  0 1 -1 ...0  0]
+///     [.  . .  . ....  .]
+///     [0 0 0 0 .... 1 -1] n * 2n
+/// K = T * I^-1 * T' * diag(k)  k 与 d 都是 1 * n 的向量
+/// D = T * I^-1 * T' * diag(d)
+/// 矩阵微分方程的状态转移矩阵 A 可以由三块组成，如下图所示
+/// A = [0 I]
+///     [K D] 2n * 2n 的矩阵
+/// 接触点状态如下
+/// x = [d1 ... dn d1' ... dn'] 2 * n  d表示接触距离（穿深）
+/// x' = [d1' ... dn' d1'' ... dn''] 2 * n
+/// x(0) = [由积分截断时记录的 v 与 p 决定]
+/// 其中，关于非齐次方程的常数项 b，需要经过如下计算
+/// F = [FeA1 FeB1 ... FeAn FeBn] 1 * 2n vector -> parameter fext
+/// f = T * I^-1 * F' -> 1 * n vector
+/// b = [0 f] -> 1 * 2n vector
+/// 其中的 A \ b 方法 使用基于Householder方法的QR分解计算
+///        
+/// @param[in] penetration_pairs n x 1 检测到的接触点信息
+/// @param[in] T_C_vec 16 x n 接触点相对于世界坐标系的坐标，接触点坐标系的z方向从物体B指向物体A，平行接触方向
+/// @param[in] cpi 2n x 2n 接触点惯量矩阵（contact point inertia matrix）
+/// @param[out] fext (2n - g) x 1 计算得到的法向外力结果，表示为 [FeA1, FeB1, ... , FeAn, FeBn]，去掉ground相关的外力项
 auto cptAccelExtVector(
     aris::dynamic::Model& model,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -66,6 +96,12 @@ auto cptAccelExtVector(
     for (sire::Size i2{0}; i2 < 2; ++i2) {
       auto& prt = partPool[prtIdVector[2 * i + i2]];
       double ap_o[3]{0}, ap_c[3]{0};
+      if (prt.id() != 0) {
+        std::vector<double> vs(prt.vs(), prt.vs() + 6);
+        std::vector<double> as(prt.as(), prt.as() + 6);
+        std::vector<double> cp(contactPosition, contactPosition + 3);
+        DLOG(DEBUG) << "prt: "<< prt.id() << " " << vs << " " << as << " " << cp;
+      }
       aris::dynamic::s_as2ap(prt.vs(), prt.as(), contactPosition, ap_o);
       aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), ap_o, ap_c);
       accelExt[accelExtColIdx] = ap_c[2];
@@ -126,6 +162,88 @@ auto cptKdMatrix(sire::Size n, const double* stiffness, const double* damping,
     lineIdx += 2;
   }
 }
+
+// clang-format off
+/// @brief 计算接触法向惯量矩阵，需要去掉ground相关的行和列
+/// 代码的第一个版本直接给外力的情况下根据加速度计算接触点惯量，
+/// 问题是如果机器人本身的力较大或者运动情况带来的加速度太大，
+/// 会导致计算出来的惯量为负数，从物理意义上来说，在不关闭系统内部力与系统
+/// 状态的情况下，应该使用斜率作为质量，因为f = ma方程在这种情况下
+/// 不过原点，所以需要两个力，算到加速度的差值，作为f的计算依据
+/// f1 = 10N -> f2 = 50N
+/// 
+/// 接触法向质量矩阵的格式，假设有 n 个碰撞点
+/// I[num1][A|B][num2][A|B]
+/// I: inertia; 
+/// num1: idx of contact point which give force
+/// A|B: contact force direction
+/// num2: idx of influenced contact point
+/// A|B: influenced contact point's of PrtA or PrtB
+/// 只包含碰撞点间法向力的惯量矩阵
+///
+/// eg: 第一个碰撞点的对PrtA切向x方向的接触力对各个碰撞点的接触杆件A/B的比值质量
+/// [I1A1Azz I1A1Bzz ... I1AnAzz I1AnBzz]
+/// [I1B1Azz I1B1Bzz ... I1BnAzz I1BnBzz]
+/// [   .       .    ...    .       .   ]
+/// [   .       .    ...    .       .   ]
+/// [InA1Azz InA1Bxz ... InAnAxz InAnBzz]
+/// [InB1Azz InB1Bzz ... InBnAzz InBnBzz] 2n x 2n
+///
+/// 矩阵的零元和无限元代表的意思：
+/// 零元：表示等式右边受到的力不会导致左边的某一特定接触点产生特定方向的加速度
+/// 无限元：与零元的意义一致，也是无论右边受到怎么样的力左边都不会产生相应的加速度
+/// 
+/// 通过碰撞检测得到的碰撞点信息，碰撞点的位姿矩阵计算得到惯量矩阵
+/// 通过 aris 拷贝过来的 init_interaction 来初始化重新加入的 fce
+/// Step1：记录model的 fce 的active状态情况，并全部设置为 deactive
+/// Step2: 遍历碰撞点，记录碰撞点的杆件的 vs 与 as
+/// Step3: 循环给力，计算各个接触点杆件的反应，无反应记录为0而不是正无穷 f / m = a
+///
+/// 质量矩阵在接触点处的微分方程
+/// I a = F
+/// 其中 I 的格式由上边的矩阵给出，由此，a 与 F 的格式如下（由对角线元素决定，并由非对角线元素验证）
+/// a = [a1Az a1Bz ... anAz anBz]'; 2n x 1
+/// F = [F1Az F1Bz ... FnAz FnBz]'; 2n x 1
+/// 摩擦力对两个物体来说在同一坐标系下大小相同方向相反，分析力分解后对 x y 方向的切向加速度的影响，所以也是相减
+/// 所以需要先对矩阵 I 求逆矩阵得到 a = I^-1 F
+/// 并在对应项相减，得到基于接触模型的多点接触公式矩阵
+/// a = [a1Az-a1Bz ... anAz-anBz]'; n x 1
+/// F = I^-1 * [F1Az F1Bz ... FnAz FnBz]' 然后对应项目相减; n x 1
+/// 
+/// 方法一：使用当前时刻状态计算切向摩擦力大小，将切向摩擦力直接带入动力学，最后会成为法向平衡矩阵的外力项目，
+///        不需要将切向问题引入平衡矩阵，直接代入动力学应该会产生一致的效果。
+/// 注意事项：
+///  1. 得到的加速度需要减去 gravityAs 才能是我们的因为力产生的加速度才能添加计算质量
+/// 在创建的时候记录 fce 的激活状态
+/// 并在销毁的时候将记录的状态设置回去，放置在方法调用时放置过程中修改导致的状态不一致
+///
+/// 关于计算的 A b 的解释
+/// x(t) = e^(At)(x(0) - A\b) + A\b
+/// 因为要每个接触点的法向的位移相减，同时，一组接触变量控制了两个物体的状态
+/// 需要使用下面的矩阵对 I 进行缩小，并与接触点的刚度与阻尼相乘，得到矩阵 K D
+/// T = [1 -1 0 ... 0 0  0]
+///     [0  0 1 -1 ...0  0]
+///     [.  . .  . ....  .]
+///     [0 0 0 0 .... 1 -1] n * 2n
+/// K = T * I^-1 * T' * diag(k)  k 与 d 都是 1 * n 的向量
+/// D = T * I^-1 * T' * diag(d)
+/// 矩阵微分方程的状态转移矩阵 A 可以由三块组成，如下图所示
+/// A = [0 I]
+///     [K D] 2n * 2n 的矩阵
+/// 接触点状态如下
+/// x = [d1 ... dn d1' ... dn'] 2 * n  d表示接触距离（穿深）
+/// x' = [d1' ... dn' d1'' ... dn''] 2 * n
+/// x(0) = [由积分截断时记录的 v 与 p 决定]
+/// 其中，关于非齐次方程的常数项 b，需要经过如下计算
+/// F = [FeA1 FeB1 ... FeAn FeBn] 1 * 2n vector -> parameter fext
+/// f = T * I^-1 * F' -> 1 * n vector
+/// b = [0 f] -> 1 * 2n vector
+/// 其中的 A \ b 方法 使用基于Householder方法的QR分解计算
+/// 
+/// @param[in] penetration_pairs (n x 1) 检测到的接触点信息
+/// @param[in] T_C_vec (16 x n) 接触点相对于世界坐标系的坐标，接触点坐标系的z方向从物体A指向物体B，平行接触方向
+/// @param[out] cpi (2n-g x 2n-g) 接触点惯量矩阵计算结果（contact point inertia matrix）g表示ground相关的数目
+// clang-format on
 auto cptInvCpi(sire::Size n, sire::Size cpiWidth, double minDamp,
                const LhsVariableType* variableType, double* cpi,
                double* kdMatrix, double* fext, double* invCpi) -> void {
@@ -547,6 +665,59 @@ auto preprocessContactInfo(
     prtIdVector[2 * i + 1] = geometry_B_ptr->partId();
   }
 }
+// clang-format off
+// 
+// 质量矩阵的格式，假设有 n 个碰撞点
+// I[num1][A|B][num2][A|B][x|y|z 1][x|y|z 2]
+// I: inertia; 
+// num1: idx of contact point which give force
+// A|B: contact force direction
+// num2: idx of influenced contact point
+// A|B: influenced contact point's of PrtA or PrtB
+// x|y|z 1: contact force 3 direction 
+// x|y|z 2: influenced contact point 3 direction
+//
+// eg: 第一个碰撞点的对PrtA切向x方向的接触力对各个碰撞点的接触杆件A/B的比值质量
+// [I1A1Axx I1A1Axy I1A1Axz I1A1Bxx I1A1Bxy I1A1Bxz ... I1AnAxx I1AnAxy I1AnAxz I1AnBxx I1AnBxy I1AnBxz]
+// [I1A1Ayx I1A1Ayy I1A1Ayz I1A1Byx I1A1Byy I1A1Byz ... I1AnAyx I1AnAyy I1AnAyz I1AnByx I1AnByy I1AnByz]
+// [I1A1Azx I1A1Azy I1A1Azz I1A1Bzx I1A1Bzy I1A1Bzz ... I1AnAzx I1AnAzy I1AnAzz I1AnBzx I1AnBzy I1AnBzz]
+// [I1B1Axx I1B1Axy I1B1Axz I1B1Bxx I1B1Bxy I1B1Bxz ... I1BnAxx I1BnAxy I1BnAxz I1BnBxx I1BnBxy I1BnBxz]
+// [I1B1Axy I1B1Ayy I1B1Ayz I1B1Byx I1B1Byy I1B1Byz ... I1BnAyx I1BnAyy I1BnAyz I1BnByx I1BnByy I1BnByz]
+// [I1B1Azx I1B1Azy I1B1Azz I1B1Bzx I1B1Bzy I1B1Bzz ... I1BnAzx I1BnAzy I1BnAzz I1BnBzx I1BnBzy I1BnBzz]
+// [   .       .       .       .       .       .    ...    .       .       .       .       .       .   ]
+// [   .       .       .       .       .       .    ...    .       .       .       .       .       .   ]
+// [InA1Axx InA1Axy InA1Axz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnBxx InAnBxy InAnBxz]
+// [InA1Ayx InA1Ayy InA1Ayz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnByx InAnByy InAnByz]
+// [InA1Azx InA1Azy InA1Azz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnBzx InAnBzy InAnBzz]
+// [InB1Axx InB1Axy InB1Axz InB1Bxx InB1Bxy InB1Bxz ... InBnAxx InBnAxy InBnAxz InBnBxx InBnBxy InBnBxz]
+// [InB1Ayx InB1Ayy InB1Ayz InB1Byx InB1Byy InB1Byz ... InBnAyx InBnAyy InBnAyz InBnByx InBnByy InBnByz]
+// [InB1Azx InB1Azy InB1Azz InB1Bzx InB1Bzy InB1Bzz ... InBnAzx InBnAzy InBnAzz InBnBzx InBnBzy InBnBzz] 6n x 6n
+//
+// 矩阵的零元和无限元代表的意思：
+// 零元：表示等式右边受到的力不会导致左边的某一特定接触点产生特定方向的加速度
+// 无限元：与零元的意义一致，也是无论右边受到怎么样的力左边都不会产生相应的加速度
+// 
+// 通过碰撞检测得到的碰撞点信息，碰撞点的位姿矩阵计算得到惯量矩阵
+// 通过 aris 拷贝过来的 init_interaction 来初始化重新加入的 fce
+// Step1：记录model的 fce 的active状态情况，并全部设置为 deactive
+// Step2: 遍历碰撞点，记录碰撞点的杆件的 vs 与 as
+// Step3: 循环给力，计算各个接触点杆件的反应，无反应记录为0而不是正无穷 f / m = a
+//
+// 质量矩阵在接触点处的微分方程
+// I a = F
+// 其中 I 的格式由上边的矩阵给出，由此，a 与 F 的格式如下（由对角线元素决定，并由非对角线元素验证）
+// a = [a1Ax a1Ay a1Az a1Bx a1By a1Bz ... anAx anAy anAz anBx anBy anBz]'; 6n x 1
+// F = [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]'; 6n x 1
+// 摩擦力对两个物体来说在同一坐标系下大小相同方向相反，分析力分解后对 x y 方向的切向加速度的影响，所以也是相减
+// 所以需要先对矩阵 I 求逆矩阵得到 a = I^-1 F
+// 并在对应项相减，得到基于接触模型的多点接触公式矩阵
+// a = [a1Ax-a1Bx a1Ay-a1By a1Az-a1Bz ... anAx-anBy anAx-anBy anAz-anBz]'; 3n x 1
+// F = I^-1 * [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]' 然后对应项目相减; 3n x 1
+// 
+// 方法一：使用当前时刻状态计算切向摩擦力大小，将切向摩擦力直接带入动力学，最后会成为法向平衡矩阵的外力项目，
+//        不需要将切向问题引入平衡矩阵，直接代入动力学应该会产生一致的效果。
+// 方法二：将切向问题与法向问题引入公式与大矩阵同时求解。
+// clang-format on
 auto cptInverseNormalCpiMatrix(
     aris::dynamic::Model& model,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -589,7 +760,7 @@ auto cptInverseNormalCpiMatrix(
 
   const sire::Size n = preservedPairsIdx.size();
   // 给力并计算质量矩阵
-  const double fceValue = 10.0;
+  const double fceValue = 100.0;
   double testFce[3] = {0, 0, fceValue};
   for (Size i{0}; i < n; ++i) {
     for (Size j{0}; j < 2; ++j) {
@@ -922,21 +1093,35 @@ auto filterPairsAndPreprocessInfo(
         search == penetration_pairs.end()) {
       // 不存在的接触对加入pairs计算
       pairsNeedModifiedIdx.push_back(penetration_pairs.size());
-      pair.depth = 1e-7;  // 确保不会被过滤掉
+      pair.depth = (pair.depth > 0) ? pair.depth : 1e-7;  // 确保不会被过滤掉
       penetration_pairs.push_back(pair);
       targetConditionIdx.push_back(i);
     } else {
       pairsNeedModifiedIdx.push_back(
           std::distance(penetration_pairs.begin(), search));
       // 确保不会被过滤掉
-      search->depth = 1e-7;
+      pair.depth = (pair.depth > 0) ? pair.depth : 1e-7;  // 确保不会被过滤掉
       targetConditionIdx.push_back(i);
     }
   }
   cptContactFrame(penetration_pairs, T_C_vec);
   std::vector<int> idxNeedDecrease(pairsNeedModifiedIdx.size(), 0);
   for (sire::Size i{0}; i < penetration_pairs.size(); ++i) {
-    if (penetration_pairs[i].depth >= 0) {
+    bool shouldFilter = false;
+    if (penetration_pairs[i].depth < 0) {
+      // 如果穿透深度小于0，说明接触点已经分离
+      shouldFilter = true;
+    }
+    if (std::abs(penetration_pairs[i].depth) < 1e-7) {
+      std::array<double, 3> v_contact;
+      engine.cptContactVelocityB2A(penetration_pairs[i],
+                                   T_C_vec[i], v_contact);
+      if (v_contact[2] >= 0) {
+        // 接触点的法向速度大于0，说明接触点正要分离
+        shouldFilter = true;
+      }
+    }
+    if (!shouldFilter) {
       preservedPairsIdx.push_back(i);
     } else {
       // 因为pairsNeedModifiedIdx的idx是基于penetration_pairs的，所以在过滤掉的点
@@ -962,6 +1147,9 @@ auto filterPairsAndPreprocessInfo(
   engine.activateContactForce(false);
   auto modelPtr = engine.currentModel();
   SIRE_ASSERT(modelPtr != nullptr);
+  // 在禁用接触力的情况下，需要重新求解动力学，而不能直接用相应的杆件加速度信息
+  // 首先验证杆件的接触力被正确禁用，保留电机力
+  // std::cout << aris::core::toXmlString(modelPtr->forcePool()) << std::endl;
   cptAccelExtVector(*modelPtr, penetration_pairs, T_C_vec, preservedPairsIdx,
                     prtIdVector.data(), accelExt.data());
 
@@ -972,8 +1160,9 @@ auto filterPairsAndPreprocessInfo(
   engine.activateContactForce(true);
 }
 
-struct AverageForceContactSolver::Imp {
+struct ContactPositionForceSolver::Imp {
   unique_ptr<core::MaterialManager> material_manager_;
+  nlohmann::json records;
   // 消耗系数
   double default_cr_;
   // 摩擦系数
@@ -1007,839 +1196,47 @@ struct AverageForceContactSolver::Imp {
         default_cof_(0.3),
         default_tv_(0.1) {}
 };
-AverageForceContactSolver::AverageForceContactSolver()
+ContactPositionForceSolver::ContactPositionForceSolver()
     : imp_(std::make_unique<Imp>()) {}
-AverageForceContactSolver::~AverageForceContactSolver() {};
-SIRE_DEFINE_MOVE_CTOR_CPP(AverageForceContactSolver);
-auto AverageForceContactSolver::resetMaterialManager(
+ContactPositionForceSolver::~ContactPositionForceSolver() {};
+SIRE_DEFINE_MOVE_CTOR_CPP(ContactPositionForceSolver);
+auto ContactPositionForceSolver::resetMaterialManager(
     core::MaterialManager* manager) -> void {
   imp_->material_manager_.reset(manager);
 }
-auto AverageForceContactSolver::materialManager() -> core::MaterialManager& {
+auto ContactPositionForceSolver::materialManager() -> core::MaterialManager& {
   return *imp_->material_manager_;
 }
-auto AverageForceContactSolver::setDefaultStiffness(double k) noexcept -> void {
+auto ContactPositionForceSolver::setDefaultStiffness(double k) noexcept
+    -> void {
   imp_->default_k_ = k;
 }
-auto AverageForceContactSolver::defaultStiffness() noexcept -> double {
+auto ContactPositionForceSolver::defaultStiffness() noexcept -> double {
   return imp_->default_k_;
 }
-auto AverageForceContactSolver::setDefaultCr(double cr) noexcept -> void {
+auto ContactPositionForceSolver::setDefaultCr(double cr) noexcept -> void {
   imp_->default_cr_ = cr;
 }
-auto AverageForceContactSolver::defaultCr() noexcept -> double {
+auto ContactPositionForceSolver::defaultCr() noexcept -> double {
   return imp_->default_cr_;
 }
-auto AverageForceContactSolver::setDefaultVelocityThreshold(double tv) noexcept
+auto ContactPositionForceSolver::setDefaultVelocityThreshold(double tv) noexcept
     -> void {
   imp_->default_tv_ = tv;
 }
-auto AverageForceContactSolver::defaultVelocityThreshold() noexcept -> double {
+auto ContactPositionForceSolver::defaultVelocityThreshold() noexcept -> double {
   return imp_->default_tv_;
 }
-// clang-format off
-// 
-// 质量矩阵的格式，假设有 n 个碰撞点
-// I[num1][A|B][num2][A|B][x|y|z 1][x|y|z 2]
-// I: inertia; 
-// num1: idx of contact point which give force
-// A|B: contact force direction
-// num2: idx of influenced contact point
-// A|B: influenced contact point's of PrtA or PrtB
-// x|y|z 1: contact force 3 direction 
-// x|y|z 2: influenced contact point 3 direction
-//
-// eg: 第一个碰撞点的对PrtA切向x方向的接触力对各个碰撞点的接触杆件A/B的比值质量
-// [I1A1Axx I1A1Axy I1A1Axz I1A1Bxx I1A1Bxy I1A1Bxz ... I1AnAxx I1AnAxy I1AnAxz I1AnBxx I1AnBxy I1AnBxz]
-// [I1A1Ayx I1A1Ayy I1A1Ayz I1A1Byx I1A1Byy I1A1Byz ... I1AnAyx I1AnAyy I1AnAyz I1AnByx I1AnByy I1AnByz]
-// [I1A1Azx I1A1Azy I1A1Azz I1A1Bzx I1A1Bzy I1A1Bzz ... I1AnAzx I1AnAzy I1AnAzz I1AnBzx I1AnBzy I1AnBzz]
-// [I1B1Axx I1B1Axy I1B1Axz I1B1Bxx I1B1Bxy I1B1Bxz ... I1BnAxx I1BnAxy I1BnAxz I1BnBxx I1BnBxy I1BnBxz]
-// [I1B1Axy I1B1Ayy I1B1Ayz I1B1Byx I1B1Byy I1B1Byz ... I1BnAyx I1BnAyy I1BnAyz I1BnByx I1BnByy I1BnByz]
-// [I1B1Azx I1B1Azy I1B1Azz I1B1Bzx I1B1Bzy I1B1Bzz ... I1BnAzx I1BnAzy I1BnAzz I1BnBzx I1BnBzy I1BnBzz]
-// [   .       .       .       .       .       .    ...    .       .       .       .       .       .   ]
-// [   .       .       .       .       .       .    ...    .       .       .       .       .       .   ]
-// [InA1Axx InA1Axy InA1Axz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnBxx InAnBxy InAnBxz]
-// [InA1Ayx InA1Ayy InA1Ayz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnByx InAnByy InAnByz]
-// [InA1Azx InA1Azy InA1Azz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnBzx InAnBzy InAnBzz]
-// [InB1Axx InB1Axy InB1Axz InB1Bxx InB1Bxy InB1Bxz ... InBnAxx InBnAxy InBnAxz InBnBxx InBnBxy InBnBxz]
-// [InB1Ayx InB1Ayy InB1Ayz InB1Byx InB1Byy InB1Byz ... InBnAyx InBnAyy InBnAyz InBnByx InBnByy InBnByz]
-// [InB1Azx InB1Azy InB1Azz InB1Bzx InB1Bzy InB1Bzz ... InBnAzx InBnAzy InBnAzz InBnBzx InBnBzy InBnBzz] 6n x 6n
-//
-// 矩阵的零元和无限元代表的意思：
-// 零元：表示等式右边受到的力不会导致左边的某一特定接触点产生特定方向的加速度
-// 无限元：与零元的意义一致，也是无论右边受到怎么样的力左边都不会产生相应的加速度
-// 
-// 通过碰撞检测得到的碰撞点信息，碰撞点的位姿矩阵计算得到惯量矩阵
-// 通过 aris 拷贝过来的 init_interaction 来初始化重新加入的 fce
-// Step1：记录model的 fce 的active状态情况，并全部设置为 deactive
-// Step2: 遍历碰撞点，记录碰撞点的杆件的 vs 与 as
-// Step3: 循环给力，计算各个接触点杆件的反应，无反应记录为0而不是正无穷 f / m = a
-//
-// 质量矩阵在接触点处的微分方程
-// I a = F
-// 其中 I 的格式由上边的矩阵给出，由此，a 与 F 的格式如下（由对角线元素决定，并由非对角线元素验证）
-// a = [a1Ax a1Ay a1Az a1Bx a1By a1Bz ... anAx anAy anAz anBx anBy anBz]'; 6n x 1
-// F = [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]'; 6n x 1
-// 摩擦力对两个物体来说在同一坐标系下大小相同方向相反，分析力分解后对 x y 方向的切向加速度的影响，所以也是相减
-// 所以需要先对矩阵 I 求逆矩阵得到 a = I^-1 F
-// 并在对应项相减，得到基于接触模型的多点接触公式矩阵
-// a = [a1Ax-a1Bx a1Ay-a1By a1Az-a1Bz ... anAx-anBy anAx-anBy anAz-anBz]'; 3n x 1
-// F = I^-1 * [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]' 然后对应项目相减; 3n x 1
-// 
-// 方法一：使用当前时刻状态计算切向摩擦力大小，将切向摩擦力直接带入动力学，最后会成为法向平衡矩阵的外力项目，
-//        不需要将切向问题引入平衡矩阵，直接代入动力学应该会产生一致的效果。
-// 方法二：将切向问题与法向问题引入公式与大矩阵同时求解。
-// clang-format on
-auto AverageForceContactSolver::cptContactPointInertiaMatrix(
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec,
-    std::vector<double>& cpi) -> void {
-  auto init_interaction = [](aris::dynamic::Interaction& interaction,
-                             aris::dynamic::Model* m) -> void {
-    if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
-        interaction.makNameI().empty() && interaction.makNameJ().empty())
-      return;
-
-    auto find_part = [m](std::string_view name) -> aris::dynamic::Part* {
-      auto found = std::find_if(
-          m->partPool().begin(), m->partPool().end(),
-          [name](const auto& part) -> bool { return part.name() == name; });
-      return found == m->partPool().end() ? nullptr : &*found;
-    };
-
-    auto find_marker = [](aris::dynamic::Part* part,
-                          std::string_view name) -> aris::dynamic::Marker* {
-      auto found = std::find_if(
-          part->markerPool().begin(), part->markerPool().end(),
-          [name](const auto& marker) -> bool { return marker.name() == name; });
-      return found == part->markerPool().end() ? nullptr : &*found;
-    };
-
-    auto prt_m = find_part(interaction.prtNameM());
-    auto mak_i = find_marker(prt_m, interaction.makNameI());
-    auto prt_n = find_part(interaction.prtNameN());
-    auto mak_j = find_marker(prt_n, interaction.makNameJ());
-
-    interaction.setMakI(&*mak_i);
-    interaction.setMakJ(&*mak_j);
-  };
-  // 初始化一些重复使用的变量
-  auto enginePtr = physicsEnginePtr();
-  SIRE_ASSERT(enginePtr != nullptr);
-  auto modelPtr = enginePtr->currentModel();
-  SIRE_ASSERT(modelPtr != nullptr);
-  Size numContactPoint = penetration_pairs.size();
-  auto& forcePool = modelPtr->forcePool();
-  auto& partPool = modelPtr->partPool();
-  Size testForceIdxOffset = forcePool.size();
-  // Size testForceIdxOffset = 0;
-  const double fceValue = 10.0;
-  // 初始化结果容器
-  const Size cpiWidth = 6 * numContactPoint;
-  cpi.resize(cpiWidth * cpiWidth);
-  // 在修改 forcePool 之前记录forcePool的 active 状态
-  FceActiveStateRecorder recorder(modelPtr);
-  // 将在 forcePool 中的力全部 deactivate
-  for (auto& fce : forcePool) fce.activate(false);
-  // add generalForce to forcePool() in Model and init
-  typedef std::map<sire::geometry::GeometryId, std::array<double, 6>>
-      PrtAsVsType;
-  PrtAsVsType contactPrtVsMap;
-
-  for (Size i = 0; i < numContactPoint; ++i) {
-    const geometry::CollidableGeometry* geometry_A_ptr =
-        enginePtr->queryGeometryPoolById(penetration_pairs[i].id_A);
-    const geometry::CollidableGeometry* geometry_B_ptr =
-        enginePtr->queryGeometryPoolById(penetration_pairs[i].id_B);
-    SIRE_DEMAND(geometry_A_ptr != nullptr);
-    SIRE_DEMAND(geometry_B_ptr != nullptr);
-    sire::PartId contactPrt[2]{geometry_A_ptr->partId(),
-                               geometry_B_ptr->partId()};
-    auto& fcea = forcePool.add<aris::dynamic::GeneralForce>(
-        std::string("test_fa" + std::to_string(i + testForceIdxOffset)),
-        &partPool.at(contactPrt[0]).markerPool().at(0),
-        &partPool.at(modelPtr->ground().id()).markerPool().at(0));
-    auto& fceb = forcePool.add<aris::dynamic::GeneralForce>(
-        std::string("test_fb" + std::to_string(i + testForceIdxOffset)),
-        &partPool.at(contactPrt[1]).markerPool().at(0),
-        &partPool.at(modelPtr->ground().id()).markerPool().at(0));
-
-    fcea.resetModel(modelPtr);
-    fcea.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-    // force id 可以先不管
-    init_interaction(fcea, modelPtr);
-    fceb.resetModel(modelPtr);
-    fceb.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-    // force id 可以先不管
-    init_interaction(fceb, modelPtr);
-    for (Size j = 0; j < 2; ++j) {
-      auto& prt = partPool[contactPrt[j]];
-      PrtAsVsType::iterator lbofPrt =
-          contactPrtVsMap.lower_bound(contactPrt[j]);
-      // 如果 prt_id 在 contactPrtVsMap 中找不到，计算As与Vs并存入map
-      if (lbofPrt == contactPrtVsMap.end() ||
-          contactPrtVsMap.key_comp()(contactPrt[j], lbofPrt->first)) {
-        std::array<double, 6> vs{0};
-        prt.getVs(vs.data());
-        contactPrtVsMap.insert(
-            PrtAsVsType::value_type(contactPrt[j], std::move(vs)));
-      }
-    }
-  }
-  // std::cout << aris::core::toXmlString(*modelPtr) << std::endl;
-
-  // 给力并计算质量矩阵
-  double testFce[3][3] = {{fceValue, 0, 0}, {0, fceValue, 0}, {0, 0, fceValue}};
-  const double* gravityAs = modelPtr->environment().gravity();
-  for (Size iContact = 0; iContact < numContactPoint; ++iContact) {
-    // 遍历行时不需要碰撞点到底是哪个 id_A or id_B
-    for (Size i2 = 0; i2 < 2; ++i2) {
-      for (Size idir = 0; idir < 3; ++idir) {
-        double fs[6];
-        sire::core::screw::s_fpm2fs(testFce[idir], T_C_vec[iContact].data(),
-                                    fs);
-        dynamic_cast<aris::dynamic::GeneralForce&>(
-            forcePool.at(2 * iContact + i2 + testForceIdxOffset))
-            .setFce(fs);
-        if (modelPtr->forwardDynamics()) {
-          std::cout << "forward dynamic failed" << std::endl;
-        }
-        // 记录所有碰撞点的As，方便取用
-        PrtAsVsType contactPrtAsMap;
-        for (Size jContact = 0; jContact < numContactPoint; ++jContact) {
-          const geometry::CollidableGeometry* geometry_A_ptr =
-              enginePtr->queryGeometryPoolById(
-                  penetration_pairs[jContact].id_A);
-          const geometry::CollidableGeometry* geometry_B_ptr =
-              enginePtr->queryGeometryPoolById(
-                  penetration_pairs[jContact].id_B);
-          SIRE_DEMAND(geometry_A_ptr != nullptr);
-          SIRE_DEMAND(geometry_B_ptr != nullptr);
-          sire::PartId contactPrt[2]{geometry_A_ptr->partId(),
-                                     geometry_B_ptr->partId()};
-          for (Size j2 = 0; j2 < 2; ++j2) {
-            auto& prt = partPool[contactPrt[j2]];
-            PrtAsVsType::iterator lbofPrt =
-                contactPrtAsMap.lower_bound(contactPrt[j2]);
-            // 如果 prt_id 在 contactPrtAsMap 中找不到，计算As并存入map
-            if (lbofPrt == contactPrtAsMap.end() ||
-                contactPrtAsMap.key_comp()(contactPrt[j2], lbofPrt->first)) {
-              if (prt.id() == modelPtr->ground().id()) continue;
-              std::array<double, 6> as{0};
-              prt.getAs(as.data());
-              // ground 的 as 就是
-              // 0，不会有相应加速度，我们仿真碰撞里面要把这部分去掉
-              // 虽然也放在我们的cpi计算步骤中，但是只要没有as，对应项目就一直是零，
-              // 当作无限大质量物体处理
-              if (prt.id() != modelPtr->ground().id())
-                aris::dynamic::s_vs(6, gravityAs, as.data());
-              contactPrtAsMap.insert(
-                  PrtAsVsType::value_type(contactPrt[j2], std::move(as)));
-            }
-          }
-        }
-        for (Size jContact = 0; jContact < numContactPoint; ++jContact) {
-          double ap_o[3]{0}, res[3]{0};
-          const geometry::CollidableGeometry* geometry_A_ptr =
-              enginePtr->queryGeometryPoolById(
-                  penetration_pairs[jContact].id_A);
-          const geometry::CollidableGeometry* geometry_B_ptr =
-              enginePtr->queryGeometryPoolById(
-                  penetration_pairs[jContact].id_B);
-          SIRE_DEMAND(geometry_A_ptr != nullptr);
-          SIRE_DEMAND(geometry_B_ptr != nullptr);
-          auto& part1 = partPool[geometry_A_ptr->partId()];
-          auto& part2 = partPool[geometry_B_ptr->partId()];
-          const double* contactPosition =
-              penetration_pairs[jContact].p_WC.data();
-          auto& vs1 = contactPrtVsMap.at(geometry_A_ptr->partId());
-          auto& as1 = contactPrtAsMap.at(geometry_A_ptr->partId());
-          aris::dynamic::s_as2ap(vs1.data(), as1.data(), contactPosition, ap_o);
-          aris::dynamic::s_inv_pm_dot_v3(T_C_vec[jContact].data(), ap_o, res);
-          core::screw::s_dvi(fceValue, res, 3, 1e-5);
-          std::copy_n(
-              res, 3,
-              &cpi[(6 * iContact + 3 * i2 + idir) * cpiWidth + jContact * 6]);
-          auto& vs2 = contactPrtVsMap.at(geometry_B_ptr->partId());
-          auto& as2 = contactPrtAsMap.at(geometry_B_ptr->partId());
-          aris::dynamic::s_as2ap(vs2.data(), as2.data(), contactPosition, ap_o);
-          aris::dynamic::s_inv_pm_dot_v3(T_C_vec[jContact].data(), ap_o, res);
-          core::screw::s_dvi(fceValue, res, 3, 1e-5);
-          std::copy_n(res, 3,
-                      &cpi[(6 * iContact + 3 * i2 + idir) * cpiWidth +
-                           jContact * 6 + 3]);
-        }
-      }
-      double fs[6]{0};
-      dynamic_cast<aris::dynamic::GeneralForce&>(
-          forcePool.at(2 * iContact + i2 + testForceIdxOffset))
-          .setFce(fs);
-    }
-  }
-  for (Size i = 0; i < numContactPoint * 2; ++i) {
-    forcePool.pop_back();
-  }
-}
-
-// clang-format off
-/// @brief 计算接触法向惯量矩阵，需要去掉ground相关的行和列
-/// 代码的第一个版本直接给外力的情况下根据加速度计算接触点惯量，
-/// 问题是如果机器人本身的力较大或者运动情况带来的加速度太大，
-/// 会导致计算出来的惯量为负数，从物理意义上来说，在不关闭系统内部力与系统
-/// 状态的情况下，应该使用斜率作为质量，因为f = ma方程在这种情况下
-/// 不过原点，所以需要两个力，算到加速度的差值，作为f的计算依据
-/// f1 = 10N -> f2 = 50N
-/// 
-/// 接触法向质量矩阵的格式，假设有 n 个碰撞点
-/// I[num1][A|B][num2][A|B]
-/// I: inertia; 
-/// num1: idx of contact point which give force
-/// A|B: contact force direction
-/// num2: idx of influenced contact point
-/// A|B: influenced contact point's of PrtA or PrtB
-/// 只包含碰撞点间法向力的惯量矩阵
-///
-/// eg: 第一个碰撞点的对PrtA切向x方向的接触力对各个碰撞点的接触杆件A/B的比值质量
-/// [I1A1Azz I1A1Bzz ... I1AnAzz I1AnBzz]
-/// [I1B1Azz I1B1Bzz ... I1BnAzz I1BnBzz]
-/// [   .       .    ...    .       .   ]
-/// [   .       .    ...    .       .   ]
-/// [InA1Azz InA1Bxz ... InAnAxz InAnBzz]
-/// [InB1Azz InB1Bzz ... InBnAzz InBnBzz] 2n x 2n
-///
-/// 矩阵的零元和无限元代表的意思：
-/// 零元：表示等式右边受到的力不会导致左边的某一特定接触点产生特定方向的加速度
-/// 无限元：与零元的意义一致，也是无论右边受到怎么样的力左边都不会产生相应的加速度
-/// 
-/// 通过碰撞检测得到的碰撞点信息，碰撞点的位姿矩阵计算得到惯量矩阵
-/// 通过 aris 拷贝过来的 init_interaction 来初始化重新加入的 fce
-/// Step1：记录model的 fce 的active状态情况，并全部设置为 deactive
-/// Step2: 遍历碰撞点，记录碰撞点的杆件的 vs 与 as
-/// Step3: 循环给力，计算各个接触点杆件的反应，无反应记录为0而不是正无穷 f / m = a
-///
-/// 质量矩阵在接触点处的微分方程
-/// I a = F
-/// 其中 I 的格式由上边的矩阵给出，由此，a 与 F 的格式如下（由对角线元素决定，并由非对角线元素验证）
-/// a = [a1Az a1Bz ... anAz anBz]'; 2n x 1
-/// F = [F1Az F1Bz ... FnAz FnBz]'; 2n x 1
-/// 摩擦力对两个物体来说在同一坐标系下大小相同方向相反，分析力分解后对 x y 方向的切向加速度的影响，所以也是相减
-/// 所以需要先对矩阵 I 求逆矩阵得到 a = I^-1 F
-/// 并在对应项相减，得到基于接触模型的多点接触公式矩阵
-/// a = [a1Az-a1Bz ... anAz-anBz]'; n x 1
-/// F = I^-1 * [F1Az F1Bz ... FnAz FnBz]' 然后对应项目相减; n x 1
-/// 
-/// 方法一：使用当前时刻状态计算切向摩擦力大小，将切向摩擦力直接带入动力学，最后会成为法向平衡矩阵的外力项目，
-///        不需要将切向问题引入平衡矩阵，直接代入动力学应该会产生一致的效果。
-/// 注意事项：
-///  1. 得到的加速度需要减去 gravityAs 才能是我们的因为力产生的加速度才能添加计算质量
-/// 在创建的时候记录 fce 的激活状态
-/// 并在销毁的时候将记录的状态设置回去，放置在方法调用时放置过程中修改导致的状态不一致
-///
-/// 关于计算的 A b 的解释
-/// x(t) = e^(At)(x(0) - A\b) + A\b
-/// 因为要每个接触点的法向的位移相减，同时，一组接触变量控制了两个物体的状态
-/// 需要使用下面的矩阵对 I 进行缩小，并与接触点的刚度与阻尼相乘，得到矩阵 K D
-/// T = [1 -1 0 ... 0 0  0]
-///     [0  0 1 -1 ...0  0]
-///     [.  . .  . ....  .]
-///     [0 0 0 0 .... 1 -1] n * 2n
-/// K = T * I^-1 * T' * diag(k)  k 与 d 都是 1 * n 的向量
-/// D = T * I^-1 * T' * diag(d)
-/// 矩阵微分方程的状态转移矩阵 A 可以由三块组成，如下图所示
-/// A = [0 I]
-///     [K D] 2n * 2n 的矩阵
-/// 接触点状态如下
-/// x = [d1 ... dn d1' ... dn'] 2 * n  d表示接触距离（穿深）
-/// x' = [d1' ... dn' d1'' ... dn''] 2 * n
-/// x(0) = [由积分截断时记录的 v 与 p 决定]
-/// 其中，关于非齐次方程的常数项 b，需要经过如下计算
-/// F = [FeA1 FeB1 ... FeAn FeBn] 1 * 2n vector -> parameter fext
-/// f = T * I^-1 * F' -> 1 * n vector
-/// b = [0 f] -> 1 * 2n vector
-/// 其中的 A \ b 方法 使用基于Householder方法的QR分解计算
-/// 
-/// @param[in] penetration_pairs (n x 1) 检测到的接触点信息
-/// @param[in] T_C_vec (16 x n) 接触点相对于世界坐标系的坐标，接触点坐标系的z方向从物体A指向物体B，平行接触方向
-/// @param[out] cpi (2n-g x 2n-g) 接触点惯量矩阵计算结果（contact point inertia matrix）g表示ground相关的数目
-// clang-format on
-auto AverageForceContactSolver::cptContactPointNormalInertiaMatrix(
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec, const double* stiffness,
-    const double* damping, std::vector<double>& cpi,
-    std::vector<double>& extInvCpi, std::vector<double>& A) -> sire::Size {
-  auto init_interaction = [](aris::dynamic::Interaction& interaction,
-                             aris::dynamic::Model* m) -> void {
-    if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
-        interaction.makNameI().empty() && interaction.makNameJ().empty())
-      return;
-
-    auto find_part = [m](std::string_view name) -> aris::dynamic::Part* {
-      auto found = std::find_if(
-          m->partPool().begin(), m->partPool().end(),
-          [name](const auto& part) -> bool { return part.name() == name; });
-      return found == m->partPool().end() ? nullptr : &*found;
-    };
-
-    auto find_marker = [](aris::dynamic::Part* part,
-                          std::string_view name) -> aris::dynamic::Marker* {
-      auto found = std::find_if(
-          part->markerPool().begin(), part->markerPool().end(),
-          [name](const auto& marker) -> bool { return marker.name() == name; });
-      return found == part->markerPool().end() ? nullptr : &*found;
-    };
-
-    auto prt_m = find_part(interaction.prtNameM());
-    auto mak_i = find_marker(prt_m, interaction.makNameI());
-    auto prt_n = find_part(interaction.prtNameN());
-    auto mak_j = find_marker(prt_n, interaction.makNameJ());
-
-    interaction.setMakI(&*mak_i);
-    interaction.setMakJ(&*mak_j);
-  };
-  // 初始化一些重复使用的变量
-  auto enginePtr = physicsEnginePtr();
-  SIRE_ASSERT(enginePtr != nullptr);
-  auto modelPtr = enginePtr->currentModel();
-  SIRE_ASSERT(modelPtr != nullptr);
-  Size n = penetration_pairs.size();
-  auto& forcePool = modelPtr->forcePool();
-  auto& partPool = modelPtr->partPool();
-  Size testForceIdxOffset = forcePool.size();
-  // 在修改 forcePool 之前记录forcePool的 active 状态
-  FceActiveStateRecorder recorder(modelPtr);
-  // 将在 forcePool 中的力全部 deactivate
-  for (auto& fce : forcePool) fce.activate(false);
-
-  sire::Size cpiWidth = 2 * n;
-  std::vector<sire::Size> groundFlag(cpiWidth, 0);
-  for (Size i = 0; i < n; ++i) {
-    const geometry::CollidableGeometry* geometry_A_ptr =
-        enginePtr->queryGeometryPoolById(penetration_pairs[i].id_A);
-    const geometry::CollidableGeometry* geometry_B_ptr =
-        enginePtr->queryGeometryPoolById(penetration_pairs[i].id_B);
-    SIRE_DEMAND(geometry_A_ptr != nullptr);
-    SIRE_DEMAND(geometry_B_ptr != nullptr);
-    sire::PartId contactPrt[2]{geometry_A_ptr->partId(),
-                               geometry_B_ptr->partId()};
-    for (Size j{0}; j < 2; ++j) {
-      // add generalForce to forcePool() in Model and init
-      auto& fce = forcePool.add<aris::dynamic::GeneralForce>(
-          std::string("test_f" + j
-                          ? "b"
-                          : "a" + std::to_string(i + testForceIdxOffset)),
-          &partPool.at(contactPrt[j]).markerPool().at(0),
-          &partPool.at(modelPtr->ground().id()).markerPool().at(0));
-      fce.resetModel(modelPtr);
-      fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id 可以先不管
-      init_interaction(fce, modelPtr);
-      if (contactPrt[j] == modelPtr->ground().id()) {
-        // 标记 ground 相关的idx，计算cpi的真实大小
-        groundFlag[2 * i + j] = 1;
-        --cpiWidth;
-      }
-    }
-  }
-  // 初始化结果容器
-  cpi.resize(cpiWidth * cpiWidth);
-  // 给力并计算质量矩阵
-  const double fceValue1 = 10.0;
-  const double fceValue2 = 50.0;
-  double testFce1[3] = {0, 0, fceValue1};
-  double testFce2[3] = {0, 0, fceValue2};
-  double* fces[2] = {testFce1, testFce2};
-  const double* gravityAs = modelPtr->environment().gravity();
-  sire::Size cpiLineIdx{0}, cpiColIdx{0};
-  for (Size iContact = 0; iContact < n; ++iContact) {
-    for (Size i2 = 0; i2 < 2; ++i2) {
-      if (groundFlag[2 * iContact + i2]) continue;
-      std::vector<double> az1(cpiWidth);
-      for (Size fceIdx = 0; fceIdx < 2; ++fceIdx) {
-        double fs[6];
-        sire::core::screw::s_fpm2fs(fces[fceIdx], T_C_vec[iContact].data(), fs);
-        dynamic_cast<aris::dynamic::GeneralForce&>(
-            forcePool.at(2 * iContact + i2 + testForceIdxOffset))
-            .setFce(fs);
-        if (modelPtr->forwardDynamics())
-          std::cout << "forward dynamic failed" << std::endl;
-        cpiColIdx = 0;
-        for (Size jContact = 0; jContact < n; ++jContact) {
-          double ap_o[3]{0}, res[3]{0};
-          const geometry::CollidableGeometry* geometry_A_ptr =
-              enginePtr->queryGeometryPoolById(
-                  penetration_pairs[jContact].id_A);
-          const geometry::CollidableGeometry* geometry_B_ptr =
-              enginePtr->queryGeometryPoolById(
-                  penetration_pairs[jContact].id_B);
-          SIRE_DEMAND(geometry_A_ptr != nullptr);
-          SIRE_DEMAND(geometry_B_ptr != nullptr);
-          sire::PartId contactPrt[2]{geometry_A_ptr->partId(),
-                                     geometry_B_ptr->partId()};
-          const double* contactPosition =
-              penetration_pairs[jContact].p_WC.data();
-          std::array<double, 6> as;
-          for (Size j2 = 0; j2 < 2; ++j2) {
-            if (groundFlag[2 * jContact + j2]) continue;
-            auto& prt = partPool[contactPrt[j2]];
-            prt.getAs(as.data());
-            aris::dynamic::s_vs(6, gravityAs, as.data());
-            aris::dynamic::s_as2ap(prt.vs(), as.data(), contactPosition, ap_o);
-            aris::dynamic::s_inv_pm_dot_v3(T_C_vec[jContact].data(), ap_o, res);
-            if (fceIdx) {
-              cpi[cpiLineIdx * cpiWidth + cpiColIdx] = core::screw::s_safe_div(
-                  fceValue2 - fceValue1, res[2] - az1[cpiColIdx], 1e-4);
-            } else {
-              az1[cpiColIdx] = res[2];
-            }
-            // core::screw::s_dvi(fceValue, res, 3, 1e-5);
-            // cpi[cpiLineIdx * cpiWidth + cpiColIdx] = res[2];
-            ++cpiColIdx;
-          }
-        }
-      }
-      double fs1[6]{0};
-      dynamic_cast<aris::dynamic::GeneralForce&>(
-          forcePool.at(2 * iContact + i2 + testForceIdxOffset))
-          .setFce(fs1);
-      ++cpiLineIdx;
-    }
-  }
-  for (Size i{0}; i < n * 2; ++i) {
-    forcePool.pop_back();
-  }
-  // ConstrctKDMatrixRhs(){
-  std::vector<double> kdMatrix(cpiWidth * 2 * n);
-  for (Size i{0}, lineIdx{0}; i < 2 * n; ++i) {
-    if (groundFlag[i]) continue;
-    Size lineBegin = lineIdx * 2 * n;
-    int sgn = (i % 2) ? 1 : -1;
-    kdMatrix[lineBegin + i / 2] = sgn * stiffness[i / 2];
-    kdMatrix[lineBegin + n + i / 2] = sgn * damping[i / 2];
-    ++lineIdx;
-  }
-  // }
-  // ----------------------------------------------------
-  // ------------ 接触点惯量矩阵求逆 ---------------------
-  // ----------------------------------------------------
-  std::vector<double> invCpi(cpiWidth * cpiWidth);
-  std::vector<double> u(cpiWidth * cpiWidth), tau(cpiWidth), tau2(cpiWidth);
-  std::vector<aris::Size> p(cpiWidth);
-  aris::Size rank;
-  aris::dynamic::s_householder_utp(cpiWidth, cpiWidth, cpi.data(), u.data(),
-                                   tau.data(), p.data(), rank);
-  if (rank != cpiWidth)
-    THROW_FILE_LINE("Invalid singular matrix for normal contact inertia");
-  aris::dynamic::s_householder_utp2pinv(cpiWidth, cpiWidth, rank, u.data(),
-                                        tau.data(), p.data(), invCpi.data(),
-                                        tau2.data());
-
-  std::vector<double> temp1(cpiWidth * 2 * n, 0);
-  aris::dynamic::s_mm(cpiWidth, 2 * n, cpiWidth, invCpi.data(), kdMatrix.data(),
-                      temp1.data());
-  A.resize(4 * n * n, 0);
-  // TODO: 不存在两个ground相撞
-  for (Size i{0}, lineIdx{0}; i < n; ++i) {
-    A[2 * n * i + n + i] = 1;
-    if (!groundFlag[2 * i] && !groundFlag[2 * i]) {
-      for (Size j{0}; j < 2 * n; ++j) {
-        A[2 * n * (i + n) + j] =
-            temp1[lineIdx * 2 * n + j] - temp1[(lineIdx + 1) * 2 * n + j];
-      }
-      lineIdx += 2;
-    } else {
-      int sgn = groundFlag[2 * i] ? -1 : 1;
-      for (Size j{0}; j < 2 * n; ++j) {
-        A[2 * n * (i + n) + j] = sgn * temp1[lineIdx * 2 * n + j];
-      }
-      ++lineIdx;
-    }
-  }
-
-  extInvCpi.resize(4 * n * n, 0);
-  cpiLineIdx = cpiColIdx = 0;
-  for (sire::Size i{0}; i < 2 * n; ++i) {
-    if (groundFlag[i]) continue;
-    cpiColIdx = 0;
-    for (sire::Size j{0}; j < 2 * n; ++j) {
-      if (groundFlag[j]) continue;
-      extInvCpi[i * 2 * n + j] = invCpi[cpiLineIdx * cpiWidth + cpiColIdx];
-      ++cpiColIdx;
-    }
-    ++cpiLineIdx;
-  }
-  // A.resize(4 * n * n, 0);
-  // for (int i{0}; i < n; ++i) {
-  //   for (int j{0}; j < n; ++j) {
-  //     double evenColMinus = extInvCpi[2 * n * 2 * i + 2 * j] -
-  //                           extInvCpi[2 * n * (2 * i + 1) + 2 * j];
-  //     double oddColMinus = extInvCpi[2 * n * 2 * i + 2 * j + 1] -
-  //                          extInvCpi[2 * n * (2 * i + 1) + 2 * j + 1];
-  //     A[2 * n * i + n + j] = (i == j);
-  //     // 因为接触力方向与穿深加速度方向一定反向，所以都需要加上负号
-  //     A[2 * n * (i + n) + j] = -stiffness[i] * (evenColMinus - oddColMinus);
-  //     A[2 * n * (i + n) + n + j] = -damping[i] * (evenColMinus -
-  //     oddColMinus);
-  //   }
-  // }
-
-  return cpiWidth;
-}
-
-// clang-format off
-/// @brief 计算除了接触力外的所有力当作接触模型求解的外力项，假设检测到 n 个接触点。
-/// 关于计算的 A b 的解释
-/// x(t) = e^(At)(x(0) - A\b) + A\b
-/// 因为要每个接触点的法向的位移相减，同时，一组接触变量控制了两个物体的状态
-/// 需要使用下面的矩阵对 I 进行缩小，并与接触点的刚度与阻尼相乘，得到矩阵 K D
-/// T = [1 -1 0 ... 0 0  0]
-///     [0  0 1 -1 ...0  0]
-///     [.  . .  . ....  .]
-///     [0 0 0 0 .... 1 -1] n * 2n
-/// K = T * I^-1 * T' * diag(k)  k 与 d 都是 1 * n 的向量
-/// D = T * I^-1 * T' * diag(d)
-/// 矩阵微分方程的状态转移矩阵 A 可以由三块组成，如下图所示
-/// A = [0 I]
-///     [K D] 2n * 2n 的矩阵
-/// 接触点状态如下
-/// x = [d1 ... dn d1' ... dn'] 2 * n  d表示接触距离（穿深）
-/// x' = [d1' ... dn' d1'' ... dn''] 2 * n
-/// x(0) = [由积分截断时记录的 v 与 p 决定]
-/// 其中，关于非齐次方程的常数项 b，需要经过如下计算
-/// F = [FeA1 FeB1 ... FeAn FeBn] 1 * 2n vector -> parameter fext
-/// f = T * I^-1 * F' -> 1 * n vector
-/// b = [0 f] -> 1 * 2n vector
-/// 其中的 A \ b 方法 使用基于Householder方法的QR分解计算
-///        
-/// @param[in] penetration_pairs n x 1 检测到的接触点信息
-/// @param[in] T_C_vec 16 x n 接触点相对于世界坐标系的坐标，接触点坐标系的z方向从物体B指向物体A，平行接触方向
-/// @param[in] cpi 2n x 2n 接触点惯量矩阵（contact point inertia matrix）
-/// @param[out] fext (2n - g) x 1 计算得到的法向外力结果，表示为 [FeA1, FeB1, ... , FeAn, FeBn]，去掉ground相关的外力项
-// clang-format on
-auto AverageForceContactSolver::cptContactPrtExtForce(
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec, const double* cpi,
-    sire::Size cpiWidth, const double* extInvCpi, double* fext, double* b)
-    -> void {
-  auto enginePtr = physicsEnginePtr();
-  SIRE_ASSERT(enginePtr != nullptr);
-  // TODO: 可能需要关掉contactForce
-  enginePtr->activateContactForce(false);
-  // TODO: 不知道是否需要，记录杆件的加速度数据，然后要重新填回去
-  auto modelPtr = enginePtr->currentModel();
-  SIRE_ASSERT(modelPtr != nullptr);
-  Size numContactPoint = penetration_pairs.size();
-  if (modelPtr->forwardDynamics())
-    std::cout << "forward dynamic failed" << std::endl;
-  auto& partPool = modelPtr->partPool();
-  const sire::Size nContact = penetration_pairs.size();
-  // 遍历碰撞点，找到所有要求的杆件与碰撞点位姿
-  sire::Size cpiIdx{0};
-  for (int i{0}; i < nContact; ++i) {
-    auto& pair = penetration_pairs[i];
-    const geometry::CollidableGeometry* geometry_A_ptr =
-        enginePtr->queryGeometryPoolById(pair.id_A);
-    const geometry::CollidableGeometry* geometry_B_ptr =
-        enginePtr->queryGeometryPoolById(pair.id_B);
-    SIRE_DEMAND(geometry_A_ptr != nullptr);
-    SIRE_DEMAND(geometry_B_ptr != nullptr);
-    sire::PartId contactPrt[2]{geometry_A_ptr->partId(),
-                               geometry_B_ptr->partId()};
-    const double* contactPosition = pair.p_WC.data();
-    for (Size i2 = 0; i2 < 2; ++i2) {
-      auto& prt = partPool[contactPrt[i2]];
-      double ap_o[3]{0}, ap_c[3]{0};
-      aris::dynamic::s_as2ap(prt.vs(), prt.as(), contactPosition, ap_o);
-      aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), ap_o, ap_c);
-      // f = ma;
-      if (prt.id() == modelPtr->ground().id()) {
-        fext[i * 2 + i2] = 0;
-      } else {
-        fext[i * 2 + i2] = ap_c[2] * cpi[(cpiIdx)*cpiWidth + cpiIdx];
-        ++cpiIdx;
-      }
-    }
-  }
-  // ---------------------------------------------------------------
-  // T = [1 -1 0 ... 0 0  0]
-  //     [0  0 1 -1 ...0  0]
-  //     [.  . .  . ....  .]
-  //     [0 0 0 0 .... 1 -1] n * 2n
-  // shrinked inverse cpi matrix = T * I^-1 * T'
-  // ---------------计算缩小后的 cpi 矩阵  n x n ---------------------
-  // 直接计算 A 与 b，通过中间变量储存一些中间值
-  // ----------------------------------------------------------------
-  for (int i{0}; i < nContact; ++i) {
-    b[i] = 0;
-    b[nContact + i] = 0;
-    for (int j{0}; j < nContact; ++j) {
-      double evenColMinus = extInvCpi[2 * nContact * 2 * i + 2 * j] -
-                            extInvCpi[2 * nContact * (2 * i + 1) + 2 * j];
-      double oddColMinus = extInvCpi[2 * nContact * 2 * i + 2 * j + 1] -
-                           extInvCpi[2 * nContact * (2 * i + 1) + 2 * j + 1];
-      // 这中间确实应该是加号，之后需要测试一下
-      b[nContact + i] +=
-          evenColMinus * fext[2 * j] + oddColMinus * fext[2 * j + 1];
-    }
-  }
-  enginePtr->activateContactForce(true);
-}
-
-auto AverageForceContactSolver::preprocessContactInfo(
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    sire::PartId* prtIdVector, LhsVariableType* variableType, int* groundFlag)
-    -> sire::Size {
-  auto enginePtr = physicsEnginePtr();
-  SIRE_ASSERT(enginePtr != nullptr);
-  auto modelPtr = enginePtr->currentModel();
-  SIRE_ASSERT(modelPtr != nullptr);
-  const sire::Size n = penetration_pairs.size();
-  sire::Size cpiWidth = 2 * n;
-  const sire::PartId groundId = modelPtr->ground().id();
-  for (sire::Size i{0}; i < n; ++i) {
-    const geometry::CollidableGeometry* geometry_A_ptr =
-        enginePtr->queryGeometryPoolById(penetration_pairs[i].id_A);
-    const geometry::CollidableGeometry* geometry_B_ptr =
-        enginePtr->queryGeometryPoolById(penetration_pairs[i].id_B);
-    SIRE_DEMAND(geometry_A_ptr != nullptr);
-    SIRE_DEMAND(geometry_B_ptr != nullptr);
-    // 标记 ground 相关的idx，计算cpi的真实大小
-    // 默认是两个加速度a
-    variableType[i] = LhsVariableType::TwoAccel;
-    prtIdVector[2 * i] = geometry_A_ptr->partId();
-    if (prtIdVector[2 * i] == groundId) {
-      // 假定没有两个 Ground 相撞
-      groundFlag[2 * i] = 1;
-      variableType[i] = LhsVariableType::OneDelta;
-      --cpiWidth;
-    }
-    prtIdVector[2 * i + 1] = geometry_B_ptr->partId();
-    if (prtIdVector[2 * i + 1] == groundId) {
-      // 假定没有两个 Ground 相撞
-      groundFlag[2 * i + 1] = 1;
-      variableType[i] = LhsVariableType::OneDelta;
-      --cpiWidth;
-    }
-  }
-  return cpiWidth;
-}
-auto AverageForceContactSolver::cptCpiMatrix(
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec,
-    const sire::PartId* prtIdVector, sire::Size cpiWidth, const int* groundFlag,
-    double* cpi) -> void {
-  auto init_interaction = [](aris::dynamic::Interaction& interaction,
-                             aris::dynamic::Model* m) -> void {
-    if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
-        interaction.makNameI().empty() && interaction.makNameJ().empty())
-      return;
-
-    auto find_part = [m](std::string_view name) -> aris::dynamic::Part* {
-      auto found = std::find_if(
-          m->partPool().begin(), m->partPool().end(),
-          [name](const auto& part) -> bool { return part.name() == name; });
-      return found == m->partPool().end() ? nullptr : &*found;
-    };
-
-    auto find_marker = [](aris::dynamic::Part* part,
-                          std::string_view name) -> aris::dynamic::Marker* {
-      auto found = std::find_if(
-          part->markerPool().begin(), part->markerPool().end(),
-          [name](const auto& marker) -> bool { return marker.name() == name; });
-      return found == part->markerPool().end() ? nullptr : &*found;
-    };
-
-    auto prt_m = find_part(interaction.prtNameM());
-    auto mak_i = find_marker(prt_m, interaction.makNameI());
-    auto prt_n = find_part(interaction.prtNameN());
-    auto mak_j = find_marker(prt_n, interaction.makNameJ());
-
-    interaction.setMakI(&*mak_i);
-    interaction.setMakJ(&*mak_j);
-  };
-  // 初始化一些重复使用的变量
-  auto enginePtr = physicsEnginePtr();
-  SIRE_ASSERT(enginePtr != nullptr);
-  auto modelPtr = enginePtr->currentModel();
-  SIRE_ASSERT(modelPtr != nullptr);
-  auto& forcePool = modelPtr->forcePool();
-  auto& partPool = modelPtr->partPool();
-  sire::Size testForceIdxOffset = forcePool.size();
-  // 在修改 forcePool 之前记录forcePool的 active 状态
-  FceActiveStateRecorder recorder(modelPtr);
-  // 将在 forcePool 中的力全部 deactivate
-  for (auto& fce : forcePool) fce.activate(false);
-
-  const sire::Size n = penetration_pairs.size();
-  // 给力并计算质量矩阵
-  const double fceValue1 = 10.0;
-  const double fceValue2 = 50.0;
-  double testFce1[3] = {0, 0, fceValue1};
-  double testFce2[3] = {0, 0, fceValue2};
-  double* fces[2] = {testFce1, testFce2};
-  const double* gravityAs = modelPtr->environment().gravity();
-  for (Size i{0}; i < n; ++i) {
-    for (Size j{0}; j < 2; ++j) {
-      // add generalForce to forcePool() in Model and init
-      auto& fce = forcePool.add<aris::dynamic::GeneralForce>(
-          std::string("test_f" + j
-                          ? "b"
-                          : "a" + std::to_string(i + testForceIdxOffset)),
-          &partPool.at(prtIdVector[2 * i + j]).markerPool().at(0),
-          &partPool.at(modelPtr->ground().id()).markerPool().at(0));
-      fce.resetModel(modelPtr);
-      fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id 可以先不管
-      init_interaction(fce, modelPtr);
-    }
-  }
-  for (Size iContact{0}, cpiLineIdx{0}; iContact < n; ++iContact) {
-    for (Size i2{0}; i2 < 2; ++i2) {
-      if (groundFlag[2 * iContact + i2]) continue;
-      auto& gf = dynamic_cast<aris::dynamic::GeneralForce&>(
-          forcePool.at(2 * iContact + i2 + testForceIdxOffset));
-      std::vector<double> az1(cpiWidth);
-      for (sire::Size fceIdx{0}; fceIdx < 2; ++fceIdx) {
-        double fs[6];
-        sire::core::screw::s_fpm2fs(fces[fceIdx], T_C_vec[iContact].data(), fs);
-        gf.setFce(fs);
-        if (modelPtr->forwardDynamics())
-          std::cout << "forward dynamic failed" << std::endl;
-
-        for (Size jContact{0}, cpiColIdx{0}; jContact < n; ++jContact) {
-          double ap_o[3]{0}, res[3]{0};
-          const double* contactPosition =
-              penetration_pairs[jContact].p_WC.data();
-          std::array<double, 6> as;
-          for (Size j2 = 0; j2 < 2; ++j2) {
-            if (groundFlag[2 * jContact + j2]) continue;
-            auto& prt = partPool[prtIdVector[2 * jContact + j2]];
-            prt.getAs(as.data());
-            aris::dynamic::s_vs(6, gravityAs, as.data());
-            aris::dynamic::s_as2ap(prt.vs(), as.data(), contactPosition, ap_o);
-            aris::dynamic::s_inv_pm_dot_v3(T_C_vec[jContact].data(), ap_o, res);
-            if (fceIdx) {
-              cpi[cpiLineIdx * cpiWidth + cpiColIdx] = core::screw::s_safe_div(
-                  fceValue2 - fceValue1, res[2] - az1[cpiColIdx], 1e-4);
-            } else {
-              az1[cpiColIdx] = res[2];
-            }
-            ++cpiColIdx;
-          }
-        }
-      }
-      aris::dynamic::s_fill(1, 6, 0, const_cast<double*>(gf.fce()));
-      ++cpiLineIdx;
-    }
-  }
-  for (sire::Size i{0}; i < 2 * n; ++i) {
-    forcePool.pop_back();
-  }
+auto ContactPositionForceSolver::debugByRecords() -> void {
+  std::ofstream file("contact_solver_result.json");
+  // std::cout << "records: " << imp_->records.dump(2) << std::endl;
+  file << imp_->records.dump(2);
 }
 // Using prevResult of fn to cpt tangent force.
 // FIXME: 有很大的问题，在足式机器人仿真中，脚尖触地则出现fn超级大的情况，
 //        具体原因不明
 // use current fn for tangent force calculation
-auto AverageForceContactSolver::cptContactSolverResult(
+auto ContactPositionForceSolver::cptContactSolverResult(
     const aris::dynamic::Model* current_state,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec, ContactSolverResult& result)
@@ -1892,12 +1289,41 @@ auto AverageForceContactSolver::cptContactSolverResult(
       *enginePtr, *(imp_->material_manager_), penetration_pairs, T_C_vec,
       preservedPairsIdx, stiffness.data(), damping.data(), x0.data(),
       v0.data());
+  DLOG(DEBUG) << "Real x0: " << x0;
+  nlohmann::json realContactCptInfo;
+  for (sire::Size i{0}; i < preservedPairsIdx.size(); ++i) {
+    nlohmann::json contactCptInfo;
+    auto& pair = penetration_pairs[preservedPairsIdx[i]];
+    // 计算接触力
+    contactCptInfo["pair"] = {
+        {"id_A", pair.id_A},
+        {"id_B", pair.id_B},
+    };
+    contactCptInfo["depth"] = x0[i] * stiffScale;
+    contactCptInfo["velocity"] = x0[i + n];
+    realContactCptInfo.push_back(contactCptInfo);
+  }
+  imp_->records["realContactState"].push_back(realContactCptInfo);
   for (sire::Size i{0}; i < pairsNeedModifiedIdx.size(); ++i) {
     sire::Size idx = pairsNeedModifiedIdx[i];
     x0[idx] = imp_->contactNotEndCondition[2 * targetConditionIdx[i]] *
               (imp_->prevStiffScale / stiffScale);
     x0[n + idx] = imp_->contactNotEndCondition[2 * targetConditionIdx[i] + 1];
   }
+  nlohmann::json modifiedContactCptInfo;
+  for (sire::Size i{0}; i < preservedPairsIdx.size(); ++i) {
+    nlohmann::json contactCptInfo;
+    auto& pair = penetration_pairs[preservedPairsIdx[i]];
+    // 计算接触力
+    contactCptInfo["pair"] = {
+        {"id_A", pair.id_A},
+        {"id_B", pair.id_B},
+    };
+    contactCptInfo["depth"] = x0[i] * stiffScale;
+    contactCptInfo["velocity"] = x0[i + n];
+    modifiedContactCptInfo.push_back(contactCptInfo);
+  }
+  imp_->records["modifiedContactState"].push_back(modifiedContactCptInfo);
   imp_->prevStiffScale = stiffScale;
   imp_->contactNotEnd.clear();
   imp_->contactEnded.clear();
@@ -1963,15 +1389,53 @@ auto AverageForceContactSolver::cptContactSolverResult(
   }
   DLOG(DEBUG) << imp_->contactEnded.size() << " contact(s) ended. ";
 
+  // 直接计算需要的接触力（根据求解的x1t和积分器的形式)
+  std::vector<double> invM(n * n, 0);
+  for (sire::Size i{0}; i < n; ++i) {
+    for (sire::Size j{0}; j < n; ++j) {
+      invM[i * n + j] =
+          -invCpi[2 * i * n2 + j * 2] - invCpi[(2 * i + 1) * n2 + j * 2 + 1] +
+          invCpi[2 * i * n2 + j * 2 + 1] + invCpi[(2 * i + 1) * n2 + j * 2];
+    }
+  }
+  // 使用目标位置计算接触力
+  std::vector<double> temp1(x1t.data(), x1t.data() + n);
+  aris::dynamic::s_vs(n, x0.data(), temp1.data());
+  aris::dynamic::s_nv(n, stiffScale / minTime, temp1.data());
+  aris::dynamic::s_vs(n, x0.data() + n, temp1.data());
+  aris::dynamic::s_nv(n, 1 / minTime, temp1.data());
+  aris::dynamic::s_vs(n, b.data() + n, temp1.data());
+  DLOG(DEBUG) << "a0Post: " << temp1;
+  Eigen::MatrixXd invMMat =
+      Eigen::Map<Eigen::MatrixXd>(const_cast<double*>(invM.data()), n, n);
+  Eigen::VectorXd a0tVec =
+      Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp1.data()), n);
+  Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd> cod(invMMat);
+  Eigen::VectorXd contactPosForce = cod.solve(a0tVec);
+  std::vector<double> contactPosFce(
+      contactPosForce.data(), contactPosForce.data() + contactPosForce.size());
+  // 使用目标速度计算接触力
+  std::vector<double> temp2(x1t.data() + n, x1t.data() + n2);
+  aris::dynamic::s_vs(n, x0.data() + n, temp2.data());
+  aris::dynamic::s_nv(n, 1 / minTime, temp2.data());
+  aris::dynamic::s_vs(n, b.data() + n, temp2.data());
+  DLOG(DEBUG) << "a0Velt: " << temp2;
+  Eigen::VectorXd a0VeltVec =
+      Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp2.data()), n);
+  Eigen::VectorXd contactVelForce = cod.solve(a0VeltVec);
+  std::vector<double> contactVelFce(
+      contactVelForce.data(), contactVelForce.data() + contactVelForce.size());
+  // 使用平均力计算接触力
   std::vector<double> avgFce(n);
   cptAvgContactFce(n, A.data(), b.data(), x0.data(), 0, minTime,
                    stiffness.data(), damping.data(), avgFce.data());
-  // sire::Size avgFceIdx{0};
-  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
+  DLOG(DEBUG) << "Contact position force: " << contactPosFce
+              << " Contact veclocity force: " << contactVelFce
+              << " avgFce: " << avgFce;
   for (sire::Size i{0}; i < n; ++i) {
     sire::Size idx = preservedPairsIdx[i];
     const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
-    result.fn[idx] = avgFce[i];
+    result.fn[idx] = contactVelFce[i];
   }
 
   for (sire::Size i{0}; i < n; ++i) {
@@ -2016,6 +1480,11 @@ auto AverageForceContactSolver::cptContactSolverResult(
   }
   for (sire::Size i{0}; i < n; ++i) {
     sire::Size idx = preservedPairsIdx[i];
+    result.ft[2 * idx] = 0;
+    result.ft[2 * idx + 1] = 0;
+  }
+  for (sire::Size i{0}; i < n; ++i) {
+    sire::Size idx = preservedPairsIdx[i];
     DLOG(DEBUG) << "id: " << penetration_pairs[idx].id_A << " "
                 << penetration_pairs[idx].id_B << " v_contact " << v0[3 * i]
                 << " " << v0[3 * i + 1] << " ft1: " << result.ft[2 * i]
@@ -2026,117 +1495,20 @@ auto AverageForceContactSolver::cptContactSolverResult(
                 << " n2: " << penetration_pairs[idx].p_WCb.transpose();
   }
 }
-auto AverageForceContactSolver::cptContactForce(double A, double B, double k,
-                                                double D, double r, double w,
-                                                double t) -> double {
-  // 积分
-  double first = (A * k + D * A * r + D * B * w) * r * r *
-                 ((std::cos(w * t) * r) + w * std::sin(w * t)) *
-                 std::exp(r * t) / (r * r + w * w);
-  double second = (B * k + D * B * r - D * A * w) * r * r *
-                  ((std::sin(w * t) * r) - w * std::cos(w * t)) *
-                  std::exp(r * t) / (r * r - w * w);
-  double force = first + second;
-  // double first = (A * k * r * r + D * A * r * r * r + D * B * w * r * r) *
-  //                ((std::cos(w * t) * r) + w * std::sin(w * t)) *
-  //                std::exp(r * t) / (r * r + w * w);
-  // double second = (B * k * r * r + D * B * r * r * r - D * A * w * r * r) *
-  //                 ((std::sin(w * t) * r) - w * std::cos(w * t)) *
-  //                 std::exp(r * t) / (r * r - w * w);
-  // double force = first + second;
-  // double force = (A * k + D * A * r + D * B * w)*((std::cos(w * t) / r) + w *
-  // std::sin(w * t) / (r * r)) *
-  //                    std::exp(r * t) / (1 + w * w / (r * r)) + (B * k + D * B
-  //                    * r - D * A * w)*( (std::sin(w * t) / r) - w *
-  //                    std::cos(w * t) / (r * r)) * std::exp(r * t) / (1 - w *
-  //                    w / (r * r));
-  return force;
-}
-auto AverageForceContactSolver::cptPenaltyODE(double contact_time,
-                                              double proj_start_diff_v,
-                                              double cr, double m, double k,
-                                              double delta_t) -> double {
-  // double dt = delta_t;
-  // // penalty method with ODE
-  // static double d =
-  //     2 * std::abs(std::log(cr)) *
-  //     std::sqrt(k * m / (aris::PI * aris::PI + std::log(cr) * std::log(cr)));
-  // static double r = -d / (2 * m), w = std::sqrt((4 * k * m - d * d)) / (2 *
-  // m);
-  // // x_0 x_0'
-  // if (contact_time < 2 * delta_t) {
-  //   // dt = contact_time;
-  //   // imp_->contact_x_init = sphere_pq[2];
-  //   // imp_->contact_v_init = sphere_vs[2];
-  //   // imp_->position_contact.push_back(0);
-  //   // imp_->velocity_contact.push_back(sphere_vs[2]);
-  //   // imp_->acceleration_contact.push_back(-9.8);
-  //   // imp_->force_contact.push_back(0);
-  // }
-  // double F_ext = m * imp_->g;
-  // double A = -F_ext / k, B = (proj_start_diff_v + r * F_ext / k) / w;
-  // // velocity
-  // double delta_v =
-  //     (A * r + B * w) * std::exp(r * contact_time) *
-  //         std::cos(w * contact_time) +
-  //     (B * r - A * w) * std::exp(r * contact_time) * std::sin(w *
-  //     contact_time);
-  // double next_t = contact_time /* + dt*/;
-  //
-  // // double delta_x =
-  // //     A * std::exp(r * next_t) * std::cos(w * next_t) +
-  // //                  B * std::exp(r * next_t) * std::sin(w * next_t) + F_ext
-  // /
-  // //                  k;
-  // double delta_x1 =
-  //     A * std::exp(r * contact_time) * std::cos(w * contact_time) +
-  //     B * std::exp(r * contact_time) * std::sin(w * contact_time) - F_ext /
-  //     k;
-  // average contact force
-  // double force = m * (delta_v - sphere_vs[2]) / dt;
-  //
-  // sphere_pq[2] = imp_->contact_x_init + delta_x1;
-  // sphere_vs[2] = delta_v;
-  //
-  // double F = cptContactForce(A, B, k, d, r, w, contact_time) -
-  //            cptContactForce(A, B, k, d, r, w,
-  //                            contact_time - delta_t) /*+ F_ext * delat_t*/;
-  // return F;
-  return 0;
-
-  // imp_->position_contact.push_back(delta_x1);
-  // imp_->velocity_contact.push_back(sphere_vs[2]);
-  // imp_->acceleration_contact.push_back(-force / m);
-  // imp_->force_contact.push_back(force - F_ext);
-
-  // if (sphere_pq[2] > imp_->contact_x_init) {
-  //  //用速度回退到初始碰撞面
-  //   double temp_x = sphere_pq[2];
-  //   double temp_v = sphere_vs[2];
-  //   double temp_a = contact_force / m;
-  //   sphere_vs[2] = std::sqrt(temp_v * temp_v + 2 * temp_a *
-  //   std::abs(imp_->contact_x_init - temp_x));  // a != g sphere_pq[2] =
-  //   imp_->contact_x_init; double dt_modify =
-  //       std::abs((sphere_vs[2] - temp_v) / temp_a);  //退回的时间差 // a != g
-  //   std::cout << "----out dt_modify" << dt_modify << std::endl;
-  //   sphere_vs[2] += -imp_->g * dt_modify;//只有重力
-  //   sphere_pq[2] += sphere_vs[2] * dt_modify;
-  // }
-}
 
 ARIS_REGISTRATION {
   typedef sire::physics::collision::CollisionFilter& (
-      AverageForceContactSolver::*CollisionFilterPoolFunc)();
+      ContactPositionForceSolver::*CollisionFilterPoolFunc)();
   typedef sire::core::MaterialManager& (
-      AverageForceContactSolver::*MaterialManagerFunc)();
-  aris::core::class_<AverageForceContactSolver>("AverageForceContactSolver")
+      ContactPositionForceSolver::*MaterialManagerFunc)();
+  aris::core::class_<ContactPositionForceSolver>("ContactPositionForceSolver")
       .inherit<ContactSolver>()
       .prop("material_manager",
-            &AverageForceContactSolver::resetMaterialManager,
-            MaterialManagerFunc(&AverageForceContactSolver::materialManager))
-      .prop("default_k", &AverageForceContactSolver::setDefaultStiffness,
-            &AverageForceContactSolver::defaultStiffness)
-      .prop("default_cr", &AverageForceContactSolver::setDefaultCr,
-            &AverageForceContactSolver::defaultCr);
+            &ContactPositionForceSolver::resetMaterialManager,
+            MaterialManagerFunc(&ContactPositionForceSolver::materialManager))
+      .prop("default_k", &ContactPositionForceSolver::setDefaultStiffness,
+            &ContactPositionForceSolver::defaultStiffness)
+      .prop("default_cr", &ContactPositionForceSolver::setDefaultCr,
+            &ContactPositionForceSolver::defaultCr);
 }
-}  // namespace sire::physics::contact
+}  // namespace sire::physics::contact::contact_force

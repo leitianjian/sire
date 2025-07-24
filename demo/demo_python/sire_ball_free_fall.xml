@@ -90,7 +90,7 @@
 		<SireHttpInterface name="http_interface" document_root="D:\code\sire\web_interface\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="60" global_variable_pool="{}">
+		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="50" global_variable_pool="{}">
 			<EventManager __prop_name__="event_manager">
 				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
 					<EventHandlerIdPair event_id="0" handler_id="6"/>
@@ -105,7 +105,7 @@
 			<AverageForceContactSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
 				<MaterialManager default_prop="{k:1.4e8,d:1500,cr:0.2}">
 					<MaterialPairPropPool>
-						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2e8,d:10000,cr:0.4,cof:0.2,threshold_velocity:1e-1}"/>
+						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2e8,d:4000,cr:0.4,cof:0.2,threshold_velocity:1e-1}"/>
 					</MaterialPairPropPool>
 				</MaterialManager>
 			</AverageForceContactSolver>

@@ -147,6 +147,9 @@ auto SimulationLoop::timer() -> core::Timer& { return imp_->timer_; }
 auto SimulationLoop::recorder() -> simulator::Recorder& {
   return imp_->recorder_;
 }
+auto SimulationLoop::recordsContactCptInfo() -> void {
+  imp_->physics_engine_ptr_->recordsContactCptInfo();
+}
 auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
   for (sire::Size i = 0; i < frame_skip; ++i) {
     // Get header event pointer
