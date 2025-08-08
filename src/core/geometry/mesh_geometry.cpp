@@ -24,8 +24,8 @@ MeshGeometry::~MeshGeometry() = default;
 
 ARIS_DEFINE_BIG_FOUR_CPP(MeshGeometry)
 
-// ½èÖúÀàÄÚ²¿µÄfrom_json to_json¶¨Òå£¬
-// Ê¹ÓÃºê¶¨ÒåÍê³ÉÓÃÓÚjsonÀàĞÍ×ª»»µÄfrom_json to_jsonµÄ·½·¨¶¨Òå
+// å€ŸåŠ©ç±»å†…éƒ¨çš„from_json to_jsonå®šä¹‰ï¼Œ
+// ä½¿ç”¨å®å®šä¹‰å®Œæˆç”¨äºjsonç±»å‹è½¬æ¢çš„from_json to_jsonçš„æ–¹æ³•å®šä¹‰
 SIRE_DEFINE_JSON_OUTER_TWO(MeshGeometry)
 
 ARIS_REGISTRATION {

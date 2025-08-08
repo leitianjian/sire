@@ -62,7 +62,7 @@ ARIS_REGISTRATION {
   auto getPartPm = [](GeometryOnPart* g) -> aris::core::Matrix {
     double pm[16];
     aris::dynamic::s_vc(16, *g->partPm(), pm);
-    return aris::core::Matrix(4, 4, pm);
+    return aris::core::Matrix(1, 16, pm);
   };
   auto setPartPm = [](GeometryOnPart* g, aris::core::Matrix pm) -> void {
     std::copy_n(pm.data(), 16, const_cast<double*>(*g->partPm()));
@@ -73,7 +73,7 @@ ARIS_REGISTRATION {
   auto getPartId = [](GeometryOnPart* geometry) { return geometry->partId(); };
   aris::core::class_<GeometryOnPart>("GeometryOnPart")
       .inherit<GeometryBase>()
-      .prop("prt_pm", &setPartPm, &getPartPm)
+      // .prop("prt_pm", &setPartPm, &getPartPm)
       .prop("part_id", &setPartId, &getPartId)
       .prop("is_dynamic", &GeometryOnPart::setDynamic,
             &GeometryOnPart::isDynamic);

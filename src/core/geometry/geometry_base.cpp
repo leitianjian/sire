@@ -46,7 +46,7 @@ ARIS_REGISTRATION {
   auto getPm = [](GeometryBase* g) -> aris::core::Matrix {
     double pm[16];
     aris::dynamic::s_vc(16, *g->pm(), pm);
-    return aris::core::Matrix(4, 4, pm);
+    return aris::core::Matrix(1, 16, pm);
   };
   auto setPm = [](GeometryBase* g, aris::core::Matrix pm) -> void {
     std::copy_n(pm.data(), 16, const_cast<double*>(*g->pm()));

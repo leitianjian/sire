@@ -527,7 +527,7 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
   for (int i = 0; i < motion_size; ++i) {
     auto& force = force_pool.add<SingleComponentForce>(
         std::string("mf_" + std::to_string(i)), motion_pool.at(i).makI(),
-        motion_pool.at(i).makJ(), 5);
+        motion_pool.at(i).makJ(), motion_pool.at(i).axis());
     force.setFce(0);
     if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion_pool[i]);
         actuator != nullptr) {

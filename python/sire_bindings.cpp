@@ -12,6 +12,7 @@
 
 #include "sire/actuator/actuator.hpp"
 #include "sire/core/constants.hpp"
+#include "sire/core/geometry/mesh_geometry.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 
 #include "pybind11_json.hpp"
@@ -103,7 +104,12 @@ PYBIND11_MODULE(sire, m) {
         return middleware.simulationLoop();
       },
       py::return_value_policy::reference_internal);
-
+  m.def("iv2iv",
+        [](const std::vector<double>& pm, const std::vector<double>& iv) {
+          std::vector<double> iv_out(10);
+          aris::dynamic::s_iv2iv(pm.data(), iv.data(), iv_out.data());
+          return iv_out;
+        });
   m.def(
       "model",
       [](aris::server::ControlServer& self) -> aris::dynamic::Model& {
@@ -207,6 +213,46 @@ PYBIND11_MODULE(sire, m) {
             return const_cast<aris::dynamic::Part&>(self.partPool().at(i));
           },
           py::return_value_policy::reference_internal)  // 获取连杆
+      .def("numMotions",
+           [](const aris::dynamic::Model& self) -> int {
+             return (int)self.motionPool().size();
+           })
+      .def(
+          "motion",
+          [](const aris::dynamic::Model& self,
+             int i) -> aris::dynamic::Motion& {
+            if (i < 0 || i >= self.motionPool().size()) {
+              throw std::out_of_range("Index out of range");
+            }
+            return const_cast<aris::dynamic::Motion&>(self.motionPool().at(i));
+          },
+          py::return_value_policy::reference_internal)
+      .def("numJoints",
+           [](const aris::dynamic::Model& self) -> int {
+             return (int)self.jointPool().size();
+           })
+      .def(
+          "joint",
+          [](const aris::dynamic::Model& self, int i) -> aris::dynamic::Joint& {
+            if (i < 0 || i >= self.jointPool().size()) {
+              throw std::out_of_range("Index out of range");
+            }
+            return const_cast<aris::dynamic::Joint&>(self.jointPool().at(i));
+          },
+          py::return_value_policy::reference_internal)
+      .def("numForces",
+           [](const aris::dynamic::Model& self) -> int {
+             return (int)self.forcePool().size();
+           })
+      .def(
+          "force",
+          [](const aris::dynamic::Model& self, int i) -> aris::dynamic::Force& {
+            if (i < 0 || i >= self.forcePool().size()) {
+              throw std::out_of_range("Index out of range");
+            }
+            return const_cast<aris::dynamic::Force&>(self.forcePool().at(i));
+          },
+          py::return_value_policy::reference_internal)
       .def(
           "addPartByPe",
           [](aris::dynamic::Model& self, const std::vector<double>& pe,
@@ -243,6 +289,18 @@ PYBIND11_MODULE(sire, m) {
             }
             return self.addPrismaticJoint(part1, part2, position.data(),
                                           axis.data());
+          },
+          py::return_value_policy::reference_internal)
+      .def(
+          "addSphericalJoint",
+          [](aris::dynamic::Model& self, aris::dynamic::Part& part1,
+             aris::dynamic::Part& part2, const std::vector<double>& position)
+              -> aris::dynamic::SphericalJoint& {
+            if (position.size() != 3) {
+              throw std::runtime_error(
+                  "Position and axis must be 3-element arrays!");
+            }
+            return self.addSphericalJoint(part1, part2, position.data());
           },
           py::return_value_policy::reference_internal)
       .def("addMotion", py::overload_cast<>(&aris::dynamic::Model::addMotion),
@@ -292,10 +350,92 @@ PYBIND11_MODULE(sire, m) {
              self.getOutputPos(pos.data());
              return pos;
            })
+      .def("setInputVel",
+           [](aris::dynamic::Model& self, const std::vector<double>& input) {
+             if (input.empty()) {
+               throw std::runtime_error("Input array 'input' cannot be empty!");
+             }
+             self.setInputVel(input.data());
+           })
+      .def("setOutputVel",
+           [](aris::dynamic::Model& self, const std::vector<double>& input) {
+             if (input.empty()) {
+               throw std::runtime_error("Input array 'input' cannot be empty!");
+             }
+             self.setOutputVel(input.data());
+           })
+      .def("getInputVel",
+           [](const aris::dynamic::Model& self) {
+             std::vector<double> vel(self.inputVelSize());
+             self.getInputVel(vel.data());
+             return vel;
+           })
+      .def("getOutputVel",
+           [](const aris::dynamic::Model& self) {
+             std::vector<double> vel(self.outputVelSize());
+             self.getOutputVel(vel.data());
+             return vel;
+           })
+      .def("setInputAcc",
+           [](aris::dynamic::Model& self, const std::vector<double>& input) {
+             if (input.empty()) {
+               throw std::runtime_error("Input array 'input' cannot be empty!");
+             }
+             self.setInputAcc(input.data());
+           })
+      .def("setOutputAcc",
+           [](aris::dynamic::Model& self, const std::vector<double>& input) {
+             if (input.empty()) {
+               throw std::runtime_error("Input array 'input' cannot be empty!");
+             }
+             self.setOutputAcc(input.data());
+           })
+      .def("getInputAcc",
+           [](const aris::dynamic::Model& self) {
+             std::vector<double> acc(self.inputAccSize());
+             self.getInputAcc(acc.data());
+             return acc;
+           })
+      .def("getOutputAcc",
+           [](const aris::dynamic::Model& self) {
+             std::vector<double> acc(self.outputAccSize());
+             self.getOutputAcc(acc.data());
+             return acc;
+           })
+      .def("setInputFce",
+           [](aris::dynamic::Model& self, const std::vector<double>& input) {
+             if (input.empty()) {
+               throw std::runtime_error("Input array 'input' cannot be empty!");
+             }
+             self.setInputFce(input.data());
+           })
+      .def("setOutputFce",
+           [](aris::dynamic::Model& self, const std::vector<double>& input) {
+             if (input.empty()) {
+               throw std::runtime_error("Input array 'input' cannot be empty!");
+             }
+             self.setOutputFce(input.data());
+           })
+      .def("getInputFce",
+           [](const aris::dynamic::Model& self) {
+             std::vector<double> fce(self.inputFceSize());
+             self.getInputFce(fce.data());
+             return fce;
+           })
+      .def("getOutputFce",
+           [](const aris::dynamic::Model& self) {
+             std::vector<double> fce(self.outputFceSize());
+             self.getOutputFce(fce.data());
+             return fce;
+           })
       .def("forwardKinematics",
            [](aris::dynamic::Model& self) { return self.forwardKinematics(); })
       .def("inverseKinematics",
            [](aris::dynamic::Model& self) { return self.inverseKinematics(); })
+      .def("forwardDynamics",
+           [](aris::dynamic::Model& self) { return self.forwardDynamics(); })
+      .def("inverseDynamics",
+           [](aris::dynamic::Model& self) { return self.inverseDynamics(); })
       .def("solverPool",
            static_cast<aris::core::PointerArray<aris::dynamic::Solver,
                                                 aris::dynamic::Element>& (
@@ -352,6 +492,17 @@ PYBIND11_MODULE(sire, m) {
                aris::dynamic::Model::*)() const>(
                &aris::dynamic::Model::jointPool),
            py::return_value_policy::reference_internal)
+      .def("forcePool",
+           static_cast<aris::core::PointerArray<aris::dynamic::Force,
+                                                aris::dynamic::Element>& (
+               aris::dynamic::Model::*)()>(&aris::dynamic::Model::forcePool),
+           py::return_value_policy::reference_internal)
+      .def("forcePool",
+           static_cast<const aris::core::PointerArray<aris::dynamic::Force,
+                                                      aris::dynamic::Element>& (
+               aris::dynamic::Model::*)() const>(
+               &aris::dynamic::Model::forcePool),
+           py::return_value_policy::reference_internal)
       .def("ground",
            py::overload_cast<>(&aris::dynamic::Model::ground, py::const_),
            py::return_value_policy::reference_internal)
@@ -363,16 +514,73 @@ PYBIND11_MODULE(sire, m) {
                                                aris::dynamic::Element>& (
               aris::dynamic::Model::*)()>(&aris::dynamic::Model::simulatorPool),
           py::return_value_policy::reference_internal);  // 未重载还需修改
-
-  py::class_<aris::dynamic::Part>(m, "Part")
+  py::class_<aris::dynamic::Element>(m, "Element")
       .def(py::init<>())
-      .def("name", &aris::dynamic::Part::name);
-  py::class_<aris::dynamic::Joint>(m, "Joint");
+      .def("id", &aris::dynamic::Element::id)
+      .def("setId", &aris::dynamic::Element::setId);
+  py::class_<aris::dynamic::Coordinate, aris::dynamic::Element>(m,
+                                                                "Coordinate");
+  py::class_<aris::dynamic::Part, aris::dynamic::Coordinate>(m, "Part")
+      .def(py::init<>())
+      .def("name", &aris::dynamic::Part::name)
+      .def("setName", &aris::dynamic::Part::setName)
+      .def("getAs",
+           [](const aris::dynamic::Part& self) {
+             std::vector<double> as(6, 0);
+             self.getAs(as.data());
+             return as;
+           })
+      .def("getVs",
+           [](const aris::dynamic::Part& self) {
+             std::vector<double> vs(6, 0);
+             self.getVs(vs.data());
+             return vs;
+           })
+      .def("getPq",
+           [](const aris::dynamic::Part& self) {
+             std::vector<double> pq(7, 0);
+             self.getPq(pq.data());
+             return pq;
+           })
+      .def("getPm",
+           [](const aris::dynamic::Part& self) {
+             std::vector<double> pm(16, 0);
+             self.getPm(pm.data());
+             return pm;
+           })
+      .def("addMarker", [](aris::dynamic::Part& self,
+                           const std::string& name) { self.addMarker(name); })
+      .def(
+          "addMeshGeometry",
+          [](aris::dynamic::Part& self, sire::PartId prtId,
+             const std::string& resource_path) {
+            auto& geometry =
+                self.geometryPool().add<sire::geometry::MeshGeometry>(
+                    resource_path);
+            geometry.setPartId(prtId);
+            geometry.setDynamic(true);
+            return geometry;
+          },
+          py::return_value_policy::reference_internal);
+  py::class_<aris::dynamic::Joint>(m, "Joint")
+      .def("dim", &aris::dynamic::Joint::dim)
+      .def("cf", [](const aris::dynamic::Joint& self) {
+        std::vector<double> pm(self.cf(), self.cf() + self.dim());
+        return pm;
+      });
   py::class_<aris::dynamic::RevoluteJoint, aris::dynamic::Joint>(
       m, "RevoluteJoint");
   py::class_<aris::dynamic::PrismaticJoint, aris::dynamic::Joint>(
       m, "PrismaticJoint");
-  py::class_<aris::dynamic::Coordinate>(m, "Coordinate");
+  py::class_<aris::dynamic::SphericalJoint, aris::dynamic::Joint>(
+      m, "SphericalJoint");
+  py::class_<aris::dynamic::Force>(m, "Force");
+  py::class_<aris::dynamic::SingleComponentForce, aris::dynamic::Force>(
+      m, "SingleComponentForce")
+      .def(py::init<>())
+      .def("setFce", [](aris::dynamic::SingleComponentForce& self,
+                        double fce) { self.setFce(fce); })
+      .def("fce", &aris::dynamic::SingleComponentForce::fce);
   py::class_<aris::dynamic::Constraint>(m, "Constraint");
   py::class_<aris::dynamic::MotionBase, aris::dynamic::Constraint>(
       m, "MotionBase");
@@ -408,7 +616,31 @@ PYBIND11_MODULE(sire, m) {
              self.getMaa(maa);
              return std::vector<double>(maa, maa + 6);
            });
-  py::class_<aris::dynamic::Element>(m, "Element");
+
+  py::class_<aris::dynamic::Geometry, aris::dynamic::Element>(m, "Geometry");
+  py::class_<sire::geometry::GeometryBase, aris::dynamic::Geometry>(
+      m, "GeometryBase");
+  py::class_<sire::geometry::GeometryOnPart, sire::geometry::GeometryBase>(
+      m, "GeometryOnPart")
+      .def(py::init<>())
+      .def(
+          "prtId",
+          static_cast<sire::PartId (sire::geometry::GeometryOnPart::*)() const>(
+              &sire::geometry::GeometryOnPart::partId))
+      .def("setPrtId", &sire::geometry::GeometryOnPart::setPartId)
+      .def("isDynamic", &sire::geometry::GeometryOnPart::isDynamic)
+      .def("setDynamic", &sire::geometry::GeometryOnPart::setDynamic);
+  py::class_<sire::geometry::MeshShape>(m, "MeshShape")
+      .def(py::init<const std::string&>())
+      .def("resourcePath",
+           static_cast<std::string& (sire::geometry::MeshShape::*)()>(
+               &sire::geometry::MeshShape::resourcePath))
+      .def("setResourcePath", &sire::geometry::MeshShape::setResourcePath);
+  py::class_<sire::geometry::MeshGeometry, sire::geometry::GeometryOnPart>(
+      m, "MeshGeometry")
+      .def(py::init<>())
+      .def_readwrite("meshShape", &sire::geometry::MeshGeometry::meshShape);
+
   py::class_<aris::dynamic::Solver, aris::dynamic::Element>(m, "Solver");
   py::class_<aris::dynamic::UniversalSolver, aris::dynamic::Solver>(
       m, "UniversalSolver")
@@ -431,9 +663,13 @@ PYBIND11_MODULE(sire, m) {
       .def(py::init<>());
   py::class_<aris::dynamic::Motion, aris::dynamic::MotionBase>(m, "Motion")
       .def("mp", &aris::dynamic::Motion::mp)
-      .def("mf", &aris::dynamic::Motion::mf)
       .def("mv", &aris::dynamic::Motion::mv)
-      .def("setMa", &aris::dynamic::Motion::setMa);
+      .def("ma", &aris::dynamic::Motion::ma)
+      .def("mf", &aris::dynamic::Motion::mf)
+      .def("setMa", &aris::dynamic::Motion::setMa)
+      .def("updA", &aris::dynamic::Motion::updA)
+      .def("updV", &aris::dynamic::Motion::updV)
+      .def("updP", &aris::dynamic::Motion::updP);
   py::class_<aris::dynamic::Simulator, aris::dynamic::Element>(m, "Simulator");
   py::class_<aris::core::PointerArray<aris::dynamic::Geometry,
                                       aris::dynamic::Element>>(
@@ -512,6 +748,18 @@ PYBIND11_MODULE(sire, m) {
           [](aris::core::PointerArray<aris::dynamic::Motion,
                                       aris::dynamic::Element>& self,
              size_t index) -> aris::dynamic::Motion& {
+            return self[index];  // 假设 self 支持 operator[]
+          },
+          py::return_value_policy::reference_internal);
+  py::class_<
+      aris::core::PointerArray<aris::dynamic::Force, aris::dynamic::Element>>(
+      m, "PointerArrayForce")
+      .def(py::init<>())
+      .def(
+          "__getitem__",
+          [](aris::core::PointerArray<aris::dynamic::Force,
+                                      aris::dynamic::Element>& self,
+             size_t index) -> aris::dynamic::Force& {
             return self[index];  // 假设 self 支持 operator[]
           },
           py::return_value_policy::reference_internal);
