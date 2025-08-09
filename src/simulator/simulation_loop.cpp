@@ -116,11 +116,11 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
   imp_->event_manager_->init(this);
   imp_->ctrlPtr_->init(this);
 
-  // imp_->model_ptr_->solverPool().add<solver::JointConstraintSolver>();
+  imp_->model_ptr_->solverPool().add<solver::JointConstraintSolver>();
 
   // 正确设置model中的力
   imp_->physics_engine_ptr_->initPartContactForce2Model();
-  // std::cout << aris::core::toXmlString(*(imp_->model_ptr_)) << std::endl;
+  std::cout << aris::core::toXmlString(*(imp_->model_ptr_)) << std::endl;
   imp_->model_ptr_->init();
   // double p[1]{0.916};
   // imp_->model_ptr_->motionPool()[2].setP(p);

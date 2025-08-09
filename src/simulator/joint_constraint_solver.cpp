@@ -2,6 +2,8 @@
 
 #include <aris/dynamic/model.hpp>
 
+#include "aris/core/reflection.hpp"
+
 namespace sire::solver {
 class HelpResetRAII {
  public:
@@ -56,5 +58,8 @@ JointConstraintSolver::JointConstraintSolver(Size max_iter_count,
                                              double max_error)
     : UniversalSolver(max_iter_count, max_error) {}
 ARIS_DEFINE_BIG_FOUR_CPP(JointConstraintSolver);
-
+ARIS_REGISTRATION {
+  aris::core::class_<JointConstraintSolver>("JointConstraintSolver")
+      .inherit<aris::dynamic::UniversalSolver>();
+}
 }  // namespace sire::solver
