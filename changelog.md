@@ -2,6 +2,11 @@
 
 Tracking the main change of very commit!
 
+## 2025/08/18 mjcf2sire config file
+
+* add support of mjcf file to sire config xml file (python)
+* add wht parallel wheel mjcf 2 sire xml config file
+
 ## 2024/08/24 Simulation Play/Pause Functionalities
 
 * Merge pull requests of !3.
