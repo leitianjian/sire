@@ -174,7 +174,7 @@ def animateRobotByRecords(numLinks, records, frameRate, vis):
   vis.set_animation(anim)
 
 def main():
-  sys.path.append("D:/code/sire/install/python/debug")
+  sys.path.append("D:/code/sire/install/python/release")
   import sire
   cs = sire.ControlServer.instance()
   sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/a1_modified.xml')
@@ -198,6 +198,7 @@ def main():
     # target_q = [0, -0.9, 1.8, 0, -0.9, 1.8, 0, -0.9, 1.8, 0, -0.9, 1.8]
     target_q = [0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8, 0, 0.9, -1.8] # 这个才是对的角度，目前的角度都反了
     # target_q = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # 这个才是对的角度，目前的角度都反了
+    # target_q = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01] # 这个才是对的角度，目前的角度都反了
 
     # 控制四条腿的运动
     # duty_ratio = 0.75  # 支撑相比例
@@ -243,7 +244,7 @@ def main():
     for i in range(12):
       motion = model.motionPool()[i]
       if isinstance(motion, sire.ActuatorSISO):
-          motion.setDesiredValue(target_q[i])
+        motion.setDesiredValue(target_q[i])
     simulator.step(1, False)
   simulator.recordsContactCptInfo()
   displayInitJson = model.displayInitJson()
@@ -262,6 +263,4 @@ def main():
       json.dump(result, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__":
-  import gc
   main()
-  gc.collect()  # 强制垃圾回收，避免内存泄漏

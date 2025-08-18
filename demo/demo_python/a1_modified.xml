@@ -220,7 +220,7 @@
         <SireHttpInterface name="http_interface" document_root="D:/code/sire/web_interface/build" port="8001"/>
     </InterfacePoolObject>
     <SireMiddleware __prop_name__="middle_ware">
-        <SimulationLoop __prop_name__="simulation_loop" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="0.5" global_variable_pool="{}">
+        <SimulationLoop __prop_name__="simulation_loop" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="2" global_variable_pool="{}">
             <EventManager __prop_name__="event_manager">
                 <EventHandlerPairPool __prop_name__="event_handler_pair_pool">
                     <EventHandlerIdPair event_id="0" handler_id="6"/>

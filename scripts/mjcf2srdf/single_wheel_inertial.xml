@@ -1,0 +1,491 @@
+<mujoco model="mojuco_model">
+  <compiler angle="radian" meshdir=".\meshes\"/>
+
+  <option gravity="0 0 0"/>
+
+  <default>
+    <joint damping="0.03"/>
+    <geom friction="2"/>
+  </default>
+
+  <asset>
+    <texture type="2d" colorspace="auto" name="grid" builtin="checker" rgb1="0.1 0.2 0.3" rgb2="0.2 0.3 0.4" width="512" height="512"/>
+    <material name="grid" texture="grid" texuniform="true" reflectance="0.2"/>
+    <mesh name="body" file="body.STL"/>
+    <mesh name="left_wheel_hub" file="left_wheel_hub.STL"/>
+    <mesh name="left_push_ring" file="left_push_ring.STL"/>
+    <mesh name="push_bar1_2" file="push_bar1_2.STL"/>
+    <mesh name="ujoint1_1" file="ujoint1_1.STL"/>
+    <mesh name="PSBL_link1_1" file="PSBL_link1_1.STL"/>
+    <mesh name="PSBL_link1_2" file="PSBL_link1_2.STL"/>
+    <mesh name="PSBL_link1_3" file="PSBL_link1_3.STL"/>
+    <mesh name="push_bar2_2" content_type="model/stl" file="push_bar2_2.STL"/>
+    <mesh name="ujoint2_1" content_type="model/stl" file="ujoint2_1.STL"/>
+    <mesh name="PSBL_link2_1" content_type="model/stl" file="PSBL_link2_1.STL"/>
+    <mesh name="PSBL_link2_2" content_type="model/stl" file="PSBL_link2_2.STL"/>
+    <mesh name="PSBL_link2_3" content_type="model/stl" file="PSBL_link2_3.STL"/>
+    <mesh name="push_bar3_2" content_type="model/stl" file="push_bar3_2.STL"/>
+    <mesh name="ujoint3_1" content_type="model/stl" file="ujoint3_1.STL"/>
+    <mesh name="PSBL_link3_1" content_type="model/stl" file="PSBL_link3_1.STL"/>
+    <mesh name="PSBL_link3_2" content_type="model/stl" file="PSBL_link3_2.STL"/>
+    <mesh name="PSBL_link3_3" content_type="model/stl" file="PSBL_link3_3.STL"/>
+    <mesh name="push_bar4_2" content_type="model/stl" file="push_bar4_2.STL"/>
+    <mesh name="ujoint4_1" content_type="model/stl" file="ujoint4_1.STL"/>
+    <mesh name="PSBL_link4_1" content_type="model/stl" file="PSBL_link4_1.STL"/>
+    <mesh name="PSBL_link4_2" content_type="model/stl" file="PSBL_link4_2.STL"/>
+    <mesh name="PSBL_link4_3" content_type="model/stl" file="PSBL_link4_3.STL"/>
+    <mesh name="push_bar5_2" content_type="model/stl" file="push_bar5_2.STL"/>
+    <mesh name="ujoint5_1" content_type="model/stl" file="ujoint5_1.STL"/>
+    <mesh name="PSBL_link5_1" content_type="model/stl" file="PSBL_link5_1.STL"/>
+    <mesh name="PSBL_link5_2" content_type="model/stl" file="PSBL_link5_2.STL"/>
+    <mesh name="PSBL_link5_3" content_type="model/stl" file="PSBL_link5_3.STL"/>
+    <mesh name="push_bar6_2" content_type="model/stl" file="push_bar6_2.STL"/>
+    <mesh name="ujoint6_1" content_type="model/stl" file="ujoint6_1.STL"/>
+    <mesh name="PSBL_link6_1" content_type="model/stl" file="PSBL_link6_1.STL"/>
+    <mesh name="PSBL_link6_2" content_type="model/stl" file="PSBL_link6_2.STL"/>
+    <mesh name="PSBL_link6_3" content_type="model/stl" file="PSBL_link6_3.STL"/>
+    <mesh name="push_bar1_1" file="push_bar1_1.STL"/>
+    <mesh name="ujoint1_2" file="ujoint1_2.STL"/>
+    <mesh name="PSBL_link1_4" file="PSBL_link1_4.STL"/>
+    <mesh name="PSBL_link1_5" file="PSBL_link1_5.STL"/>
+    <mesh name="PSBL_link1_6" file="PSBL_link1_6.STL"/>
+    <mesh name="push_bar2_1" content_type="model/stl" file="push_bar2_1.STL"/>
+    <mesh name="ujoint2_2" content_type="model/stl" file="ujoint2_2.STL"/>
+    <mesh name="PSBL_link2_4" content_type="model/stl" file="PSBL_link2_4.STL"/>
+    <mesh name="PSBL_link2_5" content_type="model/stl" file="PSBL_link2_5.STL"/>
+    <mesh name="PSBL_link2_6" content_type="model/stl" file="PSBL_link2_6.STL"/>
+    <mesh name="push_bar3_1" content_type="model/stl" file="push_bar3_1.STL"/>
+    <mesh name="ujoint3_2" content_type="model/stl" file="ujoint3_2.STL"/>
+    <mesh name="PSBL_link3_4" content_type="model/stl" file="PSBL_link3_4.STL"/>
+    <mesh name="PSBL_link3_5" content_type="model/stl" file="PSBL_link3_5.STL"/>
+    <mesh name="PSBL_link3_6" content_type="model/stl" file="PSBL_link3_6.STL"/>
+    <mesh name="push_bar4_1" content_type="model/stl" file="push_bar4_1.STL"/>
+    <mesh name="ujoint4_2" content_type="model/stl" file="ujoint4_2.STL"/>
+    <mesh name="PSBL_link4_4" content_type="model/stl" file="PSBL_link4_4.STL"/>
+    <mesh name="PSBL_link4_5" content_type="model/stl" file="PSBL_link4_5.STL"/>
+    <mesh name="PSBL_link4_6" content_type="model/stl" file="PSBL_link4_6.STL"/>
+    <mesh name="push_bar5_1" content_type="model/stl" file="push_bar5_1.STL"/>
+    <mesh name="ujoint5_2" content_type="model/stl" file="ujoint5_2.STL"/>
+    <mesh name="PSBL_link5_4" content_type="model/stl" file="PSBL_link5_4.STL"/>
+    <mesh name="PSBL_link5_5" content_type="model/stl" file="PSBL_link5_5.STL"/>
+    <mesh name="PSBL_link5_6" content_type="model/stl" file="PSBL_link5_6.STL"/>
+    <mesh name="push_bar6_1" content_type="model/stl" file="push_bar6_1.STL"/>
+    <mesh name="ujoint6_2" content_type="model/stl" file="ujoint6_2.STL"/>
+    <mesh name="PSBL_link6_4" content_type="model/stl" file="PSBL_link6_4.STL"/>
+    <mesh name="PSBL_link6_5" content_type="model/stl" file="PSBL_link6_5.STL"/>
+    <mesh name="PSBL_link6_6" content_type="model/stl" file="PSBL_link6_6.STL"/>
+    <mesh name="right_wheel_hub" file="right_wheel_hub.STL"/>
+    <mesh name="right_push_ring" file="right_push_ring.STL"/>
+    <mesh name="push_bar7_2" file="push_bar7_2.STL"/>
+    <mesh name="ujoint7_1" file="ujoint7_1.STL"/>
+    <mesh name="PSBL_link7_1" file="PSBL_link7_1.STL"/>
+    <mesh name="PSBL_link7_2" file="PSBL_link7_2.STL"/>
+    <mesh name="PSBL_link7_3" file="PSBL_link7_3.STL"/>
+    <mesh name="push_bar8_2" file="push_bar8_2.STL"/>
+    <mesh name="ujoint8_1" file="ujoint8_1.STL"/>
+    <mesh name="PSBL_link8_1" file="PSBL_link8_1.STL"/>
+    <mesh name="PSBL_link8_2" file="PSBL_link8_2.STL"/>
+    <mesh name="PSBL_link8_3" file="PSBL_link8_3.STL"/>
+    <mesh name="push_bar9_2" file="push_bar9_2.STL"/>
+    <mesh name="ujoint9_1" file="ujoint9_1.STL"/>
+    <mesh name="PSBL_link9_1" file="PSBL_link9_1.STL"/>
+    <mesh name="PSBL_link9_2" file="PSBL_link9_2.STL"/>
+    <mesh name="PSBL_link9_3" file="PSBL_link9_3.STL"/>
+    <mesh name="push_bar10_2" file="push_bar10_2.STL"/>
+    <mesh name="ujoint10_1" file="ujoint10_1.STL"/>
+    <mesh name="PSBL_link10_1" file="PSBL_link10_1.STL"/>
+    <mesh name="PSBL_link10_2" file="PSBL_link10_2.STL"/>
+    <mesh name="PSBL_link10_3" file="PSBL_link10_3.STL"/>
+    <mesh name="push_bar11_2" file="push_bar11_2.STL"/>
+    <mesh name="ujoint11_1" file="ujoint11_1.STL"/>
+    <mesh name="PSBL_link11_1" file="PSBL_link11_1.STL"/>
+    <mesh name="PSBL_link11_2" file="PSBL_link11_2.STL"/>
+    <mesh name="PSBL_link11_3" file="PSBL_link11_3.STL"/>
+    <mesh name="push_bar12_2" file="push_bar12_2.STL"/>
+    <mesh name="ujoint12_1" file="ujoint12_1.STL"/>
+    <mesh name="PSBL_link12_1" file="PSBL_link12_1.STL"/>
+    <mesh name="PSBL_link12_2" file="PSBL_link12_2.STL"/>
+    <mesh name="PSBL_link12_3" file="PSBL_link12_3.STL"/>
+    <mesh name="push_bar7_1" file="push_bar7_1.STL"/>
+    <mesh name="ujoint7_2" file="ujoint7_2.STL"/>
+    <mesh name="PSBL_link7_4" file="PSBL_link7_4.STL"/>
+    <mesh name="PSBL_link7_5" file="PSBL_link7_5.STL"/>
+    <mesh name="PSBL_link7_6" file="PSBL_link7_6.STL"/>
+    <mesh name="push_bar8_1" file="push_bar8_1.STL"/>
+    <mesh name="ujoint8_2" file="ujoint8_2.STL"/>
+    <mesh name="PSBL_link8_4" file="PSBL_link8_4.STL"/>
+    <mesh name="PSBL_link8_5" file="PSBL_link8_5.STL"/>
+    <mesh name="PSBL_link8_6" file="PSBL_link8_6.STL"/>
+    <mesh name="push_bar9_1" file="push_bar9_1.STL"/>
+    <mesh name="ujoint9_2" file="ujoint9_2.STL"/>
+    <mesh name="PSBL_link9_4" file="PSBL_link9_4.STL"/>
+    <mesh name="PSBL_link9_5" file="PSBL_link9_5.STL"/>
+    <mesh name="PSBL_link9_6" file="PSBL_link9_6.STL"/>
+    <mesh name="push_bar10_1" file="push_bar10_1.STL"/>
+    <mesh name="ujoint10_2" file="ujoint10_2.STL"/>
+    <mesh name="PSBL_link10_4" file="PSBL_link10_4.STL"/>
+    <mesh name="PSBL_link10_5" file="PSBL_link10_5.STL"/>
+    <mesh name="PSBL_link10_6" file="PSBL_link10_6.STL"/>
+    <mesh name="push_bar11_1" file="push_bar11_1.STL"/>
+    <mesh name="ujoint11_2" file="ujoint11_2.STL"/>
+    <mesh name="PSBL_link11_4" file="PSBL_link11_4.STL"/>
+    <mesh name="PSBL_link11_5" file="PSBL_link11_5.STL"/>
+    <mesh name="PSBL_link11_6" file="PSBL_link11_6.STL"/>
+    <mesh name="push_bar12_1" file="push_bar12_1.STL"/>
+    <mesh name="ujoint12_2" file="ujoint12_2.STL"/>
+    <mesh name="PSBL_link12_4" file="PSBL_link12_4.STL"/>
+    <mesh name="PSBL_link12_5" file="PSBL_link12_5.STL"/>
+    <mesh name="PSBL_link12_6" file="PSBL_link12_6.STL"/>
+    <mesh name="obstacle" file="obstacle.STL"/>
+  </asset>
+
+  <worldbody>
+    <body name="left_wheel_hub" pos="0 0 0" quat="0.695971 0.124993 -0.124992 0.695973">
+      <inertial pos="0 -0.0440379 -1.28267e-11" quat="0.707107 0.707107 0 0" mass="0.0287282" diaginertia="2.04789e-05 2.04789e-05 1.44822e-06"/>
+      <joint name="left_wheel_motor" pos="0 0 0" axis="0 1 0"/>
+      <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="left_wheel_hub"/>
+      <body name="left_push_ring" pos="0 -0.027935 0" quat="0.866025 0 -0.500001 0">
+        <inertial pos="0 -0.0015 0" quat="0.707107 0 0 0.707107" mass="0.0014637" diaginertia="9.74961e-08 4.94231e-08 4.94231e-08"/>
+        <joint name="left_push_motor" pos="0 0 0" axis="0 -1 0" type="slide"/>
+        <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="left_push_ring"/>
+        <body name="push_bar1_2" pos="-0.010392 -0.0015 -0.006" quat="0.223245 0.488815 0.833103 0.130998">
+          <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+          <joint name="joint1_1" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar1_2"/>
+          <body name="ujoint1_1" pos="0.07 0 0" quat="-3.30582e-06 0.899981 -0.435929 1.60126e-06">
+            <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+            <joint name="joint1_2" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint1_1"/>
+            <body name="PSBL_link1_1" pos="0.01 0 0" quat="0.632215 0.316706 0.632218 0.316706">
+              <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+              <joint name="joint1_3" pos="0 0 0" axis="0 0 1"/>
+              <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_1"/>
+              <body name="PSBL_link1_2" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+                <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+                <joint name="joint1_4" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link1_2"/>
+                <body name="PSBL_link1_3" pos="0.05 0 0" quat="-3.47578e-06 -0.946253 -0.323428 -1.18802e-06">
+                  <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                  <joint name="joint1_5" pos="0 0 0" axis="0 0 -1"/>
+                  <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_3"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="push_bar2_2" pos="-0.010392 -0.0015 0.006" quat="0.223245 -0.488815 -0.833103 0.130998">
+          <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+          <joint name="joint2_1" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar2_2"/>
+          <body name="ujoint2_1" pos="0.07 0 0" quat="-3.30582e-06 -0.899981 0.435929 1.60126e-06">
+            <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+            <joint name="joint2_2" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint2_1"/>
+            <body name="PSBL_link2_1" pos="0.01 0 0" quat="0.632215 0.316706 0.632218 0.316706">
+              <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+              <joint name="joint2_3" pos="0 0 0" axis="0 0 1"/>
+              <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link2_1"/>
+              <body name="PSBL_link2_2" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+                <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+                <joint name="joint2_4" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link2_2"/>
+                <body name="PSBL_link2_3" pos="0.05 0 0" quat="-3.47578e-06 -0.946253 -0.323428 -1.18802e-06">
+                  <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                  <joint name="joint2_5" pos="0 0 0" axis="0 0 -1"/>
+                  <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link2_3"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="push_bar3_2" pos="0 -0.0015 0.012" quat="0.609876 -0.35784 -0.609879 0.35784">
+          <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+          <joint name="joint3_1" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar3_2"/>
+          <body name="ujoint3_1" pos="0.07 0 0" quat="-3.30582e-06 -0.899981 0.435929 1.60126e-06">
+            <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+            <joint name="joint3_2" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint3_1"/>
+            <body name="PSBL_link3_1" pos="0.01 0 0" quat="0.632215 0.316706 0.632218 0.316706">
+              <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+              <joint name="joint3_3" pos="0 0 0" axis="0 0 1"/>
+              <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link3_1"/>
+              <body name="PSBL_link3_2" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+                <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+                <joint name="joint3_4" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link3_2"/>
+                <body name="PSBL_link3_3" pos="0.05 0 0" quat="-3.47578e-06 -0.946253 -0.323428 -1.18802e-06">
+                  <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                  <joint name="joint3_5" pos="0 0 0" axis="0 0 -1"/>
+                  <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link3_3"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="push_bar4_2" pos="0.010392 -0.0015 0.006" quat="0.833105 -0.130975 -0.223232 0.488824">
+          <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+          <joint name="joint4_1" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar4_2"/>
+          <body name="ujoint4_1" pos="0.07 0 0" quat="-3.30582e-06 -0.899981 0.435929 1.60126e-06">
+            <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+            <joint name="joint4_2" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint4_1"/>
+            <body name="PSBL_link4_1" pos="0.01 0 0" quat="0.632215 0.316706 0.632218 0.316706">
+              <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+              <joint name="joint4_3" pos="0 0 0" axis="0 0 1"/>
+              <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link4_1"/>
+              <body name="PSBL_link4_2" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+                <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+                <joint name="joint4_4" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link4_2"/>
+                <body name="PSBL_link4_3" pos="0.05 0 0" quat="-3.47578e-06 -0.946253 -0.323428 -1.18802e-06">
+                  <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                  <joint name="joint4_5" pos="0 0 0" axis="0 0 -1"/>
+                  <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link4_3"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="push_bar5_2" pos="0.010392 -0.0015 -0.006" quat="0.833105 0.130975 0.223232 0.488824">
+          <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+          <joint name="joint5_1" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar5_2"/>
+          <body name="ujoint5_1" pos="0.07 0 0" quat="-3.30582e-06 0.899981 -0.435929 1.60126e-06">
+            <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+            <joint name="joint5_2" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint5_1"/>
+            <body name="PSBL_link5_1" pos="0.01 0 0" quat="0.632215 0.316706 0.632218 0.316706">
+              <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+              <joint name="joint5_3" pos="0 0 0" axis="0 0 1"/>
+              <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link5_1"/>
+              <body name="PSBL_link5_2" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+                <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+                <joint name="joint5_4" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link5_2"/>
+                <body name="PSBL_link5_3" pos="0.05 0 0" quat="-3.47578e-06 -0.946253 -0.323428 -1.18802e-06">
+                  <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                  <joint name="joint5_5" pos="0 0 0" axis="0 0 -1"/>
+                  <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link5_3"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+        <body name="push_bar6_2" pos="0 -0.0015 -0.012" quat="0.609876 0.35784 0.609879 0.35784">
+          <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+          <joint name="joint6_1" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar6_2"/>
+          <body name="ujoint6_1" pos="0.07 0 0" quat="-3.30582e-06 -0.899981 0.435929 1.60126e-06">
+            <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+            <joint name="joint6_2" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint6_1"/>
+            <body name="PSBL_link6_1" pos="0.01 0 0" quat="0.632215 0.316706 0.632218 0.316706">
+              <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+              <joint name="joint6_3" pos="0 0 0" axis="0 0 1"/>
+              <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link6_1"/>
+              <body name="PSBL_link6_2" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+                <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+                <joint name="joint6_4" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link6_2"/>
+                <body name="PSBL_link6_3" pos="0.05 0 0" quat="-3.47578e-06 -0.946253 -0.323428 -1.18802e-06">
+                  <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                  <joint name="joint6_5" pos="0 0 0" axis="0 0 -1"/>
+                  <geom type="mesh" contype="2" conaffinity="2" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link6_3"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="push_bar1_1" pos="0 -0.0015 -0.012" quat="0.609876 -0.35784 0.609879 -0.35784">
+        <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+        <joint name="joint1_6" pos="0 0 0" axis="0 0 -1"/>
+        <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar1_1"/>
+        <body name="ujoint1_2" pos="0.07 0 0" quat="-3.30582e-06 0.899981 0.435929 -1.60126e-06">
+          <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+          <joint name="joint1_7" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint1_2"/>
+          <body name="PSBL_link1_4" pos="0.01 0 0" quat="0.316703 -0.632216 0.316708 -0.632216">
+            <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+            <joint name="joint1_8" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_4"/>
+            <body name="PSBL_link1_5" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+              <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+              <joint name="joint1_9" pos="0 0 0" axis="0 0 -1"/>
+              <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link1_5"/>
+              <body name="PSBL_link1_6" pos="0.05 0 0" quat="0.946253 0 0 0.323428">
+                <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                <joint name="joint1_10" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_6"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="push_bar2_1" pos="-0.010392 -0.0015 -0.006" quat="0.223245 -0.488815 0.833103 -0.130998">
+        <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+        <joint name="joint2_6" pos="0 0 0" axis="0 0 -1"/>
+        <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar2_1"/>
+        <body name="ujoint2_2" pos="0.07 0 0" quat="-3.30582e-06 0.899981 0.435929 -1.60126e-06">
+          <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+          <joint name="joint2_7" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint2_2"/>
+          <body name="PSBL_link2_4" pos="0.01 0 0" quat="0.316703 -0.632216 0.316708 -0.632216">
+            <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+            <joint name="joint2_8" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link2_4"/>
+            <body name="PSBL_link2_5" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+              <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+              <joint name="joint2_9" pos="0 0 0" axis="0 0 -1"/>
+              <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link2_5"/>
+              <body name="PSBL_link2_6" pos="0.05 0 0" quat="0.946253 0 0 0.323428">
+                <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                <joint name="joint2_10" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link2_6"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="push_bar3_1" pos="-0.010392 -0.0015 0.006" quat="0.223245 0.488815 -0.833103 -0.130998">
+        <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+        <joint name="joint3_6" pos="0 0 0" axis="0 0 -1"/>
+        <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar3_1"/>
+        <body name="ujoint3_2" pos="0.07 0 0" quat="-3.30582e-06 -0.899981 -0.435929 -1.60126e-06">
+          <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+          <joint name="joint3_7" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint3_2"/>
+          <body name="PSBL_link3_4" pos="0.01 0 0" quat="0.316703 -0.632216 0.316708 -0.632216">
+            <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+            <joint name="joint3_8" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link3_4"/>
+            <body name="PSBL_link3_5" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+              <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+              <joint name="joint3_9" pos="0 0 0" axis="0 0 -1"/>
+              <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link3_5"/>
+              <body name="PSBL_link3_6" pos="0.05 0 0" quat="0.946253 0 0 0.323428">
+                <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                <joint name="joint3_10" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link3_6"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="push_bar4_1" pos="0 -0.0015 0.012" quat="0.609876 0.35784 -0.609879 -0.35784">
+        <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+        <joint name="joint4_6" pos="0 0 0" axis="0 0 -1"/>
+        <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar4_1"/>
+        <body name="ujoint4_2" pos="0.07 0 0" quat="-3.30582e-06 -0.899981 -0.435929 -1.60126e-06">
+          <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+          <joint name="joint4_7" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint4_2"/>
+          <body name="PSBL_link4_4" pos="0.01 0 0" quat="0.316703 -0.632216 0.316708 -0.632216">
+            <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+            <joint name="joint4_8" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link4_4"/>
+            <body name="PSBL_link4_5" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+              <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+              <joint name="joint4_9" pos="0 0 0" axis="0 0 -1"/>
+              <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link4_5"/>
+              <body name="PSBL_link4_6" pos="0.05 0 0" quat="0.946253 0 0 0.323428">
+                <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                <joint name="joint4_10" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link4_6"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="push_bar5_1" pos="0.010392 -0.0015 0.006" quat="0.833105 0.130975 -0.223232 -0.488824">
+        <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+        <joint name="joint5_6" pos="0 0 0" axis="0 0 -1"/>
+        <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar5_1"/>
+        <body name="ujoint5_2" pos="0.07 0 0" quat="-3.30582e-06 0.899981 0.435929 -1.60126e-06">
+          <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+          <joint name="joint5_7" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint5_2"/>
+          <body name="PSBL_link5_4" pos="0.01 0 0" quat="0.316703 -0.632216 0.316708 -0.632216">
+            <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+            <joint name="joint5_8" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link5_4"/>
+            <body name="PSBL_link5_5" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+              <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+              <joint name="joint5_9" pos="0 0 0" axis="0 0 -1"/>
+              <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link5_5"/>
+              <body name="PSBL_link5_6" pos="0.05 0 0" quat="0.946253 0 0 0.323428">
+                <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                <joint name="joint5_10" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link5_6"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="push_bar6_1" pos="0.010392 -0.0015 -0.006" quat="0.833105 -0.130975 0.223232 -0.488824">
+        <inertial pos="0.0466438 -2.71218e-08 2.13059e-09" quat="0.5 0.5 0.5 0.5" mass="0.000840948" diaginertia="4.0091e-07 4.00819e-07 1.67001e-09"/>
+        <joint name="joint6_6" pos="0 0 0" axis="0 0 -1"/>
+        <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar6_1"/>
+        <body name="ujoint6_2" pos="0.07 0 0" quat="-3.30582e-06 0.899981 0.435929 -1.60126e-06">
+          <inertial pos="0.00129003 1.46018e-08 1.42782e-08" mass="0.000154429" diaginertia="5.41669e-10 9.31058e-10 8.97046e-10"/>
+          <joint name="joint6_7" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint6_2"/>
+          <body name="PSBL_link6_4" pos="0.01 0 0" quat="0.316703 -0.632216 0.316708 -0.632216">
+            <inertial pos="0.0150002 -9.16497e-12 -3.15372e-11" quat="0.5 0.5 0.5 0.5" mass="0.00120542" diaginertia="1.69627e-07 1.64404e-07 8.56584e-09"/>
+            <joint name="joint6_8" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link6_4"/>
+            <body name="PSBL_link6_5" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+              <inertial pos="0.025 -0.00527617 9.92571e-11" quat="0 0.707107 0 0.707107" mass="0.00952276" diaginertia="2.34167e-06 2.32142e-06 3.19503e-07"/>
+              <joint name="joint6_9" pos="0 0 0" axis="0 0 -1"/>
+              <geom type="mesh" rgba="0.5 0.5 1 1" mesh="PSBL_link6_5"/>
+              <body name="PSBL_link6_6" pos="0.05 0 0" quat="0.946253 0 0 0.323428">
+                <inertial pos="0.0150002 1.22355e-11 1.63034e-12" quat="0.5 0.5 0.5 0.5" mass="0.00120544" diaginertia="1.69627e-07 1.64405e-07 8.56588e-09"/>
+                <joint name="joint6_10" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" contype="4" conaffinity="4" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link6_6"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <equality>
+    <connect body1="push_bar1_1" body2="push_bar1_2" anchor="0.016 0 0"/>
+    <connect body1="PSBL_link1_1" body2="PSBL_link1_6" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link1_1" body2="PSBL_link1_6" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="PSBL_link1_4" body2="PSBL_link1_3" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link1_4" body2="PSBL_link1_3" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="push_bar2_1" body2="push_bar2_2" anchor="0.016 0 0"/>
+    <connect body1="PSBL_link2_1" body2="PSBL_link2_6" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link2_1" body2="PSBL_link2_6" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="PSBL_link2_4" body2="PSBL_link2_3" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link2_4" body2="PSBL_link2_3" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="push_bar3_1" body2="push_bar3_2" anchor="0.016 0 0"/>
+    <connect body1="PSBL_link3_1" body2="PSBL_link3_6" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link3_1" body2="PSBL_link3_6" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="PSBL_link3_4" body2="PSBL_link3_3" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link3_4" body2="PSBL_link3_3" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="push_bar4_1" body2="push_bar4_2" anchor="0.016 0 0"/>
+    <connect body1="PSBL_link4_1" body2="PSBL_link4_6" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link4_1" body2="PSBL_link4_6" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="PSBL_link4_4" body2="PSBL_link4_3" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link4_4" body2="PSBL_link4_3" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="push_bar5_1" body2="push_bar5_2" anchor="0.016 0 0"/>
+    <connect body1="PSBL_link5_1" body2="PSBL_link5_6" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link5_1" body2="PSBL_link5_6" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="PSBL_link5_4" body2="PSBL_link5_3" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link5_4" body2="PSBL_link5_3" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="push_bar6_1" body2="push_bar6_2" anchor="0.016 0 0"/>
+    <connect body1="PSBL_link6_1" body2="PSBL_link6_6" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link6_1" body2="PSBL_link6_6" anchor="0 0 -0.002" solref="0.001"/>
+    <connect body1="PSBL_link6_4" body2="PSBL_link6_3" anchor="0 0 0.002" solref="0.001"/>
+    <connect body1="PSBL_link6_4" body2="PSBL_link6_3" anchor="0 0 -0.002" solref="0.001"/>
+  </equality>
+
+  <actuator>
+    <general name="left_push_motor" joint="left_push_motor" ctrlrange="-0.015 0.001" biastype="affine" gainprm="10000" biasprm="0 -10000 -1000"/>
+  </actuator>
+</mujoco>

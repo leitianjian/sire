@@ -97,7 +97,7 @@ def animateRobotByRecords(numLinks, records, frameRate, vis):
 
 if __name__ == "__main__":
   import sys
-  sys.path.append("D:/code/sire/install/python/debug")
+  sys.path.append("D:/code/sire/install/python/release")
   import sire
   from os.path import abspath
   import os
