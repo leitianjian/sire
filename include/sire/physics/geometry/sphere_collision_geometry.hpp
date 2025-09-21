@@ -32,8 +32,10 @@ class SphereCollisionGeometry : public CollidableGeometry {
   sire::geometry::SphereShape sphereShape;
   auto init() -> void override;
   explicit SphereCollisionGeometry(double radius = 0.1, int part_id = 0,
+                                   bool is_dynamic = false,
                                    const double* prt_pm = nullptr,
-                                   bool is_dynamic = false);
+                                   const std::string& material = "m1",
+                                   const std::string& propStr = "{}");
   virtual ~SphereCollisionGeometry();
   ARIS_DELETE_BIG_FOUR(SphereCollisionGeometry)
   SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO

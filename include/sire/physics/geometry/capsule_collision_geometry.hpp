@@ -32,7 +32,10 @@ class CapsuleCollisionGeometry : public CollidableGeometry {
   sire::geometry::CapsuleShape capsuleShape;
   auto init() -> void override;
   explicit CapsuleCollisionGeometry(double radius = 0.1, double length = 0.2,
-                                    const double* prt_pm = nullptr);
+                                    int part_id = 0, bool is_dynamic = false,
+                                    const double* prt_pm = nullptr,
+                                    const std::string& material = "m1",
+                                    const std::string& propStr = "{}");
   virtual ~CapsuleCollisionGeometry();
   SIRE_DECLARE_MOVE_CTOR(CapsuleCollisionGeometry)
   // 类内部使用的to_json from_json的声明

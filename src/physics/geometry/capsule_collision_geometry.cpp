@@ -35,8 +35,12 @@ auto CapsuleCollisionGeometry::init() -> void {
       trans));
 }
 CapsuleCollisionGeometry::CapsuleCollisionGeometry(double radius, double length,
-                                                   const double* prt_pm)
-    : CollidableGeometry(prt_pm), capsuleShape(radius, length) {}
+                                                   int part_id, bool is_dynamic,
+                                                   const double* prt_pm,
+                                                   const std::string& material,
+                                                   const std::string& propStr)
+    : CollidableGeometry(prt_pm, part_id, is_dynamic, material, propStr),
+      capsuleShape(radius, length) {}
 CapsuleCollisionGeometry::~CapsuleCollisionGeometry() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(CapsuleCollisionGeometry)
 

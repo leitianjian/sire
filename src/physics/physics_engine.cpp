@@ -14,13 +14,17 @@
 #include "sire/core/force_screw.hpp"
 #include "sire/core/geometry/geometry_base.hpp"
 #include "sire/core/sire_assert.hpp"
+#include "sire/middleware/sire_middleware.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 #include "sire/physics/common/point_pair_contact_info.hpp"
 #include "sire/physics/contact/contact_solver_result.hpp"
 // #include "sire/physics/contact/stiffness_damping_contact_solver.hpp"
 #include "sire/physics/contact/avg_force_contact_solver.hpp"
+#include "sire/physics/geometry/box_collision_geometry.hpp"
+#include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/mesh_collision_geometry.hpp"
 #include "sire/physics/geometry/sphere_collision_geometry.hpp"
 
 #include "log/easyloggingConfig.hpp"
@@ -92,6 +96,28 @@ PhysicsEngine::~PhysicsEngine() { sire::geometry::reset_geometry_id(); };
 // TODO(leitianjian): 精简PhysicsEngine的资源管理
 //   PhysicsEngine中管理的资源是两个引擎都需要的资源，如果只是自己需要的没必要放在外面
 auto PhysicsEngine::doInit() -> void {
+  std::cout << (imp_->geometry_pool_ != nullptr) << " "
+            << (imp_->model_ptr_ != nullptr) << " " << "physics engine init"
+            << std::endl;
+  // 初始化model的geometry的id相关
+  if (imp_->model_ptr_ != nullptr) {
+    for (auto& part : imp_->model_ptr_->partPool()) {
+      for (sire::Size i{0}; i < part.geometryPool().size(); ++i) {
+        if (auto* ptr = dynamic_cast<sire::geometry::GeometryBase*>(
+                &part.geometryPool().at(i));
+            ptr == nullptr)
+          part.geometryPool().at(i).setId(i);
+        else
+          ptr->setGeometryId(i);
+      }
+    }
+  }
+  // 初始化contact geometry的id相关
+  if (imp_->geometry_pool_ != nullptr) {
+    for (sire::Size i{0}; i < imp_->geometry_pool_->size(); ++i) {
+      imp_->geometry_pool_->at(i).setGeometryId(i);
+    }
+  }
   imp_->part_pool_ptr_ = &imp_->model_ptr_->partPool();
   imp_->part_size_ = imp_->part_pool_ptr_->size();
   if (collisionDetectionFlag()) {
@@ -116,6 +142,30 @@ auto PhysicsEngine::doInit() -> void {
     imp_->contact_solver_->init(this);
   }
 }
+auto PhysicsEngine::init() -> void {
+  // 初始化Model与ControlServer相关的指针
+  imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
+      &aris::server::ControlServer::instance().model());
+  auto middlewarePtr = dynamic_cast<sire::middleware::SireMiddleware*>(
+      &aris::server::ControlServer::instance().middleWare());
+  if (middlewarePtr != nullptr) {
+    // throw std::runtime_error(
+    imp_->simulation_loop_ptr_ = &middlewarePtr->simulationLoop();
+    //     "Error: PhysicsEngine::init() can only be called when ControlServer
+    //     ");
+  }
+  saveInitialModel(*imp_->model_ptr_);
+  doInit();
+}
+auto PhysicsEngine::init(sire::middleware::SireMiddleware* middlewarePtr)
+    -> void {
+  // 初始化Model与ControlServer相关的指针
+  imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
+      &aris::server::ControlServer::instance().model());
+  imp_->simulation_loop_ptr_ = &middlewarePtr->simulationLoop();
+  saveInitialModel(*imp_->model_ptr_);
+  doInit();
+}
 auto PhysicsEngine::init(simulator::SimulationLoop* simLoopPtr) -> void {
   // 初始化Model与ControlServer相关的指针
   imp_->model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
@@ -124,7 +174,7 @@ auto PhysicsEngine::init(simulator::SimulationLoop* simLoopPtr) -> void {
   saveInitialModel(*imp_->model_ptr_);
   doInit();
 }
-auto PhysicsEngine::initByModel(aris::dynamic::Model* m) -> void {
+auto PhysicsEngine::init(aris::dynamic::Model* m) -> void {
   SIRE_DEMAND(m != nullptr);
   imp_->model_ptr_ = m;
   doInit();
@@ -190,10 +240,31 @@ auto PhysicsEngine::anchoredObjectsMap()
   return imp_->anchored_objects_map_;
 }
 auto PhysicsEngine::addSphereGeometry(double radius, int part_id,
-                                      const double* prt_pm, bool is_dynamic)
+                                      bool is_dynamic, const double* prt_pm)
     -> bool {
   imp_->geometry_pool_->add<geometry::SphereCollisionGeometry>(
-      radius, part_id, prt_pm, is_dynamic);
+      radius, part_id, is_dynamic, prt_pm);
+  return true;
+}
+auto PhysicsEngine::addBoxGeometry(double x, double y, double z, int part_id,
+                                   bool is_dynamic, const double* prt_pm)
+    -> bool {
+  imp_->geometry_pool_->add<geometry::BoxCollisionGeometry>(x, y, z, part_id,
+                                                            is_dynamic, prt_pm);
+  return true;
+}
+auto PhysicsEngine::addMeshGeometry(const std::string& resource_path,
+                                    int part_id, bool is_dynamic,
+                                    const double* prt_pm) -> bool {
+  imp_->geometry_pool_->add<geometry::MeshCollisionGeometry>(
+      resource_path, part_id, is_dynamic, prt_pm);
+  return true;
+}
+auto PhysicsEngine::addCapsuleGeometry(double radius, double length,
+                                       int part_id, bool is_dynamic,
+                                       const double* prt_pm) -> bool {
+  imp_->geometry_pool_->add<geometry::CapsuleCollisionGeometry>(
+      radius, length, part_id, is_dynamic, prt_pm);
   return true;
 }
 auto PhysicsEngine::addDynamicGeometry(

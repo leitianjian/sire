@@ -96,16 +96,71 @@ auto cptAccelExtVector(
     for (sire::Size i2{0}; i2 < 2; ++i2) {
       auto& prt = partPool[prtIdVector[2 * i + i2]];
       double ap_o[3]{0}, ap_c[3]{0};
-      if (prt.id() != 0) {
-        std::vector<double> vs(prt.vs(), prt.vs() + 6);
-        std::vector<double> as(prt.as(), prt.as() + 6);
-        std::vector<double> cp(contactPosition, contactPosition + 3);
-        DLOG(DEBUG) << "prt: "<< prt.id() << " " << vs << " " << as << " " << cp;
-      }
+      // if (prt.id() != 0) {
+      //   std::vector<double> vs(prt.vs(), prt.vs() + 6);
+      //   std::vector<double> as(prt.as(), prt.as() + 6);
+      //   std::vector<double> cp(contactPosition, contactPosition + 3);
+      //   DLOG(DEBUG) << "prt: "<< prt.id() << " " << vs << " " << as << " " << cp;
+      // }
       aris::dynamic::s_as2ap(prt.vs(), prt.as(), contactPosition, ap_o);
       aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), ap_o, ap_c);
       accelExt[accelExtColIdx] = ap_c[2];
       ++accelExtColIdx;
+    }
+  }
+}
+// clang-format off
+/// @brief 计算除了接触力外的所有力当作接触模型求解的外力项，假设检测到 n 个接触点。
+/// 关于计算的 A b 的解释
+/// x(t) = e^(At)(x(0) - A\b) + A\b
+/// 因为要每个接触点的法向的位移相减，同时，一组接触变量控制了两个物体的状态
+/// 需要使用下面的矩阵对 I 进行缩小，并与接触点的刚度与阻尼相乘，得到矩阵 K D
+/// T = [1 -1 0 ... 0 0  0]
+///     [0  0 1 -1 ...0  0]
+///     [.  . .  . ....  .]
+///     [0 0 0 0 .... 1 -1] n * 2n
+/// K = T * I^-1 * T' * diag(k)  k 与 d 都是 1 * n 的向量
+/// D = T * I^-1 * T' * diag(d)
+/// 矩阵微分方程的状态转移矩阵 A 可以由三块组成，如下图所示
+/// A = [0 I]
+///     [K D] 2n * 2n 的矩阵
+/// 接触点状态如下
+/// x = [d1 ... dn d1' ... dn'] 2 * n  d表示接触距离（穿深）
+/// x' = [d1' ... dn' d1'' ... dn''] 2 * n
+/// x(0) = [由积分截断时记录的 v 与 p 决定]
+/// 其中，关于非齐次方程的常数项 b，需要经过如下计算
+/// F = [FeA1 FeB1 ... FeAn FeBn] 1 * 2n vector -> parameter fext
+/// f = T * I^-1 * F' -> 1 * n vector
+/// b = [0 f] -> 1 * 2n vector
+/// 其中的 A \ b 方法 使用基于Householder方法的QR分解计算
+///        
+/// @param[in] penetration_pairs n x 1 检测到的接触点信息
+/// @param[in] T_C_vec 16 x n 接触点相对于世界坐标系的坐标，接触点坐标系的z方向从物体B指向物体A，平行接触方向
+/// @param[in] invCpi 6n x 6n 接触点惯量矩阵（contact point inertia matrix）
+/// @param[out] a0ext 6n x 1 计算得到的法向外力结果，表示为 [FeA1, FeB1, ... , FeAn, FeBn]
+auto cptAllAccelExtVector(
+    aris::dynamic::Model& model,
+    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    const std::vector<std::array<double, 16>>& T_C_vec,
+    const std::vector<sire::Size>& preservedPairsIdx,
+    const sire::PartId* prtIdVector, double* accelExt) -> void {
+  auto& partPool = model.partPool();
+  // TODO: 可能需要关掉contactForce
+  // TODO: 不知道是否需要，记录杆件的加速度数据，然后要重新填回去
+  if (model.forwardDynamics())
+    std::cout << "forward dynamic failed" << std::endl;
+
+  // 遍历碰撞点，找到所有要求的杆件与碰撞点位姿
+  for (sire::Size i{0}, accelExtColIdx{0}; i < preservedPairsIdx.size(); ++i) {
+    auto& pair = penetration_pairs[preservedPairsIdx[i]];
+    const double* contactPosition = pair.p_WC.data();
+    for (sire::Size i2{0}; i2 < 2; ++i2) {
+      auto& prt = partPool[prtIdVector[2 * i + i2]];
+      double ap_o[3]{0}, ap_c[3]{0};
+      aris::dynamic::s_as2ap(prt.vs(), prt.as(), contactPosition, ap_o);
+      aris::dynamic::s_inv_pm_dot_v3(T_C_vec[i].data(), ap_o, ap_c);
+      aris::dynamic::s_vc(3, ap_c, accelExt + accelExtColIdx);
+      accelExtColIdx += 3;
     }
   }
 }
@@ -718,6 +773,165 @@ auto preprocessContactInfo(
 //        不需要将切向问题引入平衡矩阵，直接代入动力学应该会产生一致的效果。
 // 方法二：将切向问题与法向问题引入公式与大矩阵同时求解。
 // clang-format on
+auto cptInverseCpiMatrix(
+    aris::dynamic::Model& model,
+    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    const std::vector<std::array<double, 16>>& T_C_vec,
+    const std::vector<sire::Size>& preservedPairsIdx,
+    const sire::PartId* prtIdVector, double* accelExt, double* invCpi) -> void {
+  auto init_interaction = [](aris::dynamic::Interaction& interaction,
+                             aris::dynamic::Model* m) -> void {
+    if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
+        interaction.makNameI().empty() && interaction.makNameJ().empty())
+      return;
+
+    auto find_part = [m](std::string_view name) -> aris::dynamic::Part* {
+      auto found = std::find_if(
+          m->partPool().begin(), m->partPool().end(),
+          [name](const auto& part) -> bool { return part.name() == name; });
+      return found == m->partPool().end() ? nullptr : &*found;
+    };
+
+    auto find_marker = [](aris::dynamic::Part* part,
+                          std::string_view name) -> aris::dynamic::Marker* {
+      auto found = std::find_if(
+          part->markerPool().begin(), part->markerPool().end(),
+          [name](const auto& marker) -> bool { return marker.name() == name; });
+      return found == part->markerPool().end() ? nullptr : &*found;
+    };
+
+    auto prt_m = find_part(interaction.prtNameM());
+    auto mak_i = find_marker(prt_m, interaction.makNameI());
+    auto prt_n = find_part(interaction.prtNameN());
+    auto mak_j = find_marker(prt_n, interaction.makNameJ());
+
+    interaction.setMakI(&*mak_i);
+    interaction.setMakJ(&*mak_j);
+  };
+  // 初始化一些重复使用的变量
+  auto& forcePool = model.forcePool();
+  auto& partPool = model.partPool();
+  Size testForceIdxOffset = forcePool.size();
+  Size n = preservedPairsIdx.size();
+  // Size testForceIdxOffset = 0;
+  const double fceValue = 10.0;
+  // 初始化结果容器
+  const Size cpiWidth = 6 * n;
+
+  for (Size i{0}; i < n; ++i) {
+    for (Size j{0}; j < 2; ++j) {
+      // add generalForce to forcePool() in Model and init
+      auto& fce = forcePool.add<aris::dynamic::GeneralForce>(
+          std::string("test_f" + j
+                          ? "b"
+                          : "a" + std::to_string(i + testForceIdxOffset)),
+          &partPool.at(prtIdVector[2 * i + j]).markerPool().at(0),
+          &partPool.at(model.ground().id()).markerPool().at(0));
+      fce.resetModel(&model);
+      fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
+      // force id 可以先不管
+      init_interaction(fce, &model);
+    }
+  }
+  // std::cout << aris::core::toXmlString(*modelPtr) << std::endl;
+
+  // 给力并计算质量矩阵
+  double testFce[3][3] = {{fceValue, 0, 0}, {0, fceValue, 0}, {0, 0, fceValue}};
+  // const double* gravityAs = modelPtr->environment().gravity();
+  for (Size iContact{0}, cpiLineIdx{0}; iContact < n; ++iContact) {
+    // 遍历行时不需要碰撞点到底是哪个 id_A or id_B
+    for (Size i2 = 0; i2 < 2; ++i2) {
+      for (Size idir = 0; idir < 3; ++idir) {
+        double fs[6];
+        sire::core::screw::s_fpm2fs(
+            testFce[idir], T_C_vec[preservedPairsIdx[iContact]].data(), fs);
+        auto& gf = dynamic_cast<aris::dynamic::GeneralForce&>(
+            forcePool.at(2 * iContact + i2 + testForceIdxOffset));
+        gf.setFce(fs);
+        if (model.forwardDynamics()) {
+          std::cout << "forward dynamic failed" << std::endl;
+        }
+        for (Size jContact{0}, cpiColIdx{0}; jContact < n; ++jContact) {
+          double ap_o[3]{0}, res[3]{0};
+          const double* contactPosition =
+              penetration_pairs[preservedPairsIdx[jContact]].p_WC.data();
+          std::array<double, 6> as;
+          for (Size j2 = 0; j2 < 2; ++j2) {
+            auto& prt = partPool[prtIdVector[2 * jContact + j2]];
+            prt.getAs(as.data());
+            aris::dynamic::s_as2ap(prt.vs(), as.data(), contactPosition, ap_o);
+            aris::dynamic::s_inv_pm_dot_v3(
+                T_C_vec[preservedPairsIdx[jContact]].data(), ap_o, res);
+            aris::dynamic::s_vs(3, accelExt + cpiColIdx, res);
+            aris::dynamic::s_nv(3, 1.0 / fceValue, res);
+            std::copy_n(res, 3,
+                        &invCpi[(6 * iContact + 3 * i2 + idir) * cpiWidth +
+                                jContact * 6 + 3 * j2]);
+            cpiColIdx += 3;
+          }
+        }
+        aris::dynamic::s_fill(1, 6, 0, const_cast<double*>(gf.fce()));
+        ++cpiLineIdx;  // 记录行数
+      }
+    }
+  }
+  for (Size i = 0; i < n * 2; ++i) {
+    forcePool.pop_back();
+  }
+}
+// clang-format off
+// 
+// 质量矩阵的格式，假设有 n 个碰撞点
+// I[num1][A|B][num2][A|B][x|y|z 1][x|y|z 2]
+// I: inertia; 
+// num1: idx of contact point which give force
+// A|B: contact force direction
+// num2: idx of influenced contact point
+// A|B: influenced contact point's of PrtA or PrtB
+// x|y|z 1: contact force 3 direction 
+// x|y|z 2: influenced contact point 3 direction
+//
+// eg: 第一个碰撞点的对PrtA切向x方向的接触力对各个碰撞点的接触杆件A/B的比值质量
+// [I1A1Axx I1A1Axy I1A1Axz I1A1Bxx I1A1Bxy I1A1Bxz ... I1AnAxx I1AnAxy I1AnAxz I1AnBxx I1AnBxy I1AnBxz]
+// [I1A1Ayx I1A1Ayy I1A1Ayz I1A1Byx I1A1Byy I1A1Byz ... I1AnAyx I1AnAyy I1AnAyz I1AnByx I1AnByy I1AnByz]
+// [I1A1Azx I1A1Azy I1A1Azz I1A1Bzx I1A1Bzy I1A1Bzz ... I1AnAzx I1AnAzy I1AnAzz I1AnBzx I1AnBzy I1AnBzz]
+// [I1B1Axx I1B1Axy I1B1Axz I1B1Bxx I1B1Bxy I1B1Bxz ... I1BnAxx I1BnAxy I1BnAxz I1BnBxx I1BnBxy I1BnBxz]
+// [I1B1Axy I1B1Ayy I1B1Ayz I1B1Byx I1B1Byy I1B1Byz ... I1BnAyx I1BnAyy I1BnAyz I1BnByx I1BnByy I1BnByz]
+// [I1B1Azx I1B1Azy I1B1Azz I1B1Bzx I1B1Bzy I1B1Bzz ... I1BnAzx I1BnAzy I1BnAzz I1BnBzx I1BnBzy I1BnBzz]
+// [   .       .       .       .       .       .    ...    .       .       .       .       .       .   ]
+// [   .       .       .       .       .       .    ...    .       .       .       .       .       .   ]
+// [InA1Axx InA1Axy InA1Axz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnBxx InAnBxy InAnBxz]
+// [InA1Ayx InA1Ayy InA1Ayz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnByx InAnByy InAnByz]
+// [InA1Azx InA1Azy InA1Azz InA1Bxx InA1Bxy InA1Bxz ... InAnAxx InAnAxy InAnAxz InAnBzx InAnBzy InAnBzz]
+// [InB1Axx InB1Axy InB1Axz InB1Bxx InB1Bxy InB1Bxz ... InBnAxx InBnAxy InBnAxz InBnBxx InBnBxy InBnBxz]
+// [InB1Ayx InB1Ayy InB1Ayz InB1Byx InB1Byy InB1Byz ... InBnAyx InBnAyy InBnAyz InBnByx InBnByy InBnByz]
+// [InB1Azx InB1Azy InB1Azz InB1Bzx InB1Bzy InB1Bzz ... InBnAzx InBnAzy InBnAzz InBnBzx InBnBzy InBnBzz] 6n x 6n
+//
+// 矩阵的零元和无限元代表的意思：
+// 零元：表示等式右边受到的力不会导致左边的某一特定接触点产生特定方向的加速度
+// 无限元：与零元的意义一致，也是无论右边受到怎么样的力左边都不会产生相应的加速度
+// 
+// 通过碰撞检测得到的碰撞点信息，碰撞点的位姿矩阵计算得到惯量矩阵
+// 通过 aris 拷贝过来的 init_interaction 来初始化重新加入的 fce
+// Step1：记录model的 fce 的active状态情况，并全部设置为 deactive
+// Step2: 遍历碰撞点，记录碰撞点的杆件的 vs 与 as
+// Step3: 循环给力，计算各个接触点杆件的反应，无反应记录为0而不是正无穷 f / m = a
+//
+// 质量矩阵在接触点处的微分方程
+// I a = F
+// 其中 I 的格式由上边的矩阵给出，由此，a 与 F 的格式如下（由对角线元素决定，并由非对角线元素验证）
+// a = [a1Ax a1Ay a1Az a1Bx a1By a1Bz ... anAx anAy anAz anBx anBy anBz]'; 6n x 1
+// F = [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]'; 6n x 1
+// 摩擦力对两个物体来说在同一坐标系下大小相同方向相反，分析力分解后对 x y 方向的切向加速度的影响，所以也是相减
+// 所以需要先对矩阵 I 求逆矩阵得到 a = I^-1 F
+// 并在对应项相减，得到基于接触模型的多点接触公式矩阵
+// a = [a1Ax-a1Bx a1Ay-a1By a1Az-a1Bz ... anAx-anBy anAx-anBy anAz-anBz]'; 3n x 1
+// F = I^-1 * [F1Ax F1Ay F1Az F1Bx F1By F1Bz ... FnAx FnAy FnAz FnBx FnBy FnBz]' 然后对应项目相减; 3n x 1
+// 
+// 方法一：使用当前时刻状态计算切向摩擦力大小，将切向摩擦力直接带入动力学，最后会成为法向平衡矩阵的外力项目，
+//        不需要将切向问题引入平衡矩阵，直接代入动力学应该会产生一致的效果。
+// 方法二：将切向问题与法向问题引入公式与大矩阵同时求解。
+// clang-format on
 auto cptInverseNormalCpiMatrix(
     aris::dynamic::Model& model,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -812,100 +1026,102 @@ auto cptInverseNormalCpiMatrix(
     forcePool.pop_back();
   }
 }
-auto cptInverseCpiMatrix(
-    aris::dynamic::Model& model,
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec,
-    const std::vector<sire::Size>& preservedPairsIdx,
-    const sire::PartId* prtIdVector, double* accelExt, double* invCpi) -> void {
-  auto init_interaction = [](aris::dynamic::Interaction& interaction,
-                             aris::dynamic::Model* m) -> void {
-    if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
-        interaction.makNameI().empty() && interaction.makNameJ().empty())
-      return;
+// auto cptInverseCpiMatrix(
+//     aris::dynamic::Model& model,
+//     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+//     const std::vector<std::array<double, 16>>& T_C_vec,
+//     const std::vector<sire::Size>& preservedPairsIdx,
+//     const sire::PartId* prtIdVector, double* accelExt, double* invCpi) ->
+//     void {
+//   auto init_interaction = [](aris::dynamic::Interaction& interaction,
+//                              aris::dynamic::Model* m) -> void {
+//     if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
+//         interaction.makNameI().empty() && interaction.makNameJ().empty())
+//       return;
 
-    auto find_part = [m](std::string_view name) -> aris::dynamic::Part* {
-      auto found = std::find_if(
-          m->partPool().begin(), m->partPool().end(),
-          [name](const auto& part) -> bool { return part.name() == name; });
-      return found == m->partPool().end() ? nullptr : &*found;
-    };
+//     auto find_part = [m](std::string_view name) -> aris::dynamic::Part* {
+//       auto found = std::find_if(
+//           m->partPool().begin(), m->partPool().end(),
+//           [name](const auto& part) -> bool { return part.name() == name; });
+//       return found == m->partPool().end() ? nullptr : &*found;
+//     };
 
-    auto find_marker = [](aris::dynamic::Part* part,
-                          std::string_view name) -> aris::dynamic::Marker* {
-      auto found = std::find_if(
-          part->markerPool().begin(), part->markerPool().end(),
-          [name](const auto& marker) -> bool { return marker.name() == name; });
-      return found == part->markerPool().end() ? nullptr : &*found;
-    };
+//     auto find_marker = [](aris::dynamic::Part* part,
+//                           std::string_view name) -> aris::dynamic::Marker* {
+//       auto found = std::find_if(
+//           part->markerPool().begin(), part->markerPool().end(),
+//           [name](const auto& marker) -> bool { return marker.name() == name;
+//           });
+//       return found == part->markerPool().end() ? nullptr : &*found;
+//     };
 
-    auto prt_m = find_part(interaction.prtNameM());
-    auto mak_i = find_marker(prt_m, interaction.makNameI());
-    auto prt_n = find_part(interaction.prtNameN());
-    auto mak_j = find_marker(prt_n, interaction.makNameJ());
+//     auto prt_m = find_part(interaction.prtNameM());
+//     auto mak_i = find_marker(prt_m, interaction.makNameI());
+//     auto prt_n = find_part(interaction.prtNameN());
+//     auto mak_j = find_marker(prt_n, interaction.makNameJ());
 
-    interaction.setMakI(&*mak_i);
-    interaction.setMakJ(&*mak_j);
-  };
-  // 初始化一些重复使用的变量
-  auto& forcePool = model.forcePool();
-  auto& partPool = model.partPool();
-  sire::Size testForceIdxOffset = forcePool.size();
+//     interaction.setMakI(&*mak_i);
+//     interaction.setMakJ(&*mak_j);
+//   };
+//   // 初始化一些重复使用的变量
+//   auto& forcePool = model.forcePool();
+//   auto& partPool = model.partPool();
+//   sire::Size testForceIdxOffset = forcePool.size();
 
-  const sire::Size n = preservedPairsIdx.size();
-  // 给力并计算质量矩阵
-  const double fceValue = 10.0;
-  double testFce[3] = {0, 0, fceValue};
-  for (Size i{0}; i < n; ++i) {
-    for (Size j{0}; j < 2; ++j) {
-      // add generalForce to forcePool() in Model and init
-      auto& fce = forcePool.add<aris::dynamic::GeneralForce>(
-          std::string("test_f" + j
-                          ? "b"
-                          : "a" + std::to_string(i + testForceIdxOffset)),
-          &partPool.at(prtIdVector[2 * i + j]).markerPool().at(0),
-          &partPool.at(model.ground().id()).markerPool().at(0));
-      fce.resetModel(&model);
-      fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
-      // force id 可以先不管
-      init_interaction(fce, &model);
-    }
-  }
-  for (Size iContact{0}, cpiLineIdx{0}; iContact < n; ++iContact) {
-    for (Size i2{0}; i2 < 2; ++i2) {
-      auto& gf = dynamic_cast<aris::dynamic::GeneralForce&>(
-          forcePool.at(2 * iContact + i2 + testForceIdxOffset));
-      double fs[6];
-      sire::core::screw::s_fpm2fs(
-          testFce, T_C_vec[preservedPairsIdx[iContact]].data(), fs);
-      gf.setFce(fs);
-      if (model.forwardDynamics())
-        std::cout << "forward dynamic failed" << std::endl;
+//   const sire::Size n = preservedPairsIdx.size();
+//   // 给力并计算质量矩阵
+//   const double fceValue = 10.0;
+//   double testFce[3] = {0, 0, fceValue};
+//   for (Size i{0}; i < n; ++i) {
+//     for (Size j{0}; j < 2; ++j) {
+//       // add generalForce to forcePool() in Model and init
+//       auto& fce = forcePool.add<aris::dynamic::GeneralForce>(
+//           std::string("test_f" + j
+//                           ? "b"
+//                           : "a" + std::to_string(i + testForceIdxOffset)),
+//           &partPool.at(prtIdVector[2 * i + j]).markerPool().at(0),
+//           &partPool.at(model.ground().id()).markerPool().at(0));
+//       fce.resetModel(&model);
+//       fce.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
+//       // force id 可以先不管
+//       init_interaction(fce, &model);
+//     }
+//   }
+//   for (Size iContact{0}, cpiLineIdx{0}; iContact < n; ++iContact) {
+//     for (Size i2{0}; i2 < 2; ++i2) {
+//       auto& gf = dynamic_cast<aris::dynamic::GeneralForce&>(
+//           forcePool.at(2 * iContact + i2 + testForceIdxOffset));
+//       double fs[6];
+//       sire::core::screw::s_fpm2fs(
+//           testFce, T_C_vec[preservedPairsIdx[iContact]].data(), fs);
+//       gf.setFce(fs);
+//       if (model.forwardDynamics())
+//         std::cout << "forward dynamic failed" << std::endl;
 
-      for (Size jContact{0}, cpiColIdx{0}; jContact < n; ++jContact) {
-        double ap_o[3]{0}, res[3]{0};
-        const double* contactPosition =
-            penetration_pairs[preservedPairsIdx[jContact]].p_WC.data();
-        std::array<double, 6> as;
-        for (Size j2 = 0; j2 < 2; ++j2) {
-          auto& prt = partPool[prtIdVector[2 * jContact + j2]];
-          prt.getAs(as.data());
-          aris::dynamic::s_as2ap(prt.vs(), as.data(), contactPosition, ap_o);
-          aris::dynamic::s_inv_pm_dot_v3(
-              T_C_vec[preservedPairsIdx[jContact]].data(), ap_o, res);
-          invCpi[cpiLineIdx * 2 * n + cpiColIdx] = core::screw::s_safe_div(
-              res[2] - accelExt[cpiColIdx], fceValue, 1e-4);
-          ++cpiColIdx;
-        }
-      }
-      aris::dynamic::s_fill(1, 6, 0, const_cast<double*>(gf.fce()));
-      ++cpiLineIdx;
-    }
-  }
-  for (sire::Size i{0}; i < 2 * n; ++i) {
-    forcePool.pop_back();
-  }
-}
+//       for (Size jContact{0}, cpiColIdx{0}; jContact < n; ++jContact) {
+//         double ap_o[3]{0}, res[3]{0};
+//         const double* contactPosition =
+//             penetration_pairs[preservedPairsIdx[jContact]].p_WC.data();
+//         std::array<double, 6> as;
+//         for (Size j2 = 0; j2 < 2; ++j2) {
+//           auto& prt = partPool[prtIdVector[2 * jContact + j2]];
+//           prt.getAs(as.data());
+//           aris::dynamic::s_as2ap(prt.vs(), as.data(), contactPosition, ap_o);
+//           aris::dynamic::s_inv_pm_dot_v3(
+//               T_C_vec[preservedPairsIdx[jContact]].data(), ap_o, res);
+//           invCpi[cpiLineIdx * 2 * n + cpiColIdx] = core::screw::s_safe_div(
+//               res[2] - accelExt[cpiColIdx], fceValue, 1e-4);
+//           ++cpiColIdx;
+//         }
+//       }
+//       aris::dynamic::s_fill(1, 6, 0, const_cast<double*>(gf.fce()));
+//       ++cpiLineIdx;
+//     }
+//   }
+//   for (sire::Size i{0}; i < 2 * n; ++i) {
+//     forcePool.pop_back();
+//   }
+// }
 auto cptCpiMatrix(
     aris::dynamic::Model& model,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -1061,28 +1277,28 @@ auto filterPairsAndPreprocessInfo(
     std::vector<sire::Size>& targetConditionIdx,
     std::vector<sire::PartId>& prtIdVector, std::vector<double>& accelExt,
     std::vector<double>& invCpiResult) -> void {
-  penetration_pairs.erase(
-      std::remove_if(
-          penetration_pairs.begin(), penetration_pairs.end(),
-          [&contactEnded](const common::PenetrationAsPointPair& p) {
-            return std::find_if(contactEnded.begin(), contactEnded.end(),
-                                [&p](const common::PenetrationAsPointPair& c) {
-                                  return p.compareById(c);
-                                }) != contactEnded.end();
-          }),
-      penetration_pairs.end());
-  // 如果觉得接触点要结束，那么也要把相应的初始穿深记录从表中删除
-  if (!contactEnded.empty()) {
-    core::ContactPairManager* managerPtr =
-        engine.simLoopPtr()->contactPairManager();
-    SIRE_ASSERT(managerPtr != nullptr);
-    auto& contactPairMap = managerPtr->contactPairMap();
-    // 遍历接触对，删除那些已经结束的接触对
-    for (const auto& pair : contactEnded) {
-      contactPairMap.erase(
-          core::SortedPair<sire::PartId>(pair.id_A, pair.id_B));
-    }
-  }
+  // penetration_pairs.erase(
+  //     std::remove_if(
+  //         penetration_pairs.begin(), penetration_pairs.end(),
+  //         [&contactEnded](const common::PenetrationAsPointPair& p) {
+  //           return std::find_if(contactEnded.begin(), contactEnded.end(),
+  //                               [&p](const common::PenetrationAsPointPair& c) {
+  //                                 return p.compareById(c);
+  //                               }) != contactEnded.end();
+  //         }),
+  //     penetration_pairs.end());
+  // // 如果觉得接触点要结束，那么也要把相应的初始穿深记录从表中删除
+  // if (!contactEnded.empty()) {
+  //   core::ContactPairManager* managerPtr =
+  //       engine.simLoopPtr()->contactPairManager();
+  //   SIRE_ASSERT(managerPtr != nullptr);
+  //   auto& contactPairMap = managerPtr->contactPairMap();
+  //   // 遍历接触对，删除那些已经结束的接触对
+  //   for (const auto& pair : contactEnded) {
+  //     contactPairMap.erase(
+  //         core::SortedPair<sire::PartId>(pair.id_A, pair.id_B));
+  //   }
+  // }
   for (sire::Size i{0}; i < contactNotEnd.size(); ++i) {
     auto& pair = contactNotEnd[i];
     if (auto& search =
@@ -1093,14 +1309,17 @@ auto filterPairsAndPreprocessInfo(
         search == penetration_pairs.end()) {
       // 不存在的接触对加入pairs计算
       pairsNeedModifiedIdx.push_back(penetration_pairs.size());
-      pair.depth = (pair.depth > 0) ? pair.depth : 1e-7;  // 确保不会被过滤掉
+      pair.depth = (pair.depth > 1e-8) ? pair.depth : 1e-7;  // 确保不会被过滤掉
       penetration_pairs.push_back(pair);
       targetConditionIdx.push_back(i);
     } else {
       pairsNeedModifiedIdx.push_back(
           std::distance(penetration_pairs.begin(), search));
       // 确保不会被过滤掉
-      pair.depth = (pair.depth > 0) ? pair.depth : 1e-7;  // 确保不会被过滤掉
+      // 修改search的penetration_pairs的depth，随便给一个大于零的，
+      // 防止被筛掉，状态已经在别处记录了
+      search->depth = (search->depth > 1e-8) ? search->depth : 1e-7;
+      // pair.depth = (pair.depth > 0) ? pair.depth : 1e-7;  // 确保不会被过滤掉
       targetConditionIdx.push_back(i);
     }
   }
@@ -1112,10 +1331,9 @@ auto filterPairsAndPreprocessInfo(
       // 如果穿透深度小于0，说明接触点已经分离
       shouldFilter = true;
     }
-    if (std::abs(penetration_pairs[i].depth) < 1e-7) {
+    if (std::abs(penetration_pairs[i].depth) < 1e-8) {
       std::array<double, 3> v_contact;
-      engine.cptContactVelocityB2A(penetration_pairs[i],
-                                   T_C_vec[i], v_contact);
+      engine.cptContactVelocityB2A(penetration_pairs[i], T_C_vec[i], v_contact);
       if (v_contact[2] >= 0) {
         // 接触点的法向速度大于0，说明接触点正要分离
         shouldFilter = true;
@@ -1232,10 +1450,38 @@ auto ContactPositionForceSolver::debugByRecords() -> void {
   // std::cout << "records: " << imp_->records.dump(2) << std::endl;
   file << imp_->records.dump(2);
 }
-// Using prevResult of fn to cpt tangent force.
-// FIXME: 有很大的问题，在足式机器人仿真中，脚尖触地则出现fn超级大的情况，
-//        具体原因不明
-// use current fn for tangent force calculation
+
+auto cptNormalContactForceByX0X1t(
+    Size n, const double* x0, const double* x1t,
+    Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd>& cod,
+    const double* b, double minTime, double stiffScale,
+    std::vector<double>& contactPosFce, std::vector<double>& contactVelFce)
+    -> void {
+  // 使用目标位置计算接触力
+  std::vector<double> temp1(x1t, x1t + n);
+  aris::dynamic::s_vs(n, x0, temp1.data());
+  aris::dynamic::s_nv(n, stiffScale / minTime, temp1.data());
+  aris::dynamic::s_vs(n, x0 + n, temp1.data());
+  aris::dynamic::s_nv(n, 1 / minTime, temp1.data());
+  aris::dynamic::s_vs(n, b + n, temp1.data());
+  DLOG(DEBUG) << "a0Post: " << temp1;
+  Eigen::VectorXd a0tVec =
+      Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp1.data()), n);
+  Eigen::VectorXd contactPosForce = cod.solve(a0tVec);
+  contactPosFce.assign(contactPosForce.data(),
+                       contactPosForce.data() + contactPosForce.size());
+  // 使用目标速度计算接触力
+  std::vector<double> temp2(x1t + n, x1t + 2 * n);
+  aris::dynamic::s_vs(n, x0 + n, temp2.data());
+  aris::dynamic::s_nv(n, 1 / minTime, temp2.data());
+  aris::dynamic::s_vs(n, b + n, temp2.data());
+  DLOG(DEBUG) << "a0Velt: " << temp2;
+  Eigen::VectorXd a0VeltVec =
+      Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp2.data()), n);
+  Eigen::VectorXd contactVelForce = cod.solve(a0VeltVec);
+  contactVelFce.assign(contactVelForce.data(),
+                       contactVelForce.data() + contactVelForce.size());
+}
 auto ContactPositionForceSolver::cptContactSolverResult(
     const aris::dynamic::Model* current_state,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -1289,7 +1535,7 @@ auto ContactPositionForceSolver::cptContactSolverResult(
       *enginePtr, *(imp_->material_manager_), penetration_pairs, T_C_vec,
       preservedPairsIdx, stiffness.data(), damping.data(), x0.data(),
       v0.data());
-  DLOG(DEBUG) << "Real x0: " << x0;
+  std::vector<double> realX0(x0);
   nlohmann::json realContactCptInfo;
   for (sire::Size i{0}; i < preservedPairsIdx.size(); ++i) {
     nlohmann::json contactCptInfo;
@@ -1382,7 +1628,7 @@ auto ContactPositionForceSolver::cptContactSolverResult(
   }
   DLOG(DEBUG) << imp_->contactNotEnd.size() << " contact(s) not end, "
               << "with condition: " << imp_->contactNotEndCondition;
-  DLOG(DEBUG) << "x1t: " << x1t;
+  // DLOG(DEBUG) << "x1t: " << x1t;
   for (auto& pair : imp_->contactEnded) {
     DLOG(DEBUG) << "Ended id: " << pair.id_A << " " << pair.id_B
                 << " depth: " << pair.depth;
@@ -1398,54 +1644,79 @@ auto ContactPositionForceSolver::cptContactSolverResult(
           invCpi[2 * i * n2 + j * 2 + 1] + invCpi[(2 * i + 1) * n2 + j * 2];
     }
   }
+
+  // std::vector<double> temp1(x1t.data(), x1t.data() + n);
+  // aris::dynamic::s_vs(n, x0.data(), temp1.data());
+  // aris::dynamic::s_nv(n, stiffScale / minTime, temp1.data());
+  // aris::dynamic::s_vs(n, x0.data() + n, temp1.data());
+  // aris::dynamic::s_nv(n, 1 / minTime, temp1.data());
+  // aris::dynamic::s_vs(n, b.data() + n, temp1.data());
+  // DLOG(DEBUG) << "a0Post: " << temp1;
+  // Eigen::MatrixXd invMMat =
+  //     Eigen::Map<Eigen::MatrixXd>(const_cast<double*>(invM.data()), n, n);
+  // Eigen::VectorXd a0tVec =
+  //     Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp1.data()), n);
+  // Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd> cod(invMMat);
+  // Eigen::VectorXd contactPosForce = cod.solve(a0tVec);
+  // std::vector<double> contactPosFce(
+  //     contactPosForce.data(), contactPosForce.data() +
+  //     contactPosForce.size());
+  // // 使用目标速度计算接触力
+  // std::vector<double> temp2(x1t.data() + n, x1t.data() + n2);
+  // aris::dynamic::s_vs(n, x0.data() + n, temp2.data());
+  // aris::dynamic::s_nv(n, 1 / minTime, temp2.data());
+  // aris::dynamic::s_vs(n, b.data() + n, temp2.data());
+  // DLOG(DEBUG) << "a0Velt: " << temp2;
+  // Eigen::VectorXd a0VeltVec =
+  //     Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp2.data()), n);
+  // Eigen::VectorXd contactVelForce = cod.solve(a0VeltVec);
+  // std::vector<double> contactVelFce(
+  //     contactVelForce.data(), contactVelForce.data() +
+  //     contactVelForce.size());
+  // 使用平均力计算接触力
   // 使用目标位置计算接触力
-  std::vector<double> temp1(x1t.data(), x1t.data() + n);
-  aris::dynamic::s_vs(n, x0.data(), temp1.data());
-  aris::dynamic::s_nv(n, stiffScale / minTime, temp1.data());
-  aris::dynamic::s_vs(n, x0.data() + n, temp1.data());
-  aris::dynamic::s_nv(n, 1 / minTime, temp1.data());
-  aris::dynamic::s_vs(n, b.data() + n, temp1.data());
-  DLOG(DEBUG) << "a0Post: " << temp1;
   Eigen::MatrixXd invMMat =
       Eigen::Map<Eigen::MatrixXd>(const_cast<double*>(invM.data()), n, n);
-  Eigen::VectorXd a0tVec =
-      Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp1.data()), n);
   Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd> cod(invMMat);
-  Eigen::VectorXd contactPosForce = cod.solve(a0tVec);
-  std::vector<double> contactPosFce(
-      contactPosForce.data(), contactPosForce.data() + contactPosForce.size());
-  // 使用目标速度计算接触力
-  std::vector<double> temp2(x1t.data() + n, x1t.data() + n2);
-  aris::dynamic::s_vs(n, x0.data() + n, temp2.data());
-  aris::dynamic::s_nv(n, 1 / minTime, temp2.data());
-  aris::dynamic::s_vs(n, b.data() + n, temp2.data());
-  DLOG(DEBUG) << "a0Velt: " << temp2;
-  Eigen::VectorXd a0VeltVec =
-      Eigen::Map<Eigen::VectorXd>(const_cast<double*>(temp2.data()), n);
-  Eigen::VectorXd contactVelForce = cod.solve(a0VeltVec);
-  std::vector<double> contactVelFce(
-      contactVelForce.data(), contactVelForce.data() + contactVelForce.size());
-  // 使用平均力计算接触力
+  std::vector<double> contactPosFce(n), contactVelFce(n);
+  cptNormalContactForceByX0X1t(n, x0.data(), x1t.data(), cod, b.data(), minTime,
+                               stiffScale, contactPosFce, contactVelFce);
   std::vector<double> avgFce(n);
   cptAvgContactFce(n, A.data(), b.data(), x0.data(), 0, minTime,
                    stiffness.data(), damping.data(), avgFce.data());
-  DLOG(DEBUG) << "Contact position force: " << contactPosFce
+  DLOG(DEBUG) << "(modified x0) Contact position force: " << contactPosFce
               << " Contact veclocity force: " << contactVelFce
               << " avgFce: " << avgFce;
+
+  DLOG(DEBUG) << "Real x0: " << realX0;
+  std::vector<double> contactPosFce2(n), contactVelFce2(n);
+  cptNormalContactForceByX0X1t(n, realX0.data(), x1t.data(), cod, b.data(),
+                               minTime, stiffScale, contactPosFce2,
+                               contactVelFce2);
+  DLOG(DEBUG) << "(real x0) Contact position force: " << contactPosFce2
+              << " Contact veclocity force: " << contactVelFce2;
   for (sire::Size i{0}; i < n; ++i) {
     sire::Size idx = preservedPairsIdx[i];
     const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
-    result.fn[idx] = contactVelFce[i];
+    // 用pos可能会有问题，因为在平衡状态下，速度可能没有被抵消，
+    // 后续可能要综合pos 和 vel，给velFce加上一个pos的约束稳定项
+    result.fn[idx] = contactPosFce2[i];
   }
-
-  for (sire::Size i{0}; i < n; ++i) {
+  std::vector<double> ftVec(n2 * 2, 0);
+  for (sire::Size i{0}, ftIdx{0}; i < n; ++i) {
     sire::Size idx = preservedPairsIdx[i];
     double* v_contact = v0.data() + 3 * i;
     double vt = aris::dynamic::s_norm(2, v_contact);
-    double zero_check = 1e-5;
+    double zero_check = 1e-7;
     if (vt < zero_check) {
       result.ft[2 * idx] = 0;
       result.ft[2 * idx + 1] = 0;
+      ftVec[ftIdx] = 0;
+      ftVec[ftIdx + 1] = 0;
+      ftIdx += 2;
+      ftVec[ftIdx] = 0;
+      ftVec[ftIdx + 1] = 0;
+      ftIdx += 2;
     } else {
       auto safe_div = [](double number, double denominator, double zero_check,
                          double err_set) -> double {
@@ -1476,23 +1747,117 @@ auto ContactPositionForceSolver::cptContactSolverResult(
                            safe_div(t1, t2, zero_check, 0.0);
       result.ft[2 * idx + 1] = -1 * aris::dynamic::s_sgn(v_contact[1]) * ft *
                                safe_div(1, t2, zero_check, 0.0);
+      ftVec[ftIdx] = -result.ft[2 * idx];
+      ftVec[ftIdx + 1] = -result.ft[2 * idx + 1];
+      ftIdx += 2;
+      ftVec[ftIdx] = result.ft[2 * idx];
+      ftVec[ftIdx + 1] = result.ft[2 * idx + 1];
+      ftIdx += 2;
     }
   }
-  for (sire::Size i{0}; i < n; ++i) {
-    sire::Size idx = preservedPairsIdx[i];
-    result.ft[2 * idx] = 0;
-    result.ft[2 * idx + 1] = 0;
+  std::vector<double> allAccelExt(6 * n, 0);
+  enginePtr->activateContactForce(false);
+  // 在禁用接触力的情况下，需要重新求解动力学，而不能直接用相应的杆件加速度信息
+  // 首先验证杆件的接触力被正确禁用，保留电机力
+  // std::cout << aris::core::toXmlString(modelPtr->forcePool()) << std::endl;
+  cptAllAccelExtVector(*modelPtr, penetration_pairs, T_C_vec, preservedPairsIdx,
+                       prtIdVector.data(), allAccelExt.data());
+  // aris::dynamic::dsp(1, 6 * n, allAccelExt.data());
+
+  std::vector<double> allInvCpiResult(36 * n * n, 0);
+  cptInverseCpiMatrix(*modelPtr, penetration_pairs, T_C_vec, preservedPairsIdx,
+                      prtIdVector.data(), allAccelExt.data(),
+                      allInvCpiResult.data());
+  // aris::dynamic::dsp(6 * n, 6 * n, allInvCpiResult.data());
+  enginePtr->activateContactForce(true);
+  std::vector<double> tangent2NormalInvCpi(8 * n * n, 0);
+  for (Size i{0}; i < n2; ++i) {
+    for (Size j{0}; j < n2; ++j) {
+      // 选3i行去掉3j列
+      tangent2NormalInvCpi[i * n2 * 2 + 2 * j] =
+          allInvCpiResult[(3 * i + 2) * 6 * n + 3 * j];
+      tangent2NormalInvCpi[i * n2 * 2 + 2 * j + 1] =
+          allInvCpiResult[(3 * i + 2) * 6 * n + 3 * j + 1];
+    }
   }
+  std::vector<double> deltaAllA(n2, 0), deltaA(n, 0);  // normal accel patch
+  aris::dynamic::s_mm(n2, 1, n2 * 2, tangent2NormalInvCpi.data(), ftVec.data(),
+                      deltaAllA.data());
+  // aris::dynamic::dsp(1, n2, deltaAllA.data());
+  for (Size i{0}; i < n; ++i) {
+    deltaA[i] = deltaAllA[2 * i] - deltaAllA[2 * i + 1];
+  }
+  DLOG(DEBUG) << "deltaA: " << deltaA;
+  Eigen::VectorXd deltaAVec =
+      Eigen::Map<Eigen::VectorXd>(const_cast<double*>(deltaA.data()), n);
+  Eigen::VectorXd deltaNormalForce = cod.solve(deltaAVec);
+  std::vector<double> deltaNormalFce(
+      deltaNormalForce.data(),
+      deltaNormalForce.data() + deltaNormalForce.size());
+  // for (sire::Size i{0}; i < n; ++i) {
+  //   sire::Size idx = preservedPairsIdx[i];
+  //   DLOG(DEBUG) << "original id: " << penetration_pairs[idx].id_A << " "
+  //               << penetration_pairs[idx].id_B << " v_contact " << v0[3 * i]
+  //               << " " << v0[3 * i + 1] << " ft1: " << result.ft[2 * i]
+  //               << " ft2: " << result.ft[2 * i + 1] << " fn: " <<
+  //               result.fn[idx]
+  //               << " depth: " << penetration_pairs[idx].depth
+  //               << " pos: " << penetration_pairs[idx].p_WC.transpose()
+  //               << " n1: " << penetration_pairs[idx].p_WCa.transpose()
+  //               << " n2: " << penetration_pairs[idx].p_WCb.transpose();
+  // }
+  DLOG(DEBUG) << "deltaNormalFce: " << deltaNormalFce;
   for (sire::Size i{0}; i < n; ++i) {
     sire::Size idx = preservedPairsIdx[i];
+    const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
+    result.fn[idx] -= deltaNormalFce[i];
+  }
+  // 验算：通过 ✔
+  // std::vector<double> fc(6 * n, 0), accelAllDir(6 * n, 0), accelAfter(n, 0);
+  // for (Size i{0}; i < n; ++i) {
+  //   fc[i * 6] = ftVec[4 * i];
+  //   fc[i * 6 + 1] = ftVec[4 * i + 1];
+  //   fc[i * 6 + 2] = -contactVelFce2[i] + deltaNormalFce[i];
+  //   fc[i * 6 + 3] = ftVec[4 * i + 2];
+  //   fc[i * 6 + 4] = ftVec[4 * i + 3];
+  //   fc[i * 6 + 5] = contactVelFce2[i] - deltaNormalFce[i];
+  // }
+  // aris::dynamic::s_mm(6 * n, 1, 6 * n, allInvCpiResult.data(), fc.data(),
+  //                     accelAllDir.data());
+  // for (Size i{0}; i < n; ++i) {
+  //   accelAfter[i] = accelAllDir[6 * i + 2] - accelAllDir[6 * i + 5];
+  // }
+  // std::vector<double> accelBefore(n, 0);
+  // aris::dynamic::s_mm(n, 1, n, invM.data(), contactVelFce2.data(),
+  //                     accelBefore.data());
+  // SIRE_ASSERT(aris::dynamic::s_is_equal(n, accelBefore.data(),
+  //                                       accelAfter.data(), 1e-6));
+  // DLOG(DEBUG) << "accelAfter: " << accelAfter;
+  // aris::dynamic::dsp(1, n, accelBefore.data());
+  // aris::dynamic::dsp(1, n, accelAfter.data());
+
+  // 从6n 6n 中选出2n *
+  // 4n的矩阵，只要3i行，去掉切向列，然后扩展ft为4n大小，包含两个碰撞物体的正负摩擦力
+  // for (sire::Size i{0}; i < n; ++i) {
+  //   sire::Size idx = preservedPairsIdx[i];
+  //   result.ft[2 * idx] = 0;
+  //   result.ft[2 * idx + 1] = 0;
+  // }
+
+  for (sire::Size i{0}; i < n; ++i) {
+    sire::Size idx = preservedPairsIdx[i];
+    double v_contact[3] = {v0[3 * i], v0[3 * i + 1], v0[3 * i + 2]};
+    double f_contact[3] = {result.ft[2 * idx], result.ft[2 * idx + 1],
+                           result.fn[idx]};
+    std::vector<double> vWorld(3, 0), fWorld(3, 0);
+    aris::dynamic::s_pm_dot_v3(T_C_vec[idx].data(), v_contact, vWorld.data());
+    aris::dynamic::s_pm_dot_v3(T_C_vec[idx].data(), f_contact, fWorld.data());
     DLOG(DEBUG) << "id: " << penetration_pairs[idx].id_A << " "
-                << penetration_pairs[idx].id_B << " v_contact " << v0[3 * i]
-                << " " << v0[3 * i + 1] << " ft1: " << result.ft[2 * i]
-                << " ft2: " << result.ft[2 * i + 1] << " fn: " << result.fn[idx]
+                << penetration_pairs[idx].id_B << " vWorld " << vWorld
+                << " fWorld: " << fWorld
                 << " depth: " << penetration_pairs[idx].depth
                 << " pos: " << penetration_pairs[idx].p_WC.transpose()
-                << " n1: " << penetration_pairs[idx].p_WCa.transpose()
-                << " n2: " << penetration_pairs[idx].p_WCb.transpose();
+                << " n1: " << penetration_pairs[idx].p_WCa.transpose();
   }
 }
 

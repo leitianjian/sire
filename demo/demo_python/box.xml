@@ -18,7 +18,7 @@
 					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{100, 100, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="L1" active="true" pe="{0,0,10,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
+			<Part name="L1" active="true" pe="{0,0,0.6,0,0,0}" vel="{3,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="box_center" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>
@@ -80,7 +80,7 @@
 		<SireHttpInterface name="http_interface" document_root="D:\code\sire\web_interface\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="-1" sim_duration="5" global_variable_pool="{}">
+		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="-1" sim_duration="15" global_variable_pool="{}">
 			<EventManager __prop_name__="event_manager">
 				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
 					<EventHandlerIdPair event_id="0" handler_id="6"/>

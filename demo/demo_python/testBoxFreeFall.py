@@ -102,7 +102,7 @@ if __name__ == "__main__":
   from os.path import abspath
   import os
   cs = sire.ControlServer.instance()
-  sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/box.xml')
+  sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/box2.xml')
   cs.init()
   
   simulator = sire.simulator(cs)

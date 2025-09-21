@@ -67,6 +67,15 @@ auto EventManager::init(simulator::SimulationLoop* simulationLoopPtr) -> void {
   SIRE_ASSERT(simulationLoopPtr != nullptr);
   imp_->simulationLoopPtr_ = simulationLoopPtr;
 }
+
+auto EventManager::eventHandlerMap() -> std::map<sire::Size, sire::Size>& {
+  return imp_->event_handler_map_;
+}
+auto EventManager::addEventHandlerRule(sire::core::EventId name1,
+                                       sire::core::HandlerId name2) -> void {
+  imp_->event_handler_map_[name1] = name2;
+}
+
 auto EventManager::resetEventHandlerPairPool(
     aris::core::PointerArray<EventHandlerIdPair>* pool) -> void {
   for (auto& id_pair : *pool) {

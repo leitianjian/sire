@@ -20,6 +20,7 @@ using json = nlohmann::json;
 class BoxGeometry : public GeometryOnPart {
  public:
   BoxShape boxShape;
+  auto virtual shape() -> ShapeBase* override { return &boxShape; };
   explicit BoxGeometry(double x = 0.1, double y = 0.1, double z = 0.1,
                        const double* prt_pm = nullptr);
   virtual ~BoxGeometry();

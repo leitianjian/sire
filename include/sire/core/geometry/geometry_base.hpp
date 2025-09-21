@@ -8,6 +8,7 @@
 #include <aris/dynamic/model_coordinate.hpp>
 
 #include "sire/core/constants.hpp"
+#include "sire/core/geometry/shape_base.hpp"
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/ext/json.hpp"
 
@@ -33,6 +34,7 @@ class GeometryBase : public aris::dynamic::Geometry {
  public:
   auto geometryId() const -> GeometryId;
   auto setGeometryId(GeometryId id) -> void;
+  auto virtual shape() -> ShapeBase* { return nullptr; };
   auto pm() const -> const aris::dynamic::double4x4&;
   auto setPm(const double* pm_in) -> void;
   explicit GeometryBase(const double* pm_in = sire::default_pm);

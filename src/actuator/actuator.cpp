@@ -44,6 +44,9 @@ auto ActuatorSISO::kd() -> double { return imp_->kd_; }
 auto ActuatorSISO::setDesiredValue(double dv) -> void {
   imp_->desiredValue_ = dv;
 }
+auto ActuatorSISO::desiredValue() -> double {
+  return imp_->desiredValue_;
+}
 auto ActuatorSISO::cptOutput(double input) -> double {
   // double force = -500 * (mp()) - 10 * mv();
   double force = imp_->kp_ * input - imp_->kd_ * mv();

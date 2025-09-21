@@ -29,17 +29,20 @@ auto BoxCollisionGeometry::init() -> void {
        partPm()[1][0], partPm()[1][1], partPm()[1][2], partPm()[2][0],
        partPm()[2][1], partPm()[2][2])
           .finished(),
-      (Vec3s() << partPm()[0][3], partPm()[1][3], partPm()[2][3])
-          .finished());
+      (Vec3s() << partPm()[0][3], partPm()[1][3], partPm()[2][3]).finished());
   // std::array<double, 3> temp = side();
   resetCollisionObject(new CollisionObject(
       make_shared<Box>(boxShape.side()[0], boxShape.side()[1],
-                            boxShape.side()[2]),
+                       boxShape.side()[2]),
       trans));
 }
 BoxCollisionGeometry::BoxCollisionGeometry(double x, double y, double z,
-                                           const double* prt_pm)
-    : CollidableGeometry(prt_pm), boxShape(x, y, z) {}
+                                           int part_id, bool is_dynamic,
+                                           const double* prt_pm,
+                                           const std::string& material,
+                                           const std::string& propStr)
+    : CollidableGeometry(prt_pm, part_id, is_dynamic, material, propStr),
+      boxShape(x, y, z) {}
 BoxCollisionGeometry::~BoxCollisionGeometry() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(BoxCollisionGeometry)
 

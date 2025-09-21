@@ -129,17 +129,17 @@
             </Part>
         </PartPoolElement>
         <MotionPoolElement __prop_name__="motion_pool">
-            <Actuator name="actuator_0" active="true"  kp="100" kd="2" prt_m="base" prt_n="FL_hip" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_1" active="true"  kp="100" kd="2" prt_m="FL_hip" prt_n="FL_thigh" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_2" active="true"  kp="100" kd="2" prt_m="FL_thigh" prt_n="FL_calf" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0}" mp="{-0.916}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_3" active="true"  kp="100" kd="2" prt_m="base" prt_n="FR_hip" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_4" active="true"  kp="100" kd="2" prt_m="FR_hip" prt_n="FR_thigh" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_5" active="true"  kp="100" kd="2" prt_m="FR_thigh" prt_n="FR_calf" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0}" mp="{-0.916}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_6" active="true"  kp="100" kd="2" prt_m="base" prt_n="RL_hip" mak_i="joint_6_i" mak_j="joint_6_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_7" active="true"  kp="100" kd="2" prt_m="RL_hip" prt_n="RL_thigh" mak_i="joint_7_i" mak_j="joint_7_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_0" active="true"  kp="50" kd="2" prt_m="base" prt_n="FL_hip" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_1" active="true"  kp="50" kd="2" prt_m="FL_hip" prt_n="FL_thigh" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_2" active="true"  kp="30" kd="1" prt_m="FL_thigh" prt_n="FL_calf" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0}" mp="{-0.916}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_3" active="true"  kp="50" kd="2" prt_m="base" prt_n="FR_hip" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_4" active="true"  kp="50" kd="2" prt_m="FR_hip" prt_n="FR_thigh" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_5" active="true"  kp="30" kd="1" prt_m="FR_thigh" prt_n="FR_calf" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0}" mp="{-0.916}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_6" active="true"  kp="50" kd="2" prt_m="base" prt_n="RL_hip" mak_i="joint_6_i" mak_j="joint_6_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_7" active="true"  kp="50" kd="2" prt_m="RL_hip" prt_n="RL_thigh" mak_i="joint_7_i" mak_j="joint_7_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
             <Actuator name="actuator_8" active="true"  kp="100" kd="2" prt_m="RL_thigh" prt_n="RL_calf" mak_i="joint_8_i" mak_j="joint_8_j" cf="{0}" mp="{-0.916}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_9" active="true"  kp="100" kd="2" prt_m="base" prt_n="RR_hip" mak_i="joint_9_i" mak_j="joint_9_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
-            <Actuator name="actuator_10" active="true" kp="100" kd="2" prt_m="RR_hip" prt_n="RR_thigh" mak_i="joint_10_i" mak_j="joint_10_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_9" active="true"  kp="50" kd="2" prt_m="base" prt_n="RR_hip" mak_i="joint_9_i" mak_j="joint_9_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+            <Actuator name="actuator_10" active="true" kp="50" kd="2" prt_m="RR_hip" prt_n="RR_thigh" mak_i="joint_10_i" mak_j="joint_10_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
             <Actuator name="actuator_11" active="true" kp="100" kd="2" prt_m="RR_thigh" prt_n="RR_calf" mak_i="joint_11_i" mak_j="joint_11_j" cf="{0}" mp="{-0.916}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
         </MotionPoolElement>
         <JointPoolElement __prop_name__="joint_pool">
@@ -220,7 +220,7 @@
         <SireHttpInterface name="http_interface" document_root="D:/code/sire/web_interface/build" port="8001"/>
     </InterfacePoolObject>
     <SireMiddleware __prop_name__="middle_ware">
-        <SimulationLoop __prop_name__="simulation_loop" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="2" global_variable_pool="{}">
+        <SimulationLoop __prop_name__="simulation_loop" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="3" global_variable_pool="{}">
             <EventManager __prop_name__="event_manager">
                 <EventHandlerPairPool __prop_name__="event_handler_pair_pool">
                     <EventHandlerIdPair event_id="0" handler_id="6"/>
@@ -235,7 +235,7 @@
             <ContactPositionForceSolver __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
                 <MaterialManager __prop_name__="material_manager" default_prop="{k:140000000,d:1000,cr:1}">
                     <MaterialPairPropPool __prop_name__="material_pair_prop_pool">
-                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:10000,cr:0.4,cof:0.5,threshold_velocity:1e-1}"/>
+                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:10000,cr:0.3,cof:0.8,threshold_velocity:1e-4}"/>
                     </MaterialPairPropPool>
                 </MaterialManager>
             </ContactPositionForceSolver>

@@ -30,7 +30,10 @@ class MeshCollisionGeometry : public CollidableGeometry {
   auto setScale(const double* scale) -> void;
   auto init() -> void override;
   explicit MeshCollisionGeometry(const string& resource_path = "",
-                                 const double* prt_pm = nullptr);
+                                 int part_id = 0, bool is_dynamic = false,
+                                 const double* prt_pm = nullptr,
+                                 const std::string& material = "m1",
+                                 const std::string& propStr = "{}");
   virtual ~MeshCollisionGeometry();
   SIRE_DECLARE_MOVE_CTOR(MeshCollisionGeometry);
   // 类内部使用的to_json from_json的声明

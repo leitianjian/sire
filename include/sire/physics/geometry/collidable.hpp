@@ -28,7 +28,9 @@ class SIRE_API Collidable {
   auto resetCollisionObject(CollisionObject* object) -> void;
   auto setContactProp(const core::PropMap& map) -> void;
   auto setContactProp(core::PropMap& map) -> void;
+  auto setContactProp(std::string& propString) -> void;
   auto contactProp() const -> const core::PropMap&;
+  auto contactPropStr() const -> std::string;
   auto contactProp() -> core::PropMap& {
     return const_cast<core::PropMap&>(
         static_cast<const Collidable&>(*this).contactProp());
@@ -37,7 +39,7 @@ class SIRE_API Collidable {
   auto setMaterial(const std::string& material) -> void;
   auto virtual updateLocation(const double* pm) -> void = 0;
   auto virtual init() -> void = 0;
-  explicit Collidable();
+  explicit Collidable(const std::string& material = "m1", const std::string& propStr = "{}");
   virtual ~Collidable();
   SIRE_DECLARE_MOVE_CTOR(Collidable);
 

@@ -18,6 +18,7 @@ using namespace std;
 class MeshGeometry : public GeometryOnPart {
  public:
   MeshShape meshShape;
+  auto virtual shape() -> ShapeBase* override { return &meshShape; };
   explicit MeshGeometry(string resource_path = "");
   virtual ~MeshGeometry();
   ARIS_DECLARE_BIG_FOUR(MeshGeometry)

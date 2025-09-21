@@ -47,6 +47,9 @@ class SIRE_API EventManager {
   auto getHandlerIdByEventId(sire::Size event_id) -> sire::Size;
   auto getEventIdByTriggerId(sire::Size trigger_id) -> sire::Size;
   auto headerNextEvent(sire::Size n) -> void;
+  auto addEventHandlerRule(sire::core::EventId name1,
+                           sire::core::HandlerId name2) -> void;
+  auto eventHandlerMap() -> std::map<sire::Size, sire::Size>&;
   //   auto addImmediateTrigger(std::unique_ptr<core::TriggerBase> trigger) ->
   //   void; auto addPeriodicTrigger(std::unique_ptr<core::TriggerBase> trigger)
   //   -> void {};

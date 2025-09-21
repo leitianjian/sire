@@ -40,6 +40,20 @@ class SIRE_API MaterialPairProp {
         second_material_name(p.second()),
         material_name_pair_(p),
         material_prop_(m) {}
+  MaterialPairProp(const std::string& name1, const std::string& name2,
+                   const core::PropMap& m)
+      : material_name_pair_(SortedPair<std::string>(name1, name2)),
+        material_prop_(m) {
+    first_material_name = material_name_pair_.first();
+    second_material_name = material_name_pair_.second();
+  }
+  MaterialPairProp(const std::string& name1, const std::string& name2,
+                   const std::string& prop_str)
+      : material_name_pair_(SortedPair<std::string>(name1, name2)),
+        material_prop_(prop_str) {
+    first_material_name = material_name_pair_.first();
+    second_material_name = material_name_pair_.second();
+  }
   MaterialPairProp() = default;
 
  private:

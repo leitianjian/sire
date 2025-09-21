@@ -22,7 +22,7 @@ SireMiddleware::SireMiddleware(SireMiddleware&& other) = default;
 SireMiddleware& SireMiddleware::operator=(SireMiddleware&& other) = default;
 
 auto SireMiddleware::init() -> void {
-  imp_->physics_engine_->init(&this->simulationLoop());
+  imp_->physics_engine_->init(this);
   imp_->simulator_modules_->init(this);
   imp_->simulator_->init(this);
 }

@@ -51,7 +51,8 @@ class MJCFtoSIREConverter:
         print(f"成功加载 MJCF 模型: {self.model.model}")
         
         # 递归计算所有杆件的绝对位姿
-        self._compute_body_absolute_poses(self.model.worldbody.body[0], 
+        for i in range(len(self.model.worldbody.body)):
+            self._compute_body_absolute_poses(self.model.worldbody.body[i], 
                                          np.zeros(3), 
                                          np.array([1, 0, 0, 0]))
     
@@ -111,9 +112,10 @@ class MJCFtoSIREConverter:
         
         return abs_pos, np.array(abs_quat)
     
-    def convert_to_sire(self):
-        self.sire_model.ground().addMarker("joint_0_k");
-        self.sire_model.ground().addMarker("ground_marker");
+    def convert_to_sire(self, gravity=[0, 0, -9.81, 0, 0, 0]):
+        self.sire_model.ground().addMarker("joint_0_k")
+        self.sire_model.ground().addMarker("ground_marker")
+        self.sire_model.setGravity(gravity)
         """将 MJCF 结构转换为 SIRE 格式"""
         if not self.model:
             raise RuntimeError("请先加载 MJCF 文件")
@@ -158,11 +160,12 @@ class MJCFtoSIREConverter:
             else: # fullinertia
                 link_iv[4:10] = [float(x) for x in inertial.fullinertia]
             partIv = sire.iv2iv(inertialTF.as_matrix().flatten(), link_iv)
-
         abs_pose = self.body_abs_poses.get(body.name, {'pos': np.zeros(3), 'quat': np.array([1, 0, 0, 0])})
-        
         # 转换位姿为 SIRE 格式 (位置 + 欧拉角)
+        # quat 全部是零转换成313的欧拉角会报如下错误：
+        # UserWarning: Gimbal lock detected. Setting third angle to zero since it is not possible to uniquely determine all angles.
         sire_pose = self._format_sire_pose(abs_pose['pos'], abs_pose['quat'])
+
         part = self.sire_model.addPartByPe(sire_pose, "313", partIv)
         part.setId(self.partId)
         self.partId += 1
@@ -273,7 +276,7 @@ class MJCFtoSIREConverter:
             rotation=R.from_quat(body_pos['quat'], scalar_first=True))
         anchor_tf = TF.from_translation(anchor)
         jnt_pos = (body_tf * anchor_tf).translation.reshape(3)
-        self.sire_model.addSphericalJoint(self.parts[body1.name], self.parts[body2.name], jnt_pos)
+        # self.sire_model.addSphericalJoint(self.parts[body1.name], self.parts[body2.name], jnt_pos)
         # # 解析锚点位置
         
         # # 创建标记点名称
@@ -477,7 +480,7 @@ class MJCFtoSIREConverter:
 # 使用示例
 if __name__ == "__main__":
     # 创建转换器实例
-    converter = MJCFtoSIREConverter("D:\code\sire\scripts\mjcf2srdf\single_wheel_inertial.xml")
+    converter = MJCFtoSIREConverter("D:/code/sire/scripts/mjcf2srdf/whqMetamorphic/metamophicRobotMJCF.xml")
     
     # 加载和解析 MJCF 文件
     print("加载和解析 MJCF 文件...")
@@ -485,10 +488,11 @@ if __name__ == "__main__":
     
     # 转换为 SIRE 格式
     print("\n转换为 SIRE 格式...")
-    converter.convert_to_sire()
+    gravity = [0, 0, 0, 0, 0, 0]
+    converter.convert_to_sire(gravity)
     
     # 生成 SIRE XML 文件
     print("\n生成 SIRE XML 文件...")
-    converter.to_sire_xml("D:\code\sire\scripts\mjcf2srdf\sire_single_wheel_converted.xml")
+    converter.to_sire_xml("D:/code/sire/scripts/mjcf2srdf/whqMetamorphic/metamophicRobot.xml")
     
     print("\n转换完成!")

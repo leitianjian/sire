@@ -20,6 +20,7 @@ using json = nlohmann::json;
 class CapsuleGeometry : public GeometryOnPart {
  public:
   CapsuleShape capsuleShape;
+  auto virtual shape() -> ShapeBase* override { return &capsuleShape; };
   explicit CapsuleGeometry(double radius = 0.1, double length = 0.2,
                            const double* prt_pm = nullptr);
   virtual ~CapsuleGeometry();

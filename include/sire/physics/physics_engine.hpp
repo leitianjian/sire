@@ -2,6 +2,7 @@
 #define SIRE_PHYSICS_ENGINE_HPP_
 
 #include <array>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -19,6 +20,9 @@ namespace sire {
 namespace simulator {
 class SimulationLoop;
 };
+namespace middleware {
+class SireMiddleware;
+}
 namespace physics {
 class SIRE_API PhysicsEngine {
  public:
@@ -111,13 +115,24 @@ class SIRE_API PhysicsEngine {
 
   // engine state control
   auto doInit() -> void;
-  auto init(simulator::SimulationLoop* simLoopPtr = nullptr) -> void;
-  auto initByModel(aris::dynamic::Model* m) -> void;
+  auto init() -> void;
+  auto init(middleware::SireMiddleware* middlewarePtr) -> void;
+  auto init(simulator::SimulationLoop* simLoopPtr) -> void;
+  auto init(aris::dynamic::Model* m) -> void;
 
   // this prt_pm represent the pose of geometry on part coordinate
   auto addSphereGeometry(double radius, int part_id = 0,
-                         const double* prt_pm = nullptr,
-                         bool is_dynamic = false) -> bool;
+                         bool is_dynamic = false,
+                         const double* prt_pm = nullptr) -> bool;
+  auto addBoxGeometry(double x, double y, double z, int part_id = 0,
+                      bool is_dynamic = false, const double* prt_pm = nullptr)
+      -> bool;
+  auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
+                       bool is_dynamic = false, const double* prt_pm = nullptr)
+      -> bool;
+  auto addCapsuleGeometry(double radius, double length, int part_id = 0,
+                          bool is_dynamic = false,
+                          const double* prt_pm = nullptr) -> bool;
   auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
       -> bool;
   auto addAnchoredGeometry(geometry::CollidableGeometry& anchored_geometry)
@@ -144,9 +159,9 @@ class SIRE_API PhysicsEngine {
       std::vector<std::array<double, 16>>& T_C_vec,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
   auto cptContactInfo(
-    double suggestTime,
-    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    std::vector<common::PointPairContactInfo>& contact_info) -> double;
+      double suggestTime,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<common::PointPairContactInfo>& contact_info) -> double;
   auto recordsContactCptInfo() -> void;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;

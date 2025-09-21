@@ -29,8 +29,10 @@ const int kPosQuatSize = kSpaceDimension + kQuaternionSize;
 
 enum class ToleranceType { kAbsolute, kRelative };
 
-static const double default_pm[16] = {1, 0, 0, 0, 0, 1, 0, 0,
-                                      0, 0, 1, 0, 0, 0, 0, 1};
+static const double default_pm[16]{1, 0, 0, 0, 0, 1, 0, 0,
+                                   0, 0, 1, 0, 0, 0, 0, 1};
+
+static const double default_iv[10]{1, 0, 0, 0, 1, 1, 1, 0, 0, 0};
 
 }  // namespace sire
 #endif

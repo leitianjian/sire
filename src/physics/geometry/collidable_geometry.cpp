@@ -23,16 +23,19 @@ auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
   double res[16]{0};
   aris::dynamic::s_pm_dot_pm(prt_pm, *pm(), res);
   getCollisionObject()->setTransform(
-      Transform3s((Matrix3s() << res[0], res[1], res[2], res[4],
-                        res[5], res[6], res[8], res[9], res[10])
-                           .finished(),
-                       (Vec3s() << res[3], res[7], res[11]).finished()));
+      Transform3s((Matrix3s() << res[0], res[1], res[2], res[4], res[5], res[6],
+                   res[8], res[9], res[10])
+                      .finished(),
+                  (Vec3s() << res[3], res[7], res[11]).finished()));
   getCollisionObject()->computeAABB();
 }
 auto CollidableGeometry::init() -> void {}
 CollidableGeometry::CollidableGeometry(const double* prt_pm, int part_id,
-                                       bool is_dynamic)
-    : sire::geometry::GeometryOnPart(prt_pm, part_id, is_dynamic) {}
+                                       bool is_dynamic,
+                                       const std::string& material,
+                                       const std::string& propStr)
+    : sire::geometry::GeometryOnPart(prt_pm, part_id, is_dynamic),
+      Collidable(material, propStr) {}
 CollidableGeometry::~CollidableGeometry() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(CollidableGeometry);
 

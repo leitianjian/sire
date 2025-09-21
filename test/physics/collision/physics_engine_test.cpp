@@ -625,19 +625,19 @@ class TableSurfaceModelTestor : public ::testing::Test {
     collision_engine_ = new collision::CollisionDetection();
     engine_->resetCollisionDetection(collision_engine_);
     engine_->setCollisionDetectionFlag(true);
-    engine_->addSphereGeometry(sphereRadius, 0, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 0, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 1, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 1, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 2, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 2, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 3, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 3, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 4, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 4, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 5, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 5, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 6, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 6, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
     aris::core::Matrix filter_state{1, 0, 0, 0, 1, 0, 0, 0, 1};
     engine_->collisionFilter().setStateMat(filter_state);
@@ -1062,19 +1062,19 @@ class TableGroundModelTestor : public ::testing::Test {
     collision_engine_ = new collision::CollisionDetection();
     engine_->resetCollisionDetection(collision_engine_);
     engine_->setCollisionDetectionFlag(true);
-    engine_->addSphereGeometry(sphereRadius, 0, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 0, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 1, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 1, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 2, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 2, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 3, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 3, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 4, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 4, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 5, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 5, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 6, sire::default_pm, true);
+    engine_->addSphereGeometry(sphereRadius, 6, true, sire::default_pm);
     engine_->geometryPool().back().setMaterial("m1");
     aris::core::Matrix filter_state{1, 0, 0, 0, 1, 0, 0, 0, 1};
     engine_->collisionFilter().setStateMat(filter_state);
@@ -1208,7 +1208,7 @@ TEST_F(SimplePenetrationTest, PenetrationDynamicAndAnchored) {
   engine_->resetCollisionDetection(collision_engine_);
   engine_->setCollisionDetectionFlag(true);
   engine_->addSphereGeometry(radius_, 0, sire::default_pm, false);
-  engine_->addSphereGeometry(radius_, 1, sire::default_pm, true);
+  engine_->addSphereGeometry(radius_, 1, true, sire::default_pm);
   aris::core::Matrix filter_state{1, 0, 0, 1};
   engine_->collisionFilter().setStateMat(filter_state);
   engine_->init();
@@ -1231,8 +1231,8 @@ TEST_F(MultipleObjectsPenetrationTest, PenetrationTwoDynamicAndAnchored) {
   engine_->resetCollisionDetection(collision_engine_);
   engine_->setCollisionDetectionFlag(true);
   engine_->addSphereGeometry(radius_, 0, sire::default_pm, false);
-  engine_->addSphereGeometry(radius_, 1, sire::default_pm, true);
-  engine_->addSphereGeometry(radius_, 2, sire::default_pm, true);
+  engine_->addSphereGeometry(radius_, 1, true, sire::default_pm);
+  engine_->addSphereGeometry(radius_, 2, true, sire::default_pm);
   aris::core::Matrix filter_state{1, 0, 0, 0, 1, 0, 0, 0, 1};
   engine_->collisionFilter().setStateMat(filter_state);
   engine_->init();
@@ -1258,7 +1258,7 @@ TEST_F(TableSurfaceModelTestor, testContactPointInertiaMatrix) {
   // 尝试实现一下全锁住的约束来测试一下。
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
   std::vector<double> cpi;
   EXPECT_EQ(table_model_.forcePool().size(), 4);
   sire::physics::contact::AverageForceContactSolver solver;
@@ -1407,7 +1407,7 @@ TEST_F(TableSurfaceModelTestor, testNormalInertiaMatrixAndPostProcess) {
   // 其中的 A \ b 方法 使用基于Householder方法的QR分解计算
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
 
   EXPECT_EQ(table_model_.forcePool().size(), 4);
   // ------------------------------------------------------
@@ -1602,7 +1602,7 @@ TEST_F(TableSurfaceModelTestor, testNormalInertiaMatrixAndPostProcess) {
 TEST_F(TableSurfaceModelTestor, testContactDiffEqnSolnCoeff) {
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
   // 正确设置重力加速度
   double gravity[6]{0, 0, -9.8, 0, 0, 0};
   table_model_.environment().setGravity(gravity);
@@ -1759,7 +1759,7 @@ auto applyForce(
 TEST_F(TableGroundModelTestor, testContactDiffEqnCoeffGround) {
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
   // 正确设置重力加速度
   double gravity[6]{0, 0, -9.8, 0, 0, 0};
   table_model_.environment().setGravity(gravity);
@@ -1820,7 +1820,7 @@ TEST_F(TableGroundModelTestor, testContactDiffEqnCoeffGround) {
 TEST_F(TableSurfaceModelTestor, testDepthFormulaAndAvgFce) {
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
   EXPECT_EQ(table_model_.forcePool().size(), 4);
   const sire::Size nContact = penetration_pairs.size();
   std::vector<double> stiffness(nContact, 2e8);
@@ -1882,7 +1882,7 @@ TEST_F(TableSurfaceModelTestor, testDepthFormulaAndAvgFce) {
 TEST_F(TableSurfaceModelTestor, testExternalForceGravity) {
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
   double cpi[]{1.869152,  0.000000,  7.000000,  0.000000,  7.000000,  0.000000,
                -4.011429, 0.000000,  0.000000,  1.278689,  0.000000,  6.000000,
                0.000000,  6.000000,  0.000000,  -2.228571, 7.000000,  0.000000,
@@ -1922,7 +1922,7 @@ TEST_F(TableSurfaceModelTestor, testAddJointAfterInit) {
   // 尝试实现一下全锁住的约束来测试一下。
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
   std::cout << "Using Model Init" << std::endl;
   addFixedJointUsingModelInit();
   std::cout << "Using Init Interaction" << std::endl;
@@ -1940,7 +1940,7 @@ TEST_F(TableSurfaceModelTestor, testFKQP) {
   // 尝试实现一下全锁住的约束来测试一下。
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&table_model_);
+  engine_->init(&table_model_);
   addFixedJointAtOtherCorner2TestFK();
 }
 
@@ -1949,7 +1949,7 @@ TEST_F(TableSurfaceModelTestor, testFKQP) {
 TEST_F(SurfaceBallConstraintTester, testFKPosVel) {
   initTablePlaneModel();
   initPhysicsEngine();
-  engine_->initByModel(&model_);
+  engine_->init(&model_);
   addFixedAndPrismaticJointFKPosVel();
 }
 
