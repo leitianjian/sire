@@ -1,0 +1,31 @@
+# 必须包含
+[build-system]
+requires = ["setuptools", "wheel", "cmake", "python-dotenv"]
+build-backend = "setuptools.build_meta"
+
+# 推荐包含
+[project]
+name = "sire"
+version = "0.1.0"
+dependencies = ["numpy", "scipy", "meshcat"]
+requires-python = ">=3.8"
+authors = [
+  {name = "leitianjian", email = "leitianjian@outlook.com"},
+]
+maintainers  = [
+  {name = "leitianjian", email = "leitianjian@outlook.com"},
+]
+description = "Simulator based on aris"
+readme = "README.md"
+license = "MIT"
+license-files = [
+    "LICENSE.txt",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: Chinese",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]

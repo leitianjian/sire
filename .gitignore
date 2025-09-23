@@ -95,3 +95,21 @@ trash/
 # simulation results log
 contact_solver_result.json
 result.json
+
+# python
+*/.env
+*/local.toml
+*egg-info
+*.pyd
+
+MUJOCO_LOG.txt
+
+*.npz
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
+*.tiff
+*.tif
+*.npy

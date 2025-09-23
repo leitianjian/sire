@@ -1,0 +1,14 @@
+[tool.sire.build]
+cpp_build_type = "all"
+py_install_type = "release"
+cpp_base_path = "D:\\code\\sire"
+aris_path = "D:\\code\\sire\\third_party\\install\\aris"
+fcl_path = "D:\\code\\sire\\third_party\\install\\hpp-fcl"
+uuid_path = "D:\\code\\sire\\third_party\\install\\stduuid"
+toolchain_path = "D:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+build_test = true
+build_demo = true
+build_python = true
+cmake_only = false
+rm_cmake_cache = false
+rerun_config = false

@@ -432,7 +432,7 @@ message(STATUS ${coal_LIBRARIES})
 target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB})
 
 if(BUILD_PYTHON)
-	add_subdirectory(python)
+	add_subdirectory(python/sire)
 endif()
 
 set(sire_LIBRARIES

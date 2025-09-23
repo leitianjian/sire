@@ -109,7 +109,7 @@ def distributeObjectOnPlane(m, n, mInterval, nInterval, height):
 
 if __name__ == "__main__":
   import sys
-  sys.path.append("D:/code/sire/install/python/debug")
+  # sys.path.append("D:/code/sire/install/python/debug")
   import sire
   from os.path import abspath
   import os

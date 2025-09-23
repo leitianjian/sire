@@ -96,9 +96,6 @@ PhysicsEngine::~PhysicsEngine() { sire::geometry::reset_geometry_id(); };
 // TODO(leitianjian): 精简PhysicsEngine的资源管理
 //   PhysicsEngine中管理的资源是两个引擎都需要的资源，如果只是自己需要的没必要放在外面
 auto PhysicsEngine::doInit() -> void {
-  std::cout << (imp_->geometry_pool_ != nullptr) << " "
-            << (imp_->model_ptr_ != nullptr) << " " << "physics engine init"
-            << std::endl;
   // 初始化model的geometry的id相关
   if (imp_->model_ptr_ != nullptr) {
     for (auto& part : imp_->model_ptr_->partPool()) {
