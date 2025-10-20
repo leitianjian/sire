@@ -46,7 +46,6 @@ class CMake:
             self.install_dir = install_dir
         else:
             self.install_dir = os.path.join(self.base_dir, install_dir)
-        print("fuck3", self.build_dir)
         self.build_dir = os.path.join(self.build_dir, self.build_type.build_type_string)
         if splitReleaseDebug:
             self.install_dir = os.path.join(self.install_dir, self.build_type.build_type_string)
@@ -356,7 +355,6 @@ def build_project(
     **kwargs: CMakeValue,
 ):
     splitReleaseDebug = kwargs.get("splitReleaseDebug", False)
-    print("fuck1", project_path, build_dir, install_dir)
     cmake = CMake(base_dir=project_path, build_dir=build_dir, install_dir=install_dir, env=env, splitReleaseDebug=splitReleaseDebug)
     cmake.defines(
             # PYTHON_EXECUTABLE=sys.executable,

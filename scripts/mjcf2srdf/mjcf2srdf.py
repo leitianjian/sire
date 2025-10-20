@@ -55,6 +55,7 @@ class MJCFtoSIREConverter:
             self._compute_body_absolute_poses(self.model.worldbody.body[i], 
                                          np.zeros(3), 
                                          np.array([1, 0, 0, 0]))
+# 
     
     def _compute_body_absolute_poses(self, body, parent_pos, parent_quat):
         """递归计算杆件在世界坐标系中的绝对位姿"""
@@ -141,6 +142,39 @@ class MJCFtoSIREConverter:
         self.sire_model.addSolvers()
                 # if sire_connect:
                 #     self.sire_structure['connects'].append(sire_connect)
+
+                #  import sire
+#   cs = sire.ControlServer.instance()
+#   model = cs.model()
+#   middleware = cs.addSireMiddleware()
+#   simulator = middleware.simulationLoop()
+#   simulator.setEventHandlerMap({0:6, 1:7, 2:8})
+#   # simulator.addEventHandlerRule(0, 6)
+#   # simulator.addEventHandlerRule(1, 7)
+#   # simulator.addEventHandlerRule(2, 8)
+#   physicsEngine = middleware.physicsEngine()
+#   contactSolver = physicsEngine.addContactPositionForceSolver()
+#   contactSolver.setDefaultProp("{k:1.4e8,d:1500,cr:0.2}")
+#   contactSolver.addMaterialPair("m1", "m1", "{k:2e8,d:10000,cr:0.3,cof:0.8,threshold_velocity:1e-4}")
+#   model.ground().addMarker("joint_0_k")
+#   model.ground().addMarker("ground_marker")
+#   boxPrt = model.addPartByPe([0,0,0.5,0,0,0], "313", [1, 0, 0, 0, 0.1, 0.1, 0.1, 0, 0, 0])
+#   model.link(1).addMarker("box_center")
+#   spherePos = distributeObjectOnPlane(3, 3, 4, 4, 1)
+#   for i in range(9):
+#     spherePrt = model.addPartByPe(spherePos[i], "313", [1, 0, 0, 0, 0.1, 0.1, 0.1, 0, 0, 0])
+#     model.link(2 + i).addMarker("sphere" + str(2 + i) +"_center")
+#   model.init()
+#   # print(sire.toXmlString(model))
+#   boxPrt.addBoxGeometry(boxPrt.id, 10, 10, 1)
+#   boxPrt.cptGeometryInertial2Part()
+#   physicsEngine.addBoxGeometry(10, 10, 1, boxPrt.id)
+#   spherePos = distributeObjectOnPlane(3, 3, 4, 4, 1)
+#   for i in range(9):
+#     spherePrt = model.link(2 + i)
+#     spherePrt.addSphereGeometry(spherePrt.id, 1)
+#     spherePrt.cptGeometryInertial2Part()
+#     physicsEngine.addSphereGeometry(1, spherePrt.id)
     
     def _convert_body_to_sire(self, body):
         """转换单个杆件到 SIRE 格式"""
@@ -167,13 +201,29 @@ class MJCFtoSIREConverter:
         sire_pose = self._format_sire_pose(abs_pose['pos'], abs_pose['quat'])
 
         part = self.sire_model.addPartByPe(sire_pose, "313", partIv)
-        part.setId(self.partId)
+        part.id = self.partId
         self.partId += 1
-        part.addMeshGeometry(part.id(), "/meshes/" + body.name + ".STL")
         self.parts[body.name] = part
-        part.setName(body.name)
+        part.name = body.name
+        for geom in body.geom:
+            quat = geom.quat if geom.quat is not None else np.array([1, 0, 0, 0])
+            pos = geom.pos if geom.pos is not None else np.zeros(3)
+            geomPM = TF.from_components(
+                translation=pos,
+                rotation=R.from_quat(quat, scalar_first=True)).as_matrix().flatten().tolist()
+            print(body.name, len(geomPM), geomPM, geom)
+            if geom.type == 'mesh' or geom.mesh is not None:
+                part.addMeshGeometry(part.id, "/meshes/" + str(geom.mesh.name) + ".obj", prt_pm=geomPM)
+            elif geom.type == 'box':
+                part.addBoxGeometry(part.id, geom.size[0]*2, geom.size[1]*2, geom.size[2]*2, prt_pm=geomPM)
+            elif geom.type == 'sphere' or (geom.type is None and geom.mesh is None):
+                part.addSphereGeometry(part.id, geom.size[0], prt_pm=geomPM)
+            elif geom.type == 'cylinder':
+                part.addCylinderGeometry(part.id, geom.size[0], geom.size[1]*2, prt_pm=geomPM)
+            elif geom.type == 'capsule':
+                part.addCapsuleGeometry(part.id, geom.size[0], geom.size[1]*2, prt_pm=geomPM)
         print(f"转换杆件: {body.name} -> {sire_pose}")
-        
+
         # # 创建 SIRE 杆件
         # sire_part = {
         #     'name': body.name,
@@ -212,9 +262,11 @@ class MJCFtoSIREConverter:
             return None
         print(f"转换关节: {joint.name}, 类型={jnt_pose['type']}, 位置={jnt_pose['pos']}, 父杆件={parent_body.name if parent_body else '无'}")
         if jnt_pose['type'] == 'revolute':
-          self.sire_model.addRevoluteJoint(self.parts[body.name], self.parts[parent_body.name], jnt_pose['pos'], rotation.apply([0, 0, 1]))
+          sireJoint = self.sire_model.addRevoluteJoint(self.parts[body.name], self.parts[parent_body.name], jnt_pose['pos'], rotation.apply([0, 0, 1]))
         elif jnt_pose['type'] == 'slide':
-          self.sire_model.addPrismaticJoint(self.parts[body.name], self.parts[parent_body.name], jnt_pose['pos'], rotation.apply([0, 0, 1]))
+          sireJoint = self.sire_model.addPrismaticJoint(self.parts[body.name], self.parts[parent_body.name], jnt_pose['pos'], rotation.apply([0, 0, 1]))
+        sireJoint.name = joint.name
+        sire.ActuatorSISO.add2Model(self.sire_model, sireJoint)
         # # 创建标记点名称
         # parent_marker_name = f"marker_{parent_body.name}_{body.name}_p"
         # child_marker_name = f"marker_{parent_body.name}_{body.name}_c"
@@ -477,10 +529,16 @@ class MJCFtoSIREConverter:
         with open(output_path, 'w+', encoding='utf-8') as f:
             f.write(sire.toXmlString(self.sire_model))
         print(f"SIRE XML 文件已保存到: {output_path}")
+    
+    def print_sire_xml(self):
+        """打印转换后的 SIRE XML 字符串 (用于调试)"""
+        xml_str = sire.toXmlString(self.sire_model)
+        print(xml_str)
+
 # 使用示例
 if __name__ == "__main__":
     # 创建转换器实例
-    converter = MJCFtoSIREConverter("D:/code/sire/scripts/mjcf2srdf/whqMetamorphic/metamophicRobotMJCF.xml")
+    converter = MJCFtoSIREConverter("D:/code/sire/scripts/mjcf2srdf/go2/go2.xml")
     
     # 加载和解析 MJCF 文件
     print("加载和解析 MJCF 文件...")
@@ -493,6 +551,7 @@ if __name__ == "__main__":
     
     # 生成 SIRE XML 文件
     print("\n生成 SIRE XML 文件...")
-    converter.to_sire_xml("D:/code/sire/scripts/mjcf2srdf/whqMetamorphic/metamophicRobot.xml")
+    converter.print_sire_xml()
+    # converter.to_sire_xml("D:/code/sire/scripts/mjcf2srdf/whqMetamorphic/metamophicRobot.xml")
     
     print("\n转换完成!")

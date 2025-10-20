@@ -3,11 +3,10 @@ import time
 import mujoco.viewer
 import mujoco
 import numpy as np
-from legged_gym import LEGGED_GYM_ROOT_DIR
 import torch
 import yaml
 
-
+LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_python/mujocoDogRL"
 def get_gravity_orientation(quaternion):
     qw = quaternion[0]
     qx = quaternion[1]
@@ -36,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument("config_file", type=str, help="config file name in the config folder")
     args = parser.parse_args()
     config_file = args.config_file
-    with open(f"{LEGGED_GYM_ROOT_DIR}/deploy/deploy_mujoco/configs/{config_file}", "r") as f:
+    with open(f"{LEGGED_GYM_ROOT_DIR}/{config_file}", "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
         policy_path = config["policy_path"].replace("{LEGGED_GYM_ROOT_DIR}", LEGGED_GYM_ROOT_DIR)
         xml_path = config["xml_path"].replace("{LEGGED_GYM_ROOT_DIR}", LEGGED_GYM_ROOT_DIR)
@@ -96,35 +95,35 @@ if __name__ == "__main__":
             mujoco.mj_step(m, d)
 
             counter += 1
-            if counter % control_decimation == 0:
-                # Apply control signal here.
+            # if counter % control_decimation == 0:
+            #     # Apply control signal here.
                 
-                # create observation
-                qj = d.qpos[7:]
-                dqj = d.qvel[6:]
-                quat = d.qpos[3:7]
-                lin_vel = d.qvel[:3]
-                ang_vel = d.qvel[3:6]
+            #     # create observation
+            #     qj = d.qpos[7:]
+            #     dqj = d.qvel[6:]
+            #     quat = d.qpos[3:7]
+            #     lin_vel = d.qvel[:3]
+            #     ang_vel = d.qvel[3:6]
 
-                qj = (qj - default_angles) * dof_pos_scale
+            #     qj = (qj - default_angles) * dof_pos_scale
 
-                dqj = dqj * dof_vel_scale
-                gravity_orientation = get_gravity_orientation(quat)
-                lin_vel = lin_vel * lin_vel_scale
-                ang_vel = ang_vel * ang_vel_scale
+            #     dqj = dqj * dof_vel_scale
+            #     gravity_orientation = get_gravity_orientation(quat)
+            #     lin_vel = lin_vel * lin_vel_scale
+            #     ang_vel = ang_vel * ang_vel_scale
 
-                obs[:3] = lin_vel
-                obs[3:6] = ang_vel
-                obs[6:9] = gravity_orientation
-                obs[9:12] = cmd * cmd_scale
-                obs[12 : 12 + num_actions] = qj
-                obs[12 + num_actions : 12 + 2 * num_actions] = dqj
-                obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
-                obs_tensor = torch.from_numpy(obs).unsqueeze(0)
-                # policy inference
-                action = policy(obs_tensor).detach().numpy().squeeze()
-                # transform action to target_dof_pos
-                target_dof_pos = action * action_scale + default_angles
+            #     obs[:3] = lin_vel
+            #     obs[3:6] = ang_vel
+            #     obs[6:9] = gravity_orientation
+            #     obs[9:12] = cmd * cmd_scale
+            #     obs[12 : 12 + num_actions] = qj
+            #     obs[12 + num_actions : 12 + 2 * num_actions] = dqj
+            #     obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
+            #     obs_tensor = torch.from_numpy(obs).unsqueeze(0)
+            #     # policy inference
+            #     action = policy(obs_tensor).detach().numpy().squeeze()
+            #     # transform action to target_dof_pos
+            #     target_dof_pos = action * action_scale + default_angles
 
             # Pick up changes to the physics state, apply perturbations, update options from GUI.
             viewer.sync()

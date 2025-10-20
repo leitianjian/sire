@@ -15,15 +15,16 @@ class BoxShape;
 class MeshShape;
 class SphereShape;
 class CapsuleShape;
+class CylinderShape;
 class ShapeCalculator {
  public:
   virtual ~ShapeCalculator();
 
   virtual void ImplementGeometry(const BoxShape& box, void* user_data);
-  virtual void ImplementGeometry(const CapsuleShape& box, void* user_data);
+  virtual void ImplementGeometry(const CapsuleShape& capsule, void* user_data);
   // virtual void ImplementGeometry(const Capsule& capsule, void* user_data);
   // virtual void ImplementGeometry(const Convex& convex, void* user_data);
-  // virtual void ImplementGeometry(const Cylinder& cylinder, void* user_data);
+  virtual void ImplementGeometry(const CylinderShape& cylinder, void* user_data);
   // virtual void ImplementGeometry(const Ellipsoid& ellipsoid, void* user_data);
   // virtual void ImplementGeometry(const HalfSpace& half_space, void* user_data);
   virtual void ImplementGeometry(const MeshShape& mesh, void* user_data);
@@ -61,10 +62,10 @@ class ShapeToName final : public ShapeCalculator {
   //@{
   using ShapeCalculator::ImplementGeometry;
   void ImplementGeometry(const BoxShape& box, void* user_data) final;
-  void ImplementGeometry(const CapsuleShape& box, void* user_data) final;
+  void ImplementGeometry(const CapsuleShape& capsule, void* user_data) final;
   // void ImplementGeometry(const Capsule& capsule, void* user_data) final;
   // void ImplementGeometry(const Convex& convex, void* user_data) final;
-  // void ImplementGeometry(const Cylinder& cylinder, void* user_data) final;
+  void ImplementGeometry(const CylinderShape& cylinder, void* user_data) final;
   // void ImplementGeometry(const Ellipsoid& ellipsoid, void* user_data) final;
   // void ImplementGeometry(const HalfSpace& half_space, void* user_data) final;
   void ImplementGeometry(const MeshShape& mesh, void* user_data) final;
@@ -84,10 +85,10 @@ class ShapeToInertia final : public ShapeCalculator {
   //@{
   using ShapeCalculator::ImplementGeometry;
   void ImplementGeometry(const BoxShape& box, void* user_data) final;
-  void ImplementGeometry(const CapsuleShape& box, void* user_data) final;
+  void ImplementGeometry(const CapsuleShape& capsule, void* user_data) final;
   // void ImplementGeometry(const Capsule& capsule, void* user_data) final;
   // void ImplementGeometry(const Convex& convex, void* user_data) final;
-  // void ImplementGeometry(const Cylinder& cylinder, void* user_data) final;
+  void ImplementGeometry(const CylinderShape& cylinder, void* user_data) final;
   // void ImplementGeometry(const Ellipsoid& ellipsoid, void* user_data) final;
   // void ImplementGeometry(const HalfSpace& half_space, void* user_data) final;
   void ImplementGeometry(const MeshShape& mesh, void* user_data) final;

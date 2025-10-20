@@ -30,7 +30,7 @@ def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
   geometryPool = displayInitJson['geometry_pool']
   for i in range(len(geometryPool)):
     geometry = geometryPool[i]
-    meshcatGeo = robot[str(geometry['part_id'])][str(geometry['geometry_id'])]
+    meshcatGeo = robot[str(geometry['part_id'])][str(i)]
     meshcatGeo.set_transform(np.array(geometry['init_pm']).reshape(4, 4))
     if i % 2 == 1: 
       material = g.MeshPhongMaterial(color=0x0660FF)
@@ -41,6 +41,8 @@ def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
     if(geometry['shape_type'] == 'box'):
       meshcatGeo.set_object(g.Box([geometry['length'], geometry['width'], geometry['height']]), material=material)
     elif(geometry['shape_type'] == 'capsule'):
+      meshcatGeo.set_object(g.Cylinder(geometry['length'], geometry['radius']), material=material)
+    elif(geometry['shape_type'] == 'cylinder'):
       meshcatGeo.set_object(g.Cylinder(geometry['length'], geometry['radius']), material=material)
     elif(geometry['shape_type'] == 'sphere'):
       meshcatGeo.set_object(g.Sphere(geometry['radius']), material=material)

@@ -22,9 +22,10 @@ SIRE_DEFINE_TO_JSON_HEAD(CapsuleGeometry) {
   j["length"] = capsuleShape.length();
 }
 
-CapsuleGeometry::CapsuleGeometry(double radius, double length,
-                                 const double* prt_pm)
-    : GeometryOnPart(prt_pm), capsuleShape(radius, length) {}
+CapsuleGeometry::CapsuleGeometry(double radius, double length, int part_id,
+                                 bool is_dynamic, const double* prt_pm)
+    : GeometryOnPart(prt_pm, part_id, is_dynamic),
+      capsuleShape(radius, length) {}
 
 CapsuleGeometry::~CapsuleGeometry() = default;
 

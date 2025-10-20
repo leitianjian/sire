@@ -151,6 +151,46 @@ auto SimulationLoop::recorder() -> simulator::Recorder& {
 auto SimulationLoop::recordsContactCptInfo() -> void {
   imp_->physics_engine_ptr_->recordsContactCptInfo();
 }
+auto SimulationLoop::integrate() -> bool {
+  // Get header event pointer
+  core::EventBase* header = imp_->event_manager_->eventListHeader();
+  // New handler by event id
+  std::unique_ptr<core::HandlerBase> handler =
+      createHandlerByEventId(header->eventId());
+  handler->init(this);
+  imp_->can_get_data_.store(false);
+  handler->integrate(header);
+  imp_->can_get_data_.store(true);
+  return header->eventId() == 2;
+  // imp_->can_get_data_.store(false);
+  // if (handler->handle(header)) {
+  //   imp_->can_get_data_.store(true);
+  //   // imp_->event_manager_->generateEvent();
+  //   // if (pause_if_fast) {
+  //   //   imp_->timer_.pauseIfTooFast();
+  //   // }
+  //   imp_->event_manager_->headerNextEvent(1);
+  //   imp_->event_manager_->popEventListHeader();
+  // }
+}
+auto SimulationLoop::handleContact() -> void {
+  // Get header event pointer
+  core::EventBase* header = imp_->event_manager_->eventListHeader();
+  // New handler by event id
+  std::unique_ptr<core::HandlerBase> handler =
+      createHandlerByEventId(header->eventId());
+  handler->init(this);
+  // imp_->can_get_data_.store(false);
+  if (handler->handle(header)) {
+    // imp_->can_get_data_.store(true);
+    // imp_->event_manager_->generateEvent();
+    // if (pause_if_fast) {
+    //   imp_->timer_.pauseIfTooFast();
+    // }
+    imp_->event_manager_->headerNextEvent(1);
+    imp_->event_manager_->popEventListHeader();
+  }
+}
 auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
   for (sire::Size i = 0; i < frame_skip; ++i) {
     // Get header event pointer
@@ -160,8 +200,9 @@ auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
         createHandlerByEventId(header->eventId());
     handler->init(this);
     imp_->can_get_data_.store(false);
+    handler->integrate(header);
+    imp_->can_get_data_.store(true);
     if (handler->handle(header)) {
-      imp_->can_get_data_.store(true);
       // imp_->event_manager_->generateEvent();
       if (pause_if_fast) {
         imp_->timer_.pauseIfTooFast();

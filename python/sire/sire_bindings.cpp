@@ -15,6 +15,7 @@
 #include "sire/core/event_base.hpp"
 #include "sire/core/geometry/box_geometry.hpp"
 #include "sire/core/geometry/capsule_geometry.hpp"
+#include "sire/core/geometry/cylinder_geometry.hpp"
 #include "sire/core/geometry/mesh_geometry.hpp"
 #include "sire/core/geometry/shape_calculator.hpp"
 #include "sire/core/geometry/sphere_geometry.hpp"
@@ -23,12 +24,16 @@
 #include "sire/physics/contact/contact_solver.hpp"
 #include "sire/simulator/event_manager.hpp"
 // #include "sire/physics/contact/avg_force_contact_solver.hpp"
+#include "sire/core/force_screw.hpp"
 #include "sire/core/sire_fixed_joint.hpp"
+#include "sire/physics/collision/collision_detection.hpp"
+#include "sire/physics/collision/collision_filter.hpp"
 #include "sire/physics/contact/contact_position_force_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/cylinder_collision_geometry.hpp"
 #include "sire/physics/geometry/mesh_collision_geometry.hpp"
 #include "sire/physics/geometry/sphere_collision_geometry.hpp"
 
@@ -73,6 +78,16 @@ PYBIND11_MODULE(sire, m) {
   // 其他常用构建函数
   m.def("createModelDelta", [](const aris::dynamic::DeltaParam& param) {
     return aris::dynamic::createModelDelta(param);
+  });
+  m.def("fpm2fs", [](std::vector<double>& f, std::vector<double>& pm) {
+    std::vector<double> fs(6);
+    sire::core::screw::s_fpm2fs(f.data(), pm.data(), fs.data());
+    return fs;
+  });
+  m.def("vs2va", [](std::vector<double>& vs, std::vector<double>& p) {
+    std::vector<double> va(6);
+    aris::dynamic::s_vs2va(vs.data(), p.data(), va.data());
+    return va;
   });
   m.def(
       "simulator",
@@ -184,6 +199,8 @@ PYBIND11_MODULE(sire, m) {
       .def("start", &sire::simulator::SimulationLoop::start)
       .def("step", &sire::simulator::SimulationLoop::step, "frame_skip"_a = 1,
            "pause_if_fast"_a = false)
+      .def("integrate", &sire::simulator::SimulationLoop::integrate)
+      .def("handleContact", &sire::simulator::SimulationLoop::handleContact)
       .def("simTime", &sire::simulator::SimulationLoop::simTime)
       .def("stop", &sire::simulator::SimulationLoop::stop)
       .def("pause", &sire::simulator::SimulationLoop::pause)
@@ -210,6 +227,15 @@ PYBIND11_MODULE(sire, m) {
         self.eventManager().eventHandlerPairPool().clear();
       });
 
+  py::class_<sire::physics::collision::CollisionFilter>(m, "CollisionFilter")
+      .def(py::init<>())
+      .def("saveMatConfig",
+           &sire::physics::collision::CollisionFilter::saveMatConfig)
+      .def("loadMatConfig",
+           &sire::physics::collision::CollisionFilter::loadMatConfig)
+      .def("enableCollisionPair",
+           &sire::physics::collision::CollisionFilter::enableCollisionPair);
+
   py::class_<sire::physics::PhysicsEngine>(m, "PhysicsEngine")
       .def(py::init<>())
       .def_property("collisionDetectionFlag",
@@ -220,17 +246,6 @@ PYBIND11_MODULE(sire, m) {
                     &sire::physics::PhysicsEngine::setContactSolverFlag)
       .def_property("geometryPool", &sire::physics::PhysicsEngine::geometryPool,
                     &sire::physics::PhysicsEngine::resetGeometryPool)
-      // .def(
-      //     "addBoxGeometry",
-      //     [](sire::physics::PhysicsEngine& self, double x, double y, double
-      //     z,
-      //        sire::PartId part_id, bool is_dynamic) {
-      //       self.geometryPool()
-      //           .add<sire::physics::geometry::BoxCollisionGeometry>(
-      //               x, y, z, part_id, is_dynamic);
-      //     },
-      //     py::arg("x"), py::arg("y"), py::arg("z"), py::arg("part_id"),
-      //     py::arg("is_dynamic") = true)
       .def(
           "addBoxGeometry",
           [](sire::physics::PhysicsEngine& self, double x, double y, double z,
@@ -257,7 +272,8 @@ PYBIND11_MODULE(sire, m) {
       .def(
           "addSphereGeometry",
           [](sire::physics::PhysicsEngine& self, double radius,
-             sire::PartId part_id, bool is_dynamic, std::vector<double>& pm) {
+             sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
+             const std::string& material, const std::string& propStr) {
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
             // 创建球体几何体
@@ -266,11 +282,13 @@ PYBIND11_MODULE(sire, m) {
                     radius, part_id, is_dynamic, prt_pm);
           },
           py::arg("radius"), py::arg("part_id"), py::arg("is_dynamic") = true,
-          py::arg("prt_pm") = py::none())
+          py::arg("prt_pm") = py::none(), py::arg("material") = "m1",
+          py::arg("propStr") = "{}")
       .def(
           "addMeshGeometry",
           [](sire::physics::PhysicsEngine& self, const std::string& resPath,
-             sire::PartId part_id, bool is_dynamic, std::vector<double>& pm) {
+             sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
+             const std::string& material, const std::string& propStr) {
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
             // 创建网格几何体
@@ -279,11 +297,13 @@ PYBIND11_MODULE(sire, m) {
                     resPath, part_id, is_dynamic, prt_pm);
           },
           py::arg("resPath"), py::arg("part_id"), py::arg("is_dynamic") = true,
-          py::arg("prt_pm") = py::none())
+          py::arg("prt_pm") = py::none(), py::arg("material") = "m1",
+          py::arg("propStr") = "{}")
       .def(
           "addCapsuleGeometry",
           [](sire::physics::PhysicsEngine& self, double radius, double length,
-             sire::PartId part_id, bool is_dynamic, std::vector<double>& pm) {
+             sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
+             const std::string& material, const std::string& propStr) {
             // 创建胶囊几何体
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
@@ -292,7 +312,23 @@ PYBIND11_MODULE(sire, m) {
                     radius, length, part_id, is_dynamic, prt_pm);
           },
           py::arg("radius"), py::arg("length"), py::arg("part_id"),
-          py::arg("is_dynamic") = true, py::arg("prt_pm") = py::none())
+          py::arg("is_dynamic") = true, py::arg("prt_pm") = py::none(),
+          py::arg("material") = "m1", py::arg("propStr") = "{}")
+      .def(
+          "addCylinderGeometry",
+          [](sire::physics::PhysicsEngine& self, double radius, double length,
+             sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
+             const std::string& material, const std::string& propStr) {
+            // 创建胶囊几何体
+            const double* prt_pm =
+                pm.size() != 16 ? sire::default_pm : pm.data();
+            self.geometryPool()
+                .add<sire::physics::geometry::CylinderCollisionGeometry>(
+                    radius, length, part_id, is_dynamic, prt_pm);
+          },
+          py::arg("radius"), py::arg("length"), py::arg("part_id"),
+          py::arg("is_dynamic") = true, py::arg("prt_pm") = py::none(),
+          py::arg("material") = "m1", py::arg("propStr") = "{}")
       .def(
           "addContactPositionForceSolver",
           [](sire::physics::PhysicsEngine& self)
@@ -306,6 +342,8 @@ PYBIND11_MODULE(sire, m) {
                         self.contactSolver());
                   },
           py::return_value_policy::reference_internal)
+      .def("collisionFilter", &sire::physics::PhysicsEngine::collisionFilter,
+           py::return_value_policy::reference_internal)
       .def(
           "addCollisionFilter",
           [](sire::physics::PhysicsEngine& self, const std::string& filterStr) {
@@ -810,45 +848,76 @@ PYBIND11_MODULE(sire, m) {
       .def(
           "addMeshGeometry",
           [](aris::dynamic::Part& self, sire::PartId prtId,
-             const std::string& resource_path) {
-            auto& geometry =
-                self.geometryPool().add<sire::geometry::MeshGeometry>(
-                    resource_path);
-            geometry.setPartId(prtId);
-            geometry.setDynamic(true);
-            return geometry;
+             const std::string& resPath, std::vector<double>& pm) {
+            const double* prt_pm =
+                pm.size() != 16 ? sire::default_pm : pm.data();
+            return self.geometryPool().add<sire::geometry::MeshGeometry>(
+                resPath, prtId, true, prt_pm);
           },
+          py::arg("part_id"), py::arg("resPath"),
+          py::arg("prt_pm") = py::none(),
           py::return_value_policy::reference_internal)
       .def(
           "addBoxGeometry",
           [](aris::dynamic::Part& self, sire::PartId prtId, double x, double y,
-             double z) {
-            auto& geometry =
-                self.geometryPool().add<sire::geometry::BoxGeometry>(x, y, z);
-            geometry.setPartId(prtId);
-            geometry.setDynamic(true);
-            return geometry;
+             double z, std::vector<double>& pm) {
+            const double* prt_pm =
+                pm.size() != 16 ? sire::default_pm : pm.data();
+            return self.geometryPool().add<sire::geometry::BoxGeometry>(
+                x, y, z, prtId, true, prt_pm);
           },
+          py::arg("part_id"), py::arg("x"), py::arg("y"), py::arg("z"),
+          py::arg("prt_pm") = py::none(),
           py::return_value_policy::reference_internal)
       .def(
           "addSphereGeometry",
-          [](aris::dynamic::Part& self, sire::PartId prtId, double r) {
-            auto& geometry =
-                self.geometryPool().add<sire::geometry::SphereGeometry>(r);
-            geometry.setPartId(prtId);
-            geometry.setDynamic(true);
-            return geometry;
+          [](aris::dynamic::Part& self, sire::PartId prtId, double radius,
+             std::vector<double>& pm) {
+            const double* prt_pm =
+                pm.size() != 16 ? sire::default_pm : pm.data();
+            return self.geometryPool().add<sire::geometry::SphereGeometry>(
+                radius, prtId, true, prt_pm);
           },
+          py::arg("part_id"), py::arg("radius"), py::arg("prt_pm") = py::none(),
+          py::return_value_policy::reference_internal)
+      .def(
+          "addCylinderGeometry",
+          [](aris::dynamic::Part& self, sire::PartId prtId, double radius,
+             double length, std::vector<double>& pm) {
+            const double* prt_pm =
+                pm.size() != 16 ? sire::default_pm : pm.data();
+            return self.geometryPool().add<sire::geometry::CylinderGeometry>(
+                radius, length, prtId, true, prt_pm);
+          },
+          py::arg("part_id"), py::arg("radius"), py::arg("length"),
+          py::arg("prt_pm") = py::none(),
+          py::return_value_policy::reference_internal)
+      .def(
+          "addCapsuleGeometry",
+          [](aris::dynamic::Part& self, sire::PartId prtId, double radius,
+             double length, std::vector<double>& pm) {
+            const double* prt_pm =
+                pm.size() != 16 ? sire::default_pm : pm.data();
+            return self.geometryPool().add<sire::geometry::CapsuleGeometry>(
+                radius, length, prtId, true, prt_pm);
+          },
+          py::arg("part_id"), py::arg("radius"), py::arg("length"),
+          py::arg("prt_pm") = py::none(),
           py::return_value_policy::reference_internal)
       .def("cptGeometryInertial2Part",
-           [](aris::dynamic::Part& self) {
+           [](aris::dynamic::Part& self, double mass) {
              sire::geometry::ShapeToInertia cal_;
              std::vector<double> part_iv(10, 0);
              for (sire::Size i = 0; i < self.geometryPool().size(); ++i) {
                std::vector<double> temp(10, 0), iv(10, 0);
+               temp[0] = mass;
                auto& geometry = dynamic_cast<sire::geometry::GeometryBase&>(
                    self.geometryPool().at(i));
                geometry.shape()->Reify(&cal_, temp.data());
+               //  std::cout << "part name: " << self.name()
+               //            << ", geometry id: " << geometry.geometryId()
+               //            << ", mass: " << temp[0] << std::endl;
+               //  aris::dynamic::dsp(1, 10, temp.data());
                aris::dynamic::s_iv2iv(*geometry.pm(), temp.data(), iv.data());
                aris::dynamic::s_va(10, iv.data(), part_iv.data());
              }
@@ -860,6 +929,8 @@ PYBIND11_MODULE(sire, m) {
       });
 
   py::class_<aris::dynamic::Joint>(m, "Joint")
+      .def_property("name", &aris::dynamic::Joint::name,
+                    &aris::dynamic::Joint::setName)
       .def("dim", &aris::dynamic::Joint::dim)
       .def("cf",
            [](const aris::dynamic::Joint& self) {
@@ -883,6 +954,17 @@ PYBIND11_MODULE(sire, m) {
       .def_property("fce", &aris::dynamic::SingleComponentForce::fce,
                     py::overload_cast<double>(
                         &aris::dynamic::SingleComponentForce::setFce));
+  py::class_<aris::dynamic::GeneralForce, aris::dynamic::Force>(m,
+                                                                "GeneralForce")
+      .def(py::init<>())
+      .def_property(
+          "fce",
+          [](aris::dynamic::GeneralForce& self) {
+            return std::vector<double>(self.fce(), self.fce() + 6);
+          },
+          [](aris::dynamic::GeneralForce& self, std::vector<double>& fce) {
+            self.setFce(fce.data());
+          });
   py::class_<aris::dynamic::Constraint>(m, "Constraint");
   py::class_<aris::dynamic::MotionBase, aris::dynamic::Constraint>(
       m, "MotionBase");
@@ -923,6 +1005,8 @@ PYBIND11_MODULE(sire, m) {
 
   py::class_<sire::geometry::GeometryBase, aris::dynamic::Geometry>(
       m, "GeometryBase")
+      .def_property("id", &sire::geometry::GeometryBase::geometryId,
+                    &sire::geometry::GeometryBase::setGeometryId)
       .def("setPm",
            [](sire::geometry::GeometryBase& self,
               const std::vector<double>& pm) {
@@ -1016,9 +1100,6 @@ PYBIND11_MODULE(sire, m) {
 
   py::class_<sire::geometry::CapsuleShape>(m, "CapsuleShape")
       .def(py::init<double, double>())
-      // .def(py::init<>(
-      //     [](double r, double l) { return new sire::geometry::CapsuleShape(r,
-      //     l); }))
       .def_property("radius", &sire::geometry::CapsuleShape::radius,
                     &sire::geometry::CapsuleShape::setRadius)
       .def_property("length", &sire::geometry::CapsuleShape::length,
@@ -1035,6 +1116,25 @@ PYBIND11_MODULE(sire, m) {
       .def_readwrite(
           "capsuleShape",
           &sire::physics::geometry::CapsuleCollisionGeometry::capsuleShape);
+
+  py::class_<sire::geometry::CylinderShape>(m, "CylinderShape")
+      .def(py::init<double, double>())
+      .def_property("radius", &sire::geometry::CylinderShape::radius,
+                    &sire::geometry::CylinderShape::setRadius)
+      .def_property("length", &sire::geometry::CylinderShape::length,
+                    &sire::geometry::CylinderShape::setLength);
+  py::class_<sire::geometry::CylinderGeometry, sire::geometry::GeometryOnPart>(
+      m, "CylinderGeometry")
+      .def(py::init<>())
+      .def_readwrite("cylinderShape",
+                     &sire::geometry::CylinderGeometry::cylinderShape);
+  py::class_<sire::physics::geometry::CylinderCollisionGeometry,
+             sire::physics::geometry::CollidableGeometry>(
+      m, "CylinderCollisionGeometry")
+      .def(py::init<>())
+      .def_readwrite(
+          "cylinderShape",
+          &sire::physics::geometry::CylinderCollisionGeometry::cylinderShape);
 
   py::class_<aris::core::PointerArray<
       sire::physics::geometry::CollidableGeometry, aris::dynamic::Geometry>>(
@@ -1070,6 +1170,8 @@ PYBIND11_MODULE(sire, m) {
   py::class_<aris::dynamic::AdamsSimulator>(m, "AdamsSimulator")
       .def(py::init<>());
   py::class_<aris::dynamic::Motion, aris::dynamic::MotionBase>(m, "Motion")
+      .def_property("name", &aris::dynamic::Motion::name,
+                    &aris::dynamic::Motion::setName)
       .def_property("mp", &aris::dynamic::Motion::mp,
                     &aris::dynamic::Motion::setMp)
       .def_property("mv", &aris::dynamic::Motion::mv,
@@ -1241,6 +1343,8 @@ PYBIND11_MODULE(sire, m) {
            py::arg("makJ") = nullptr, py::arg("component_axis") = 2,
            py::arg("frc_coe") = nullptr, py::arg("mp_offset") = 0.0,
            py::arg("mp_factor") = 1.0, py::arg("active") = true)
+      .def_property("name", &sire::actuator::ActuatorSISO::name,
+                    &sire::actuator::ActuatorSISO::setName)
       .def_property("kp", &sire::actuator::ActuatorSISO::kp,
                     &sire::actuator::ActuatorSISO::setKp)
       .def_property("kd", &sire::actuator::ActuatorSISO::kd,

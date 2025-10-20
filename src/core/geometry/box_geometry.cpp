@@ -23,8 +23,9 @@ SIRE_DEFINE_TO_JSON_HEAD(BoxGeometry) {
   j["height"] = boxShape.height();
 }
 
-BoxGeometry::BoxGeometry(double x, double y, double z, const double* prt_pm)
-    : GeometryOnPart(prt_pm), boxShape(x, y, z) {}
+BoxGeometry::BoxGeometry(double x, double y, double z, int part_id,
+                         bool is_dynamic, const double* prt_pm)
+    : GeometryOnPart(prt_pm, part_id, is_dynamic), boxShape(x, y, z) {}
 
 BoxGeometry::~BoxGeometry() = default;
 

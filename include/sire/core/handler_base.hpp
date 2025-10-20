@@ -19,6 +19,10 @@ class SIRE_API HandlerBase {
   ARIS_DEFINE_BIG_FOUR(HandlerBase);
 
   virtual auto init(simulator::SimulationLoop*) -> void = 0;
+  // integrate step
+  virtual auto integrate(EventBase*) -> void = 0;
+  // handle control step (in Python)
+  // handle contact step
   virtual auto handle(EventBase*) -> bool = 0;
   auto handlerType() const -> std::string { return handler_type_; }
   auto setHandlerType(const std::string& handler_type) -> void {

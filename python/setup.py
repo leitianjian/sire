@@ -250,10 +250,8 @@ class CMakeBuildExt(build_ext):
                 **cmake_args
             )
             install_dir[build_type] = installDir
-            print("fuck2 install", build_type)
         ext_src = os.path.join(installDir, "python", py_install_type)
         ext_dest = os.path.join(PROJECT_ROOT, "src", "sire", "native")
-        print("fuck", ext_src, ext_dest)
         os.makedirs(ext_dest, exist_ok=True)
         shutil.copytree(ext_src, ext_dest, dirs_exist_ok=True)
         # 调用父类方法处理 Python 部分
@@ -263,7 +261,6 @@ class CMakeBuildExt(build_ext):
 class CustomInstall(install):
     def run(self):
         raise RuntimeError("这就是个调试错误！看看我有没有被调用！")
-        print("fuck")
         super().run()
         self.post_install()
     

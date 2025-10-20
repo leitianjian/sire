@@ -20,15 +20,16 @@ SIRE_DEFINE_TO_JSON_HEAD(SphereGeometry) {
   j["radius"] = sphereShape.radius();
 }
 
-SphereGeometry::SphereGeometry(double radius, const double* prt_pm)
-    : GeometryOnPart(), sphereShape(radius) {}
+SphereGeometry::SphereGeometry(double radius, int part_id, bool is_dynamic,
+                               const double* prt_pm)
+    : GeometryOnPart(prt_pm, part_id, is_dynamic), sphereShape(radius) {}
 
 SphereGeometry::~SphereGeometry() = default;
 
 ARIS_DEFINE_BIG_FOUR_CPP(SphereGeometry)
 
-// ½èÖúÀàÄÚ²¿µÄfrom_json to_json¶¨Òå£¬
-// Ê¹ÓÃºê¶¨ÒåÍê³ÉÓÃÓÚjsonÀàÐÍ×ª»»µÄfrom_json to_jsonµÄ·½·¨¶¨Òå
+// å€ŸåŠ©ç±»å†…éƒ¨çš„from_json to_jsonå®šä¹‰ï¼Œ
+// ä½¿ç”¨å®å®šä¹‰å®Œæˆç”¨äºŽjsonç±»åž‹è½¬æ¢çš„from_json to_jsonçš„æ–¹æ³•å®šä¹‰
 SIRE_DEFINE_JSON_OUTER_TWO(SphereGeometry)
 
 ARIS_REGISTRATION {
@@ -39,6 +40,7 @@ ARIS_REGISTRATION {
     return geo->sphereShape.getRadius();
   };
   aris::core::class_<SphereGeometry>("SphereGeometry")
-      .inherit<GeometryOnPart>().prop("radius", &setRadius, &getRadius);
+      .inherit<GeometryOnPart>()
+      .prop("radius", &setRadius, &getRadius);
 }
 }  // namespace sire::geometry

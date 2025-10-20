@@ -14,7 +14,7 @@
 namespace sire::simulator {
 class SIRE_API Controller : public aris::core::NamedObject {
  public:
-  auto virtual control() -> void { THROW_FILE_LINE("non-implemented Controller"); };
+  auto virtual control() -> void { };
   auto virtual init(simulator::SimulationLoop* loopPtr) -> void;
   // PhysicsEngine //
   auto resetPhysicsEnginePtr(physics::PhysicsEngine* engine) -> void;

@@ -19,7 +19,9 @@ class MeshGeometry : public GeometryOnPart {
  public:
   MeshShape meshShape;
   auto virtual shape() -> ShapeBase* override { return &meshShape; };
-  explicit MeshGeometry(string resource_path = "");
+  explicit MeshGeometry(string resource_path = "", int part_id = 0,
+                        bool is_dynamic = false,
+                        const double* prt_pm = nullptr);
   virtual ~MeshGeometry();
   ARIS_DECLARE_BIG_FOUR(MeshGeometry)
 

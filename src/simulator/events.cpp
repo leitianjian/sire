@@ -1211,6 +1211,12 @@ auto CtrlHandler2::handle(core::EventBase* e) -> bool {
 auto InitHandler3::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
+auto InitHandler3::integrate(core::EventBase* e) -> void {
+  simulator_ptr->timer().reset();
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
+  DLOG(DEBUG) << "initial handler current time: "
+              << simulator_ptr->timer().simTime();
+}
 auto InitHandler3::handle(core::EventBase* e) -> bool {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
   aris::dynamic::Model* model_ptr = simulator_ptr->model();
@@ -1218,10 +1224,6 @@ auto InitHandler3::handle(core::EventBase* e) -> bool {
   SIRE_ASSERT(engine_ptr != nullptr);
   SIRE_ASSERT(model_ptr != nullptr);
   SIRE_ASSERT(manager_ptr != nullptr);
-  simulator_ptr->timer().reset();
-  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
-  DLOG(DEBUG) << "initial handler current time: "
-              << simulator_ptr->timer().simTime();
   simulator_ptr->controller().control();
   engine_ptr->fwdActuators();
   // initLog();
@@ -1269,10 +1271,11 @@ auto InitHandler3::handle(core::EventBase* e) -> bool {
 auto StepHandler3::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
-auto StepHandler3::handle(core::EventBase* e) -> bool {
+auto StepHandler3::integrate(core::EventBase* e) -> void {
   // 积分到当前 event 记录的时间
   double dt = e->eventProp().getPropValue("dt");
-  DLOG(DEBUG) << "------------ step integrate with dt " << dt << " -----------";
+  simulator_ptr->recorder().recordDt(dt);
+  DLOG(DEBUG) << "----------- step integrate with dt " << dt << " -----------";
   if (dt > 0) {
     simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   }
@@ -1280,15 +1283,16 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
   simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
   simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
-  double nextCtrlSimSuggestDt =
-      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
-
+}
+auto StepHandler3::handle(core::EventBase* e) -> bool {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
   aris::dynamic::Model* model_ptr = simulator_ptr->model();
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
   SIRE_ASSERT(engine_ptr != nullptr);
   SIRE_ASSERT(model_ptr != nullptr);
   SIRE_ASSERT(manager_ptr != nullptr);
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
   // 重置上一时刻关节和forcePool设置的力
   engine_ptr->resetPartContactForce();
 
@@ -1312,7 +1316,6 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().recordDt(dt);
   simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
   simulator_ptr->recorder().recordContactInfo(contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
@@ -1335,21 +1338,20 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
 auto CtrlHandler3::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
-auto CtrlHandler3::handle(core::EventBase* e) -> bool {
+auto CtrlHandler3::integrate(core::EventBase* e) -> void {
   // 积分到当前 event 记录的时间
   double dt = e->eventProp().getPropValue("dt");
+  simulator_ptr->recorder().recordDt(dt);
   DLOG(DEBUG) << "----------- ctrl integrate with dt " << dt << " -----------";
   if (dt > 0) {
     simulator_ptr->integratorPoolPtr()->at(0).step(dt);
   }
-
   double currentTime = simulator_ptr->timer().updateSimTime(dt);
   simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
   simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
-  double nextCtrlSimSuggestDt =
-      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
-
+}
+auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
   aris::dynamic::Model* model_ptr = simulator_ptr->model();
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
@@ -1359,7 +1361,8 @@ auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   engine_ptr->resetPartContactForce();
   simulator_ptr->controller().control();
   engine_ptr->fwdActuators();
-
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
   // initLog();
   // logCurrentState(0, 1, simulator_ptr);
   engine_ptr->updateGeometryLocationFromModel();
@@ -1380,7 +1383,6 @@ auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   // 根据接触信息将力设置回model的forcePool
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
-  simulator_ptr->recorder().recordDt(dt);
   simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
   simulator_ptr->recorder().recordContactInfo(contact_info);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};

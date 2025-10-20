@@ -29,7 +29,7 @@ auto ActuatorSISO::forward() -> void {
   // if (fcePtr() != nullptr) {
   if (auto* fce = dynamic_cast<aris::dynamic::SingleComponentForce*>(fcePtr());
       fce != nullptr) {
-    fce->setFce(cptOutput(imp_->desiredValue_ - mp()));
+    fce->setFce(imp_->desiredValue_);
     // DLOG(DEBUG) << "ActuatorSISO::forward() called, "
     //             << "desiredValue: " << imp_->desiredValue_ << ", "
     //             << "mp: " << mp() << ", "

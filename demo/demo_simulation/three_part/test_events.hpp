@@ -21,6 +21,7 @@ class InitHandler final : public core::HandlerBase {
   InitHandler() : HandlerBase() {}
   ~InitHandler() = default;
   auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto integrate(core::EventBase* e) -> void override{};
   auto handle(core::EventBase* e) -> bool override;
   simulator::SimulationLoop* simulator_ptr;
 };
@@ -38,6 +39,7 @@ class StepHandler final : public core::HandlerBase {
   StepHandler() : HandlerBase() {}
   ~StepHandler() = default;
   auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto integrate(core::EventBase* e) -> void override{};
   auto handle(core::EventBase* e) -> bool override;
   simulator::SimulationLoop* simulator_ptr;
 };

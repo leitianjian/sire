@@ -83,6 +83,14 @@ auto CollisionFilter::removeGeometry(GeometryId id) -> bool {
     return true;
   }
 }
+auto CollisionFilter::enableCollisionPair(GeometryId id_1, GeometryId id_2) -> void {
+  if (id_1 == id_2) return;
+  if (id_1 < id_2) {
+    imp_->filter_state_[id_1][id_2] = CollisionRelationship::kUnfiltered;
+  } else {
+    imp_->filter_state_[id_2][id_1] = CollisionRelationship::kUnfiltered;
+  }
+}
 auto CollisionFilter::canCollideWith(GeometryId id_1, GeometryId id_2) -> bool {
   if (id_1 == id_2) return false;
   return id_1 < id_2 ? imp_->filter_state_[id_1][id_2] ==
@@ -142,6 +150,10 @@ auto CollisionFilter::loadMatConfig() -> void {
 }
 auto CollisionFilter::saveMatConfig() -> void {
   sire::Size size = imp_->filter_state_.size();
+  imp_->state_mat_.swap(aris::core::Matrix(1, size * size, 0.0));
+  for (Size i = 0; i < size; ++i) {
+    imp_->state_mat_(0, i * size + i) = 1;
+  }
   int i = 0;
   for (const auto& [id_1, geo_map] : imp_->filter_state_) {
     int j = i + 1;

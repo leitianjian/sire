@@ -26,6 +26,7 @@ class SIRE_API CollisionFilter {
   auto addGeometry(GeometryId id, coal::CollisionObject* obj_ptr) -> bool;
   auto updateGeometry(GeometryId id, coal::CollisionObject* obj_ptr) -> bool;
   auto removeGeometry(GeometryId id) -> bool;
+  auto enableCollisionPair(GeometryId id_1, GeometryId id_2) -> void;
   auto canCollideWith(GeometryId id_1, GeometryId id_2) -> bool;
   auto canCollideWith(const coal::CollisionObject* o1,
                       const coal::CollisionObject* o2) -> bool;

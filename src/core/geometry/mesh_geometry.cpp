@@ -17,8 +17,9 @@ SIRE_DEFINE_TO_JSON_HEAD(MeshGeometry) {
   j["resource_path"] = meshShape.resourcePath();
 }
 
-MeshGeometry::MeshGeometry(string resource_path)
-    : GeometryOnPart(), meshShape(resource_path) {}
+MeshGeometry::MeshGeometry(string resource_path, int part_id, bool is_dynamic,
+                           const double* prt_pm)
+    : GeometryOnPart(prt_pm, part_id, is_dynamic), meshShape(resource_path) {}
 
 MeshGeometry::~MeshGeometry() = default;
 
@@ -45,6 +46,6 @@ ARIS_REGISTRATION {
   aris::core::class_<MeshGeometry>("MeshGeometry")
       .inherit<GeometryOnPart>()
       .prop("resource_path", &setResourcePath, &getResourcePath);
-      // .prop("scale", &setScale, &getScale);
+  // .prop("scale", &setScale, &getScale);
 }
 }  // namespace sire::geometry

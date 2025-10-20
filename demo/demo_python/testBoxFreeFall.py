@@ -96,18 +96,20 @@ def animateRobotByRecords(numLinks, records, frameRate, vis):
   vis.set_animation(anim)
 
 if __name__ == "__main__":
-  import sys
-  sys.path.append("D:/code/sire/install/python/release")
+  # import sys
+  # sys.path.append("D:/code/sire/install/python/release")
   import sire
   from os.path import abspath
   import os
   cs = sire.ControlServer.instance()
-  sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/box2.xml')
+  sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/box.xml')
   cs.init()
   
   simulator = sire.simulator(cs)
   while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
-    simulator.step(1, False)
+    simulator.integrate()
+    simulator.handleContact()
+    # simulator.step(1, False)
   
   model = cs.model()
   displayInitJson = model.displayInitJson()
@@ -117,10 +119,12 @@ if __name__ == "__main__":
   displayInitJson
   vis = meshcat.Visualizer()
   resourcePath = "D:/code/sire/web_interface/public"
-  robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
-  animateRobotByRecords(model.numLinks(), result, 1000, vis)
+  sire.robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
+  sire.animateRobotByRecords(model.numLinks(), result, 1000, vis)
+  # robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
+  # animateRobotByRecords(model.numLinks(), result, 1000, vis)
   
   input("按 Enter 键退出程序...")
-  import json
-  with open("result.json", "w", encoding="utf-8") as f:
-      json.dump(result, f, ensure_ascii=False, indent=2)
+  # import json
+  # with open("result.json", "w", encoding="utf-8") as f:
+  #     json.dump(result, f, ensure_ascii=False, indent=2)

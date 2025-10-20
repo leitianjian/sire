@@ -1700,7 +1700,7 @@ auto ContactPositionForceSolver::cptContactSolverResult(
     const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
     // 用pos可能会有问题，因为在平衡状态下，速度可能没有被抵消，
     // 后续可能要综合pos 和 vel，给velFce加上一个pos的约束稳定项
-    result.fn[idx] = contactPosFce2[i];
+    result.fn[idx] = contactVelFce2[i];
   }
   std::vector<double> ftVec(n2 * 2, 0);
   for (sire::Size i{0}, ftIdx{0}; i < n; ++i) {

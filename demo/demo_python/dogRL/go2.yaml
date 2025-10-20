@@ -5,12 +5,14 @@ xml_path: "{LEGGED_GYM_ROOT_DIR}/scene.xml"
 # Total simulation time
 simulation_duration: 60.0
 # Simulation time step
-simulation_dt: 0.001
+simulation_dt: 0.002
 # Controller update frequency (meets the requirement of simulation_dt * controll_decimation=0.02; 50Hz)
 control_decimation: 10
 
 kps: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0] 
 kds: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5] 
+# kps: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0] 
+# kds: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] 
 
 default_angles: [0.1,  0.8,  -1.5,  -0.1, 0.8, -1.5, 
                  0.1,  1.0,  -1.5,  -0.1, 1.0, -1.5] 

@@ -6,6 +6,7 @@
 
 #include "sire/core/geometry/box_shape.hpp"
 #include "sire/core/geometry/capsule_shape.hpp"
+#include "sire/core/geometry/cylinder_shape.hpp"
 #include "sire/core/geometry/sphere_shape.hpp"
 #include "sire/core/nice_type_name.hpp"
 #include "sire/core/sire_assert.hpp"
@@ -26,9 +27,9 @@ void ShapeCalculator::ImplementGeometry(const CapsuleShape&, void*) {
 //   ThrowUnsupportedGeometry("Convex");
 // }
 
-// void ShapeCalculator::ImplementGeometry(const Cylinder&, void*) {
-//   ThrowUnsupportedGeometry("Cylinder");
-// }
+void ShapeCalculator::ImplementGeometry(const CylinderShape&, void*) {
+  ThrowUnsupportedGeometry("Cylinder");
+}
 
 // void ShapeCalculator::ImplementGeometry(const Ellipsoid&, void*) {
 //   ThrowUnsupportedGeometry("Ellipsoid");
@@ -61,6 +62,10 @@ void ShapeToName::ImplementGeometry(const BoxShape& box, void*) {
 
 void ShapeToName::ImplementGeometry(const CapsuleShape& capsule, void*) {
   string_ = "capsule";
+}
+
+void ShapeToName::ImplementGeometry(const CylinderShape& cylinder, void*) {
+  string_ = "cylinder";
 }
 
 // void ShapeToString::ImplementGeometry(const Capsule& capsule, void*) {
@@ -129,6 +134,15 @@ void ShapeToInertia::ImplementGeometry(const CapsuleShape& capsule,
                                        void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double mass = iv[0], radius{capsule.radius()}, length{capsule.length()};
+  // ShapeCalculator::ThrowUnsupportedGeometry("");
+  // iv[4] = mass * (y * y + z * z) / 12;  // ix
+  // iv[5] = mass * (x * x + z * z) / 12;  // iy
+  // iv[6] = mass * (x * x + y * y) / 12;  // iz
+}
+void ShapeToInertia::ImplementGeometry(const CylinderShape& cylinder,
+                                       void* user_data) {
+  double* iv = static_cast<double*>(user_data);
+  double mass = iv[0], radius{cylinder.radius()}, length{cylinder.length()};
   // ShapeCalculator::ThrowUnsupportedGeometry("");
   // iv[4] = mass * (y * y + z * z) / 12;  // ix
   // iv[5] = mass * (x * x + z * z) / 12;  // iy

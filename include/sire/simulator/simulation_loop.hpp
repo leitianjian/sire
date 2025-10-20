@@ -117,6 +117,8 @@ class SIRE_API SimulationLoop {
   auto init(middleware::SireMiddleware* middleware) -> void;
   auto start() -> void;
   auto isRunning() -> bool;
+  auto handleContact() -> void;
+  auto integrate() -> bool;
   auto step(sire::Size frame_skip, bool pause_if_fast = false) -> void;
   auto pause() -> void;
   auto playback() -> void {};
