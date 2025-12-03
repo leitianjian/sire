@@ -1,0 +1,41 @@
+@realtime-chart-prefix-cls: ~'@{ant-prefix}-realtime-chart';
+
+.@{realtime-chart-prefix-cls} {
+  width: 100%;
+  height: 100%;
+  //padding: @padding-md;
+  box-sizing: border-box;
+  &:hover &-play {
+    display: block;
+  }
+  &-play {
+    position: absolute;
+    display: none;
+    cursor: pointer;
+    bottom: @padding-lg;
+    right: @padding-lg;
+    svg {
+      width: @font-size-lg*3;
+      height: auto;
+    }
+    &:hover {
+      opacity: 1;
+    }
+  }
+  //&-play-start {
+  //  display: block;
+  //  top: 50%;
+  //  left: 50%;
+  //  bottom: unset;
+  //  right: unset;
+  //  svg {
+  //    width: @font-size-lg*4;
+  //    height: auto;
+  //  }
+  //  transform: translate(-50%, -50%);
+  //}
+}
+.@{realtime-chart-prefix-cls}-no-data {
+  height: auto;
+  text-align: center;
+}

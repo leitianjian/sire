@@ -1,0 +1,111 @@
+@import '~antd/lib/style/core/motion/other.less';
+@import '~antd/lib/menu/style/index';
+@import '~antd/lib/dropdown/style/index';
+@import '~antd/lib/button/style/index';
+
+@import '~antd/lib/select/style/index';
+@import '~antd/lib/radio/style/index';
+@import '~antd/lib/style/core/iconfont';
+
+@import '~antd/lib/grid/style/index';
+@import '~antd/lib/input/style/index';
+@import '~antd/lib/input-number/style/index';
+@import '~antd/lib/slider/style/index';
+@import '~antd/lib/tooltip/style/index';
+@import '~antd/lib/switch/style/index';
+@import '~antd/lib/modal/style/index';
+@import '~antd/lib/input-number/style/index';
+@import '~antd/lib/icon/style/index';
+@import '~antd/lib/spin/style/index';
+@import '~antd/lib/popover/style/index';
+@import '~antd/lib/table/style/index';
+@import '~antd/lib/form/style/index';
+@import '~antd/lib/collapse/style/index';
+
+@import 'themes/blue.less';
+
+@import 'shared/index';
+@import 'containers/index';
+@import 'components/index';
+
+*:focus {
+  outline: none;
+}
+
+.disabled {
+  opacity: 0.5;
+}
+.disabled:hover{
+  opacity: 0.5;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-touch-callout: none; /* iOS Safari */
+  -webkit-user-select: none; /* Safari */
+  -khtml-user-select: none; /* Konqueror HTML */
+  -moz-user-select: none; /* Firefox */
+  -ms-user-select: none; /* Internet Explorer/Edge */
+  user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  color: @text-color;
+  background-color: @body-background;
+  font-family: @font-family;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-weight: 600;
+  font-size: @font-size-base;
+}
+
+.warning {
+  color: @warning-color;
+}
+.success {
+  color: @success-color;
+}
+.danger, .error {
+  color: @error-color;
+}
+.processing {
+  color: @processing-color;
+}
+.highlight {
+  color: @highlight-color;
+}
+.info {
+  color: @info-color;
+}
+
+.@{ant-prefix}-modal-header {
+  padding: @padding-xs;
+}
+.@{ant-prefix}-modal-footer {
+  padding: @padding-xs;
+}
+
+.@{ant-prefix}-modal-close-x {
+  width: 35px;
+  height: 35px;
+  line-height: 35px;
+}
+.@{ant-prefix}-tooltip-inner {
+  padding: @padding-xs/2;
+  font-size: @font-size-sm;
+  min-height: @font-size-sm*2;
+}
+
+input {
+  color: @primary-color;
+}
+
+

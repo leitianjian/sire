@@ -1,0 +1,28 @@
+@six-dimension-force:  ~'@{ant-prefix}-six-dimension-force';
+
+.@{six-dimension-force}{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex: auto;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    align-items: center;
+    
+    &-number{
+        font-size: large;
+        font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+        color: @success-color;
+    }
+    &-number-error{
+        font-size: large;
+        font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+        color: @error-color;
+    }
+
+}
+
+.ant-statistic-title{
+    color: @primary-color;
+    font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;
+}

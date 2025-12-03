@@ -1,12 +1,18 @@
+#ifndef _CRT_SECURE_NO_WARNINGS
+#define _CRT_SECURE_NO_WARNINGS
+#endif
 #include "sire/server/api.hpp"
-#include "sire/ext/fifo_map.hpp"
-#include "sire/ext/json.hpp"
-#include <aris.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <codecvt>
 #include <filesystem>
 #include <random>
+
+#include <aris.hpp>
+
+#include "sire/ext/fifo_map.hpp"
+#include "sire/ext/json.hpp"
 
 namespace sire::server {
 using Matrix = aris::core::Matrix;
@@ -56,11 +62,11 @@ auto fetchInterfaceConfig() -> std::string {
 
     const std::string default_interface_str =
         u8"<Interface>\n"
-        "<Dashboard name=\"ÊÖ¶¯²Ù×÷\" editable=\"false\" id=\"NihtPEvZR\">\n"
+        "<Dashboard name=\"æ‰‹åŠ¨æ“ä½œ\" editable=\"false\" id=\"NihtPEvZR\">\n"
         "</Dashboard>\n"
-        " <Dashboard name=\"×Ô¶¯Ä£Ê½\" editable=\"true\" id=\"5uha_EvWR\">\n"
+        " <Dashboard name=\"è‡ªåŠ¨æ¨¡å¼\" editable=\"true\" id=\"5uha_EvWR\">\n"
         " </Dashboard>\n"
-        "<Dashboard name=\"ÅäÖÃ¹¤¾ß\" editable=\"true\" id=\"ZtjylPvZg\">\n"
+        "<Dashboard name=\"é…ç½®å·¥å…·\" editable=\"true\" id=\"ZtjylPvZg\">\n"
         "</Dashboard>\n"
         "<WebSocket url=\"ws://120.27.231.59:5866\" commandSendInterval=\"20\" "
         "commandSendDelay=\"300\" getInterval=\"500\" "
@@ -89,7 +95,7 @@ auto fetchInterfaceConfig() -> std::string {
       for (auto e1 = ele->FirstChildElement(); e1;
            e1 = e1->NextSiblingElement()) {
         my_json
-            j2;  //{"name":"EthercatÅäÖÃ","type":"EthercatConfiguration","i":"EMlxGXxpwDGgz","w":48,"h":23,"x":0,"y":0,"options":"{}"}
+            j2;  //{"name":"Ethercaté…ç½®","type":"EthercatConfiguration","i":"EMlxGXxpwDGgz","w":48,"h":23,"x":0,"y":0,"options":"{}"}
         j2["name"] = e1->Attribute("name");
         j2["type"] = e1->Attribute("type");
         j2["i"] = e1->Attribute("id");
@@ -281,7 +287,7 @@ auto fetchPrograms() -> std::string {
       for (auto& file : std::filesystem::directory_iterator(dir)) {
         if (file.is_regular_file()) {
           if (file.path().extension() == ".dat") {
-            // Ğ£ÑéÊÇ·ñÎªxml //
+            // æ ¡éªŒæ˜¯å¦ä¸ºxml //
             tinyxml2::XMLDocument doc;
             if (doc.LoadFile(file.path().string().c_str())) continue;
 
@@ -322,7 +328,7 @@ auto fetchPrograms() -> std::string {
 
             pro_dir_js["files"].push_back(file_js);
           } else if (file.path().extension() == ".pro") {
-            // Ğ£ÑéÊÇ·ñÎªxml //
+            // æ ¡éªŒæ˜¯å¦ä¸ºxml //
             tinyxml2::XMLDocument doc;
             if (doc.LoadFile(file.path().string().c_str())) continue;
 
@@ -440,11 +446,11 @@ auto updateProgram(std::string pro_name, std::string data) -> std::string {
   auto program_path = rootPath() / "robot/program";
   auto js = my_json::parse(data);
 
-  // ÏÈ½«ËùÓĞÎÄ¼ş´æµ½ temp Â·¾¶ÏÂ //
+  // å…ˆå°†æ‰€æœ‰æ–‡ä»¶å­˜åˆ° temp è·¯å¾„ä¸‹ //
   std::filesystem::remove_all(program_path / pro_name / "temp");
   std::filesystem::create_directories(program_path / pro_name / "temp");
 
-  // ±£´æ£¬²¢È·ÈÏÊÇ·ñ³ö´í //
+  // ä¿å­˜ï¼Œå¹¶ç¡®è®¤æ˜¯å¦å‡ºé”™ //
   bool has_error{false};
   for (auto& file : js["files"]) {
     std::cout << "update file:" << file["name"].get<std::string>() << std::endl;
@@ -498,7 +504,7 @@ auto updateProgram(std::string pro_name, std::string data) -> std::string {
     }
   }
 
-  // Èç¹ûÎŞ´í£¬Ôò¸²¸Çµ±Ç°ÎÄ¼ş //
+  // å¦‚æœæ— é”™ï¼Œåˆ™è¦†ç›–å½“å‰æ–‡ä»¶ //
   if (has_error == false) {
     for (auto& file :
          std::filesystem::directory_iterator(program_path / pro_name)) {
@@ -550,7 +556,7 @@ auto renameProgram(std::string old_name, std::string new_name_js)
       rootPath() / "robot/program" / new_name / (old_name + ".dat"),
       rootPath() / "robot/program" / new_name / (new_name + ".dat"));
 
-  ///////////////////////ÒÔÏÂ·µ»Ø///////////////////////////////////
+  ///////////////////////ä»¥ä¸‹è¿”å›///////////////////////////////////
   auto dir =
       std::filesystem::directory_entry(rootPath() / "robot/program" / new_name);
 

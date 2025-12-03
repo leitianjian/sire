@@ -1,0 +1,238 @@
+<ControlServer>
+	<Model __prop_name__="model" name="FreeFallModel" time="0">
+		<Environment __prop_name__="environment" gravity="{0,0,-9.8,0,0,0}"/>
+		<VariablePoolElement __prop_name__="variable_pool">
+			<MatrixVariable name="tool0_pe">{0,0,0,0,0,0}</MatrixVariable>
+			<StringVariable name="tool0_pe_type">321</StringVariable>
+			<MatrixVariable name="base_pe">{0,0,0,0,0,0}</MatrixVariable>
+			<StringVariable name="base_pe_type">321</StringVariable>
+		</VariablePoolElement>
+		<PartPoolElement __prop_name__="part_pool">
+			<Part name="ground" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,1,1,1,0,0,0}">
+				<MarkerPoolElement __prop_name__="marker_pool">
+					<Marker name="joint_0_j" active="true" pe="{0,0,0,0,0,0}"/>
+					<Marker name="ground" active="true" pe="{0,0,0,0,0,0}"/>
+				</MarkerPoolElement>
+				<GeometryPoolElement __prop_name__="geometry_pool">
+					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{5, 5, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				</GeometryPoolElement>
+			</Part>
+			<Part name="L1" active="true" pe="{0,0,5,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+				<MarkerPoolElement __prop_name__="marker_pool">
+					<Marker name="sphere_center" active="true" pe="{0,0,0,0,0,0}"/>
+				</MarkerPoolElement>
+				<GeometryPoolElement __prop_name__="geometry_pool">
+					<SphereGeometry id="1" part_id="1" is_dynamic="true" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				</GeometryPoolElement>
+			</Part>
+			<Part name="L2" active="true" pe="{0,0.7,5,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+				<MarkerPoolElement __prop_name__="marker_pool">
+					<Marker name="sphere_center1" active="true" pe="{0,0,0,0,0,0}"/>
+				</MarkerPoolElement>
+				<GeometryPoolElement __prop_name__="geometry_pool">
+					<SphereGeometry id="2" part_id="2" is_dynamic="true" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				</GeometryPoolElement>
+			</Part>
+			<Part name="L3" active="true" pe="{0,-0.7,5,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0,0,0,0,0,0}">
+				<MarkerPoolElement __prop_name__="marker_pool">
+					<Marker name="sphere_center2" active="true" pe="{0,0,0,0,0,0}"/>
+				</MarkerPoolElement>
+				<GeometryPoolElement __prop_name__="geometry_pool">
+					<SphereGeometry id="3" part_id="3" is_dynamic="true" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				</GeometryPoolElement>
+			</Part>
+		</PartPoolElement>
+		<MotionPoolElement __prop_name__="motion_pool"/>
+		<JointPoolElement __prop_name__="joint_pool"/>
+		<GeneralMotionPoolElement __prop_name__="general_motion_pool"/>
+		<ForcePoolElement __prop_name__="force_pool"/>
+		<SolverPoolElement __prop_name__="solver_pool">
+			<InverseKinematicSolver max_iter_count="100" max_error="1e-10"/>
+			<ForwardKinematicSolver max_iter_count="100" max_error="1e-10"/>
+			<InverseDynamicSolver max_iter_count="100" max_error="1e-10"/>
+			<ForwardDynamicSolver max_iter_count="100" max_error="1e-10"/>
+		</SolverPoolElement>
+		<CalibratorPoolElement __prop_name__="calibrator_pool"/>
+	</Model>
+	<EthercatMaster __prop_name__="master" name="ethercat_master" sample_period_ns="1000000"/>
+	<Controller __prop_name__="controller">
+		<MotorPoolObject __prop_name__="motor_pool"/>
+		<DigitalIoPoolObject __prop_name__="digital_io_pool"/>
+		<FtSensorPoolObject __prop_name__="ft_sensor_pool"/>
+		<SensorPoolObject __prop_name__="sensor_pool"/>
+	</Controller>
+	<PlanRoot __prop_name__="plan_root">
+		<PlanPoolObject __prop_name__="plan_pool_object">
+			<Show name="plan">
+				<Command __prop_name__="command" name="sh"/>
+			</Show>
+			<Sleep name="plan">
+				<Command __prop_name__="command" name="sl">
+					<Param name="count" abbreviation="c" default="1000"/>
+				</Command>
+			</Sleep>
+			<Clear name="plan">
+				<Command __prop_name__="command" name="cl"/>
+			</Clear>
+			<Recover name="plan">
+				<Command __prop_name__="command" name="rc"/>
+			</Recover>
+			<Reset name="plan">
+				<Command __prop_name__="command" name="rs">
+					<GroupParam name="group_param">
+						<Param name="pos" default="0.5"/>
+						<Param name="acc" default="0.1"/>
+						<Param name="vel" default="0.1"/>
+						<Param name="dec" default="0.1"/>
+						<UniqueParam name="unique_param" default="all">
+							<Param name="all" abbreviation="a"/>
+							<Param name="motion_id" abbreviation="m" default="0"/>
+						</UniqueParam>
+						<UniqueParam name="unique_param" default="check_all">
+							<Param name="check_all"/>
+							<Param name="check_none"/>
+							<GroupParam name="group_param">
+								<UniqueParam name="unique_param" default="check_enable">
+									<Param name="check_enable"/>
+									<Param name="not_check_enable"/>
+								</UniqueParam>
+								<UniqueParam name="unique_param" default="check_pos">
+									<Param name="check_pos"/>
+									<Param name="not_check_pos"/>
+									<GroupParam name="group_param">
+										<UniqueParam name="unique_param" default="check_pos_max">
+											<Param name="check_pos_max"/>
+											<Param name="not_check_pos_max"/>
+										</UniqueParam>
+										<UniqueParam name="unique_param" default="check_pos_min">
+											<Param name="check_pos_min"/>
+											<Param name="not_check_pos_min"/>
+										</UniqueParam>
+										<UniqueParam name="unique_param" default="check_pos_continuous">
+											<Param name="check_pos_continuous"/>
+											<Param name="not_check_pos_continuous"/>
+										</UniqueParam>
+										<UniqueParam name="unique_param" default="check_pos_continuous_second_order">
+											<Param name="check_pos_continuous_second_order"/>
+											<Param name="not_check_pos_continuous_second_order"/>
+										</UniqueParam>
+										<UniqueParam name="unique_param" default="check_pos_following_error">
+											<Param name="check_pos_following_error"/>
+											<Param name="not_check_pos_following_error"/>
+										</UniqueParam>
+									</GroupParam>
+								</UniqueParam>
+								<UniqueParam name="unique_param" default="check_vel">
+									<Param name="check_vel"/>
+									<Param name="not_check_vel"/>
+									<GroupParam name="group_param">
+										<UniqueParam name="unique_param" default="check_vel_max">
+											<Param name="check_vel_max"/>
+											<Param name="not_check_vel_max"/>
+										</UniqueParam>
+										<UniqueParam name="unique_param" default="check_vel_min">
+											<Param name="check_vel_min"/>
+											<Param name="not_check_vel_min"/>
+										</UniqueParam>
+										<UniqueParam name="unique_param" default="check_vel_continuous">
+											<Param name="check_vel_continuous"/>
+											<Param name="not_check_vel_continuous"/>
+										</UniqueParam>
+										<UniqueParam name="unique_param" default="check_vel_following_error">
+											<Param name="check_vel_following_error"/>
+											<Param name="not_check_vel_following_error"/>
+										</UniqueParam>
+									</GroupParam>
+								</UniqueParam>
+							</GroupParam>
+						</UniqueParam>
+					</GroupParam>
+				</Command>
+			</Reset>
+			<GetXml name="plan">
+				<Command __prop_name__="command" name="get_xml"/>
+			</GetXml>
+			<SetXml name="plan">
+				<Command __prop_name__="command" name="set_xml">
+					<Param name="xml"/>
+				</Command>
+			</SetXml>
+			<plan.Start name="plan">
+				<Command __prop_name__="command" name="cs_start"/>
+			</plan.Start>
+			<Stop name="plan">
+				<Command __prop_name__="command" name="cs_stop"/>
+			</Stop>
+			<SireGet name="get">
+				<Command __prop_name__="command" name="get">
+					<GroupParam>
+						<UniqueParam default="all">
+							<Param name="all"/>
+							<Param name="part_pq"/>
+						</UniqueParam>
+					</GroupParam>
+				</Command>
+			</SireGet>
+			<SireForceControlTest name="fc_test">
+				<Command __prop_name__="command" name="FCTest"/>
+			</SireForceControlTest>
+			<ExecuteRTTest name="ExecuteRTTest_plan">
+				<Command __prop_name__="command" name="executeRT_test">
+					<Param name="count" abbreviation="c" default="5000"/>
+				</Command>
+			</ExecuteRTTest>
+			<Display3dInit name="Display3dInit_plan">
+				<Command __prop_name__="command" name="display3d_init"/>
+			</Display3dInit>
+			<SimPlay name="SimPlay_plan">
+				<Command __prop_name__="command" name="sim_play"/>
+			</SimPlay>
+			<SimReset name="SimReset_plan">
+				<Command __prop_name__="command" name="sim_reset"/>
+			</SimReset>
+		</PlanPoolObject>
+	</PlanRoot>
+	<TransferModelController __prop_name__="model_controller_transfer"/>
+	<InterfacePoolObject __prop_name__="interface">
+		<SireProgramWebInterface name="sire_program_websock_interface">
+			<Socket __prop_name__="socket" connect_type="WEB" port="5867"/>
+		</SireProgramWebInterface>
+		<SireHttpInterface name="http_interface" document_root="D:\Documents\code\sire\web_interface\build" port="8001"/>
+	</InterfacePoolObject>
+	<SireMiddleware __prop_name__="middleware">
+		<SimulationLoop __prop_name__="simulator" dt="0.001" realtime_rate="0.5" global_variable_pool="{impact_threshold_insert:0.5,impact_threshold_remove:0.2,shrink_dt:0.00001}">
+			<EventManager __prop_name__="event_manager">
+				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
+					<EventHandlerIdPair event_id="0" handler_id="0"/>
+					<EventHandlerIdPair event_id="1" handler_id="1"/>
+				</EventHandlerPairPool>
+			</EventManager>
+		</SimulationLoop>
+		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
+			<CollisionDetection __prop_name__="collision_detection"/>
+			<ContinuousForceContactSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.2">
+				<MaterialManager default_prop="{k:1.4e8,d:1500,cr:0.2}">
+					<MaterialPairPropPool>
+						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2.8e8,d:1000,cr:0.4,cof:0.2,threshold_velocity:1e-1}"/>
+						<MaterialPairProp first_name="steel" second_name="silver" prop="{k:2.8e8,d:1000,cr:0.5,cof:0.2,threshold_velocity:1e-1}"/>
+						<MaterialPairProp first_name="steel" second_name="m3" prop="{k:2.8e8,d:1000,cr:0.6,cof:0.2,threshold_velocity:1e-1}"/>
+					</MaterialPairPropPool>
+				</MaterialManager>
+			</ContinuousForceContactSolver>
+			<GeometryPoolObject __prop_name__="dynamic_geometry_pool">
+				<BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="steel" contact_prop="{k:2.8e8,d:2000}" side="{5, 5, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<SphereCollisionGeometry id="1" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<SphereCollisionGeometry id="2" part_id="2" is_dynamic="true" material="silver" contact_prop="{k:2.8e8,d:2000}" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				<SphereCollisionGeometry id="3" part_id="3" is_dynamic="true" material="m3" contact_prop="{k:2.8e8,d:2000}" radius="0.30" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+			</GeometryPoolObject>
+			<CollisionFilter __prop_name__="collision_filter" filter_state="{1,0,0,0, 0,1,1,1, 0,1,1,1, 0,1,1,1}"/>
+		</PhysicsEngine>
+		<SimulatorModules __prop_name__="simulator_modules">
+			<IntegratorPoolObject __prop_name__="integrator_pool">
+				<SemiImplicitEulerIntegrator/>
+			</IntegratorPoolObject>
+			<SireSensorPoolObject __prop_name__="sensor_pool"/>
+		</SimulatorModules>
+	</SireMiddleware>
+	<CustomModule __prop_name__="custom_module"/>
+</ControlServer>

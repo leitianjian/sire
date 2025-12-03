@@ -1,0 +1,183 @@
+@ethercat-configuration-prefix-cls: ~'@{ant-prefix}-ethercat-configuration';
+
+.@{ethercat-configuration-prefix-cls}{
+  height: 100%;
+  width: 100%;
+  min-width: @font-size-base*40;
+  box-sizing: border-box;
+  overflow: hidden;
+  @sidebar-width: @font-size-base*23+2*@padding-xs;
+
+  form {
+    padding-top: @padding-lg;
+  }
+
+  &-header{
+    float: left;
+    &-buttons{
+      margin: @padding-xs;
+    }
+  }
+  &-sidebar {
+    width: @sidebar-width;
+    padding: @padding-xs;
+    height: 100%;
+    position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
+    float: left;
+    display: inline-block;
+  }
+  &-content {
+    height: 100%;
+    overflow: auto;
+    padding: @padding-xs @padding-md @padding-md @padding-md;
+    width: calc(~"100% - "@sidebar-width);
+    float: left;
+    display: inline-block;
+    position:relative;
+    .@{ethercat-configuration-prefix-cls}-form-postfix {
+      white-space: nowrap;
+      padding-left: @padding-xs/2;
+      position: absolute;
+      top: 20%;
+      left: 100%;
+    }
+    .@{ant-prefix}-form-item-control {
+      float: left;
+      width: 100%;
+      .@{ant-prefix}-form-item-children {
+        position: relative;
+      }
+      .@{ant-prefix}-input-number {
+        width: 100%;
+        input {
+          color: @primary-color;
+        }
+      }
+    }
+    &-header{
+      padding-left: @padding-xs;
+      font-size: @font-size-lg;
+      width:100%;
+      line-height: 32px;
+      display: block;
+
+      & > * {
+        vertical-align: middle;
+        display:inline-block;
+      }
+    }
+    &-sm {
+      background: fade(@primary-color, 10%);
+      margin: @padding-xs 0 0 0;
+      position:relative;
+      &-header {
+        padding-left: @padding-xs;
+        font-size: @font-size-lg;
+        width:100%;
+        line-height: 32px;
+        display: block;
+
+        & > * {
+          vertical-align: middle;
+          display:inline-block;
+        }
+      }
+      &-add {
+        margin: @padding-xs @padding-xs @padding-xs @padding-xs;
+        float:right;
+      }
+      &-pdo {
+        background: fade(@text-color-inverse, 20%);
+        margin: @padding-xs @padding-xs 0 @padding-xs;
+        &-header {
+          padding-left: @padding-xs;
+          &>*{
+            vertical-align: middle;
+          }
+        }
+        &-add {
+          margin: @padding-xs 2*@padding-xs @padding-xs @padding-xs;
+        }
+        &-entry {
+          background: fade(@text-color-inverse, 40%);
+          margin: 0 @padding-xs 0 @padding-xs;
+          padding-left: @padding-xs;
+          &-header{
+            text-align: center;
+            text-transform: capitalize;
+          }
+          &-add {
+            margin: @padding-xs 3*@padding-xs @padding-xs @padding-xs;
+            float:right;
+          }
+          &>div {
+            vertical-align: middle;
+            //line-height: @form-component-max-height;
+          }
+        }
+      }
+    }
+  }
+
+
+
+  &-header-bar {
+    position: relative;
+    button {
+      position: absolute;
+      right: @padding-xs;
+      top: 50%;
+      transform: translate(0, -50%);
+    }
+    .@{ant-prefix}-select {
+      margin-left: @padding-xs;
+    }
+  }
+
+
+  &-sidebar &-buttons &-esi-upload{
+    .@{ant-prefix}-upload {
+      display: inline-block;
+    }
+  }
+  &-sidebar &-buttons &-scanslave{
+    float: right;
+    margin-left: @padding-xs;
+  }
+  &-sidebar &-info {
+    font-size: @font-size-base;
+  }
+
+  @top-offset: @font-size-base*5;
+  &-slaves-list {
+    background: fade(@primary-color, 10%);
+    font-size: @font-size-base;
+    display: block;
+    height: 100%;
+    width: 100%;
+    padding: @padding-xs;
+    overflow: auto;
+    &>.@{ethercat-configuration-prefix-cls}-selected-slave {
+      background: fade(@primary-color, 30%);
+    }
+    &-item{
+      line-height: 2;
+      padding: @padding-xs/5 0;
+      display: block;
+      vertical-align: middle;
+      position: relative;
+      cursor: pointer;
+      &:hover {
+        opacity: 0.9;
+      }
+      button {
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translate(0, -50%);
+      }
+    }
+  }
+}

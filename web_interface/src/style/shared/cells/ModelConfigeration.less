@@ -1,0 +1,51 @@
+@model-configuration-prefix-cls: ~'@{ant-prefix}-model-configuration';
+
+.@{model-configuration-prefix-cls}{
+  height: 100%;
+  width: 100%;
+  min-width: @font-size-base*24;
+  max-width: @font-size-base*36;
+  padding: @padding-md;
+  box-sizing: border-box;
+  font-size: @font-size-base;
+  overflow: auto;
+  &-brand{
+    .@{ant-prefix}-select {
+      padding-left: @padding-xs;
+    }
+  }
+  &-model{
+    .@{ant-prefix}-select {
+      padding-left: @padding-xs;
+    }
+  }
+  &-parts{
+    padding-top: @padding-lg;
+  }
+  &-part{
+    padding: @padding-xs 0;
+    height: @font-size-base*3;
+    span {
+      vertical-align: top;
+    }
+  }
+  &-part-upload {
+    padding-left: @padding-xs;
+    &>div{
+      display: inline-block;
+    }
+  }
+  &-part-file {
+    padding-left: @padding-xs;
+  }
+  &-delete {
+    cursor: pointer;
+    &:hover {
+      opacity: 0.5;
+    }
+  }
+  &-save {
+    padding: @padding-lg 0;
+    text-align: left;
+  }
+}

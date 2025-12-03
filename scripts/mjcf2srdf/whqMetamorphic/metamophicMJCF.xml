@@ -1,0 +1,125 @@
+<mujoco model="metamophic">
+  <option gravity="0 0 0" />
+  <default>
+    <default class="robot">
+      <default class="motor">
+        <joint frictionloss="0.5" limited="false"/>
+        <position ctrlrange="-4 4" kp="30" kv="0.2" />
+      </default>
+      <default class="visual">
+        <geom material="visualgeom" contype="0" conaffinity="0" group="2" />
+      </default>
+      <default class="collision">
+        <geom material="collision_material" condim="3" contype="0" conaffinity="1" priority="1" group="1" solref="0.005 1" solimp="0.99 0.999 1e-05" friction="1 0.01 0.01" />
+      </default>
+    </default>
+  </default>
+
+  <compiler angle="radian" />
+
+  <asset>
+    <material name="default_material" rgba="0.66667 0.69804 0.76863 1" />
+    <material name="default_material1" rgba="0.7 0.7 0.7 1" />
+    <material name="collision_material" rgba="1.0 0.28 0.1 0.9" />
+    <mesh name="base1.STL" file="./meshes/base1.STL" />
+    <mesh name="base2.STL" file="./meshes/base2.STL" />
+    <mesh name="side1.STL" file="./meshes/side1.STL" />
+    <mesh name="side2.STL" file="./meshes/side2.STL" />
+    <mesh name="base3.STL" file="./meshes/base3.STL" />
+    <mesh name="base4.STL" file="./meshes/base4.STL" />
+    <mesh name="side3.STL" file="./meshes/side3.STL" />
+    <mesh name="side4.STL" file="./meshes/side4.STL" />
+  </asset>
+  <default>
+    <!-- <joint damping=".03" actuatorfrcrange="-0.5 0.5"/> -->
+    <joint damping=".03"/>
+    <geom friction="2 0.005 0.0001"/>
+  </default>
+
+  <worldbody>
+    <body name="base1" pos="0.00000000 0.00000000 0.01401690" quat="1 0 0 0" childclass="robot">
+      <joint name="floating_base" type="fixed"/>
+      <geom name="base1_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="base1.STL" class="collision" />
+      <geom name="base1_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="base1.STL" class="visual" />
+      <body name="base2" pos="-0.11198 -0.082317 -0.012345" quat="0.7146309167264403 0.0 -0.6995017175523786 0.0">
+        <joint name="bb12" type="hinge" ref="0.0" class="motor" pos="0.01 0 0" axis="0 0 -1" />
+        <inertial pos="0.035498 -0.031152 -0.026926" quat="1.0 0.0 0.0 0.0" mass="0.040287" diaginertia="2.1781e-05 1.1829e-05 2.0109e-05" />
+        <geom name="base2_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="base2.STL" class="collision" />
+        <geom name="base2_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="base2.STL" class="visual" />
+        <body name="side1" pos="0.087202 -0.05475 -0.12183" quat="0.501869643394941 -0.5018714868684621 0.4981214956575184 0.49812332536329873">
+          <joint name="bs21" type="hinge" ref="0.0" class="motor" pos="-0.0758 0.0201 0" axis="0 0 1" />
+          <inertial pos="-0.032704 0.020133 0.019961" quat="1.0 0.0 0.0 0.0" mass="0.063294" diaginertia="6.7141e-06 5.192e-05 4.9274e-05" />
+          <geom name="side1_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="side1.STL" class="collision" />
+          <geom name="side1_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="side1.STL" class="visual" />
+          <body name="side2" pos="0.13635 -0.0010544 0" quat="0.9999758384211727 0.0 0.0 -0.006951444013504745">
+            <!-- <joint name="ss12" type="hinge" ref="0.0" class="motor" axis="0 1 0" /> -->
+            <joint name="ss12" type="hinge" ref="0.0" class="motor" pos="-0.0758 0.0201 0" axis="0 0 1" />
+            <inertial pos="-0.0076613 0.020134 0.019946" quat="1.0 0.0 0.0 0.0" mass="0.090541" diaginertia="1.2047e-05 4.8017e-05 4.2756e-05" />
+            <geom name="side2_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="side2.STL" class="collision" />
+            <geom name="side2_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="side2.STL" class="visual" />
+            <body name="base3" pos="0.0606587032144508 0.0201333711690603 0" quat="0.7163004548903453 0.0 0.0 0.6977919878616293">
+              <joint name="sb23" type="hinge" ref="0.0" class="motor" axis="0 0 1" />
+              <inertial pos="0.044599 -0.019324 0.032766" quat="1.0 0.0 0.0 0.0" mass="0.063358" diaginertia="2.5803e-05 2.4617e-05 1.5389e-05" />
+              <geom name="base3_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="base3.STL" class="collision" />
+              <geom name="base3_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="base3.STL" class="visual" />
+              <body name="base4" pos="0.0665000000000837 -0.0460000000000096 0.0547499999998942" quat="1.1423625238904153e-15 -1.1423625238904192e-15 0.7071067811865488 -0.7071067811865464">
+                <joint name="bb34" type="hinge" ref="0.0" class="motor" pos="0.01 0 0" axis="0 0 -1" />
+                <inertial pos="0.035498 -0.031152 -0.026926" quat="1.0 0.0 0.0 0.0" mass="0.040287" diaginertia="2.1781e-05 1.1829e-05 2.0109e-05" />
+                <geom name="base4_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="base4.STL" class="collision" />
+                <geom name="base4_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="base4.STL" class="visual" />
+                <body name="side3" pos="0.0886151086353256 -0.0547500000001406 -0.121428324029459" quat="0.5065009090194317 -0.5065009090205072 0.4934134464740779 0.4934134464751256">
+                  <!-- <joint name="bs43" type="hinge" ref="0.0" class="motor" axis="0 1 0" /> -->
+                  <joint name="bs43" type="hinge" ref="0.0" class="motor" pos="-0.076 0.0201 0" axis="0 0 1" />
+                  <inertial pos="-0.032704 0.020133 0.019961" quat="1.0 0.0 0.0 0.0" mass="0.063294" diaginertia="6.7141e-06 5.192e-05 4.9274e-05" />
+                  <geom name="side3_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="side3.STL" class="collision" />
+                  <geom name="side3_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="side3.STL" class="visual" />
+                  <body name="side4" pos="0.13635275988139 -0.00105435832562054 0" quat="0.9999758397904165 0.0 0.0 -0.006951247042888546">
+                    <joint name="ss34" type="hinge" ref="0.0" class="motor" pos="-0.076 0.0201 0" axis="0 0 1" />
+                    <inertial pos="-0.0076613 0.020134 0.019946" quat="1.0 0.0 0.0 0.0" mass="0.090541" diaginertia="1.2047e-05 4.8017e-05 4.2756e-05" />
+                    <geom name="side4_collision" pos="0 0 0" quat="1.0 0.0 0.0 0.0" type="mesh" mesh="side4.STL" class="collision" />
+                    <geom name="side4_visual" pos="0 0 0" quat="1.0 0.0 0.0 0.0" material="default_material" type="mesh" mesh="side4.STL" class="visual" />
+                  </body>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <site name="base1_site" pos="0 0 0" quat="1 0 0 0" />
+      <!-- <camera name="front_camera" mode="track" fovy="90.0" quat="4.329637285359678e-17 4.329637285359677e-17 0.7071067811865475 0.7071067811865476" pos="0.0 2.0 0.5" /> -->
+      <camera name="side_camera" mode="track" fovy="90.0" quat="-0.5 -0.4999999999999999 0.5 0.5000000000000001" pos="-2.0 0.0 0.5" />
+    </body>
+  </worldbody>
+  <equality>
+    <!-- <connect anchor="0 0 0" body1="side4" body2="base1" /> -->
+    <connect anchor="0.06 0.02 0.042" body1="side4" body2="base1" />
+    <connect anchor="0.06 0.02 0" body1="side4" body2="base1" />
+  </equality>
+  <actuator>
+    <position name="bb12_ctrl" joint="bb12" class="motor" />
+    <position name="bs21_ctrl" joint="bs21" class="motor" />
+    <position name="ss12_ctrl" joint="ss12" class="motor" />
+    <position name="sb23_ctrl" joint="sb23" class="motor" />
+    <position name="bb34_ctrl" joint="bb34" class="motor" />
+    <position name="bs43_ctrl" joint="bs43" class="motor" />
+    <position name="ss34_ctrl" joint="ss34" class="motor" />
+  </actuator>
+
+  <contact>
+    <exclude body1="base1" body2="base2" />
+    <exclude body1="base2" body2="side1" />
+    <exclude body1="side1" body2="side2" />
+    <exclude body1="side2" body2="base3" />
+    <exclude body1="base3" body2="base4" />
+    <exclude body1="base4" body2="side3" />
+    <exclude body1="side3" body2="side4" />
+  </contact>
+
+  <!-- <sensor>
+    <framepos name="base1_site_pos" objtype="site" objname="base1_site" />
+    <framequat name="base1_site_quat" objtype="site" objname="base1_site" />
+    <framelinvel name="base1_site_linvel" objtype="site" objname="base1_site" />
+    <frameangvel name="base1_site_angvel" objtype="site" objname="base1_site" />
+    <velocimeter name="base1_site_vel" site="base1_site" />
+  </sensor> -->
+</mujoco>

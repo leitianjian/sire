@@ -1,0 +1,49 @@
+@control-switch-button-prefix-cls: ~'@{ant-prefix}-control-switch-button';
+
+.@{control-switch-button-prefix-cls} {
+  //width: calc(100% - 30px);
+  //min-width: 100px;
+  text-align: center;
+  .rchmi-switch {
+    background: @primary-color;
+  }
+  .rchmi-switch.rchmi-switch-checked{
+    background: @success-color;
+    span{
+      color: @primary-color;
+    }
+    &::after{
+      background-color: @primary-color;
+    }
+  }
+  
+
+  &>div{
+    //display: inline-block;
+    padding-bottom: @padding-lg;
+    position: relative;
+    min-width: 85px;
+    min-height: 50px;
+    margin: @padding-xs;
+    //margin-bottom: 5px;
+    text-align: center;
+    vertical-align: bottom;
+    height: 3*@font-size-lg;
+    &>button{
+        //float: left;
+    }
+    &>span{
+    //display: inline-block;
+    float: right;
+    border: 1em;
+      //margin: 1em;
+      bottom: 0;
+      width: 100%;
+      //left: 0;
+      font-size: @font-size-lg;
+    }
+    &>i{
+      font-size: 2*@font-size-lg;
+    }
+  }
+}

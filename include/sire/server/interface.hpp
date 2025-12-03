@@ -1,17 +1,37 @@
-﻿#ifndef SIRE_SERVER_INTERFACE_H_
+#ifndef SIRE_SERVER_INTERFACE_H_
 #define SIRE_SERVER_INTERFACE_H_
 
-#include <sire_lib_export.h>
-#include <aris/core/core.hpp>
-#include <aris/core/object.hpp>
-#include <aris/server/interface.hpp>
 #include <future>
 #include <map>
 #include <memory>
 #include <sstream>
 #include <string>
 
+#include <sire_lib_export.h>
+
+#include <aris/core/core.hpp>
+#include <aris/core/object.hpp>
+#include <aris/server/interface.hpp>
+
 namespace sire::server {
+class SIRE_API MeshcatInterface : public aris::server::Interface {
+ public:
+  auto virtual open() -> void override;
+  auto virtual close() -> void override;
+  auto virtual isConnected() const -> bool override;
+  auto resetSocket(aris::core::Socket* sock) -> void;
+  auto socket() -> aris::core::Socket&;
+
+  ~MeshcatInterface();
+  MeshcatInterface(const std::string& name = "tcp_interface",
+               const std::string& port = "5866",
+               aris::core::Socket::Type type = aris::core::Socket::Type::WEB);
+  ARIS_DELETE_BIG_FOUR(MeshcatInterface);
+
+ private:
+  struct Imp;
+  std::unique_ptr<Imp> imp_;
+};
 class SIRE_API ProgramWebInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;
@@ -37,10 +57,10 @@ class SIRE_API ProgramWebInterface : public aris::server::Interface {
 
  private:
   struct Imp;
-  std::unique_ptr<Imp> imp_;
+  aris::core::ImpPtr<Imp> imp_;
 };
-auto SIRE_API parse_ret_value(
-    std::vector<std::pair<std::string, std::any>>& ret) -> std::string;
+auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret,
+                     bool print_flag) -> std::string;
 class SIRE_API HttpInterface : public aris::server::Interface {
  public:
   auto virtual open() -> void override;
@@ -61,6 +81,7 @@ class SIRE_API HttpInterface : public aris::server::Interface {
   struct Imp;
   aris::core::ImpPtr<Imp> imp_;
 };
+
 }  // namespace sire::server
 
 #endif

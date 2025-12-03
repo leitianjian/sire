@@ -1,0 +1,31 @@
+@layout-cell-header-prefix-cls: ~'@{ant-prefix}-layout-cell-header';
+.react-grid-item:hover {
+  .@{layout-cell-header-prefix-cls} {
+    &--header-bar{
+      opacity: .25;
+    }
+  }
+}
+.@{layout-cell-header-prefix-cls}{
+  user-select: none;
+  background-color: transparent;
+  height: @font-size-sm*2;
+  margin: 2px;
+  display: flex;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  font-size: @font-size-sm;
+  &--header-bar{
+    z-index: 1;
+    background-color: @heading-color;
+  }
+  &--header-bar, &--header-dragger{
+    position: absolute;
+    border-radius: 3px;
+    height: 100%;
+    width: 100%;
+    opacity: 0;
+    transition: opacity .25s ease;
+  }
+}

@@ -1,0 +1,45 @@
+@layout-cell-context-prefix-cls: ~'@{ant-prefix}-layout-cell-context';
+
+.react-grid-item:hover{
+  .@{layout-cell-context-prefix-cls} {
+    opacity: 1;
+  }
+}
+
+.@{layout-cell-context-prefix-cls}{
+  font-size: @font-size-sm;
+  z-index: 5;
+  position: absolute;
+  right: 5px;
+  margin: 2px;
+  height:  @font-size-sm*2;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  opacity: 0;
+  transition: opacity .25s ease;
+  pointer-events: none;
+  &--button {
+    display: flex;
+    pointer-events: all;
+    width: @font-size-sm*2;
+    height: @font-size-sm*2;
+    line-height: @font-size-sm*2;
+    border-radius: @border-radius-sm;
+    font-size: @font-size-sm*1.5;
+    position: relative;
+    vertical-align: middle;
+    background-color: fade(@component-background, 30%);
+    margin-right: 2px;
+    text-align: right;
+    transition: color .25s ease,background-color .25s ease;
+  }
+}
+.@{layout-cell-context-prefix-cls}--dropdown-menu{
+  font-size: @font-size-sm;
+  .@{ant-prefix}-dropdown-menu-item, .@{ant-prefix}-dropdown-menu-submenu-title {
+    font-size: @font-size-sm;
+    line-height: @font-size-sm*1.5;
+  }
+
+}

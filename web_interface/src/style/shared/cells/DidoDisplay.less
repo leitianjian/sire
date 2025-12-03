@@ -1,0 +1,25 @@
+@DidoDisplay-prefix-cls:  ~'@{ant-prefix}-dido-display';
+
+.@{DidoDisplay-prefix-cls}{
+    width: 100%;
+    height: 100%;
+    &-row{
+        width: 100%;
+        height: 100%;
+        border: 1em;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    &-bulb-success{
+        color: @success-color
+    }
+    &-bulb-error{
+        color: @error-color
+    }
+    &-di-array{
+        text-align: center;
+        width: calc(100%/8);
+    }
+}

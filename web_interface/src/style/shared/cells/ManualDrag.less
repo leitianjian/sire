@@ -1,0 +1,66 @@
+@manual-drag-prefix-cls: ~'@{ant-prefix}-manual-drag';
+
+.@{manual-drag-prefix-cls} {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  box-sizing: border-box;
+  padding: @padding-xs;
+  text-align: center;
+  overflow: auto;
+
+  &-btn1, &-btn2{
+    width: 80px;
+    height: 30px;
+    border-radius: 5px;
+    background-color: white;
+    color: black;
+    text-align: center;
+    font-size: 14px;
+    position: relative;
+    margin-left: 3px
+  }
+
+  &-btn-on{
+    width: 80px;
+    height: 30px;
+    border-radius: 5px;
+    background-color: lightgreen;
+    color: black;
+    text-align: center;
+    font-size: 14px;
+    position: relative;
+    margin-left: 3px
+  }
+
+  &-inp1{
+    -webkit-appearance: none;
+    margin: auto;
+    width: 160px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: white;
+    vertical-align: middle;
+    outline: none
+  }
+
+  &-inp1::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: black;
+    cursor: pointer;
+    border: 2px solid #FFFFFF
+  }
+
+  &-inp2{
+    width: 48px;
+    background-color: black;
+    color: white;
+    border-radius: 5px;
+    border: 1px solid white;
+    vertical-align: middle;
+    margin-left: 5px
+  }
+}

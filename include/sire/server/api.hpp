@@ -1,13 +1,15 @@
 #ifndef SIRE_SERVER_API_H_
 #define SIRE_SERVER_API_H_
 
-#include <sire_lib_export.h>
-#include <aris.hpp>
 #include <filesystem>
 #include <map>
 #include <string>
 #include <string_view>
 #include <tuple>
+
+#include <sire_lib_export.h>
+
+#include <aris.hpp>
 
 namespace sire::server {
 class SIRE_API MakeBlockly {
@@ -23,7 +25,7 @@ class SIRE_API MakeBlockly {
                     std::map<std::string_view, std::string_view>> {
     auto cut_str = [](std::string_view& input,
                       const char* c) -> std::string_view {
-      // 此时c中字符是或的关系 //
+      // 姝ゆ椂c涓瓧绗︽槸鎴栫殑鍏崇郴 //
       auto point = input.find_first_of(c);
       auto ret = input.substr(0, point);
       input =
@@ -106,7 +108,7 @@ class SIRE_API MakeBlockly {
           str = str.substr(equal.size() + 1);
           std::string value = str;
 
-          // 去掉前缀 //
+          // 鍘绘帀鍓嶇紑 //
           name = name.substr(name.find_first_of(".") + 1);
           cal.addVariable(name, type, value);
 
@@ -288,7 +290,7 @@ class SIRE_API MakeBlockly {
           auto field = pro_doc.NewElement("field");
           field->SetAttribute("name", "func_name");
 
-          // 以下替代掉前缀 //
+          // 浠ヤ笅鏇夸唬鎺夊墠缂� //
           // auto program_prefix = program.filename().stem().string() + ".";
           // auto index = word.find(program_prefix, 0);
           // if (index != std::string::npos) word.replace(index,
@@ -324,7 +326,7 @@ class SIRE_API MakeBlockly {
               field->SetAttribute("name", std::string(param.first).c_str());
               std::string value = std::string(param.second);
 
-              // 以下替代掉前缀 //
+              // 浠ヤ笅鏇夸唬鎺夊墠缂� //
               // auto program_prefix = program.filename().stem().string() + ".";
               // auto index = value.find(program_prefix, 0);
               // if (index != std::string::npos) value.replace(index,

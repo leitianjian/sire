@@ -1,0 +1,164 @@
+@dashboard-prefix-cls: ~'@{ant-prefix}-dashboard';
+@layout-cell-header-prefix-cls: ~'@{ant-prefix}-layout-cell-header';
+@layout-cell-context-prefix-cls: ~'@{ant-prefix}-layout-cell-context';
+
+@layout-cell-border-z: 4;
+@layout-cell-resizer-z: 5;
+@layout-cell-header-z: 2;
+@layout-cell-context-z: 5;
+@layout-cell-note-z: 7;
+@layout-cell-context-expanded-z: 20;
+@layout-cell-interacting-z: 21;
+
+
+@layout-cell-header-height: @font-size-sm*2;
+@layout-cell-header--header-bar-z: 1;
+@layout-cell-header--header-dragger-z: @layout-cell-header--header-bar-z + 1;
+@layout-cell-header--header-name-z: @layout-cell-header--header-dragger-z + 1;
+
+.@{dashboard-prefix-cls} {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  box-sizing: border-box;
+  padding: 10px;
+
+  .@{layout-cell-header-prefix-cls} {
+    user-select: none;
+    background-color: transparent;
+    height: @layout-cell-header-height;
+    margin: 2px;
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: @layout-cell-header-z+1;
+    &--header-bar,
+    &--header-dragger {
+      position: absolute;
+      border-radius: @border-radius-sm;
+      height: 100%;
+      width: 100%;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    &--header-bar{
+      z-index: @layout-cell-header--header-bar-z;
+      background-color:  @component-background;
+    }
+    &--header-dragger{
+      z-index: @layout-cell-header--header-dragger-z;
+      background-color: @primary-color;
+    //@include gradient-h($c-pool, mix($c-pool, $c-comet));
+    }
+  }
+
+  .react-grid-item:hover {
+    .@{layout-cell-header-prefix-cls} {
+      &--header-bar{
+        opacity: 0.25;
+      }
+      &:hover &--header-bar{
+        cursor: move;
+        opacity: 0.5;
+      }
+    }
+  }
+
+  .react-grid-item.resizing,
+  .react-grid-item.react-draggable-dragging {
+    .@{layout-cell-header-prefix-cls} {
+      &--header-bar {
+        opacity: 0;
+      }
+      &--header-dragger {
+        opacity: 0.3;
+      }
+    }
+  }
+
+  .react-grid-item .dash-graph--gradient-border {
+    display: none;
+  }
+
+  .react-grid-item.react-draggable .dash-graph--gradient-border,
+  .react-grid-item.react-resizable .dash-graph--gradient-border {
+    display: block;
+  }
+
+  // Resize Handle
+  .react-grid-item .react-resizable-handle {
+    background-image: none;
+    cursor: nwse-resize;
+    border: 15px solid transparent;
+    //border-right-color: $g6-smoke;
+    //border-bottom-color: $g6-smoke;
+    //border-bottom-right-radius: $ix-radius;
+    z-index: @layout-cell-resizer-z;
+    transition: border-color 0.25s ease, opacity 0.25s ease;
+    width: 30px;
+    height: 30px;
+    bottom: 0;
+    right: 0;
+    opacity: 0;
+
+    &:before,
+    &:after {
+      content: '';
+      display: block;
+      position: absolute;
+      height: 2px;
+      border-radius: 1px;
+      //background-color: $g0-obsidian;
+      transition: background-color 0.25s ease;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      border: 0;
+    }
+    &:before {
+      width: 12px;
+      top: 7px;
+      left: 7px;
+    }
+    &:after {
+      width: 20px;
+      top: 4px;
+      left: 4px;
+    }
+    &:hover {
+      //border-right-color: @primary-color;
+      //border-bottom-color: @primary-color;
+    }
+  }
+
+  .react-grid-item:hover .react-resizable-handle {
+    opacity: 1;
+    //color: @primary-color;
+  }
+
+
+  // Cell Resizing & Dragging Styles
+  .react-grid-item.resizing,
+  .react-grid-item.react-draggable-dragging {
+    z-index: @layout-cell-interacting-z;
+
+    .react-resizable-handle {
+
+      &:before,
+      &:after {
+        //background-color: @primary-color;
+      }
+    }
+  }
+
+  // Cell Dragging Styles
+  .react-grid-item.react-draggable-dragging {
+    &:hover {
+      cursor: move;
+    }
+
+    .dash-graph--heading {
+      cursor: move;
+    }
+  }
+
+}
+

@@ -1,0 +1,67 @@
+file(GLOB SOURCES *.h *.hpp *.cpp)
+set(sire_demo "demo_server_sensor_root")
+set(CONFIG_EXISTS ON)
+add_executable(${sire_demo} ${SOURCES})
+target_compile_features(${sire_demo} PUBLIC cxx_std_17)
+target_include_directories(${sire_demo} 
+	PRIVATE 
+		${aris_INCLUDE_DIRS} 
+		${PROJECT_BINARY_DIR} 
+		${coal_INCLUDE_DIRS}
+	)
+target_link_libraries(${sire_demo}
+	PRIVATE
+		sire_core 
+		sire_server 
+		sire_middleware 
+		sire_integrator
+		${PUB_RELY_LINK_LIB}
+	)
+# DEBUG INSTALL 
+install(
+	TARGETS 
+		sire_lib 
+		${sire_demo} 
+	CONFIGURATIONS
+		Debug
+	DESTINATION 
+		demo/debug/${sire_demo}
+	)
+if(WIN32)
+install(
+	FILES 
+		"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
+	CONFIGURATIONS
+		Debug
+	DESTINATION 
+		demo/debug/${sire_demo}
+)
+endif(WIN32)
+if(${CONFIG_EXISTS})
+	install(DIRECTORY config CONFIGURATIONS Debug DESTINATION demo/debug/${sire_demo})
+endif()
+
+# RELEASE INSTALL
+install(
+	TARGETS 
+		sire_lib 
+		${sire_demo} 
+	CONFIGURATIONS
+		Release
+	DESTINATION 
+		demo/release/${sire_demo}
+	)
+if(WIN32)
+install(
+	FILES 
+		"${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE}/aris_lib.dll" 
+	CONFIGURATIONS
+		Release
+	DESTINATION 
+		demo/release/${sire_demo}
+	)
+endif(WIN32)
+# Copy config to install directory
+if(${CONFIG_EXISTS})
+	install(DIRECTORY config CONFIGURATIONS Release DESTINATION demo/release/${sire_demo})
+endif()

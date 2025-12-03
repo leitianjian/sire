@@ -1,0 +1,220 @@
+<mujoco model="mojuco_model">
+  <compiler meshdir=".\meshes\"/>
+  <option gravity="0 0 0"/>
+
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+    <material name="grid" texture="grid" texrepeat="1 1" texuniform="true" reflectance=".2"/>
+    <mesh name="body" file="body.STL"/>
+    <mesh name="left_wheel_hub" file="left_wheel_hub.STL"/>
+    <mesh name="left_push_ring" file="left_push_ring.STL"/>
+    <mesh name="push_bar1_2" file="push_bar1_2.STL"/>
+    <mesh name="ujoint1_1" file="ujoint1_1.STL"/>
+    <mesh name="PSBL_link1_1" file="PSBL_link1_1.STL"/>
+    <mesh name="PSBL_link1_2" file="PSBL_link1_2.STL"/>
+    <mesh name="PSBL_link1_3" file="PSBL_link1_3.STL"/>
+    <mesh name="push_bar2_2" file="push_bar2_2.STL"/>
+    <mesh name="ujoint2_1" file="ujoint2_1.STL"/>
+    <mesh name="PSBL_link2_1" file="PSBL_link2_1.STL"/>
+    <mesh name="PSBL_link2_2" file="PSBL_link2_2.STL"/>
+    <mesh name="PSBL_link2_3" file="PSBL_link2_3.STL"/>
+    <mesh name="push_bar3_2" file="push_bar3_2.STL"/>
+    <mesh name="ujoint3_1" file="ujoint3_1.STL"/>
+    <mesh name="PSBL_link3_1" file="PSBL_link3_1.STL"/>
+    <mesh name="PSBL_link3_2" file="PSBL_link3_2.STL"/>
+    <mesh name="PSBL_link3_3" file="PSBL_link3_3.STL"/>
+    <mesh name="push_bar4_2" file="push_bar4_2.STL"/>
+    <mesh name="ujoint4_1" file="ujoint4_1.STL"/>
+    <mesh name="PSBL_link4_1" file="PSBL_link4_1.STL"/>
+    <mesh name="PSBL_link4_2" file="PSBL_link4_2.STL"/>
+    <mesh name="PSBL_link4_3" file="PSBL_link4_3.STL"/>
+    <mesh name="push_bar5_2" file="push_bar5_2.STL"/>
+    <mesh name="ujoint5_1" file="ujoint5_1.STL"/>
+    <mesh name="PSBL_link5_1" file="PSBL_link5_1.STL"/>
+    <mesh name="PSBL_link5_2" file="PSBL_link5_2.STL"/>
+    <mesh name="PSBL_link5_3" file="PSBL_link5_3.STL"/>
+    <mesh name="push_bar6_2" file="push_bar6_2.STL"/>
+    <mesh name="ujoint6_1" file="ujoint6_1.STL"/>
+    <mesh name="PSBL_link6_1" file="PSBL_link6_1.STL"/>
+    <mesh name="PSBL_link6_2" file="PSBL_link6_2.STL"/>
+    <mesh name="PSBL_link6_3" file="PSBL_link6_3.STL"/>
+    <mesh name="push_bar1_1" file="push_bar1_1.STL"/>
+    <mesh name="ujoint1_2" file="ujoint1_2.STL"/>
+    <mesh name="PSBL_link1_4" file="PSBL_link1_4.STL"/>
+    <mesh name="PSBL_link1_5" file="PSBL_link1_5.STL"/>
+    <mesh name="PSBL_link1_6" file="PSBL_link1_6.STL"/>
+    <mesh name="push_bar2_1" file="push_bar2_1.STL"/>
+    <mesh name="ujoint2_2" file="ujoint2_2.STL"/>
+    <mesh name="PSBL_link2_4" file="PSBL_link2_4.STL"/>
+    <mesh name="PSBL_link2_5" file="PSBL_link2_5.STL"/>
+    <mesh name="PSBL_link2_6" file="PSBL_link2_6.STL"/>
+    <mesh name="push_bar3_1" file="push_bar3_1.STL"/>
+    <mesh name="ujoint3_2" file="ujoint3_2.STL"/>
+    <mesh name="PSBL_link3_4" file="PSBL_link3_4.STL"/>
+    <mesh name="PSBL_link3_5" file="PSBL_link3_5.STL"/>
+    <mesh name="PSBL_link3_6" file="PSBL_link3_6.STL"/>
+    <mesh name="push_bar4_1" file="push_bar4_1.STL"/>
+    <mesh name="ujoint4_2" file="ujoint4_2.STL"/>
+    <mesh name="PSBL_link4_4" file="PSBL_link4_4.STL"/>
+    <mesh name="PSBL_link4_5" file="PSBL_link4_5.STL"/>
+    <mesh name="PSBL_link4_6" file="PSBL_link4_6.STL"/>
+    <mesh name="push_bar5_1" file="push_bar5_1.STL"/>
+    <mesh name="ujoint5_2" file="ujoint5_2.STL"/>
+    <mesh name="PSBL_link5_4" file="PSBL_link5_4.STL"/>
+    <mesh name="PSBL_link5_5" file="PSBL_link5_5.STL"/>
+    <mesh name="PSBL_link5_6" file="PSBL_link5_6.STL"/>
+    <mesh name="push_bar6_1" file="push_bar6_1.STL"/>
+    <mesh name="ujoint6_2" file="ujoint6_2.STL"/>
+    <mesh name="PSBL_link6_4" file="PSBL_link6_4.STL"/>
+    <mesh name="PSBL_link6_5" file="PSBL_link6_5.STL"/>
+    <mesh name="PSBL_link6_6" file="PSBL_link6_6.STL"/>
+    <mesh name="right_wheel_hub" file="right_wheel_hub.STL"/>
+    <mesh name="right_push_ring" file="right_push_ring.STL"/>
+    <mesh name="push_bar7_2" file="push_bar7_2.STL"/>
+    <mesh name="ujoint7_1" file="ujoint7_1.STL"/>
+    <mesh name="PSBL_link7_1" file="PSBL_link7_1.STL"/>
+    <mesh name="PSBL_link7_2" file="PSBL_link7_2.STL"/>
+    <mesh name="PSBL_link7_3" file="PSBL_link7_3.STL"/>
+    <mesh name="push_bar8_2" file="push_bar8_2.STL"/>
+    <mesh name="ujoint8_1" file="ujoint8_1.STL"/>
+    <mesh name="PSBL_link8_1" file="PSBL_link8_1.STL"/>
+    <mesh name="PSBL_link8_2" file="PSBL_link8_2.STL"/>
+    <mesh name="PSBL_link8_3" file="PSBL_link8_3.STL"/>
+    <mesh name="push_bar9_2" file="push_bar9_2.STL"/>
+    <mesh name="ujoint9_1" file="ujoint9_1.STL"/>
+    <mesh name="PSBL_link9_1" file="PSBL_link9_1.STL"/>
+    <mesh name="PSBL_link9_2" file="PSBL_link9_2.STL"/>
+    <mesh name="PSBL_link9_3" file="PSBL_link9_3.STL"/>
+    <mesh name="push_bar10_2" file="push_bar10_2.STL"/>
+    <mesh name="ujoint10_1" file="ujoint10_1.STL"/>
+    <mesh name="PSBL_link10_1" file="PSBL_link10_1.STL"/>
+    <mesh name="PSBL_link10_2" file="PSBL_link10_2.STL"/>
+    <mesh name="PSBL_link10_3" file="PSBL_link10_3.STL"/>
+    <mesh name="push_bar11_2" file="push_bar11_2.STL"/>
+    <mesh name="ujoint11_1" file="ujoint11_1.STL"/>
+    <mesh name="PSBL_link11_1" file="PSBL_link11_1.STL"/>
+    <mesh name="PSBL_link11_2" file="PSBL_link11_2.STL"/>
+    <mesh name="PSBL_link11_3" file="PSBL_link11_3.STL"/>
+    <mesh name="push_bar12_2" file="push_bar12_2.STL"/>
+    <mesh name="ujoint12_1" file="ujoint12_1.STL"/>
+    <mesh name="PSBL_link12_1" file="PSBL_link12_1.STL"/>
+    <mesh name="PSBL_link12_2" file="PSBL_link12_2.STL"/>
+    <mesh name="PSBL_link12_3" file="PSBL_link12_3.STL"/>
+    <mesh name="push_bar7_1" file="push_bar7_1.STL"/>
+    <mesh name="ujoint7_2" file="ujoint7_2.STL"/>
+    <mesh name="PSBL_link7_4" file="PSBL_link7_4.STL"/>
+    <mesh name="PSBL_link7_5" file="PSBL_link7_5.STL"/>
+    <mesh name="PSBL_link7_6" file="PSBL_link7_6.STL"/>
+    <mesh name="push_bar8_1" file="push_bar8_1.STL"/>
+    <mesh name="ujoint8_2" file="ujoint8_2.STL"/>
+    <mesh name="PSBL_link8_4" file="PSBL_link8_4.STL"/>
+    <mesh name="PSBL_link8_5" file="PSBL_link8_5.STL"/>
+    <mesh name="PSBL_link8_6" file="PSBL_link8_6.STL"/>
+    <mesh name="push_bar9_1" file="push_bar9_1.STL"/>
+    <mesh name="ujoint9_2" file="ujoint9_2.STL"/>
+    <mesh name="PSBL_link9_4" file="PSBL_link9_4.STL"/>
+    <mesh name="PSBL_link9_5" file="PSBL_link9_5.STL"/>
+    <mesh name="PSBL_link9_6" file="PSBL_link9_6.STL"/>
+    <mesh name="push_bar10_1" file="push_bar10_1.STL"/>
+    <mesh name="ujoint10_2" file="ujoint10_2.STL"/>
+    <mesh name="PSBL_link10_4" file="PSBL_link10_4.STL"/>
+    <mesh name="PSBL_link10_5" file="PSBL_link10_5.STL"/>
+    <mesh name="PSBL_link10_6" file="PSBL_link10_6.STL"/>
+    <mesh name="push_bar11_1" file="push_bar11_1.STL"/>
+    <mesh name="ujoint11_2" file="ujoint11_2.STL"/>
+    <mesh name="PSBL_link11_4" file="PSBL_link11_4.STL"/>
+    <mesh name="PSBL_link11_5" file="PSBL_link11_5.STL"/>
+    <mesh name="PSBL_link11_6" file="PSBL_link11_6.STL"/>
+    <mesh name="push_bar12_1" file="push_bar12_1.STL"/>
+    <mesh name="ujoint12_2" file="ujoint12_2.STL"/>
+    <mesh name="PSBL_link12_4" file="PSBL_link12_4.STL"/>
+    <mesh name="PSBL_link12_5" file="PSBL_link12_5.STL"/>
+    <mesh name="PSBL_link12_6" file="PSBL_link12_6.STL"/>
+    <mesh name="obstacle" file="obstacle.STL"/>
+  </asset>
+
+  <default>
+    <!-- <joint damping=".03" actuatorfrcrange="-0.5 0.5"/> -->
+    <joint damping=".03"/>
+    <geom friction="2 0.005 0.0001"/>
+  </default>
+
+  <worldbody>
+
+    <!-- <geom type="mesh" pos="0 1 0"  euler="90 180 0" rgba="0.66667 0.69804 0.76863 1" mesh="obstacle"/> -->
+    <!-- <geom type="plane" size="3 3 .01" material="grid"/> -->
+
+    <body name="left_wheel_hub" pos="0 0 1" quat="0.695971 0.124993 -0.124992 0.695973">
+    <!-- <body name="left_wheel_hub" pos="0 0 0" quat="1 0 0 0"> -->
+      <joint name="left_wheel_motor" pos="0 0 0" axis="0 1 0"/>
+      <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="left_wheel_hub" contype="2" conaffinity="2"/>
+      <body name="left_push_ring" pos="0 -0.027935 0" quat="0.866025 0 -0.500001 0">
+        <joint name="left_push_motor" pos="0 0 0" axis="0 -1 0" type="slide"/>
+        <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="left_push_ring" contype="4" conaffinity="4"/>
+        <body name="push_bar1_2" pos="-0.010392 -0.0015 -0.006" quat="0.223245 0.488815 0.833103 0.130998">
+          <joint name="joint1_1" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar1_2" contype="2" conaffinity="2"/>
+          <body name="ujoint1_1" pos="0.07 0 0" quat="-3.30582e-06 0.899981 -0.435929 1.60126e-06">
+            <joint name="joint1_2" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint1_1"/>
+            <body name="PSBL_link1_1" pos="0.01 0 0" quat="0.632215 0.316706 0.632218 0.316706">
+              <joint name="joint1_3" pos="0 0 0" axis="0 0 1"/>
+              <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_1" contype="2" conaffinity="2"/>
+              <body name="PSBL_link1_2" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+                <joint name="joint1_4" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba=".5 .5 1 1" mesh="PSBL_link1_2"/>
+                <body name="PSBL_link1_3" pos="0.05 0 0" quat="-3.47578e-06 -0.946253 -0.323428 -1.18802e-06">
+                  <joint name="joint1_5" pos="0 0 0" axis="0 0 -1"/>
+                  <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_3" contype="2" conaffinity="2"/>
+                </body>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+      <body name="push_bar1_1" pos="0 -0.0015 -0.012" quat="0.609876 -0.35784 0.609879 -0.35784">
+        <joint name="joint1_6" pos="0 0 0" axis="0 0 -1"/>
+        <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="push_bar1_1" contype="4" conaffinity="4"/>
+        <body name="ujoint1_2" pos="0.07 0 0" quat="-3.30582e-06 0.899981 0.435929 -1.60126e-06">
+          <joint name="joint1_7" pos="0 0 0" axis="0 0 -1"/>
+          <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="ujoint1_2"/>
+          <body name="PSBL_link1_4" pos="0.01 0 0" quat="0.316703 -0.632216 0.316708 -0.632216">
+            <joint name="joint1_8" pos="0 0 0" axis="0 0 -1"/>
+            <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_4" contype="4" conaffinity="4"/>
+            <body name="PSBL_link1_5" pos="0.03 0 0" quat="0.938158 -0.123509 0.0422163 0.320659">
+              <joint name="joint1_9" pos="0 0 0" axis="0 0 -1"/>
+              <geom type="mesh" rgba=".5 .5 1 1" mesh="PSBL_link1_5"/>
+              <body name="PSBL_link1_6" pos="0.05 0 0" quat="0.946253 0 0 0.323428">
+                <joint name="joint1_10" pos="0 0 0" axis="0 0 -1"/>
+                <geom type="mesh" rgba="0.66667 0.69804 0.76863 1" mesh="PSBL_link1_6" contype="4" conaffinity="4"/>
+              </body>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+
+  <equality>
+
+        <connect anchor="0.016 0 0" body1="push_bar1_1" body2="push_bar1_2" />
+        <connect anchor="0 0 0.002" body1="PSBL_link1_1" body2="PSBL_link1_6"  solref="0.001 1"/>
+        <connect anchor="0 0 -0.002" body1="PSBL_link1_1" body2="PSBL_link1_6" solref="0.001 1" />
+        <connect anchor="0 0 0.002" body1="PSBL_link1_4" body2="PSBL_link1_3"  solref="0.001 1"/>
+        <connect anchor="0 0 -0.002" body1="PSBL_link1_4" body2="PSBL_link1_3" solref="0.001 1" />
+  </equality>
+
+  <actuator>
+        <!-- <position name="left_wheel_motor" joint="left_wheel_motor"/>
+        <position name="right_wheel_motor" joint="right_wheel_motor"/> -->
+        <!-- <motor name="forward" tendon="forward" ctrlrange="-1 1"/>
+        <motor name="turn" tendon="turn" ctrlrange="-1 1"/> -->
+
+        <position name="left_push_motor" joint="left_push_motor" kp="10000" kv="1000" ctrlrange="-.015 .001"/>
+        <!-- <position name="right_push_motor" joint="right_push_motor" kp="10000" kv="1000" ctrlrange="-.015 .001"/> -->
+        <!-- <motor name="left_push_motor" joint="left_push_motor" ctrlrange="1 1"/>
+        <motor name="right_push_motor" joint="right_push_motor" ctrlrange="-1 1"/> -->
+        <!-- <position name="deploy" tendon="deploy" kp="10000" kv="1000" ctrlrange="-.03 .002"/> -->
+  </actuator>
+  
+</mujoco>

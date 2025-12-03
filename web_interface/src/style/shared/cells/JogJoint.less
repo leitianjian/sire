@@ -1,0 +1,88 @@
+@jog-joint-prefix-cls: ~'@{ant-prefix}-jog-joint';
+
+.@{jog-joint-prefix-cls}{
+  width: 100%;
+  text-align: center;
+  min-width: 200px;
+  &-jog-btn{
+    width: 40px;
+    vertical-align: top;
+    text-align: center;
+  }
+  &-header-btn{ // change joint or coordinate spaces
+    width: 28px;
+    height: @btn-height-base;
+    vertical-align: top;
+    text-align: center;
+  }
+  &-slave-online-state > svg{
+    fill-opacity: 0.2;
+    fill: @text-color;
+  }
+  &-slave-online-state.disabled > svg {
+    fill-opacity: 1;
+  }
+  &-slave-online-state-1 > svg {
+    & > rect:nth-child(1) {
+      fill-opacity: 1;
+    }
+  }
+  &-slave-online-state-2 > svg {
+    & > rect:nth-child(1) {
+      fill-opacity: 1;
+    }
+    & > rect:nth-child(2) {
+      fill-opacity: 1;
+    }
+  }
+  &-slave-online-state-4 > svg {
+    & > rect:nth-child(1) {
+      fill-opacity: 1;
+    }
+    & > rect:nth-child(2) {
+      fill-opacity: 1;
+    }
+    & > rect:nth-child(3) {
+      fill-opacity: 1;
+    }
+  }
+  &-slave-online-state-8 > svg {
+    & > rect:nth-child(1) {
+      fill-opacity: 1;
+    }
+    & > rect:nth-child(2) {
+      fill-opacity: 1;
+    }
+    & > rect:nth-child(3) {
+      fill-opacity: 1;
+    }
+    & > rect:nth-child(4) {
+      fill-opacity: 1;
+    }
+  }
+  &-status {
+    height: 40px;
+    display: inline-block;
+    vertical-align: top;
+    width: 60px;
+    position: relative;
+    padding-bottom: @padding-xs;
+    font-size: @font-size-base;
+    font-weight: lighter;
+    opacity: 0.75;
+    &>span{
+      //display: inline-block;
+      width: 60px;
+      //padding-bottom: @padding-md;
+    }
+    &-icons{
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      text-align: center;
+      &>i{
+        margin:0 5px;
+      }
+    }
+  }
+}

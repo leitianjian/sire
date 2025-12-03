@@ -1,0 +1,143 @@
+@footer-prefix-cls: ~'@{ant-prefix}-footer';
+
+
+@keyframes marquee {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(-100%, 0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    color: @info-color;
+    opacity: 1;
+  }
+  50% {
+    color: @primary-color;
+    opacity: 1;
+  }
+  100% {
+    color: @success-color;
+    opacity: 1;
+  }
+}
+
+.@{footer-prefix-cls} {
+  position: relative;
+  background: @component-background;
+  margin-top: 0px;
+  line-height: 24px;
+  height: 24px;
+  color: fade(@text-color, 90%);
+  width:100%;
+
+  &-icon{
+    cursor: pointer;
+    text-align: center;
+    vertical-align: middle;
+    font-size: @font-size-lg;
+    line-height: 18px;
+    padding: 2px;
+    display: inline-block;
+    height: 20px;
+    width: 20px;
+    margin-right: @padding-xs;
+    border-radius: @border-radius-sm;
+  }
+  &-icon:hover{
+    background-color: fade(@primary-color, 50%);
+  }
+  &-icon.disabled:hover{
+    background-color: fade(@primary-color, 10%);
+  }
+
+  &-text{
+    white-space: nowrap;
+    position: relative;
+    float:left;
+    vertical-align: middle;
+    font-size: @font-size-base;
+    line-height: 20px;
+    overflow: hidden;
+    display: inline-block;
+    text-overflow: ellipsis;
+    width:100%;
+    //&>span{
+    //  vertical-align: middle;
+    //  font-size: @font-size-base;
+    //  line-height: 20px;
+    //  overflow: hidden;
+    //  display: inline-block;
+    //  text-overflow: ellipsis;
+    //}
+  }
+
+  &-cmd-running{
+    animation: pulse 1s infinite;
+  }
+
+  &-command {
+    float:left;
+    box-sizing: border-box;
+    padding-left: 0px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width:100%;
+  }
+  &-status, &-command{
+    //width: 300px;
+    line-height: 20px;
+    padding: 2px;
+    height: 24px;
+    box-sizing: border-box;
+    font-weight: bold;
+  }
+  &-status {
+    position: absolute;
+    right: 0;
+    top: 0;
+  }
+  &-status>div{
+    display: inline-block;
+  }
+  &-status>div>.icon:hover{
+    background-color: fade(@primary-color, 50%);
+  }
+  &-status>div>.icon.disabled:hover{
+    background-color: fade(@primary-color, 10%);
+  }
+  &-status>div>.icon, &-command>.icon{
+    cursor: pointer;
+    text-align: center;
+    vertical-align: middle;
+    font-size: @font-size-lg;
+    line-height: 18px;
+    padding: 2px;
+    display: inline-block;
+    height: 20px;
+    width: 20px;
+    //background-color: fade(@primary-color, 10%);
+    margin-right: @padding-xs;
+    border-radius: @border-radius-sm;
+  }
+  &-status > div:first-child{
+    vertical-align: middle;
+    width: @font-size-base*6;
+  }
+  &-status > div {
+    display: inline-block;
+    width: @font-size-base*7;
+    vertical-align: middle;
+    margin-right: @padding-xs/2;
+    &>span{
+      font-size: @font-size-base;
+      vertical-align: middle;
+      line-height: 20px;
+    }
+  }
+}
+

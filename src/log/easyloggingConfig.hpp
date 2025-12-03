@@ -1,0 +1,15 @@
+#ifndef SIRE_EASYLOGGINGPP_CONFIG_HPP_
+#define SIRE_EASYLOGGINGPP_CONFIG_HPP_
+#define ELPP_STL_LOGGING
+// #define ELPP_DISABLE_LOGS
+#ifdef NDEBUG
+#define ELPP_DISABLE_DEBUG_LOGS
+#endif
+#define ELPP_WINSOCK2
+#include "easylogging++.h"
+#ifdef NDEBUG
+#undef ELPP_DISABLE_DEBUG_LOGS
+#endif
+#undef ELPP_STL_LOGGING
+#undef ELPP_WINSOCK2
+#endif

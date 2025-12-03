@@ -1,32 +1,44 @@
 #include "sire/sensor/sensor.hpp"
 
-// namespace sire::sensor {
-// template <class DataType>
-// SensorBase<DataType>::~SensorBase() = default;
-// template <class DataType>
-// SensorBase<DataType>::SensorBase(const std::string& name, bool is_virtual,
-//                                  bool activate, const std::string& description)
-//     : aris::sensor::SensorTemplate<DataType>(name),
-//       is_virtual_(is_virtual),
-//       activate_(activate),
-//       description_(description){};
-// template <class DataType>
-// auto SensorBase<DataType>::isVirtual() const -> bool {
-//   return is_virtual_;
-// }
-// template <class DataType>
-// auto SensorBase<DataType>::setVirtual(bool is_virtual) -> void {
-//   is_virtual_ = is_virtual;
-// }
-// template <class DataType>
-// auto SensorBase<DataType>::activate() const -> bool {
-//   return activate_;
-// }
-// template <class DataType>
-// auto SensorBase<DataType>::setActivate(bool is_activate) -> void {
-//   activate_ = is_activate;
-// }
-// 
+#include <aris/core/object.hpp>
+#include <aris/core/reflection.hpp>
+
+namespace sire::sensor {
+struct SensorBase::Imp {
+  std::string name_;
+  std::string description_;
+  bool activate_;
+  bool is_virtual_;
+  aris::Size frequency_;
+  std::function<SensorData*()> sensor_data_ctor_;
+};
+auto SensorBase::isVirtual() const -> bool { return imp_->is_virtual_; }
+auto SensorBase::setVirtual(bool is_virtual) -> void {
+  imp_->is_virtual_ = is_virtual;
+}
+auto SensorBase::activate() const -> bool { return imp_->activate_; }
+auto SensorBase::setActivate(bool is_activate) -> void {
+  imp_->activate_ = is_activate;
+}
+auto SensorBase::frequency() const -> aris::Size { return imp_->frequency_; }
+auto SensorBase::setFrequency(aris::Size frequency) -> void {
+  imp_->frequency_ = frequency;
+}
+auto SensorBase::name() -> std::string& { return imp_->name_; }
+auto SensorBase::description() -> std::string& { return imp_->description_; }
+SensorBase::~SensorBase() = default;
+SensorBase::SensorBase(std::function<SensorData*()> sensor_data_ctor,
+                       const std::string& name, const std::string& desc,
+                       bool is_virtual, bool activate, aris::Size frequency)
+    : imp_(new Imp) {
+  imp_->sensor_data_ctor_ = sensor_data_ctor;
+  imp_->name_ = name;
+  imp_->description_ = desc;
+  imp_->activate_ = activate;
+  imp_->is_virtual_ = is_virtual;
+  imp_->frequency_ = frequency;
+}
+
 // template <class DataType>
 // auto VirtualSensor<DataType>::setControlServer(
 //     aris::server::ControlServer* cs) noexcept -> void {
@@ -38,7 +50,8 @@
 //   return cs_;
 // }
 // template <class DataType>
-// auto VirtualSensor<DataType>::setModelBase(aris::dynamic::ModelBase* m) noexcept
+// auto VirtualSensor<DataType>::setModelBase(aris::dynamic::ModelBase* m)
+// noexcept
 //     -> void {
 //   model_base_ = m;
 // }
@@ -71,11 +84,11 @@
 // template <class DataType>
 // VirtualSensor<DataType>::VirtualSensor(const std::string& name)
 //     : SensorBase<DataType>(name){};
-// 
+//
 // struct MotorForceVirtualSensor::Imp {
-//   aris::Size frequency_{10};
-//   aris::Size motor_index_{0};
-//   aris::Size buffer_size_{50};
+//   sire::Size frequency_{10};
+//   sire::Size motor_index_{0};
+//   sire::Size buffer_size_{50};
 //   std::atomic_bool buffer_is_full_;
 //   std::atomic_int data_to_read{-1};
 //   std::atomic_int data_to_write{0};
@@ -89,25 +102,25 @@
 //         buffer_(buffer_size_),
 //         buffer_mutex_(buffer_size_) {}
 // };
-// auto MotorForceVirtualSensor::motorIndex() const -> aris::Size {
+// auto MotorForceVirtualSensor::motorIndex() const -> sire::Size {
 //   return imp_->motor_index_;
 // }
-// auto MotorForceVirtualSensor::setMotorIndex(aris::Size index) -> void {
+// auto MotorForceVirtualSensor::setMotorIndex(sire::Size index) -> void {
 //   imp_->motor_index_ = index;
 // }
-// auto MotorForceVirtualSensor::frequency() const -> aris::Size {
+// auto MotorForceVirtualSensor::frequency() const -> sire::Size {
 //   return imp_->frequency_;
 // }
-// auto MotorForceVirtualSensor::setFrequency(aris::Size frequency) -> void {
+// auto MotorForceVirtualSensor::setFrequency(sire::Size frequency) -> void {
 //   imp_->frequency_ = frequency;
 // }
-// auto MotorForceVirtualSensor::bufferSize() const -> aris::Size {
+// auto MotorForceVirtualSensor::bufferSize() const -> sire::Size {
 //   return imp_->buffer_size_;
 // }
-// auto MotorForceVirtualSensor::setBufferSize(aris::Size buffer_size) -> void {
+// auto MotorForceVirtualSensor::setBufferSize(sire::Size buffer_size) -> void {
 //   imp_->buffer_size_ = buffer_size;
 // }
-// 
+//
 // auto MotorForceVirtualSensor::init(aris::server::ControlServer* cs) -> void {
 //   std::vector<std::recursive_mutex> new_mutex_list(imp_->buffer_size_);
 //   imp_->buffer_mutex_.swap(new_mutex_list);
@@ -134,7 +147,8 @@
 //   std::any force = 0.0;
 //   if (cs.running()) {
 //     cs.getRtData(
-//         [this](aris::server::ControlServer& cs, const aris::plan::Plan* target,
+//         [this](aris::server::ControlServer& cs, const aris::plan::Plan*
+//         target,
 //                std::any& data) -> void {
 //           auto& force = std::any_cast<double&>(data);
 //           auto m = dynamic_cast<aris::dynamic::Model*>(&cs.model());
@@ -148,7 +162,7 @@
 //   // std::cout << mfData.force_ << std::endl;
 //   std::this_thread::sleep_until(start + period_time);
 // };
-// 
+//
 // auto MotorForceVirtualSensor::updateBufferData(
 //     std::unique_ptr<aris::sensor::SensorData> data) -> void {
 //   std::unique_lock<std::recursive_mutex> lock_property(
@@ -171,10 +185,10 @@
 //     }
 //   }
 // };
-// 
+//
 // auto MotorForceVirtualSensor::retrieveBufferData(
 //     std::vector<std::unique_ptr<aris::sensor::SensorData>>& vec,
-//     aris::Size& count) -> void {
+//     sire::Size& count) -> void {
 //   std::cout << vec.size() << std::endl;
 //   for (int i = 0; i < vec.size(); ++i) {
 //     std::unique_lock<std::recursive_mutex> lock_property(
@@ -192,29 +206,17 @@
 //     }
 //   }
 // }
-// 
+//
 // MotorForceVirtualSensor::~MotorForceVirtualSensor() = default;
 // MotorForceVirtualSensor::MotorForceVirtualSensor(const std::string& name,
-//                                                  aris::Size frequency,
-//                                                  aris::Size motor_index)
+//                                                  sire::Size frequency,
+//                                                  sire::Size motor_index)
 //     : VirtualSensor<MotorForceData>(name), imp_(new Imp) {
 //   imp_->frequency_ = frequency;
 //   imp_->motor_index_ = motor_index;
 // }
-// 
-// ARIS_REGISTRATION {
-//   aris::core::class_<MotorForceVirtualSensor>("MotorForceVirtualSensor")
-//       .inherit<aris::sensor::Sensor>()
-//       .prop("is_activate", &MotorForceVirtualSensor::setActivate,
-//             &MotorForceVirtualSensor::activate)
-//       .prop("is_virtual", &MotorForceVirtualSensor::setVirtual,
-//             &MotorForceVirtualSensor::isVirtual)
-//       .prop("motor_index", &MotorForceVirtualSensor::setMotorIndex,
-//             &MotorForceVirtualSensor::motorIndex)
-//       .prop("description", &MotorForceVirtualSensor::description)
-//       .prop("frequency", &MotorForceVirtualSensor::setFrequency,
-//             &MotorForceVirtualSensor::frequency)
-//       .prop("buffer_size", &MotorForceVirtualSensor::setBufferSize,
-//             &MotorForceVirtualSensor::bufferSize);
-// }
-// };  // namespace sire::sensor
+
+ARIS_REGISTRATION {
+
+}
+};  // namespace sire::sensor

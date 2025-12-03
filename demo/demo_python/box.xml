@@ -1,0 +1,120 @@
+<ControlServer>
+	<Model __prop_name__="model" name="FreeFallModel" time="0">
+		<Environment __prop_name__="environment" gravity="{0,0,-9.8,0,0,0}"/>
+		<VariablePoolElement __prop_name__="variable_pool">
+			<MatrixVariable name="tool0_pe">{0,0,0,0,0,0}</MatrixVariable>
+			<StringVariable name="tool0_pe_type">321</StringVariable>
+			<MatrixVariable name="base_pe">{0,0,0,0,0,0}</MatrixVariable>
+			<StringVariable name="base_pe_type">321</StringVariable>
+		</VariablePoolElement>
+		<PartPoolElement __prop_name__="part_pool">
+		<!-- ground pe all should be zero -->
+			<Part name="ground" active="true" pe="{0,0,0,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,1,1,1,0,0,0}">
+				<MarkerPoolElement __prop_name__="marker_pool">
+					<Marker name="joint_0_j" active="true" pe="{0,0,0,0,0,0}"/>
+					<Marker name="ground" active="true" pe="{0,0,0,0,0,0}"/>
+				</MarkerPoolElement>
+				<GeometryPoolElement __prop_name__="geometry_pool">
+					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{100, 100, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
+				</GeometryPoolElement>
+			</Part>
+			<Part name="L1" active="true" pe="{0,0,0.6,0,0,0}" vel="{3,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
+				<MarkerPoolElement __prop_name__="marker_pool">
+					<Marker name="box_center" active="true" pe="{0,0,0,0,0,0}"/>
+				</MarkerPoolElement>
+				<GeometryPoolElement __prop_name__="geometry_pool">
+					<BoxGeometry id="0" part_id="1" is_dynamic="true" side="{1, 1, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
+				</GeometryPoolElement>
+			</Part>
+		</PartPoolElement>
+		<MotionPoolElement __prop_name__="motion_pool"/>
+		<JointPoolElement __prop_name__="joint_pool"/>
+		<GeneralMotionPoolElement __prop_name__="general_motion_pool"/>
+		<ForcePoolElement __prop_name__="force_pool"/>
+		<SolverPoolElement __prop_name__="solver_pool">
+			<InverseKinematicSolver max_iter_count="100" max_error="1e-10"/>
+			<ForwardKinematicSolver max_iter_count="100" max_error="1e-10"/>
+			<InverseDynamicSolver max_iter_count="100" max_error="1e-10"/>
+			<ForwardDynamicSolver max_iter_count="100" max_error="1e-10"/>
+		</SolverPoolElement>
+		<CalibratorPoolElement __prop_name__="calibrator_pool"/>
+	</Model>
+	<EthercatMaster __prop_name__="master" name="ethercat_master" sample_period_ns="1000000"/>
+	<Controller __prop_name__="controller">
+		<MotorPoolObject __prop_name__="motor_pool"/>
+		<DigitalIoPoolObject __prop_name__="digital_io_pool"/>
+		<FtSensorPoolObject __prop_name__="ft_sensor_pool"/>
+		<SensorPoolObject __prop_name__="sensor_pool"/>
+	</Controller>
+	<PlanRoot __prop_name__="plan_root">
+		<PlanPoolObject __prop_name__="plan_pool_object">
+			<SireGet name="get">
+				<Command __prop_name__="command" name="get">
+					<GroupParam>
+						<UniqueParam default="all">
+							<Param name="all"/>
+							<Param name="part_pq"/>
+						</UniqueParam>
+					</GroupParam>
+				</Command>
+			</SireGet>
+			<Display3dInit name="Display3dInit_plan">
+				<Command __prop_name__="command" name="display3d_init"/>
+			</Display3dInit>
+			<SimPlay name="SimPlay_plan">
+				<Command __prop_name__="command" name="sim_play"/>
+			</SimPlay>
+			<SimReset name="SimReset_plan">
+				<Command __prop_name__="command" name="sim_reset"/>
+			</SimReset>
+			<RecordGet name="RecordGet_plan">
+				<Command __prop_name__="command" name="record_get"/>
+			</RecordGet>
+		</PlanPoolObject>
+	</PlanRoot>
+	<TransferModelController __prop_name__="model_controller_transfer"/>
+	<InterfacePoolObject __prop_name__="interface">
+		<SireProgramWebInterface name="sire_program_websock_interface">
+			<Socket __prop_name__="socket" connect_type="WEB" port="5867"/>
+		</SireProgramWebInterface>
+		<SireHttpInterface name="http_interface" document_root="D:\code\sire\web_interface\build" port="8001"/>
+	</InterfacePoolObject>
+	<SireMiddleware __prop_name__="middleware">
+		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="-1" sim_duration="15" global_variable_pool="{}">
+			<EventManager __prop_name__="event_manager">
+				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
+					<EventHandlerIdPair event_id="0" handler_id="6"/>
+					<EventHandlerIdPair event_id="1" handler_id="7"/>
+					<EventHandlerIdPair event_id="2" handler_id="8"/>
+				</EventHandlerPairPool>
+			</EventManager>
+			<ZeroForce __prop_name__="controller"/>
+		</SimulationLoop>
+		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
+			<CollisionDetection __prop_name__="collision_detection"/>
+			<ContactPositionForceSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
+				<MaterialManager default_prop="{k:1.4e8,d:1500,cr:0.2}">
+					<MaterialPairPropPool>
+						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2e8,d:3000,cr:0.4,cof:0.2,threshold_velocity:1e-1}"/>
+					</MaterialPairPropPool>
+				</MaterialManager>
+			</ContactPositionForceSolver>
+			<GeometryPoolObject __prop_name__="dynamic_geometry_pool">
+				<BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="steel" contact_prop="{k:2.8e8,d:2000}" side="{100, 100, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
+				<SphereCollisionGeometry id="1" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2e8,d:10000}" radius="0.1" pm="{1,0,0,0.5,0,1,0,0.5,0,0,1,-0.4,0,0,0,1}"/>
+				<SphereCollisionGeometry id="2" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2e8,d:10000}" radius="0.1" pm="{1,0,0,0.5,0,1,0,-0.5,0,0,1,-0.4,0,0,0,1}"/>
+				<SphereCollisionGeometry id="3" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2e8,d:10000}" radius="0.1" pm="{1,0,0,-0.5,0,1,0,0.5,0,0,1,-0.4,0,0,0,1}"/>
+				<SphereCollisionGeometry id="4" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2e8,d:10000}" radius="0.1" pm="{1,0,0,-0.5,0,1,0,-0.5,0,0,1,-0.4,0,0,0,1}"/>
+			</GeometryPoolObject>
+			<CollisionFilter __prop_name__="collision_filter" filter_state="{1,0,0,0,0, 0,1,1,1,1, 0,1,1,1,1, 0,1,1,1,1, 0,1,1,1,1}"/>
+		</PhysicsEngine>
+		<SimulatorModules __prop_name__="simulator_modules">
+			<IntegratorPoolObject __prop_name__="integrator_pool">
+				<SemiImplicitEulerIntegrator/>
+				<!-- <ExplicitEulerIntegrator/> -->
+			</IntegratorPoolObject>
+			<SireSensorPoolObject __prop_name__="sensor_pool"/>
+		</SimulatorModules>
+	</SireMiddleware>
+	<CustomModule __prop_name__="custom_module"/>
+</ControlServer>

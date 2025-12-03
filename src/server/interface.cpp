@@ -1,13 +1,5 @@
-﻿#include "sire/server/interface.hpp"
-#include "sire/ext/fifo_map.hpp"
-#include "sire/ext/json.hpp"
-#include "sire/server/api.hpp"
-#include "sire/server/middle_ware.hpp"
-#include "md5.h"
-#include <aris/control/control.hpp>
-#include <aris/core/core.hpp>
-#include <aris/server/control_server.hpp>
-#include <aris/server/interface.hpp>
+#include "sire/server/interface.hpp"
+
 #include <algorithm>
 #include <cinttypes>
 #include <cstdio>
@@ -17,34 +9,47 @@
 #include <thread>
 #include <unordered_map>
 
-namespace sire::server {
-auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret)
-    -> std::string {
-  nlohmann::json js;
-  for (auto& key_value : ret) {
-    if (auto value = std::any_cast<std::string>(&key_value.second))
-      std::cout << key_value.first << ":" << *value << std::endl;
+#include "md5.h"
 
-#define ARIS_SET_TYPE(TYPE)                                \
-  if (auto value = std::any_cast<TYPE>(&key_value.second)) \
-    js[key_value.first] = *value;                          \
+#include <aris/control/control.hpp>
+#include <aris/core/core.hpp>
+#include <aris/server/control_server.hpp>
+#include <aris/server/interface.hpp>
+
+#include "sire/core/sire_log.hpp"
+#include "sire/ext/fifo_map.hpp"
+#include "sire/ext/json.hpp"
+#include "sire/middleware/program_middleware.hpp"
+#include "sire/server/api.hpp"
+
+namespace sire::server {
+auto parse_ret_value(std::vector<std::pair<std::string, std::any>>& ret, bool print_flag)
+    -> std::string {
+#define APPEND_PAIR_TO_JSON(VALUE_TYPE)                          \
+  if (auto value = std::any_cast<VALUE_TYPE>(&key_value.second)) \
+    js[key_value.first] = *value;                                \
   else
 
-    ARIS_SET_TYPE(bool)
-    ARIS_SET_TYPE(int)
-    ARIS_SET_TYPE(double)
-    ARIS_SET_TYPE(std::string)
-    ARIS_SET_TYPE(std::vector<bool>)
-    ARIS_SET_TYPE(std::vector<int>)
-    ARIS_SET_TYPE(std::vector<double>)
-    ARIS_SET_TYPE(std::vector<std::string>)
-    ARIS_SET_TYPE(nlohmann::json) {
-      ARIS_COUT << "unrecognized return value1" << std::endl;
+  nlohmann::json js;
+  for (auto& key_value : ret) {
+    // if (auto value = std::any_cast<std::string>(&key_value.second))
+    // std::cout << key_value.first << ":" << *value << std::endl;
+    APPEND_PAIR_TO_JSON(bool)
+    APPEND_PAIR_TO_JSON(int)
+    APPEND_PAIR_TO_JSON(double)
+    APPEND_PAIR_TO_JSON(std::string)
+    APPEND_PAIR_TO_JSON(std::vector<bool>)
+    APPEND_PAIR_TO_JSON(std::vector<int>)
+    APPEND_PAIR_TO_JSON(std::vector<double>)
+    APPEND_PAIR_TO_JSON(std::vector<std::string>)
+    APPEND_PAIR_TO_JSON(nlohmann::json) {
+      SIRE_DEBUG_LOG << "unrecognized return value" << std::endl;
     }
-
-#undef ARIS_SET_TYPE
   }
-  ARIS_COUT << js.dump(2) << std::endl;
+#undef APPEND_PAIR_TO_JSON
+  if (print_flag) {
+    SIRE_LOG << js.dump(2) << std::endl; 
+  }
   return js.dump(2);
 }
 auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
@@ -75,10 +80,10 @@ auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
                          std::vector<std::pair<std::string, std::any>>>(
                          &plan.ret())) {
             js->push_back(std::make_pair<std::string, std::any>(
-                "return_code", plan.retCode()));
+                "return_code", plan.executeRetCode()));
             js->push_back(std::make_pair<std::string, std::any>(
-                "return_message", std::string(plan.retMsg())));
-            ret_msg.copy(parse_ret_value(*js));
+                "return_message", std::string(plan.executeRetMsg())));
+            ret_msg.copy(parse_ret_value(*js, true));
           }
 
           // return back to source
@@ -95,7 +100,7 @@ auto onReceivedMsg(aris::core::Socket* socket, aris::core::Msg& msg) -> int {
         "return_code", int(aris::plan::Plan::PARSE_EXCEPTION)));
     ret_pair.push_back(std::make_pair<std::string, std::any>(
         "return_message", std::string(e.what())));
-    std::string ret_str = parse_ret_value(ret_pair);
+    std::string ret_str = parse_ret_value(ret_pair, true);
 
     ARIS_COUT << ret_str << std::endl;
     // LOG_ERROR << ret_str << std::endl;
@@ -144,6 +149,100 @@ auto onLoseConnection(aris::core::Socket* socket) -> int {
 }
 
 #define ARIS_PRO_COUT ARIS_COUT << "pro "
+
+struct MeshcatInterface::Imp
+{
+  std::unique_ptr<aris::core::Socket> sock_{ new aris::core::Socket };
+
+  std::function<int(aris::core::Socket*, aris::core::Msg &)> onReceiveMsg_;
+  std::function<int(aris::core::Socket*, const char *data, int size)> onReceiveConnection_;
+  std::function<int(aris::core::Socket*)> onLoseConnection_;
+};
+auto MeshcatInterface::resetSocket(aris::core::Socket *sock)->void
+{
+  imp_->sock_.reset(sock);
+  socket().setOnReceivedMsg(imp_->onReceiveMsg_);
+  socket().setOnReceivedConnection(imp_->onReceiveConnection_);
+  socket().setOnLoseConnection(imp_->onLoseConnection_);
+}
+auto MeshcatInterface::socket()->aris::core::Socket& { return *imp_->sock_; }
+auto MeshcatInterface::open()->void { socket().startServer(); }
+auto MeshcatInterface::close()->void { socket().stop(); }
+auto MeshcatInterface::isConnected() const->bool { return imp_->sock_->isConnected(); }
+MeshcatInterface::~MeshcatInterface() = default;
+MeshcatInterface::MeshcatInterface(const std::string &name, const std::string &port, aris::core::Socket::Type type):Interface(name), imp_(new Imp)
+{
+  imp_->onReceiveMsg_ = [this](aris::core::Socket *socket, aris::core::Msg &msg)->int {
+    auto send_ret = [socket, msg](std::string str)->void {
+      try
+      {
+        aris::core::Msg ret_msg(msg);
+        ret_msg.copy(str);
+        socket->sendMsg(ret_msg);
+      }
+      catch (std::exception &e)
+      {
+        ARIS_COUT << e.what() << std::endl;
+        //LOG_ERROR << e.what() << std::endl;
+      }
+    };
+      
+    //LOG_INFO << this->name() << "receive cmd:"
+    //	<< msg.header().msg_size_ << "&"
+    //	<< msg.header().msg_id_ << "&"
+    //	<< msg.header().msg_type_ << "&"
+    //	<< msg.header().reserved1_ << "&"
+    //	<< msg.header().reserved2_ << "&"
+    //	<< msg.header().reserved3_ << ":"
+    //	<< std::string_view(msg.data(), msg.size()) << std::endl;
+
+    aris::server::ControlServer::instance().middleWare().executeCmd(std::string_view(msg.data(), msg.size()), send_ret, dynamic_cast<Interface*>(this));
+
+    return 0;
+  };
+  
+  imp_->onReceiveConnection_ = [this](aris::core::Socket *socket, const char *ip, int port)->int {
+    ARIS_COUT << this->name() << " receive connection" << std::endl;
+    //LOG_INFO << this->name() << " receive connection:\n"
+    //	<< std::setw(aris::core::LOG_SPACE_WIDTH) << "|" << "  ip:" << ip << "\n"
+    //	<< std::setw(aris::core::LOG_SPACE_WIDTH) << "|" << "port:" << port << std::endl;
+
+    // for (const auto &[priority, cbk] : aris::server::Interface::imp_->on_connecteds_) {
+    //   cbk(this);
+    // }
+
+    return 0;
+  };
+
+  imp_->onLoseConnection_ = [this](aris::core::Socket *socket)->int {
+    ARIS_COUT << this->name() << " lose connection" << std::endl;
+    //LOG_INFO << this->name() << " lose connection" << std::endl;
+    for (;;)
+    {
+      try
+      {
+        socket->startServer(socket->port());
+        break;
+      }
+      catch (std::runtime_error &e)
+      {
+        ARIS_COUT << e.what() << std::endl << this->name() << " will try to restart server socket in 1s" << std::endl;
+        //LOG_ERROR << e.what() << std::endl << this->name() << " will try to restart server socket in 1s" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+    }
+    ARIS_COUT << this->name() << " restart successful" << std::endl;
+    //LOG_INFO << this->name() << " restart successful" << std::endl;
+
+    return 0;
+  };
+
+  resetSocket(new aris::core::Socket("socket", "", port, type));
+  socket().setOnReceivedMsg(imp_->onReceiveMsg_);
+  socket().setOnReceivedConnection(imp_->onReceiveConnection_);
+  socket().setOnLoseConnection(imp_->onLoseConnection_);
+}
+
 struct ProgramWebInterface::Imp {
   std::unique_ptr<aris::core::Socket> sock_{new aris::core::Socket};
 
@@ -167,56 +266,56 @@ auto ProgramWebInterface::isConnected() const -> bool {
 }
 auto ProgramWebInterface::close() -> void { socket().stop(); }
 auto ProgramWebInterface::lastError() -> std::string {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->lastError();
   else
     return "";
 }
 auto ProgramWebInterface::lastErrorCode() -> int {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->lastErrorCode();
   else
     return 0;
 }
 auto ProgramWebInterface::lastErrorLine() -> int {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->lastErrorLine();
   else
     return 0;
 }
 auto ProgramWebInterface::isAutoMode() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoMode();
   else
     return false;
 }
 auto ProgramWebInterface::isAutoRunning() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoRunning();
   else
     return false;
 }
 auto ProgramWebInterface::isAutoPaused() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoPaused();
   else
     return false;
 }
 auto ProgramWebInterface::isAutoStopped() -> bool {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->isAutoStopped();
   else
     return true;
 }
 auto ProgramWebInterface::currentFileLine() -> std::tuple<std::string, int> {
-  if (auto pgm_mid = dynamic_cast<ProgramMiddleware*>(
+  if (auto pgm_mid = dynamic_cast<middleware::ProgramMiddleware*>(
           &(aris::server::ControlServer::instance().middleWare())))
     return pgm_mid->currentFileLine();
   else
@@ -529,9 +628,9 @@ struct HttpInterface::Imp {
           break;
       }
     } catch (std::exception& e) {
-      std::cout << "http error:" << e.what() << std::endl;
+      SIRE_DEBUG_LOG << "http error:" << e.what() << std::endl;
     } catch (...) {
-      std::cout << "http error: unknown" << std::endl;
+      SIRE_DEBUG_LOG << "http error: unknown" << std::endl;
     }
   }
 };

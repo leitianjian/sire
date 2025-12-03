@@ -1,0 +1,327 @@
+@blockly-prefix-cls: ~'@{ant-prefix}-blockly';
+
+.blocklycustomize{
+	height: 80%;
+  background: fade(@background-color-light, 50%);
+}
+
+
+.@{blockly-prefix-cls}{
+  width: 100%;
+  height: 100%;
+  background: fade(@background-color-light, 10%);
+  &-left-col {
+    position: relative;
+    height: 100%;
+    display: inline-block;
+    vertical-align: top;
+  }
+  &-program-header {
+    padding: @padding-xs 0;
+    height: 30px;
+    position: relative;
+    &-add {
+      cursor: pointer;
+      font-size: @font-size-lg;
+      font-weight: bold;
+      position: absolute;
+      top: 50%;
+      right: @padding-xs;
+      transform: translate(0, -50%);
+      &:hover {
+        opacity: 0.5;
+      }
+    }
+  }
+  &-program-name {
+    height: 20px;
+    line-height: 20px;
+    &-text {
+      width: 100%;
+      display: inline-block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    &-actions {
+      display: none;
+    }
+    &:hover &-text {
+      width: calc(~"100% - 45px");
+      display: inline-block;
+    }
+    &:hover &-actions {
+      text-align: right;
+      display: inline-block;
+      width: 45px;
+      i {
+        cursor: pointer;
+        font-size: @font-size-base;
+        font-weight: bold;
+        opacity: 0.5;
+        &:hover{
+          opacity: 1;
+        }
+        padding-right:@padding-xs/2;
+      }
+      i:last-child {
+        padding-right: 0;
+        &:hover{
+          color: @error-color;
+          fill: @error-color;
+        }
+      }
+    }
+  }
+  &-file-name {
+    &:hover {
+	  cursor: pointer;
+      color: @error-color;
+      fill: @error-color;
+    }
+	&-selected{
+	  color: @error-color;
+	}
+  }
+  .@{ant-prefix}-menu {
+    border-radius: 0;
+  }
+  .@{ant-prefix}-collapse {
+    border-radius: 0;
+    font-size: @font-size-base;
+    padding-bottom: @padding-lg*2;
+    min-height: 100%;
+  }
+  &-program-collapse {
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100%;
+  }
+  .@{ant-prefix}-collapse > .@{ant-prefix}-collapse-item {
+    border-radius: 0;
+  }
+  .@{ant-prefix}-collapse > .@{ant-prefix}-collapse-item > .@{ant-prefix}-collapse-header {
+    padding-top: @padding-xs;
+    padding-bottom: @padding-xs;
+    padding-left: @padding-lg;
+    padding-right: @padding-xs;
+    line-height: 1;
+    &>.@{ant-prefix}-collapse-arrow {
+      left: @padding-xs/2;
+    }
+  }
+  .@{ant-prefix}-collapse-content > .@{ant-prefix}-collapse-content-box {
+    padding: @padding-xs
+  }
+  .@{ant-prefix}-collapse-content {
+    border-top: none;
+  }
+  &-hdivider {
+    height: 100%;
+    width: 3px;
+    position: absolute;
+    right: 0;
+    top: 0;
+    cursor: ew-resize;
+    background-color: fade(@component-background, 90%);
+    z-index: 1000;
+  }
+  &-divider {
+    cursor: ns-resize;
+    width: 100%;
+    height: 5px;
+    opacity: 1;
+    z-index: 1000;
+    position: absolute;
+    background-color: fade(@component-background, 90%);
+    bottom: -@padding-xs/4;
+  }
+  &-right-col {
+    width: calc(~"100% - 200px");
+    position: relative;
+    height: 100%;
+    vertical-align: top;
+    display: inline-block;
+    .blocklySvg {
+      background: none;
+    }
+    .blocklyMainWorkspaceScrollbar {
+      // display: flex;
+    }
+    .blocklyTrash{
+      display: none;
+    }
+    .blocklyMainBackground {
+      fill: fade(@background-color-light, 30%) !important;
+      stroke: none !important;;
+      //stroke: fade(@component-background, 90%) !important;
+      //stroke-width: @padding-xs/2 !important;
+    }
+    .blocklyToolboxDiv {
+      background: fade(@background-color-light, 100%);
+      min-width: 100px;
+    }
+    .blocklyTreeLabel {
+      font-size: @font-size-base;
+    }
+    .blocklyTreeSelected {
+      background: fade(@primary-color, 10%) !important;
+    }
+    .blocklyFlyoutBackground {
+      fill: fade(@component-background, 90%);
+      fill-opacity: 1;
+    }
+  }
+  &-full-height {
+    //position: absolute;
+    height: 100%;
+    // width: 100%;
+  }
+  &-no-program {
+    height: calc(~"100% - " @layout-header-height);
+    width: 100%;
+    position: relative;
+    span{
+      font-size: 3vw;
+      opacity: 0.1;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+  &-editors {
+    //height: calc(~"100% - "@layout-header-height);
+    height: 100%;
+    width: 100%;
+    padding-top: 50px;
+    position: relative;
+    
+    &-editors-scroll{
+      overflow-x: hidden;
+      overflow-y: visible;
+      color: #000;
+    }
+    &-variables {
+      z-index: 100;
+      width: 100%;
+      box-sizing: border-box;
+      position: relative;
+    }
+    &-program {
+      width: 100%;
+      position: relative;
+      &::-webkit-scrollbar {
+        width: 5px;    
+        height: 4px;
+      }
+      &::-webkit-scrollbar-thumb{
+        border-radius: 10px;
+        -webkit-box-shadow: inset 0 0 5px gray;
+        background:gray;
+      }
+      &::-webkit-scrollbar-track {
+        -webkit-box-shadow: inset 0 0 5px white;
+        border-radius: 10px;
+        background:  white;
+      }
+      &::-webkit-scrollbar-thumb:hover{
+        background: #333;
+      }
+      &::-webkit-scrollbar-corner{
+        background: white;
+      }
+      &-toggle {
+        position: absolute;
+        top: @padding-md;
+        right: @padding-md;
+        transform: rotate(-90deg);
+        opacity: 0.5;
+        font-size: @font-size-lg;
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+    &-program-full-height {
+      height: 100% !important;
+      .@{blockly-prefix-cls}-editors-program-toggle {
+        transform: rotate(90deg);
+      }
+    }
+  }
+  &-operations {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50px;
+    text-align: right;
+    //pointer-events: none;
+    button {
+      margin: 6px;
+    }
+    &-left {
+      display: inline-block;
+      width: 100%;
+      position: absolute;
+      left: @padding-xs;
+      top: 50%;
+      transform: translate(0, -50%);
+      cursor: pointer;
+      text-align: left;
+      &-name {
+        padding-left: @padding-lg;
+        width: calc(~"100% - 300px");
+        text-align: left;
+        display: inline-block;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        vertical-align: top;
+        font-size: @font-size-lg;
+        z-index: 1000;
+      }
+      &>i{
+        z-index: 10000;
+        left: 0;
+        top: 50%;
+        position: absolute;
+        transform: translate(0, -50%);
+        cursor: pointer;
+        &:hover{
+          opacity: 0.5;
+        }
+      }
+    }
+    &-sidebar-toggle {
+    }
+  }
+}
+.blocklyHtmlInput {
+  color: black;
+}
+
+.@{blockly-prefix-cls}-variable-scroll{
+  &::-webkit-scrollbar {
+    width: 5px;    
+    height: 6px;
+}
+&::-webkit-scrollbar-thumb{
+  border-radius: 10px;
+  -webkit-box-shadow: inset 0 0 5px gray;
+  background:gray;
+}
+&::-webkit-scrollbar-track {
+  -webkit-box-shadow: inset 0 0 5px white;
+  border-radius: 10px;
+  background:  white;
+}
+&::-webkit-scrollbar-thumb:hover{
+  background: #333;
+}
+&::-webkit-scrollbar-corner{
+  background: white;
+}
+}

@@ -1,0 +1,143 @@
+<Model name="object" time="0">
+    <Environment __prop_name__="environment" gravity="{0,0,0,0,0,0}"/>
+    <VariablePoolElement __prop_name__="variable_pool"/>
+    <PartPoolElement __prop_name__="part_pool">
+        <Part name="ground" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,1,1,1,0,0,0}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_0_k" active="true" pe="{0,0,0,-0,0,-0}"/>
+                <Marker name="ground_marker" active="true" pe="{0,0,0,-0,0,-0}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="left_wheel_hub" active="true" pe="{0,0,1,5.43707942746163e-06,0.355399595256401,1.5707937633943}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.0287282,0,-0.00126512959878,-3.6848800294e-13,7.61925507581137e-05,1.44822e-06,7.61925507581137e-05,0,0,-1.62274378246714e-14}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_0_j" active="true" pe="{-8.17768289798909e-18,-0.027935,-1.06040220102888e-17,6.28318530717959,1.5707963267949,2.78619305833446}"/>
+                <Marker name="joint_6_j" active="true" pe="{4.33680868994202e-18,-0.0015,-0.012,4.71238683334482,1.57079266753012,1.57079821870691}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="1" part_id="1" is_dynamic="true" resource_path="/meshes/left_wheel_hub.STL" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" />
+            </GeometryPoolElement>
+        </Part>
+        <Part name="left_push_ring" active="true" pe="{0.0279349999998603,8.47512168557746e-08,0.999999975082714,3.18533040177815e-06,1.40259928228692,1.57079542205363}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.0014637,0,-2.19555e-06,0,5.2716425e-08,9.74960999999999e-08,5.2716425e-08,0,0,0}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_0_i" active="true" pe="{0,0,0,1.11022302462516e-16,1.5707963267949,1.73899337130294}"/>
+                <Marker name="joint_1_j" active="true" pe="{-0.010392,-0.0015,-0.00599999999999999,4.71242626589773,0.52364493438049,1.57076592948978}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="2" part_id="2" is_dynamic="true" resource_path="/meshes/left_push_ring.STL" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" />
+            </GeometryPoolElement>
+        </Part>
+        <Part name="push_bar1_2" active="true" pe="{0.0294349772969399,0.00417574456173649,0.988750192984599,3.14161524374195,1.21534843727038,5.77361315044728}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.000840948,3.92250103224e-05,-2.28080234664e-11,1.79171539932e-12,1.67001000062241e-09,2.23051353647596e-06,2.23042253647658e-06,1.06385288496207e-12,-8.35724147428022e-14,4.85945467172772e-20}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_1_i" active="true" pe="{0,0,0,0.576532701960067,3.14159265358979,4.77935738721791}"/>
+                <Marker name="joint_2_j" active="true" pe="{0.07,3.12250225675825e-17,3.12250225675825e-17,5.38104311588596,7.34642250322058e-06,6.12409546682559}"/>
+                <Marker name="joint_11_j" active="true" pe="{0.46318623367494,-0.801356758540528,-0.34800968098623,3.6511648103221,1.21534843727038,6.28316271702743}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="3" part_id="3" is_dynamic="true" resource_path="/meshes/push_bar1_2.STL" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" />
+            </GeometryPoolElement>
+        </Part>
+        <Part name="ujoint1_1" active="true" pe="{-0.031672021509643,0.0160576162693293,0.956738385450869,1.48528431023198e-05,1.92624305253912,4.55330269523899}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.000154429,1.9921804287e-07,2.2549413722e-12,2.2049681478e-12,5.41669000064409e-10,1.18805525187507e-09,1.15404325187651e-09,-2.90894201837917e-15,-2.84447505970643e-15,-3.2196503900546e-20}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_2_i" active="true" pe="{0,0,0,3.22113838062568,3.14159265358979,3.06204692655391}"/>
+                <Marker name="joint_3_j" active="true" pe="{0.01,2.60208521396521e-18,9.97465998686664e-18,1.5707982270294,1.57080012009091,1.5708098206737}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="PSBL_link1_1" active="true" pe="{-0.0332562335060298,0.0194937396918528,0.947481856502301,3.57358606748695,2.75355108067741,2.9029496446368}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.00120542,1.8081541084e-05,-1.10476381374e-14,-3.8015571624e-14,8.56584e-09,4.40853732568217e-07,4.35630732568217e-07,1.65716781588627e-16,5.70241177474325e-16,-3.48411573466811e-25}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_3_i" active="true" pe="{0,0,0,5.42608926305445,1.86448479468698e-16,3.06989477286211}"/>
+                <Marker name="joint_4_j" active="true" pe="{0.03,1.58293517182884e-17,3.81639164714898e-17,6.28317536077388,2.87979624967564,0.912080029840012}"/>
+                <Marker name="joint_12_i" active="true" pe="{-0.0700714241174819,0.381264642510615,0.863220245257616,0.238643008952996,2.75355108067741,5.85119189328243}"/>
+                <Marker name="joint_13_i" active="true" pe="{-0.0704291930205688,0.382735254508174,0.866922852685446,0.238643008952996,2.75355108067741,5.85119189328243}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="PSBL_link1_2" active="true" pe="{-0.00953269787376571,0.037659474924119,0.950165123275453,3.14157403862796,2.9949420477183,3.14156359399711}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.00952276,0.000238069,-5.02437006292e-05,9.45201541596e-13,5.84597305948766e-07,8.273145e-06,8.55848930594877e-06,1.25609251573e-06,-2.36300385399e-14,4.98704401772257e-15}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_4_i" active="true" pe="{0,0,0,6.28318300000644,3.14159265358979,1.57078337517898}"/>
+                <Marker name="joint_5_j" active="true" pe="{0.05,1.85194820366537e-17,-7.47559515511123e-19,3.80029373305206,7.34640934903454e-06,4.05369854536245}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="PSBL_link1_3" active="true" pe="{0.0404673021232167,0.0376599815594623,0.950165335592852,1.21576945892321e-05,0.14664479635502,5.62448413356902}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.00120544,1.8081841088e-05,1.474916112e-14,1.9652770496e-15,8.56588e-09,4.40858232688218e-07,4.35636232688218e-07,-2.21240366632224e-16,-2.94795487994099e-17,-2.40461473403808e-26}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_5_i" active="true" pe="{0,0,0,2.29283998169644,3.14159265358979,3.2049471620857}"/>
+                <Marker name="joint_14_j" active="true" pe="{0.0756046590632972,-0.163791214910755,-0.932485792823718,3.80029382720036,0.14664479635502,3.1415804958952}"/>
+                <Marker name="joint_15_j" active="true" pe="{0.0759624130206809,-0.164253413891006,-0.936442860451221,3.80029382720036,0.14664479635502,3.1415804958952}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="push_bar1_1" active="true" pe="{0.0014999772970313,0.00417558474951374,0.988749908440016,3.1415930662465,1.21540039080739,3.65116468523299}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.000840948,3.92250103224e-05,-2.28080234664e-11,1.79171539932e-12,1.67001000062241e-09,2.23051353647596e-06,2.23042253647658e-06,1.06385288496207e-12,-8.35724147428022e-14,4.85945467172772e-20}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_6_i" active="true" pe="{0,0,0,2.10140840257641,3.14159265358979,4.18177690460318}"/>
+                <Marker name="joint_7_j" active="true" pe="{0.07,-5.20417042793042e-17,1.73472347597681e-18,0.902143368565026,7.34642250319263e-06,0.159080783001765}"/>
+                <Marker name="joint_11_i" active="true" pe="{0.464124448055554,0.800852834112151,-0.347961639291159,5.77361327553639,1.21540039080739,6.28318489452287}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="8" part_id="8" is_dynamic="true" resource_path="/meshes/push_bar1_1.STL" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" />
+            </GeometryPoolElement>
+        </Part>
+        <Part name="ujoint1_2" active="true" pe="{0.0626067070430369,0.0160571962841701,0.956737490738628,6.28317798266993,1.92619342654407,4.87147000571964}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.000154429,1.9921804287e-07,2.2549413722e-12,2.2049681478e-12,5.41669000064409e-10,1.18805525187507e-09,1.15404325187651e-09,-2.90894201837917e-15,-2.84447505970643e-15,-3.2196503900546e-20}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_7_i" active="true" pe="{0,0,-0,3.84744902999177,3.14159265358979,4.00653260398271}"/>
+                <Marker name="joint_8_j" active="true" pe="{0.01,-3.46944695195361e-18,8.67361737988404e-18,4.71238265821766,1.57079315973638,4.71239542688343}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="PSBL_link1_4" active="true" pe="{0.0641908412338087,0.0194928751640741,0.947480783467691,2.70957882073182,2.75360052389089,5.23781613805269}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.00120542,1.8081541084e-05,-1.10476381374e-14,-3.8015571624e-14,8.56584e-09,4.40853732568217e-07,4.35630732568217e-07,1.65716781588627e-16,5.70241177474325e-16,-3.48411573466811e-25}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_8_i" active="true" pe="{-0,0,0,1.33821351419747,3.14159265358979,5.40861940198292}"/>
+                <Marker name="joint_9_j" active="true" pe="{0.03,5.63785129692462e-18,-3.12250225675825e-17,6.28317536077388,2.87979624967564,4.05369388488993}"/>
+                <Marker name="joint_14_i" active="true" pe="{0.370297500624319,-0.156746797953197,0.858338249497217,4.18696182271669,2.75360052389089,0.432013832857973}"/>
+                <Marker name="joint_15_i" active="true" pe="{0.371606690447078,-0.157505854024947,0.862040931753086,4.18696182271669,2.75360052389089,0.432013832857973}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="PSBL_link1_5" active="true" pe="{0.0404669162885494,0.00397629940971068,0.937661859797003,3.14161285584961,2.57739266120478,2.76282636084701e-05}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.00952276,0.000238069,-5.02437006292e-05,9.45201541596e-13,5.84597305948766e-07,8.273145e-06,8.55848930594877e-06,1.25609251573e-06,-2.36300385399e-14,4.98704401772257e-15}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_9_i" active="true" pe="{0,0,0,2.35618921168367,3.14159265358979,0.785403441906126}"/>
+                <Marker name="joint_10_j" active="true" pe="{0.05,1.92051485900112e-17,-8.37080310124062e-19,1.57080630707528,3.14159265358979,2.05372977358786e-05}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+        <Part name="PSBL_link1_6" active="true" pe="{-0.00953308370574673,0.00397645661388124,0.937662598493842,3.14161285584961,2.57739266120478,0.65872741910928}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.00120544,1.8081841088e-05,1.474916112e-14,1.9652770496e-15,8.56588e-09,4.40858232688218e-07,4.35636232688218e-07,-2.21240366632224e-16,-2.94795487994099e-17,-2.40461473403808e-26}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_10_i" active="true" pe="{0,0,0,0.456042989465934,3.14159265358979,5.82714231771365}"/>
+                <Marker name="joint_12_j" active="true" pe="{-0.315856625989785,-0.392473765431742,0.788524016995406,2.48286523448051,2.57739266120478,6.28316510491977}"/>
+                <Marker name="joint_13_j" active="true" pe="{-0.317165906911866,-0.394165194647356,0.791904083662742,2.48286523448051,2.57739266120478,6.28316510491977}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool"/>
+        </Part>
+    </PartPoolElement>
+    <MotionPoolElement __prop_name__="motion_pool">
+        <Actuator name="actuator_0" active="true" kp="10" kd="0.2" prt_m="left_push_ring" prt_n="left_wheel_hub" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="2" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}"/>
+    </MotionPoolElement>
+    <JointPoolElement __prop_name__="joint_pool">
+        <PrismaticJoint name="joint_0" active="true" prt_m="left_push_ring" prt_n="left_wheel_hub" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_1" active="true" prt_m="push_bar1_2" prt_n="left_push_ring" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_2" active="true" prt_m="ujoint1_1" prt_n="push_bar1_2" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_3" active="true" prt_m="PSBL_link1_1" prt_n="ujoint1_1" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_4" active="true" prt_m="PSBL_link1_2" prt_n="PSBL_link1_1" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_5" active="true" prt_m="PSBL_link1_3" prt_n="PSBL_link1_2" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_6" active="true" prt_m="push_bar1_1" prt_n="left_wheel_hub" mak_i="joint_6_i" mak_j="joint_6_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_7" active="true" prt_m="ujoint1_2" prt_n="push_bar1_1" mak_i="joint_7_i" mak_j="joint_7_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_8" active="true" prt_m="PSBL_link1_4" prt_n="ujoint1_2" mak_i="joint_8_i" mak_j="joint_8_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_9" active="true" prt_m="PSBL_link1_5" prt_n="PSBL_link1_4" mak_i="joint_9_i" mak_j="joint_9_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_10" active="true" prt_m="PSBL_link1_6" prt_n="PSBL_link1_5" mak_i="joint_10_i" mak_j="joint_10_j" cf="{0,0,0,0,0}"/>
+        <SphericalJoint name="joint_11" active="true" prt_m="push_bar1_1" prt_n="push_bar1_2" mak_i="joint_11_i" mak_j="joint_11_j" cf="{0,0,0}"/>
+        <SphericalJoint name="joint_12" active="true" prt_m="PSBL_link1_1" prt_n="PSBL_link1_6" mak_i="joint_12_i" mak_j="joint_12_j" cf="{0,0,0}"/>
+        <SphericalJoint name="joint_13" active="true" prt_m="PSBL_link1_1" prt_n="PSBL_link1_6" mak_i="joint_13_i" mak_j="joint_13_j" cf="{0,0,0}"/>
+        <SphericalJoint name="joint_14" active="true" prt_m="PSBL_link1_4" prt_n="PSBL_link1_3" mak_i="joint_14_i" mak_j="joint_14_j" cf="{0,0,0}"/>
+        <SphericalJoint name="joint_15" active="true" prt_m="PSBL_link1_4" prt_n="PSBL_link1_3" mak_i="joint_15_i" mak_j="joint_15_j" cf="{0,0,0}"/>
+    </JointPoolElement>
+    <GeneralMotionPoolElement __prop_name__="general_motion_pool"/>
+    <ForcePoolElement __prop_name__="force_pool"/>
+    <SolverPoolElement __prop_name__="solver_pool">
+        <InverseKinematicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+        <ForwardKinematicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+        <InverseDynamicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+        <ForwardDynamicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+    </SolverPoolElement>
+    <CalibratorPoolElement __prop_name__="calibrator_pool"/>
+</Model>

@@ -1,0 +1,13 @@
+### 文件夹结构说明
+- actions 操作定义
+- components 页面相关渲染组件 
+- containers 页面相关连接组件 
+- reducers REDUX状态合并状态管理 
+- sagas 事件监控和触发处理 
+- services API调用服务 
+- shared Dashboard相关的全部复用组件 
+- style 样式主题控制 
+- index.tsx 页面整体入口 
+- routes.js 路由配置 
+- serviceWorker.js Service Worker配置
+- store.tsx REDUX状态和中间件配置

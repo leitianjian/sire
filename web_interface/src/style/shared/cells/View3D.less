@@ -1,0 +1,51 @@
+@view3d-prefix-cls: ~'@{ant-prefix}-view3d';
+
+.@{view3d-prefix-cls} {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+  user-select: none!important;
+  -moz-user-select: none!important;
+  -webkit-user-select: none!important;
+  -ms-user-select: none!important;
+  -o-user-select: none!important;
+  border-radius: @border-radius-base;
+  &-three {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    &>canvas{
+      z-index: 1;
+    }
+    &>span{
+      cursor: pointer;
+      position: absolute;
+      bottom: @padding-sm;
+      left: @padding-sm;
+      font-size: @font-size-lg*1.5;
+      z-index: 2;
+      &:hover{
+        opacity: 0.5;
+      }
+    }
+    &-info{
+      position: absolute;
+      top: @padding-sm;
+      right: @padding-sm;
+    }
+  }
+  &-loading {
+    text-align: center;
+  }
+  &-errors {
+    color: @error-color;
+    text-align: left;
+  }
+}

@@ -1,0 +1,121 @@
+@header-prefix-cls: ~'@{ant-prefix}-header';
+
+@keyframes marquee {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(-100%, 0);
+  }
+}
+.@{header-prefix-cls} {
+  .@{ant-prefix}-menu-horizontal {
+    border: none;
+  }
+  &-actions{
+    line-height: 28px;
+    padding: 10px 10px 10px 0;
+    font-weight: bold;
+  }
+  &-actions>.icon:hover{
+    background-color: fade(@primary-color, 50%);
+  }
+  &-actions>.icon{
+    padding-top: 3px;
+    cursor: pointer;
+    text-align: center;
+    vertical-align: bottom;
+    font-size: 22px;
+    line-height: 24px;
+    display: inline-block;
+    height: 28px;
+    width: 28px;
+    background-color: fade(@primary-color, 10%);
+    margin-right: @padding-xs;
+    border-radius: @border-radius-sm;
+  }
+  &-actions > div.@{ant-prefix}-input-number{
+    width: @font-size-base*5;
+    margin-right: @padding-xs*2;
+  }
+  &-actions > div.@{ant-prefix}-input-number input{
+    color: @text-color;
+    font-weight: bold;
+  }
+
+  &-actions > div:first-child{
+    margin: 0 @padding-xs*1.5 0 0;
+    vertical-align: middle;
+    width: @font-size-base*12;
+  }
+  &-actions > div {
+    display: inline-block;
+    width: @font-size-base*9;
+    margin-right: @padding-xs;
+  }
+  &-actions > label {
+    display: inline-block;
+    margin-right: @padding-xs;
+  }
+}
+
+.@{header-prefix-cls}-create-cell-modal {
+  .@{header-prefix-cls}-input-col{
+    width: 33%;
+    display: inline-block;
+    padding: @padding-xs;
+    box-sizing: border-box;
+    .@{ant-prefix}-input-number-sm {
+      width: 100%;
+    }
+  }
+  .@{header-prefix-cls}-type-name{
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .@{header-prefix-cls}-status{
+    height: @line-height-base;
+    font-size: @font-size-base;
+  }
+  .@{header-prefix-cls}-type-selector{
+    &-radio-group{
+      width: 100%;
+      height: 100%;
+    }
+    .@{ant-prefix}-radio-button-wrapper{
+      width: calc(~"15% - " @padding-md);
+      text-align: center;
+      margin: @padding-xs;
+      height: auto;
+      color: fade(@primary-color, 50%);
+      border: none;
+      box-shadow: none;
+      &::before{
+        display: none;
+      }
+      &:focus-within {
+        outline: none;
+      }
+      .icon{
+        display: inline-block;
+        opacity: 0.3;
+        width: 50%;
+      }
+      svg {
+        width: 100%;
+        height: auto;
+      }
+    }
+    .@{ant-prefix}-radio-button-wrapper-checked{
+      background-color: fade(@primary-color, 10%);
+      color: @primary-color;
+      border: none;
+      i{
+        display: inline-block;
+        opacity: 0.5;
+        width: 50%;
+      }
+    }
+  }
+}

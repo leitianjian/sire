@@ -1,9 +1,9 @@
-#include <aris.hpp>
 #include <filesystem>
 #include <iostream>
-#include <sire/server/server.hpp>
 
-auto xmlpath = std::filesystem::absolute(".");  //获取当前工程所在的路径
+#include <aris.hpp>
+
+auto xmlpath = std::filesystem::absolute(".");  // 鑾峰彇褰撳墠宸ョ▼鎵�鍦ㄧ殑璺緞
 const std::string xmlfile = "sire.xml";
 
 int main(int argc, char* argv[]) {
@@ -12,13 +12,11 @@ int main(int argc, char* argv[]) {
   aris::core::fromXmlFile(cs, xmlpath);
   cs.init();
 
-  //开启控制器服务
+  // 寮�鍚帶鍒跺櫒鏈嶅姟
   try {
     cs.start();
-    cs.executeCmd("md");
-    cs.executeCmd("rc");
   } catch (const std::exception& err) {
-    std::cout << "failed to start system, please reboot" << std::endl;
+    std::cout << "failed to start system, please reboot " << err.what() << std::endl;
   }
   // Start Web Socket
   cs.open();

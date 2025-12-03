@@ -1,0 +1,155 @@
+@motion-calib-prefix-cls: ~'@{ant-prefix}-motion-and-load-calib';
+
+.@{motion-calib-prefix-cls}{
+  height: 100%;
+  width: 100%;
+  min-width: @font-size-base*28;
+  padding: @padding-md;
+  box-sizing: border-box;
+  &.loading {
+    height: auto;
+    text-align: center;
+  }
+  overflow: auto;
+  font-size: @font-size-base;
+  &-title {
+    text-align: left;
+    margin: @padding-xs auto;
+    width: @font-size-base*24;
+    display: block;
+  }
+  &-calib-boxes {
+    margin: @padding-lg auto;
+    width: @font-size-base*24;
+    display: block;
+    vertical-align: top;
+    &>div{
+      width: 50%;
+      display: block;
+      float: left;
+      text-align: center;
+    }
+  }
+  &-box-result {
+    text-align: left;
+    word-break: break-all;
+    margin: @padding-xs 0;
+    &>div:last-child{
+      text-align: center;
+      margin: @padding-xs;
+    }
+  }
+  &-options {
+    text-align: left;
+    margin: 0 auto;
+    width: @font-size-base*24;
+    display: block;
+    &>label {
+      display: inline-block;
+      padding: @padding-xs @padding-xs @padding-xs 0;
+      text-align: left;
+      margin: 0 auto;
+    }
+  }
+  &-input {
+    text-align: center;
+    margin: 0 auto;
+    width: @font-size-base*24;
+    position: relative;
+    div.@{ant-prefix}-input-number input{
+      color: @text-color;
+      font-weight: bold;
+    }
+    &>div:first-child {
+      padding-right: @padding-md;
+    }
+    &>div:last-child {
+      padding-left: @padding-md;
+    }
+    &>div {
+      padding: @padding-xs;
+      display: block;
+      width: 50%;
+      box-sizing: border-box;
+      float:left;
+      &>span{
+        font-size: @font-size-lg;
+        display: inline-block;
+        text-align: right;
+        padding-right: @padding-xs;
+        width: @font-size-base*3;
+      }
+      .@{ant-prefix}-input-number-sm {
+        display: inline-block;
+        width: ~'calc(100% - ceil(@font-size-base * 4))';
+      }
+      //&>input{
+      //  display: inline-block;
+      //  width: calc(100% - ~'{@font-size-base*4}');
+      //}
+    }
+  }
+  &-buttons {
+    text-align: center;
+    margin: 0 auto;
+    width: @font-size-base*30;
+    position: relative;
+    &>div:first-child {
+      text-align: left;
+    }
+    &>div:last-child {
+      text-align: right;
+    }
+    &>div {
+      width: 50%;
+      padding: @padding-xs 0;
+      display: inline-block;
+      font-size: @font-size-lg;
+      &>span:first-child {
+        vertical-align: middle;
+        display: inline-block;
+        margin-right: @padding-xs/2;
+      }
+      .@{ant-prefix}-input-group-addon {
+        background-color: @primary-color;
+      }
+      &>span:nth-child(2) {
+        width: @font-size-base*8;
+      }
+      .@{ant-prefix}-input-number-sm {
+        color: @primary-color;
+        display: inline-block;
+        width: calc(~"80% - "@font-size-base*6);
+        input{
+          color: @primary-color;
+        }
+      }
+      &>button{
+        line-height: @font-size-base*1.8;
+        height: @font-size-base*1.8;
+        width: @font-size-base*4;
+      }
+    }
+  }
+  &-calib-button {
+    padding: @padding-md 0;
+    text-align: right;
+    margin: 0 auto;
+    width: @font-size-base*24;
+  }
+  &-calib-result {
+    text-align: left;
+    margin: @padding-xs auto;
+    width: @font-size-base*24;
+    word-break: break-all;
+    &>div:first-child {
+      margin: @padding-xs 0;
+    }
+    div > span:last-child {
+      margin-left: @padding-xs;
+    }
+    button {
+      float: right;
+    }
+  }
+}

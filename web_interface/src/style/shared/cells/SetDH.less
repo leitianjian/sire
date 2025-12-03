@@ -1,0 +1,49 @@
+@setdh-prefix-cls: ~'@{ant-prefix}-setdh';
+
+.@{setdh-prefix-cls}{
+  height: 100%;
+  width: 100%;
+  min-width: @font-size-base*32;
+  box-sizing: border-box;
+  font-size: @font-size-base;
+
+  &-header{
+    float: left;
+    &-buttons{
+      margin: @padding-xs;
+    }
+  }
+
+  &-left{
+    width: 30%;
+  }
+  &-bg {
+    //height: 100%;
+    //float: right;
+    //background-size: contain;
+    //background-position: top center;
+    //background-repeat: no-repeat;
+  }
+  &-input {
+    padding: @padding-xs 0;
+    & > span {
+      display: inline-block;
+      width: @font-size-base*4;
+      text-align: right;
+      padding-right: @padding-xs;
+    }
+
+    .@{ant-prefix}-input-number-sm {
+      width: @font-size-base*10;
+    }
+
+    .@{ant-prefix}-input-number-input {
+      color: @primary-color;
+    }
+
+    .@{ant-prefix}-select {
+      width: @font-size-base*10;
+      margin-left: @font-size-base*4;
+    }
+  }
+}

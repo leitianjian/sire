@@ -1,0 +1,284 @@
+<ControlServer>
+<Model name="object" time="0">
+    <Environment __prop_name__="environment" gravity="{0,0,0,0,0,0}"/>
+    <VariablePoolElement __prop_name__="variable_pool"/>
+    <PartPoolElement __prop_name__="part_pool">
+        <Part name="ground" active="true" pe="{0,0,0,-0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,1,1,1,0,0,0}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_0_k" active="true" pe="{0,0,0,-0,0,-0}"/>
+                <Marker name="ground_marker" active="true" pe="{0,0,0,-0,0,-0}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.279,0,0,0,1}" />
+                <!-- <BoxGeometry id="1" part_id="0" is_dynamic="false" side="{0.38, 0.38, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0,0,0,0,1}" />
+                <CapsuleGeometry id="2" part_id="0" is_dynamic="false" length="0.01" radius="0.04" pm="{0,1,0,0.18,-1,0,0,0.18,0,0,1,-0.14,0,0,0,1}" />
+                <CapsuleGeometry id="3" part_id="0" is_dynamic="false" length="0.01" radius="0.04" pm="{0,1,0,0.18,-1,0,0,-0.18,0,0,1,-0.14,0,0,0,1}" />
+                <CapsuleGeometry id="4" part_id="0" is_dynamic="false" length="0.01" radius="0.04" pm="{0,1,0,-0.18,-1,0,0,0.18,0,0,1,-0.14,0,0,0,1}" />
+                <CapsuleGeometry id="5" part_id="0" is_dynamic="false" length="0.01" radius="0.04" pm="{0,1,0,-0.18,-1,0,0,-0.18,0,0,1,-0.14,0,0,0,1}" /> -->
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_base1" active="true" pe="{0.115,0.08,0.0140169,0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.1,0,0,0,0.001,0.001,0.001,0,0,0}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_0_j" active="true" pe="{-0.111766053057175,-0.082317,-0.00234728892667648,1.5707963267949,1.59219265358979,1.5707963267949}"/>
+                <Marker name="joint_20" active="true" pe="{-0.0639083004720105,-0.0695671360958659,0.0532795295363379,-0,-1.5707963267949,-0}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="0" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="1" is_dynamic="true" resource_path="/meshes/base1.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_base2" active="true" pe="{0.00302000000000001,-0.002317,0.0016719,4.71238898038469,1.5494,1.5707963267949}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.040287,0.001430107926,-0.001255020624,-0.001084767762,9.008585923846e-05,9.180342791676e-05,0.000109971373635996,4.4550722110752e-05,3.8507086015476e-05,-3.3792685321824e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_0_i" active="true" pe="{0.01,5.99222927637749e-19,-5.42101086242752e-20,1.5707963267949,3.14159265358979,1.5707963267949}"/>
+                <Marker name="joint_1_j" active="true" pe="{0.0665343485071832,-0.0547500738314226,-0.0461828045346953,3.14159632669169,1.57079635433018,6.26178898038483}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="1" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="2" is_dynamic="true" resource_path="/meshes/base2.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_side1" active="true" pe="{0.126687774137127,-0.057067,0.0862474244971533,3.1415927046457,1.57079999964516,3.15549265358989}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.063294,-0.002069966976,0.001274298102,0.001263411534,5.758850131774e-05,0.000144835157613278,0.00014262564367067,4.1674645127808e-05,4.1318610807936e-05,-2.5436264414022e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_1_i" active="true" pe="{-0.0758,0.0201,3.00873646751914e-17,0.778448163397495,3.90385430368356e-16,0.778448163397495}"/>
+                <Marker name="joint_2_j" active="true" pe="{0.0608367669996359,0.0200974708825657,-2.25115681693979e-17,0.778448163397495,4.42174956392904e-16,0.778448163397495}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="2" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="3" is_dynamic="true" resource_path="/meshes/side1.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_side2" active="true" pe="{0.263039257945509,-0.0570669961269725,0.0854065186685764,3.1415927046457,1.57079999964516,3.14158965358989}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.090541,-0.0006936617633,0.001822952494,0.001805930786,8.4771420971752e-05,8.93524463247263e-05,8.47736763813663e-05,1.39661859422822e-05,1.38357775307818e-05,-3.6360610445324e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_2_i" active="true" pe="{-0.0758,0.0201,2.96367563821419e-17,0.785399663397495,3.90413580093423e-16,0.785399663397495}"/>
+                <Marker name="joint_3_j" active="true" pe="{0.0606587032144508,0.0201333711690603,-2.57065632115514e-17,3.14159606093847,3.14557487799132e-16,4.7123885730361}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="3" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="4" is_dynamic="true" resource_path="/meshes/side2.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_base3" active="true" pe="{0.323698021559802,-0.0570670669761735,0.0652733294758465,3.1415927046457,1.57079999964516,4.68621030802227}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.063358,0.002825703442,-0.001224329992,0.002075988228,0.000117483783044056,0.000218662378088406,0.000165071500575166,5.4603893313208e-05,-9.2586998980572e-05,4.0116396517872e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_3_i" active="true" pe="{0,-0,0,4.74889867302398,3.04529620168191e-16,1.56046530651822}"/>
+                <Marker name="joint_4_j" active="true" pe="{0.0565000000000837,-0.0460000000000097,0.0547499999998942,3.1415926535898,1.57079632679489,3.14158898333443}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="4" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="5" is_dynamic="true" resource_path="/meshes/base3.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_base4" active="true" pe="{0.371422940112865,-0.0023173042784527,-4.54078827316629e-09,1.57079647402311,1.54461765443265,1.57079265268573}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.040287,0.001430107926,-0.001255020624,-0.001084767762,9.008585923846e-05,9.180342791676e-05,0.000109971373635996,4.4550722110752e-05,3.8507086015476e-05,-3.3792685321824e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_4_i" active="true" pe="{0.01,4.60415346391916e-19,3.74049749507499e-18,4.712392722861,3.14159265358979,1.57079639901585}"/>
+                <Marker name="joint_5_j" active="true" pe="{0.066532870223927,-0.0547500000001833,-0.0459804297795719,3.14159265359192,1.57079632679495,3.11541398122719}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="5" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="6" is_dynamic="true" resource_path="/meshes/base4.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_side3" active="true" pe="{0.247716658783844,0.0524330030898462,0.085406070523525,5.10559035049596e-08,1.57079265394676,3.14159565358971}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.063294,-0.002069966976,0.001274298102,0.001263411534,5.758850131774e-05,0.000144835157613278,0.00014262564367067,4.1674645127808e-05,4.1318610807936e-05,-2.5436264414022e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_5_i" active="true" pe="{-0.076,0.0201,8.16316091515511e-18,0.785396663397398,7.033924101571e-17,3.92698931698719}"/>
+                <Marker name="joint_6_j" active="true" pe="{0.0606395378761706,0.0201002632400884,-5.14351492797313e-18,0.785396663397398,8.98164014914117e-17,3.92698931698719}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="6" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="7" is_dynamic="true" resource_path="/meshes/side3.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot1_side4" active="true" pe="{0.111363895739993,0.0524329999992283,0.0864600197908658,5.10559035049596e-08,1.57079265394676,3.12769304754046}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.090541,-0.0006936617633,0.001822952494,0.001805930786,8.4771420971752e-05,8.93524463247263e-05,8.47736763813663e-05,1.39661859422822e-05,1.38357775307818e-05,-3.6360610445324e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_6_i" active="true" pe="{-0.076,0.0201,5.51951814721524e-18,1.57774612981947,8.98162100033713e-17,3.14854245661437}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="7" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="8" is_dynamic="true" resource_path="/meshes/side4.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_base1" active="true" pe="{-0.115,-0.08,0.0140169,1.5707963267949,0,1.5707963267949}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.1,0,0,0,0.001,0.001,0.001,0,0,0}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_7_j" active="true" pe="{-0.111766053057175,-0.082317,-0.00234728892667648,1.5707963267949,1.59219265358979,4.71238898038469}"/>
+                <Marker name="joint_21" active="true" pe="{-0.0639083004720105,-0.0695671360958659,0.0532795295363379,-0,-1.5707963267949,-0}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="8" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="9" is_dynamic="true" resource_path="/meshes/base1.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_base2" active="true" pe="{-0.00302000000000001,0.002317,0.0016719,1.5707963267949,1.5494,1.5707963267949}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.040287,0.001430107926,-0.001255020624,-0.001084767762,9.008585923846e-05,9.180342791676e-05,0.000109971373635996,4.4550722110752e-05,3.8507086015476e-05,-3.3792685321824e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_7_i" active="true" pe="{0.01,6.25423871509604e-19,-5.42101086242752e-20,1.5707963267949,3.14159265358979,4.71238898038469}"/>
+                <Marker name="joint_8_j" active="true" pe="{0.0665343485071832,-0.0547500738314226,-0.0461828045346953,3.14159632669169,1.57079635433018,3.12019632679504}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="9" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="10" is_dynamic="true" resource_path="/meshes/base2.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_side1" active="true" pe="{-0.126687774137127,0.057067,0.0862474244971533,5.10559066135841e-08,1.57079999964516,3.15549265358989}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.063294,-0.002069966976,0.001274298102,0.001263411534,5.758850131774e-05,0.000144835157613278,0.00014262564367067,4.1674645127808e-05,4.1318610807936e-05,-2.5436264414022e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_8_i" active="true" pe="{-0.0758,0.0201,-1.30115642703489e-17,5.49083714378219,1.76425261755208e-16,5.49083714378219}"/>
+                <Marker name="joint_9_j" active="true" pe="{0.0608367669996359,0.0200974708825657,1.17941529320179e-17,5.49083714378219,2.80851141870839e-16,5.49083714378219}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="10" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="11" is_dynamic="true" resource_path="/meshes/side1.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_side2" active="true" pe="{-0.263039257945509,0.0570669961269725,0.0854065186685764,5.10559066135841e-08,1.57079999964516,3.14158965358989}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.090541,-0.0006936617633,0.001822952494,0.001805930786,8.4771420971752e-05,8.93524463247263e-05,8.47736763813663e-05,1.39661859422822e-05,1.38357775307818e-05,-3.6360610445324e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_9_i" active="true" pe="{-0.0758,0.0201,-1.33079860972185e-17,5.49778864378218,1.76425290663049e-16,5.49778864378218}"/>
+                <Marker name="joint_10_j" active="true" pe="{0.0606587032144508,0.0201333711690603,8.65989279916056e-18,3.14159606093847,3.17116309300467e-16,1.57079591944631}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="11" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="12" is_dynamic="true" resource_path="/meshes/side2.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_base3" active="true" pe="{-0.323698021559802,0.0570670669761735,0.0652733294758465,5.10559066135841e-08,1.57079999964516,4.68621030802227}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.063358,0.002825703442,-0.001224329992,0.002075988228,0.000117483783044056,0.000218662378088406,0.000165071500575166,5.4603893313208e-05,-9.2586998980572e-05,4.0116396517872e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_10_i" active="true" pe="{0,0,0,1.60730601943419,3.17116257892415e-16,1.56046530651822}"/>
+                <Marker name="joint_11_j" active="true" pe="{0.0565000000000837,-0.0460000000000096,0.0547499999998942,3.1415926535898,1.57079632679489,6.28318163692422}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="12" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="13" is_dynamic="true" resource_path="/meshes/base3.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_base4" active="true" pe="{-0.371422940112865,0.00231730427845268,-4.54078830092186e-09,4.71238912761291,1.54461765443265,1.57079265268573}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.040287,0.001430107926,-0.001255020624,-0.001084767762,9.008585923846e-05,9.180342791676e-05,0.000109971373635996,4.4550722110752e-05,3.8507086015476e-05,-3.3792685321824e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_11_i" active="true" pe="{0.01,-1.90832552549454e-18,3.79470760369927e-18,1.57080197661984,3.14159265358979,1.57079830636448}"/>
+                <Marker name="joint_12_j" active="true" pe="{0.066532870223927,-0.0547500000001833,-0.0459804297795718,3.14159265359192,1.57079632679495,6.25700663481698}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="13" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="14" is_dynamic="true" resource_path="/meshes/base4.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_side3" active="true" pe="{-0.247716658783844,-0.0524330030898462,0.085406070523525,3.1415927046457,1.57079265394676,3.14159565358971}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.063294,-0.002069966976,0.001274298102,0.001263411534,5.758850131774e-05,0.000144835157613278,0.00014262564367067,4.1674645127808e-05,4.1318610807936e-05,-2.5436264414022e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_12_i" active="true" pe="{-0.076,0.0201,1.30073820451719e-17,0.785396663397398,2.21684940466599e-16,0.785396663397398}"/>
+                <Marker name="joint_13_j" active="true" pe="{0.0606395378761706,0.0201002632400884,-1.70328399525489e-17,3.14158924624111,2.21613342184317e-16,4.71238938773327}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="14" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="15" is_dynamic="true" resource_path="/meshes/side3.STL"/>
+            </GeometryPoolElement>
+        </Part>
+        <Part name="robot2_side4" active="true" pe="{-0.111363895739993,-0.0524329999992283,0.0864600197908659,3.1415927046457,1.57079265394676,3.12769304754046}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{0.090541,-0.0006936617633,0.001822952494,0.001805930786,8.4771420971752e-05,8.93524463247263e-05,8.47736763813663e-05,1.39661859422822e-05,1.38357775307818e-05,-3.6360610445324e-05}">
+            <MarkerPoolElement __prop_name__="marker_pool">
+                <Marker name="joint_13_i" active="true" pe="{-0.076,0.0201,-1.88317791138394e-17,3.93394062001182,2.75352154932247e-16,3.93394062001182}"/>
+            </MarkerPoolElement>
+            <GeometryPoolElement __prop_name__="geometry_pool">
+                <MeshGeometry id="15" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" part_id="16" is_dynamic="true" resource_path="/meshes/side4.STL"/>
+            </GeometryPoolElement>
+        </Part>
+    </PartPoolElement>
+    <MotionPoolElement __prop_name__="motion_pool"/>
+    <JointPoolElement __prop_name__="joint_pool">
+        <RevoluteJoint name="joint_0" active="true" prt_m="robot1_base2" prt_n="robot1_base1" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_1" active="true" prt_m="robot1_side1" prt_n="robot1_base2" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_2" active="true" prt_m="robot1_side2" prt_n="robot1_side1" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_3" active="true" prt_m="robot1_base3" prt_n="robot1_side2" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_4" active="true" prt_m="robot1_base4" prt_n="robot1_base3" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_5" active="true" prt_m="robot1_side3" prt_n="robot1_base4" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_6" active="true" prt_m="robot1_side4" prt_n="robot1_side3" mak_i="joint_6_i" mak_j="joint_6_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_7" active="true" prt_m="robot2_base2" prt_n="robot2_base1" mak_i="joint_7_i" mak_j="joint_7_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_8" active="true" prt_m="robot2_side1" prt_n="robot2_base2" mak_i="joint_8_i" mak_j="joint_8_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_9" active="true" prt_m="robot2_side2" prt_n="robot2_side1" mak_i="joint_9_i" mak_j="joint_9_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_10" active="true" prt_m="robot2_base3" prt_n="robot2_side2" mak_i="joint_10_i" mak_j="joint_10_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_11" active="true" prt_m="robot2_base4" prt_n="robot2_base3" mak_i="joint_11_i" mak_j="joint_11_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_12" active="true" prt_m="robot2_side3" prt_n="robot2_base4" mak_i="joint_12_i" mak_j="joint_12_j" cf="{0,0,0,0,0}"/>
+        <RevoluteJoint name="joint_13" active="true" prt_m="robot2_side4" prt_n="robot2_side3" mak_i="joint_13_i" mak_j="joint_13_j" cf="{0,0,0,0,0}"/>
+    </JointPoolElement>
+    <GeneralMotionPoolElement __prop_name__="general_motion_pool"/>
+    <ForcePoolElement __prop_name__="force_pool"/>
+    <SolverPoolElement __prop_name__="solver_pool">
+        <InverseKinematicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+        <ForwardKinematicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+        <InverseDynamicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+        <ForwardDynamicSolver root_num="1" which_root="0" max_iter_count="100" max_error="0.0000000001"/>
+    </SolverPoolElement>
+    <CalibratorPoolElement __prop_name__="calibrator_pool"/>
+</Model>
+    <Master __prop_name__="master" name="master" sample_period_ns="1000000">
+        <SlavePoolObject __prop_name__="slave_pool"/>
+    </Master>
+    <Controller __prop_name__="controller">
+        <MotorPoolObject __prop_name__="motor_pool"/>
+        <DigitalIoPoolObject __prop_name__="digital_io_pool"/>
+        <AnalogIoPoolObject __prop_name__="analog_io_pool"/>
+        <FtSensorPoolObject __prop_name__="ft_sensor_pool"/>
+        <CustomSlavePoolObject __prop_name__="custom_slave_pool"/>
+    </Controller>
+    <PlanRoot __prop_name__="plan_root">
+        <PlanPoolObject __prop_name__="plan_pool_object">
+            <GetXml name="plan">
+                <Command __prop_name__="command" name="get_xml"/>
+            </GetXml>
+            <SetXml name="plan">
+                <Command __prop_name__="command" name="set_xml">
+                    <Param name="xml"/>
+                </Command>
+            </SetXml>
+            <plan.Start name="plan">
+                <Command __prop_name__="command" name="cs_start"/>
+            </plan.Start>
+            <Stop name="plan">
+                <Command __prop_name__="command" name="cs_stop"/>
+            </Stop>
+            <Display3dInit name="plan">
+                <Command __prop_name__="command" name="display3d_init"/>
+            </Display3dInit>
+            <SimPlay name="plan">
+                <Command __prop_name__="command" name="sim_play"/>
+            </SimPlay>
+            <SireGet name="plan">
+                <Command __prop_name__="command" name="get">
+                    <GroupParam name="group_param">
+                        <UniqueParam name="unique_param" default="all">
+                            <Param name="all"/>
+                            <Param name="part_pq"/>
+                        </UniqueParam>
+                    </GroupParam>
+                </Command>
+            </SireGet>
+            <RecordGet name="plan">
+                <Command __prop_name__="command" name="record_get"/>
+            </RecordGet>
+        </PlanPoolObject>
+    </PlanRoot>
+    <InterfacePoolObject __prop_name__="interface">
+        <SireProgramWebInterface name="interface">
+            <Socket __prop_name__="socket" connect_type="WEB" port="5867"/>
+        </SireProgramWebInterface>
+        <SireHttpInterface name="http_interface" document_root="D:/code/sire/web_interface/build" port="8001"/>
+    </InterfacePoolObject>
+    <SireMiddleware __prop_name__="middle_ware">
+        <SimulationLoop __prop_name__="simulation_loop" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="7" global_variable_pool="{}">
+            <EventManager __prop_name__="event_manager">
+                <EventHandlerPairPool __prop_name__="event_handler_pair_pool">
+                    <EventHandlerIdPair event_id="0" handler_id="6"/>
+                    <EventHandlerIdPair event_id="1" handler_id="7"/>
+                    <EventHandlerIdPair event_id="2" handler_id="8"/>
+                </EventHandlerPairPool>
+            </EventManager>
+            <ZeroPosition __prop_name__="controller"/>
+        </SimulationLoop>
+        <PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
+            <CollisionDetection __prop_name__="collision_detection"/>
+            <ContactPositionForceSolver __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
+                <MaterialManager __prop_name__="material_manager" default_prop="{k:140000000,d:1000,cr:1}">
+                    <MaterialPairPropPool __prop_name__="material_pair_prop_pool">
+                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:10000,cr:0.4,cof:0.5,threshold_velocity:1e-1}"/>
+                    </MaterialPairPropPool>
+                </MaterialManager>
+            </ContactPositionForceSolver>
+            <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
+                <!-- <BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.53,0,0,0,1}" /> -->
+                <!-- <SphereCollisionGeometry id="2" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="0.5" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" /> -->
+                <!-- <CapsuleCollisionGeometry id="1" part_id="4" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.01" length="0.18" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
+                <CapsuleCollisionGeometry id="2" part_id="7" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.01" length="0.18" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
+                <CapsuleCollisionGeometry id="3" part_id="10" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.01" length="0.18" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
+                <CapsuleCollisionGeometry id="4" part_id="13" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.01" length="0.18" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" /> -->
+            </GeometryPoolObject>
+            <CollisionFilter __prop_name__="collision_filter" filter_state="{}" />
+        </PhysicsEngine>
+        <SimulatorModules __prop_name__="simulator_modules">
+            <IntegratorPoolObject __prop_name__="integrator_pool">
+                <!-- <SemiImplicitEulerIntegrator step_size="0.001" data_length="0"/> -->
+                <IntegratorBase step_size="0.001" data_length="0"/>
+            </IntegratorPoolObject>
+            <SireSensorPoolObject __prop_name__="sensor_pool"/>
+        </SimulatorModules>
+    </SireMiddleware>
+    <TransferModelController __prop_name__="model_controller_transfer"/>
+    <CustomModule __prop_name__="custom_module"/>
+    <ControlServerErrorChecker __prop_name__="error_checker"/>
+</ControlServer>

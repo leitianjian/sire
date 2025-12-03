@@ -1,0 +1,190 @@
+#ifndef SIRE_PHYSICS_ENGINE_HPP_
+#define SIRE_PHYSICS_ENGINE_HPP_
+
+#include <array>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include <sire_lib_export.h>
+
+#include "sire/core/material_manager.hpp"
+#include "sire/integrator/integrator_base.hpp"
+#include "sire/physics/collision/collision_detection.hpp"
+#include "sire/physics/common/point_pair_contact_info.hpp"
+#include "sire/physics/contact/contact_solver.hpp"
+#include "sire/physics/physics.hpp"
+
+namespace sire {
+namespace simulator {
+class SimulationLoop;
+};
+namespace middleware {
+class SireMiddleware;
+}
+namespace physics {
+class SIRE_API PhysicsEngine {
+ public:
+  // collision_detection //
+  auto resetCollisionDetection(
+      collision::CollisionDetection* collision_detection_in) -> void;
+  auto collisionDetection() const -> const collision::CollisionDetection&;
+  auto collisionDetection() -> collision::CollisionDetection& {
+    return const_cast<collision::CollisionDetection&>(
+        const_cast<const PhysicsEngine*>(this)->collisionDetection());
+  }
+
+  // contact_solver //
+  auto resetContactSolver(contact::ContactSolver* contact_solver_in) -> void;
+  auto contactSolver() const -> const contact::ContactSolver&;
+  auto contactSolver() -> contact::ContactSolver& {
+    return const_cast<contact::ContactSolver&>(
+        const_cast<const PhysicsEngine*>(this)->contactSolver());
+  }
+
+  // collision filter
+  auto resetCollisionFilter(collision::CollisionFilter* filter) -> void;
+  auto collisionFilter() -> collision::CollisionFilter&;
+
+  // geometry pool
+  auto resetGeometryPool(
+      aris::core::PointerArray<geometry::CollidableGeometry,
+                               aris::dynamic::Geometry>* pool) -> void;
+  auto geometryPool() noexcept
+      -> aris::core::PointerArray<geometry::CollidableGeometry,
+                                  aris::dynamic::Geometry>&;
+  auto queryGeometryPoolById(const GeometryId& id) const
+      -> geometry::CollidableGeometry*;
+  auto queryGeometryPoolById(const GeometryId& id)
+      -> geometry::CollidableGeometry* {
+    return const_cast<const PhysicsEngine*>(this)->queryGeometryPoolById(id);
+  };
+  auto dynamicObjectsMap()
+      -> std::unordered_map<GeometryId, geometry::CollidableGeometry*>&;
+  auto anchoredObjectsMap()
+      -> std::unordered_map<GeometryId, geometry::CollidableGeometry*>&;
+
+  auto currentModel() const -> aris::dynamic::Model*;
+  auto resetSimLoopPtr(simulator::SimulationLoop* simLoop) -> void;
+  auto simLoopPtr() -> simulator::SimulationLoop*;
+  // Config get set method
+  auto collisionDetectionFlag() const -> bool;
+  auto setCollisionDetectionFlag(bool flag) -> void;
+  auto contactSolverFlag() const -> bool;
+  auto setContactSolverFlag(bool flag) -> void;
+
+  // continuous collision detection
+  // will insert some time value which should be processed.
+  auto continuousCollisionDetection() -> void {};
+
+  // compute contact wrench of model
+  auto cptModelContactWrench() -> void {};
+
+  auto setContactForceIdxSize(int contact_force_idx,
+                              sire::Size contact_force_size) -> void;
+
+  // deactive all contact force
+  auto activateContactForce(bool flag = true) -> void;
+
+  // compute point pair penetration and get result
+  auto cptPointPairPenetration(
+      std::vector<common::PenetrationAsPointPair>& pairs) -> void;
+
+  // compute real contact time
+  auto cptContactTime(const common::PenetrationAsPointPair& penetration)
+      -> double;
+
+  // compute proximity velocity
+  auto cptProximityVelocity(const common::PenetrationAsPointPair& penetration)
+      -> double;
+  auto cptTangentialVelocity(const common::PenetrationAsPointPair& penetration,
+                             const std::array<double, 16>& T_contact,
+                             std::array<double, 2>& vt) -> void;
+  auto cptContactVelocityB2A(const common::PenetrationAsPointPair& penetration,
+                             const std::array<double, 16>& T_contact,
+                             std::array<double, 3>& v_contact) -> void;
+  auto cptContactVelocityAB(
+      const std::vector<common::PenetrationAsPointPair>& pairs,
+      std::vector<std::array<double, 3>>& v_contact) -> void;
+  auto fwdActuators() -> void;
+
+  // engine state getter
+  inline auto numGeometries() -> sire::Size { return geometryPool().size(); }
+  auto numDynamicGeometries() -> sire::Size;
+
+  // engine state control
+  auto doInit() -> void;
+  auto init() -> void;
+  auto init(middleware::SireMiddleware* middlewarePtr) -> void;
+  auto init(simulator::SimulationLoop* simLoopPtr) -> void;
+  auto init(aris::dynamic::Model* m) -> void;
+
+  // this prt_pm represent the pose of geometry on part coordinate
+  auto addSphereGeometry(double radius, int part_id = 0,
+                         bool is_dynamic = false,
+                         const double* prt_pm = nullptr) -> bool;
+  auto addBoxGeometry(double x, double y, double z, int part_id = 0,
+                      bool is_dynamic = false, const double* prt_pm = nullptr)
+      -> bool;
+  auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
+                       bool is_dynamic = false, const double* prt_pm = nullptr)
+      -> bool;
+  auto addCapsuleGeometry(double radius, double length, int part_id = 0,
+                          bool is_dynamic = false,
+                          const double* prt_pm = nullptr) -> bool;
+  auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
+      -> bool;
+  auto addAnchoredGeometry(geometry::CollidableGeometry& anchored_geometry)
+      -> bool;
+
+  auto removeGeometry() -> bool;
+  auto clearDynamicGeometries() -> bool;
+  auto clearAnchoredGeometries() -> bool;
+  auto clearGeometries() -> bool;
+
+  // Functions for the main usage
+  auto updateGeometryLocationFromModel() -> void;
+  auto hasCollision() -> bool;
+  auto computePointPairPenetration()
+      -> std::vector<common::PenetrationAsPointPair>;
+
+  auto cptContactInfo(
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<std::array<double, 16>>& T_C_vec,
+      std::vector<common::PointPairContactInfo>& contact_info) -> double;
+  auto cptContactInfo(
+      double suggestTime,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<std::array<double, 16>>& T_C_vec,
+      std::vector<common::PointPairContactInfo>& contact_info) -> double;
+  auto cptContactInfo(
+      double suggestTime,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<common::PointPairContactInfo>& contact_info) -> double;
+  auto recordsContactCptInfo() -> nlohmann::json;
+  auto cptGlbForceByContactInfo(
+      const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
+
+  auto handleContact() -> void;
+  // 给每个杆件配备一个GeneralForce的Componenet，用来设置接触力
+  auto initPartContactForce2Model() -> void;
+  auto resetPartContactForce() -> void;
+  auto resetMotionForce() -> void;
+  auto setForcePoolSimulation() -> void;
+
+  auto saveInitialModel(aris::dynamic::Model& model) -> void;
+  auto resetInitialModel() -> void;
+
+  PhysicsEngine();
+  virtual ~PhysicsEngine();
+  PhysicsEngine(const PhysicsEngine&) = delete;
+  PhysicsEngine& operator=(const PhysicsEngine&) = delete;
+
+ private:
+  struct Imp;
+  aris::core::ImpPtr<Imp> imp_;
+};
+}  // namespace physics
+}  // namespace sire
+#endif

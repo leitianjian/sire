@@ -1,0 +1,15 @@
+@code-editor-prefix-cls: ~'@{ant-prefix}-code-editor';
+
+.@{code-editor-prefix-cls}{
+  width: 100%;
+  height: 100%;
+  position: relative;
+  .ace-monokai {
+    background-color:@component-background;
+    color: @text-color-secondary;
+  }
+  .ace-monokai .ace_gutter {
+    color: @text-color-dark;
+    background-color: #222;
+  }
+}

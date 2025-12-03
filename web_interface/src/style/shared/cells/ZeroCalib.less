@@ -1,0 +1,49 @@
+@zero-calib-prefix-cls: ~'@{ant-prefix}-zero-calib';
+
+.@{zero-calib-prefix-cls}{
+  width: 100%;
+  min-width: 400px;
+  padding: @padding-md;
+  box-sizing: border-box;
+  height: 100%;
+  overflow: auto;
+  font-size: @font-size-base;
+  &-options {
+    display: block;
+    &>label {
+      display: block;
+      padding: @padding-xs;
+      text-align: left;
+      width: 180px;
+      margin: 0 auto;
+    }
+  }
+  &-select {
+    display: block;
+    padding: @padding-xs;
+    text-align: center;
+    margin: 0 auto;
+    &>span {
+      padding-left: @padding-xs;
+    }
+  }
+  &-buttons {
+    text-align: center;
+    padding: @padding-md;
+    &>div {
+      padding: @padding-md;
+      button {
+        margin: 0 @padding-md;
+      }
+    }
+  }
+  &-calib-result {
+    margin: @padding-lg;
+    &>div:first-child {
+      margin: @padding-xs 0;
+    }
+    div > span:last-child {
+      margin-left: @padding-xs;
+    }
+  }
+}

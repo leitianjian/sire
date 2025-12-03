@@ -1,0 +1,40 @@
+@robot-status-prefix-cls: ~'@{ant-prefix}-robot-status';
+
+.@{robot-status-prefix-cls} {
+  width: calc(100% - 30px);
+  //min-width: 200px;
+  height: 80%;
+  text-align: center;
+  &-code{
+    display:"block";
+    color:"red";
+    Width:"50%";
+    text-align:"left";
+  }
+  .rchmi-robot-status-msg{
+    //display:"block";
+    Width:"50%";
+    text-Align:"left";
+    color:"#52c41a";
+  }
+  &>div{
+    display: inline-block;
+    padding-bottom: @padding-lg;
+    position: relative;
+    width: 60px;
+    margin: 0 @padding-xs;
+    text-align: center;
+    vertical-align: bottom;
+    height: 4*@font-size-lg;
+    &>span{
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      left: 0;
+      font-size: @font-size-lg;
+    }
+    &>i{
+      font-size: 2*@font-size-lg;
+    }
+  }
+}
