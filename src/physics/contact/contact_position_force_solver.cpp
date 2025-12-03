@@ -588,26 +588,57 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
     return -1;
   }
   // double temp[2]{sire::PI, 2 * sire::PI};
-  std::vector<double> pois(4 * alphaVec.size());
+  // std::vector<double> pois(4 * alphaVec.size());
+  // for (int i{0}; i < alphaVec.size(); ++i) {
+  //   double temp = sire::PI / alphaVec[i];
+  //   pois[4 * i] = 0.5 * temp;
+  //   pois[4 * i + 1] = temp;
+  //   pois[4 * i + 2] = 1.5 * temp;
+  //   pois[4 * i + 3] = 2 * temp;
+  // }
+  int numberSlices = 16;
+  std::vector<double> pois(numberSlices * alphaVec.size());
   for (int i{0}; i < alphaVec.size(); ++i) {
-    double temp = sire::PI / alphaVec[i];
-    pois[4 * i] = 0.5 * temp;
-    pois[4 * i + 1] = temp;
-    pois[4 * i + 2] = 1.5 * temp;
-    pois[4 * i + 3] = 2 * temp;
+    double maxValue = 8 * sire::PI / alphaVec[i];
+    for (int j{0}; j < numberSlices; ++ j) {
+      pois[numberSlices * i + j] = j * maxValue / numberSlices;
+    }
+    // pois[8 * i] = 0.25 * temp;
+    // pois[8 * i + 1] = 0.5 * temp;
+    // pois[8 * i + 2] = 0.75 * temp;
+    // pois[8 * i + 3] = temp;
+    // pois[8 * i + 4] = 1.25 * temp;
+    // pois[8 * i + 5] = 1.5 * temp;
+    // pois[8 * i + 6] = 1.75 * temp;
+    // pois[8 * i + 7] = 2 * temp;
   }
 
   std::sort(pois.begin(), pois.end());
-  double lowerBound = 1e-12;
+  double lowerBound = 1e-40;
   // TODO: 可以设置为仿真的默认步长，超过默认步长的穿透没必要单独解接触时间了
   double upperBound = 0.1;
+  // double minStartDecrease = 0;
+  // double maxStartDecrease = 0;
   std::vector<double> x1t(n2 + 1);
   auto depthEnd = x1t.begin() + nContact;
+  // auto velocityEnd = x1t.begin() + 2 * nContact;
   bool negativeDepthExists = false;
+  DLOG(DEBUG) << "pois: " << pois;
+
   for (double poi : pois) {
     cptFormulaXComposeAb(n2 + 1, Ab.data(), poi, x01.data(), x1t.data());
+    DLOG(DEBUG) << "poi: " << poi << " "
+                << (std::find_if(x1t.begin(), depthEnd,
+                                 [](double x) { return x < 0; }) == depthEnd) << " " << x1t;
     if (std::find_if(x1t.begin(), depthEnd, [](double x) { return x < 0; }) ==
         depthEnd) {
+      // if (std::find_if(depthEnd, velocityEnd, [](double x) { return x < 0; }) !=
+      //   velocityEnd) {
+      //   if(minStartDecrease == 0) {
+      //     minStartDecrease = poi;
+      //   }
+      //   maxStartDecrease = poi;
+      // }
       lowerBound = poi;  // x向量元素全部大于零
       continue;
     } else {
@@ -616,6 +647,35 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
       break;
     }
   }
+  // 说明相邻虚部之间差的比较多，现在只用最小的虚部处理。（找到一个合理的upperbound
+  // if (upperBound > 5 * lowerBound) {
+  //   DLOG(DEBUG) << "Big image part gap, insert poi manually";
+  //   std::vector<double> pois2;
+  //   if (maxStartDecrease == 0) {
+  //     throw std::runtime_error(
+  //             "poi method all point is > 0 and increase");
+  //   }
+  //   pois2[0] = 2 * minStartDecrease;
+  //   pois2[1] = 1.5 * maxStartDecrease;
+  //   pois2[2] = 2 * maxStartDecrease;
+  //   std::sort(pois2.begin(), pois2.end());
+  //   for (double poi : pois2) {
+  //     cptFormulaXComposeAb(n2 + 1, Ab.data(), poi, x01.data(), x1t.data());
+  //     DLOG(DEBUG) << "poi: " << poi << " "
+  //                 << (std::find_if(x1t.begin(), depthEnd,
+  //                                  [](double x) { return x < 0; }) == depthEnd) << " " << x1t;
+  //     if (std::find_if(x1t.begin(), depthEnd, [](double x) { return x < 0; }) ==
+  //         depthEnd) {
+  //       lowerBound = poi;  // x向量元素全部大于零
+  //       continue;
+  //     } else {
+  //       upperBound = poi;  // 存在负数
+  //       negativeDepthExists = true;
+  //       break;
+  //     }
+  //   }
+
+  // }
   DLOG(DEBUG) << "lowerBound: " << lowerBound << ", upperBound: " << upperBound;
   if (!negativeDepthExists) {
     DLOG(WARNING) << "Contact without split, negative depth not exists";
@@ -1282,7 +1342,8 @@ auto filterPairsAndPreprocessInfo(
   //         penetration_pairs.begin(), penetration_pairs.end(),
   //         [&contactEnded](const common::PenetrationAsPointPair& p) {
   //           return std::find_if(contactEnded.begin(), contactEnded.end(),
-  //                               [&p](const common::PenetrationAsPointPair& c) {
+  //                               [&p](const common::PenetrationAsPointPair& c)
+  //                               {
   //                                 return p.compareById(c);
   //                               }) != contactEnded.end();
   //         }),
@@ -1445,10 +1506,10 @@ auto ContactPositionForceSolver::setDefaultVelocityThreshold(double tv) noexcept
 auto ContactPositionForceSolver::defaultVelocityThreshold() noexcept -> double {
   return imp_->default_tv_;
 }
-auto ContactPositionForceSolver::debugByRecords() -> void {
-  std::ofstream file("contact_solver_result.json");
+auto ContactPositionForceSolver::debugByRecords() -> nlohmann::json {
+  // std::ofstream file("contact_solver_result.json");
   // std::cout << "records: " << imp_->records.dump(2) << std::endl;
-  file << imp_->records.dump(2);
+  return imp_->records;
 }
 
 auto cptNormalContactForceByX0X1t(
@@ -1588,16 +1649,19 @@ auto ContactPositionForceSolver::cptContactSolverResult(
       findMinRootBisection(n, A.data(), b.data(), x0.data(), 1e-10, 200);
   DLOG(DEBUG) << " minTime: " << minTime << " b: " << b << " A: " << A
               << " x0: " << x0;
-  // 没有零点的情况下，取A中的最大值作为参考计算步长
+  imp_->records["currentTime"].push_back(modelPtr->time());
+  imp_->records["minTime"].push_back(minTime);
+  // 没有零点的情况下，取A中的最大值作为参考计算步长（修改为采用suggest_dt作为步长，不变result.dt）
   if (minTime <= 0) {
-    double maxA = 0;
-    for (sire::Size i{0}; i < A.size(); ++i) {
-      double temp = std::abs(A[i]);
-      if (temp > maxA) maxA = temp;
-    }
-    double timeAuto = std::pow(10, -1 - int(floor(std::log10(maxA)) / 2));
-    minTime = result.dt > timeAuto ? timeAuto : result.dt;
-    result.dt = minTime;
+    // double maxA = 0;
+    // for (sire::Size i{0}; i < A.size(); ++i) {
+    //   double temp = std::abs(A[i]);
+    //   if (temp > maxA) maxA = temp;
+    // }
+    // double timeAuto = std::pow(10, -1 - int(floor(std::log10(maxA)) / 2));
+    // minTime = result.dt > timeAuto ? timeAuto : result.dt;
+    // result.dt = minTime;
+    minTime = result.dt;
   } else {
     // 判断使用哪个时间
     if (minTime > result.dt) {
@@ -1738,10 +1802,14 @@ auto ContactPositionForceSolver::cptContactSolverResult(
 
       double ft{0};
       if (vt > threshold_velocity) {
-        ft = std::abs(0.95 * friction_coefficient * result.fn[idx]);
+        // ft = std::abs(0.95 * friction_coefficient * result.fn[idx]);
+        ft = std::abs(friction_coefficient * result.fn[idx]);
       } else {
+        // ft = std::abs(friction_coefficient * result.fn[idx] *
+        //               (std::expm1(-3 * vt / threshold_velocity)));
         ft = std::abs(friction_coefficient * result.fn[idx] *
-                      (std::expm1(-3 * vt / threshold_velocity)));
+                      (vt / threshold_velocity));
+        // (std::expm1(-3 * vt / threshold_velocity)));
       }
       result.ft[2 * idx] = -1 * aris::dynamic::s_sgn(v_contact[0]) * ft *
                            safe_div(t1, t2, zero_check, 0.0);

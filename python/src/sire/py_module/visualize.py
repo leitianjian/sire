@@ -21,6 +21,17 @@ def pq2tfmatrix(pq):
                                              [0, 0, 0, p[2]],
                                              [0, 0, 0, 0]])
 
+def pe3132tfmatrix(pe):
+  """
+  Convert a pe to a transformation matrix
+  :param pe: [position, euler angles in ZXZ order]
+  :return: transformation matrix
+  """
+  tf1 = TF.from_components(
+                translation=pe[:3],
+                rotation=R.from_euler("ZXZ", pe[3:], degrees=False))
+  return tf1.as_matrix().flatten()
+
 def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
   robot = vis['robot']
   partInitConfig = displayInitJson['part_init_config']

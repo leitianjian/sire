@@ -148,8 +148,8 @@ auto SimulationLoop::timer() -> core::Timer& { return imp_->timer_; }
 auto SimulationLoop::recorder() -> simulator::Recorder& {
   return imp_->recorder_;
 }
-auto SimulationLoop::recordsContactCptInfo() -> void {
-  imp_->physics_engine_ptr_->recordsContactCptInfo();
+auto SimulationLoop::recordsContactCptInfo() -> nlohmann::json {
+  return imp_->physics_engine_ptr_->recordsContactCptInfo();
 }
 auto SimulationLoop::integrate() -> bool {
   // Get header event pointer

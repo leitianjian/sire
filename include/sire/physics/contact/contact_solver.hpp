@@ -39,7 +39,8 @@ class SIRE_API ContactSolver {
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       std::vector<std::array<double, 16>>& T_C_vec,
       ContactSolverResult& result) -> void = 0;
-  virtual auto debugByRecords() -> void {
+  virtual auto debugByRecords() -> nlohmann::json {
+    return nlohmann::json();
     // Default implementation does nothing.
     // Derived classes can override this method to implement debugging behavior.
   }

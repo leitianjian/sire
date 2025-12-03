@@ -162,7 +162,7 @@ class SIRE_API PhysicsEngine {
       double suggestTime,
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
-  auto recordsContactCptInfo() -> void;
+  auto recordsContactCptInfo() -> nlohmann::json;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
 

@@ -111,7 +111,7 @@ class SIRE_API ContactPositionForceSolver : public ContactSolver {
   auto defaultCr() noexcept -> double;
   auto setDefaultVelocityThreshold(double tv) noexcept -> void;
   auto defaultVelocityThreshold() noexcept -> double;
-  auto debugByRecords() -> void override;
+  auto debugByRecords() -> nlohmann::json override;
   virtual auto cptContactSolverResult(
       const aris::dynamic::Model* current_state,
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,

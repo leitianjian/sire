@@ -574,8 +574,8 @@ auto PhysicsEngine::cptContactInfo(
   }
   return solver_result.dt;
 }
-auto PhysicsEngine::recordsContactCptInfo() -> void {
-  imp_->contact_solver_->debugByRecords();
+auto PhysicsEngine::recordsContactCptInfo() -> nlohmann::json {
+  return imp_->contact_solver_->debugByRecords();
 }
 auto PhysicsEngine::initPartContactForce2Model() -> void {
   // 初始化并使Model的ForcePool符合条件

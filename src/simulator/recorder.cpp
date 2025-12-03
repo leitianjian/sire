@@ -40,6 +40,13 @@ auto Recorder::recordDt(double dt) -> void {
   dts.push_back(dt);
 }
 auto Recorder::recordModelState(aris::dynamic::Model& model) -> void {
+  if (model.forwardDynamics()) {
+    std::cout << "Model forward dynamics failed." << std::endl;
+  }
+  for (std::size_t i = 0; i < model.motionPool().size(); ++i) {
+    auto& motion = model.motionPool().at(i);
+    motion.updA();
+  }
   auto& cr = records.back();
   auto& prtPool = model.partPool();
   sire::Size prtSize = prtPool.size();

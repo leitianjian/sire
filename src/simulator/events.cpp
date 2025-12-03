@@ -1283,6 +1283,7 @@ auto StepHandler3::integrate(core::EventBase* e) -> void {
   simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
   simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
+  simulator_ptr->model()->setTime(currentTime);
 }
 auto StepHandler3::handle(core::EventBase* e) -> bool {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
@@ -1295,7 +1296,7 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
       simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
   // 重置上一时刻关节和forcePool设置的力
   engine_ptr->resetPartContactForce();
-
+  engine_ptr->fwdActuators();
   // initLog();
   // logCurrentState(0, 1, simulator_ptr);
   engine_ptr->updateGeometryLocationFromModel();
@@ -1350,6 +1351,7 @@ auto CtrlHandler3::integrate(core::EventBase* e) -> void {
   simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
   simulator_ptr->eventManager().updateCtrlSimTime(e->eventId(), currentTime);
+  simulator_ptr->model()->setTime(currentTime);
 }
 auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();

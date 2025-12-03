@@ -89,6 +89,49 @@ PYBIND11_MODULE(sire, m) {
     aris::dynamic::s_vs2va(vs.data(), p.data(), va.data());
     return va;
   });
+  m.def("vs2va", [](std::vector<double>& pq, std::vector<double>& vs,
+                    std::vector<double>& p) {
+    std::vector<double> va(6);
+    std::array<double, 3> pWorld{0};
+    aris::dynamic::s_pq_dot_v3(pq.data(), p.data(), pWorld.data());
+    aris::dynamic::s_vs2va(vs.data(), pWorld.data(), va.data());
+    return va;
+  });
+  m.def("vs2vp", [](std::vector<double>& vs, std::vector<double>& p) {
+    std::vector<double> vp(3);
+    aris::dynamic::s_vs2vp(vs.data(), p.data(), vp.data());
+    return vp;
+  });
+  m.def("vs2vp", [](std::vector<double>& pq, std::vector<double>& vs,
+                    std::vector<double>& p) {
+    std::vector<double> vp(3);
+    std::array<double, 3> pWorld{0};
+    aris::dynamic::s_pq_dot_v3(pq.data(), p.data(), pWorld.data());
+    aris::dynamic::s_vs2vp(vs.data(), pWorld.data(), vp.data());
+    return vp;
+  });
+  m.def("vp2vs", [](std::vector<double>& pp, std::vector<double>& vp) {
+    std::vector<double> vs(6);
+    aris::dynamic::s_vp2vs(pp.data(), vp.data(), vs.data());
+    return vs;
+  });
+  m.def("as2ap", [](std::vector<double>& pq, std::vector<double>& vs,
+                    std::vector<double>& as, std::vector<double>& p) {
+    std::vector<double> ap(3);
+    std::array<double, 3> pWorld{0};
+    aris::dynamic::s_pq_dot_v3(pq.data(), p.data(), pWorld.data());
+    aris::dynamic::s_as2ap(vs.data(), as.data(), pWorld.data(), ap.data());
+    return ap;
+  });
+  m.def("as2ap", [](aris::dynamic::Part& part, std::vector<double>& p,
+                    bool is_relative) {
+    std::vector<double> ap(3);
+    std::array<double, 3> pWorld{0};
+    aris::dynamic::s_pm_dot_v3(*part.pm(), p.data(), pWorld.data());
+    aris::dynamic::s_as2ap(part.vs(), part.as(),
+                           is_relative ? pWorld.data() : p.data(), ap.data());
+    return ap;
+  });
   m.def(
       "simulator",
       [](aris::server::ControlServer& cs) -> sire::simulator::SimulationLoop& {
@@ -131,6 +174,14 @@ PYBIND11_MODULE(sire, m) {
       .def_static("instance", &aris::server::ControlServer::instance,
                   py::return_value_policy::reference)
       .def("init", &aris::server::ControlServer::init)
+      .def("clear",
+           [](aris::server::ControlServer& self) {
+             self.makeModel<aris::dynamic::Model>();
+             self.makeMaster<aris::control::Master>();
+             self.makeController<aris::control::Controller>("controller");
+             self.makePlanRoot<aris::plan::PlanRoot>("plan_root");
+             self.resetMiddleWare(new sire::middleware::SireMiddleware);
+           })
       .def("start", &aris::server::ControlServer::start)
       .def("stop", &aris::server::ControlServer::stop)
       .def("open", &aris::server::ControlServer::open)
@@ -161,7 +212,16 @@ PYBIND11_MODULE(sire, m) {
                 self.middleWare());
             return middleware.simulationLoop();
           },
-          py::return_value_policy::reference);
+          py::return_value_policy::reference_internal)
+      .def(
+          "physicsEngine",
+          [](aris::server::ControlServer& self)
+              -> sire::physics::PhysicsEngine& {
+            auto& middleware = dynamic_cast<sire::middleware::SireMiddleware&>(
+                self.middleWare());
+            return middleware.physicsEngine();
+          },
+          py::return_value_policy::reference_internal);
 
   py::class_<aris::server::MiddleWare>(m, "Middleware").def(py::init<>());
 
@@ -329,6 +389,19 @@ PYBIND11_MODULE(sire, m) {
           py::arg("radius"), py::arg("length"), py::arg("part_id"),
           py::arg("is_dynamic") = true, py::arg("prt_pm") = py::none(),
           py::arg("material") = "m1", py::arg("propStr") = "{}")
+      .def("contactSolver",
+           py::overload_cast<>(&sire::physics::PhysicsEngine::contactSolver),
+           py::return_value_policy::reference_internal)
+      .def(
+          "contactPositionForceSolver",
+          [](sire::physics::PhysicsEngine& self)
+              -> sire::physics::contact::contact_force::
+                  ContactPositionForceSolver& {
+                    return dynamic_cast<sire::physics::contact::contact_force::
+                                            ContactPositionForceSolver&>(
+                        self.contactSolver());
+                  },
+          py::return_value_policy::reference_internal)
       .def(
           "addContactPositionForceSolver",
           [](sire::physics::PhysicsEngine& self)
@@ -819,6 +892,19 @@ PYBIND11_MODULE(sire, m) {
       .def_property("geometryPool",
                     py::overload_cast<>(&aris::dynamic::Part::geometryPool),
                     &aris::dynamic::Part::resetGeometryPool)
+      .def_property(
+          "vs",
+          [](const aris::dynamic::Part& self) {
+            std::vector<double> vs(6, 0);
+            self.getVs(vs.data());
+            return vs;
+          },
+          [](aris::dynamic::Part& self, const std::vector<double>& vs) {
+            if (vs.size() != 6) {
+              throw std::runtime_error("Input array 'vs' size must be 6!");
+            }
+            self.setVs(vs.data());
+          })
       .def("getAs",
            [](const aris::dynamic::Part& self) {
              std::vector<double> as(6, 0);

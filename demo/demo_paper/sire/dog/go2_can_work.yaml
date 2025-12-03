@@ -1,0 +1,30 @@
+# policy_path: "{LEGGED_GYM_ROOT_DIR}/deploy/pre_train/go2/motion.pt"
+policy_path: "{LEGGED_GYM_ROOT_DIR}/policy_1.pt"
+xml_path: "{LEGGED_GYM_ROOT_DIR}/scene.xml"
+
+# Total simulation time
+simulation_duration: 5
+# Simulation time step
+simulation_dt: 0.001
+ctrl_dt: 0.005
+# Controller update frequency (meets the requirement of simulation_dt * controll_decimation=0.02; 50Hz)
+control_decimation: 10
+
+kps: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0] 
+kds: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5] 
+# kps: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0] 
+# kds: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] 
+
+default_angles: [0.1,  0.8,  -1.5,  -0.1, 0.8, -1.5, 
+                 0.1,  1.0,  -1.5,  -0.1, 1.0, -1.5] 
+
+lin_vel_scale: 2.0
+ang_vel_scale: 0.25 
+dof_pos_scale: 1.0 
+dof_vel_scale: 0.05 
+action_scale: 0.25 
+cmd_scale: [2.0, 2.0, 0.25]
+num_actions: 12
+num_obs: 45
+
+cmd_init: [0.8, 0, 0]
