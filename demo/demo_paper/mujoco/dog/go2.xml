@@ -5,6 +5,7 @@
   <statistic meansize="0.144785" extent="1.23314" center="0.025392 2.0634e-05 -0.245975"/>
   <default>
     <geom solref="-2e8 -5e5"/>
+    <!-- <geom solref="-2.5e3 -40"/> -->
     <!-- <joint damping="0.001" armature="0.01" frictionloss="0.1"/> -->
     <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
@@ -37,7 +38,13 @@
 
 
   <worldbody>
-
+<!-- <light name="render_fill"
+       pos="0 0 5"
+       dir="0 0 -1"
+       directional="true"
+       diffuse="0.15 0.15 0.15"
+       ambient="0.05 0.05 0.05"
+       specular="0 0 0"/> -->
     <body name="base" pos="0 0 0.445">
       <inertial pos="0.021112 0 -0.005366"
                 mass="6.921"

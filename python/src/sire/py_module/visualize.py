@@ -165,7 +165,7 @@ def setRobotPqRealtime(numLinks, vis, pqs):
     """实时设置机器人姿态"""
     robot = vis['robot']
     for i in range(numLinks):
-        robot[str(i)].set_transform(pq2tfmatrix(pqs[i]))
+      robot[str(i)].set_transform(pq2tfmatrix(pqs[i]))
 
 def setRobotPq(numLinks, frame, pqs):
   robot = frame['robot']
