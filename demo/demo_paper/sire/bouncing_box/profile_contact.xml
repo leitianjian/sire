@@ -15,10 +15,10 @@
 					<Marker name="ground" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>
 				<GeometryPoolElement __prop_name__="geometry_pool">
-					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{5, 5, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
+					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{100, 100, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="L1" active="true" pe="{0,0,4.5,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
+			<Part name="L1" active="true" pe="{0,0,0.4912119999999864,-0,0,-0}" vel="{0,0,-8.85920000000009,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="box_center" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>

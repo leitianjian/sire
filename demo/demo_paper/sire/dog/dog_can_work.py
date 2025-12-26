@@ -221,7 +221,15 @@ if __name__ == "__main__":
     input("按 Enter 键保存数据...")
     import pathlib
     currentDir = pathlib.Path(__file__).parent.resolve()
-    dataPath = str((currentDir / "motion_data").resolve())
+    dataPath = str(currentDir.resolve())
+    motionDataPath = str((currentDir / "motion_data").resolve())
+    partpq = result['partPq']
+    bodyHeightRecord = np.zeros((2, len(partpq)))
+    for j in range(len(partpq)):
+        bodyHeightRecord[0, j] = result['timeIndex'][j]
+        bodyHeightRecord[1, j] = partpq[j][1][2] + 0.1
+        
+    np.savetxt(dataPath + f"/body_height.csv", bodyHeightRecord.transpose(), delimiter=",")
     for i in range(model.numMotions()):
         motionRecord = np.zeros((5, len(timeRecord)))
         motionRecord[0, :] = timeRecord
@@ -230,7 +238,7 @@ if __name__ == "__main__":
             motionRecord[2, j] = motionMvRecords[j][i]
             motionRecord[3, j] = motionMaRecords[j][i]
             motionRecord[4, j] = motionMfRecords[j][i]
-        np.savetxt(dataPath + f"/motion_{i}.csv", motionRecord.transpose(), delimiter=",")
+        np.savetxt(motionDataPath + f"/motion_{i}.csv", motionRecord.transpose(), delimiter=",")
 
     # with mujoco.viewer.launch_passive(m, d) as viewer:
     #     # Close the viewer automatically after simulation_duration wall-seconds.

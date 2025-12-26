@@ -5,6 +5,10 @@ import mujoco
 import numpy as np
 import torch
 import yaml
+from PIL import Image
+import pathlib
+currentDir = pathlib.Path(__file__).parent.resolve()
+dataPath = str((currentDir / "motion_data").resolve())
 
 paused = False
 def key_callback(keycode):
@@ -12,7 +16,7 @@ def key_callback(keycode):
         global paused
         paused = not paused
 
-LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_python/mujocoDogRL"
+LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_paper/mujoco/dog"
 def get_gravity_orientation(quaternion):
     qw = quaternion[0]
     qx = quaternion[1]
@@ -75,7 +79,12 @@ if __name__ == "__main__":
     counter = 0
 
     # Load robot model
+    print(xml_path)
     m = mujoco.MjModel.from_xml_path(xml_path)
+    renderer = mujoco.Renderer(m, height=720, width=1280)
+    print(renderer.scene.nlight)
+    # for i in range(len(renderer.scene.lights)):
+    #     renderer.scene.lights[i].active = True
     d = mujoco.MjData(m)
     m.opt.timestep = simulation_dt
     
@@ -86,6 +95,7 @@ if __name__ == "__main__":
     print(f"Number of actuators: {m.nu}")
     print(f"Actuator names: {[m.actuator(i).name for i in range(m.nu)]}")
     timeRecord = []
+    bodyHeights = []
     motionMpRecords = []
     motionMvRecords = []
     motionMaRecords = []
@@ -95,8 +105,10 @@ if __name__ == "__main__":
     action = np.zeros(num_actions, dtype=np.float32)
     obs = np.zeros(num_obs, dtype=np.float32)
 
-    time_to_pause = [0, 0.1, 0.164, 0.166, 0.168]
-    paused = True
+    time_to_pause = []
+    time_to_pause = [0, 0.1, 0.162, 0.164, 0.166, 0.168]
+    time_to_capture = [0, 0.1, 0.164, 0.166, 0.168]
+    paused = False
     with mujoco.viewer.launch_passive(m, d, key_callback=key_callback) as viewer:
         # Close the viewer automatically after simulation_duration wall-seconds.
         start = time.time()
@@ -113,7 +125,11 @@ if __name__ == "__main__":
 
                 d.ctrl[:] = tau
                 mujoco.mj_step(m, d)
+                if d.warning[mujoco.mjtWarning.mjWARN_BADQACC].number > 0:
+                    print(f"Unstable simulation detected at time {d.time:.4f}")
+                    break
                 timeRecord.append(d.time)
+                bodyHeights.append(d.qpos[2])
                 motionMpRecords.append(d.qpos[7:].copy())
                 motionMvRecords.append(d.qvel[6:].copy())
                 motionMaRecords.append(d.qacc[6:].copy())
@@ -156,10 +172,21 @@ if __name__ == "__main__":
                     action = policy(obs_tensor).detach().numpy().squeeze()
                     # transform action to target_dof_pos
                     target_dof_pos = action * action_scale + default_angles
+                        # 检测 BADQACC
 
                 # Pick up changes to the physics state, apply perturbations, update options from GUI.
                 viewer.sync()
-                print(d.time)
+                print(d.time, d.qpos)
+                # if any([abs(num - d.time) < 1e-8 for num in time_to_capture]):
+                #     renderer.update_scene(d) # 在截图函数中使用
+                #     # 将渲染好的图像转换为像素数组
+                #     with mujoco.Renderer(m, width=1280, height=720) as renderer:
+                #         pixels = renderer.render()
+                #         # 使用PIL保存图像
+                #         img = Image.fromarray(pixels)
+                #         print(img._size)
+                #         img.save(str(currentDir.resolve()) + f"/pic/{str(d.time)}.png")
+                    
                 # print(d.time, any([abs(num - d.time) < 1e-8 for num in time_to_pause]))
                 if any([abs(num - d.time) < 1e-8 for num in time_to_pause]):
                     paused = True
@@ -168,15 +195,21 @@ if __name__ == "__main__":
             time_until_next_step = d.time + m.opt.timestep - (time.time() - start)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
-    import pathlib
-    currentDir = pathlib.Path(__file__).parent.resolve()
-    dataPath = str((currentDir / "motion_data").resolve())
-    for i in range(m.nv - 6):
-        motionRecord = np.zeros((5, len(timeRecord)))
-        motionRecord[0, :] = timeRecord
-        for j in range(len(timeRecord)):
-            motionRecord[1, j] = motionMpRecords[j][i]
-            motionRecord[2, j] = motionMvRecords[j][i]
-            motionRecord[3, j] = motionMaRecords[j][i]
-            motionRecord[4, j] = motionMfRecords[j][i]
-        np.savetxt(dataPath + f"/motion_{i}.csv", motionRecord.transpose(), delimiter=",")
+            time.sleep(0.01)
+    renderer.close()
+    bodyHeightRecord = np.zeros((2, len(timeRecord)))
+    for j in range(len(timeRecord)):
+        bodyHeightRecord[0, j] = timeRecord[j]
+        bodyHeightRecord[1, j] = bodyHeights[j]
+        
+    np.savetxt(str(currentDir.resolve()) + f"/body_height.csv", bodyHeightRecord.transpose(), delimiter=",")
+
+    # for i in range(m.nv - 6):
+    #     motionRecord = np.zeros((5, len(timeRecord)))
+    #     motionRecord[0, :] = timeRecord
+    #     for j in range(len(timeRecord)):
+    #         motionRecord[1, j] = motionMpRecords[j][i]
+    #         motionRecord[2, j] = motionMvRecords[j][i]
+    #         motionRecord[3, j] = motionMaRecords[j][i]
+    #         motionRecord[4, j] = motionMfRecords[j][i]
+    #     np.savetxt(dataPath + f"/motion_{i}.csv", motionRecord.transpose(), delimiter=",")
