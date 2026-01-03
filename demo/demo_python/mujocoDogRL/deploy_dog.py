@@ -6,6 +6,12 @@ import numpy as np
 import torch
 import yaml
 
+paused = False
+def key_callback(keycode):
+    if chr(keycode) == ' ':
+        global paused
+        paused = not paused
+
 LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_python/mujocoDogRL"
 def get_gravity_orientation(quaternion):
     qw = quaternion[0]
@@ -79,56 +85,98 @@ if __name__ == "__main__":
     print(f"Joint names: {[m.joint(i).name for i in range(m.njnt)]}")
     print(f"Number of actuators: {m.nu}")
     print(f"Actuator names: {[m.actuator(i).name for i in range(m.nu)]}")
-
+    timeRecord = []
+    motionMpRecords = []
+    motionMvRecords = []
+    motionMaRecords = []
+    motionMfRecords = []
     # load policy
     policy = torch.jit.load(policy_path)
-    with mujoco.viewer.launch_passive(m, d) as viewer:
+    action = np.zeros(num_actions, dtype=np.float32)
+    obs = np.zeros(num_obs, dtype=np.float32)
+
+    time_to_pause = [0, 0.1, 0.164, 0.166, 0.168]
+    paused = True
+    with mujoco.viewer.launch_passive(m, d, key_callback=key_callback) as viewer:
         # Close the viewer automatically after simulation_duration wall-seconds.
         start = time.time()
-        while viewer.is_running() and time.time() - start < simulation_duration:
+        while viewer.is_running() and d.time < simulation_duration:
             # print(d.qpos[2])
-            step_start = time.time()
-            tau = pd_control(target_dof_pos, d.qpos[7:], kps, np.zeros_like(kds), d.qvel[6:], kds)
-            d.ctrl[:] = tau
+
             # mj_step can be replaced with code that also evaluates
             # a policy and applies a control signal before stepping the physics.
-            mujoco.mj_step(m, d)
+            # print(d.time, target_dof_pos, obs)
+            if not paused:
+                step_start = time.time()
+                tau = pd_control(target_dof_pos, d.qpos[7:], kps, np.zeros_like(kds), d.qvel[6:], kds)
+                # d.ctrl[:] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-            counter += 1
-            # if counter % control_decimation == 0:
-            #     # Apply control signal here.
-                
-            #     # create observation
-            #     qj = d.qpos[7:]
-            #     dqj = d.qvel[6:]
-            #     quat = d.qpos[3:7]
-            #     lin_vel = d.qvel[:3]
-            #     ang_vel = d.qvel[3:6]
+                d.ctrl[:] = tau
+                mujoco.mj_step(m, d)
+                timeRecord.append(d.time)
+                motionMpRecords.append(d.qpos[7:].copy())
+                motionMvRecords.append(d.qvel[6:].copy())
+                motionMaRecords.append(d.qacc[6:].copy())
+                motionMfRecords.append(tau.copy())
 
-            #     qj = (qj - default_angles) * dof_pos_scale
+                counter += 1
 
-            #     dqj = dqj * dof_vel_scale
-            #     gravity_orientation = get_gravity_orientation(quat)
-            #     lin_vel = lin_vel * lin_vel_scale
-            #     ang_vel = ang_vel * ang_vel_scale
+                if counter % control_decimation == 0:
+                    # Apply control signal here.
 
-            #     obs[:3] = lin_vel
-            #     obs[3:6] = ang_vel
-            #     obs[6:9] = gravity_orientation
-            #     obs[9:12] = cmd * cmd_scale
-            #     obs[12 : 12 + num_actions] = qj
-            #     obs[12 + num_actions : 12 + 2 * num_actions] = dqj
-            #     obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
-            #     obs_tensor = torch.from_numpy(obs).unsqueeze(0)
-            #     # policy inference
-            #     action = policy(obs_tensor).detach().numpy().squeeze()
-            #     # transform action to target_dof_pos
-            #     target_dof_pos = action * action_scale + default_angles
+                    # create observation
+                    qj = d.qpos[7:]
+                    dqj = d.qvel[6:]
+                    quat = d.qpos[3:7]
+                    lin_vel = d.qvel[:3]
+                    ang_vel = d.qvel[3:6]
 
-            # Pick up changes to the physics state, apply perturbations, update options from GUI.
-            viewer.sync()
+                    qj = (qj - default_angles) * dof_pos_scale
+
+                    dqj = dqj * dof_vel_scale
+                    gravity_orientation = get_gravity_orientation(quat)
+                    lin_vel = lin_vel * lin_vel_scale
+                    ang_vel = ang_vel * ang_vel_scale
+
+                    # obs[:3] = lin_vel
+                    # obs[3:6] = ang_vel
+                    # obs[6:9] = gravity_orientation
+                    # obs[9:12] = cmd * cmd_scale
+                    # obs[12 : 12 + num_actions] = qj
+                    # obs[12 + num_actions : 12 + 2 * num_actions] = dqj
+                    # obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
+                    obs[:3] = ang_vel
+                    obs[3:6] = gravity_orientation
+                    obs[6:9] = cmd * cmd_scale
+                    obs[9 : 9 + num_actions] = qj
+                    obs[9 + num_actions : 9 + 2 * num_actions] = dqj
+                    obs[9 + 2 * num_actions : 9 + 3 * num_actions] = action
+                    obs_tensor = torch.from_numpy(obs).unsqueeze(0)
+                    # policy inference
+                    action = policy(obs_tensor).detach().numpy().squeeze()
+                    # transform action to target_dof_pos
+                    target_dof_pos = action * action_scale + default_angles
+
+                # Pick up changes to the physics state, apply perturbations, update options from GUI.
+                viewer.sync()
+                print(d.time)
+                # print(d.time, any([abs(num - d.time) < 1e-8 for num in time_to_pause]))
+                if any([abs(num - d.time) < 1e-8 for num in time_to_pause]):
+                    paused = True
 
             # Rudimentary time keeping, will drift relative to wall clock.
-            time_until_next_step = m.opt.timestep - (time.time() - step_start)
+            time_until_next_step = d.time + m.opt.timestep - (time.time() - start)
             if time_until_next_step > 0:
                 time.sleep(time_until_next_step)
+    import pathlib
+    currentDir = pathlib.Path(__file__).parent.resolve()
+    dataPath = str((currentDir / "motion_data").resolve())
+    for i in range(m.nv - 6):
+        motionRecord = np.zeros((5, len(timeRecord)))
+        motionRecord[0, :] = timeRecord
+        for j in range(len(timeRecord)):
+            motionRecord[1, j] = motionMpRecords[j][i]
+            motionRecord[2, j] = motionMvRecords[j][i]
+            motionRecord[3, j] = motionMaRecords[j][i]
+            motionRecord[4, j] = motionMfRecords[j][i]
+        np.savetxt(dataPath + f"/motion_{i}.csv", motionRecord.transpose(), delimiter=",")

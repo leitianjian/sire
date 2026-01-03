@@ -97,8 +97,8 @@ if __name__ == "__main__":
     cs.init()
     simulator = sire.simulator(cs)
     model = cs.model()
-    simulator.simDuration = 5 
-    simulator.ctrlT = 0.01
+    simulator.simDuration = 10
+    simulator.ctrlT = 0.002
     print(sire.toXmlString(cs))
     
     # 添加调试代码到deploy_dog.py中
@@ -130,13 +130,19 @@ if __name__ == "__main__":
             lin_vel = lin_vel * lin_vel_scale
             ang_vel = ang_vel * ang_vel_scale
 
-            obs[:3] = lin_vel
-            obs[3:6] = ang_vel
-            obs[6:9] = gravity_orientation
-            obs[9:12] = cmd * cmd_scale
-            obs[12 : 12 + num_actions] = qj
-            obs[12 + num_actions : 12 + 2 * num_actions] = dqj
-            obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
+            # obs[:3] = lin_vel
+            # obs[3:6] = ang_vel
+            # obs[6:9] = gravity_orientation
+            # obs[9:12] = cmd * cmd_scale
+            # obs[12 : 12 + num_actions] = qj
+            # obs[12 + num_actions : 12 + 2 * num_actions] = dqj
+            # obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
+            obs[:3] = ang_vel
+            obs[3:6] = gravity_orientation
+            obs[6:9] = cmd * cmd_scale
+            obs[9 : 9 + num_actions] = qj
+            obs[9 + num_actions : 9 + 2 * num_actions] = dqj
+            obs[9 + 2 * num_actions : 9 + 3 * num_actions] = action
             obs_tensor = torch.from_numpy(obs).unsqueeze(0)
             # policy inference
             action = policy(obs_tensor).detach().numpy().squeeze()
@@ -164,54 +170,3 @@ if __name__ == "__main__":
     sire.robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
     sire.animateRobotByRecords(model.numLinks(), result, 1000, vis)
     input("按 Enter 键退出程序...")
-
-    # with mujoco.viewer.launch_passive(m, d) as viewer:
-    #     # Close the viewer automatically after simulation_duration wall-seconds.
-    #     start = time.time()
-    #     while viewer.is_running() and time.time() - start < simulation_duration:
-    #         # print(d.qpos[2])
-    #         step_start = time.time()
-    #         tau = pd_control(target_dof_pos, d.qpos[7:], kps, np.zeros_like(kds), d.qvel[6:], kds)
-    #         d.ctrl[:] = tau
-    #         # mj_step can be replaced with code that also evaluates
-    #         # a policy and applies a control signal before stepping the physics.
-    #         mujoco.mj_step(m, d)
-
-    #         counter += 1
-    #         if counter % control_decimation == 0:
-    #             # Apply control signal here.
-                
-    #             # create observation
-    #             qj = d.qpos[7:]
-    #             dqj = d.qvel[6:]
-    #             quat = d.qpos[3:7]
-    #             lin_vel = d.qvel[:3]
-    #             ang_vel = d.qvel[3:6]
-
-    #             qj = (qj - default_angles) * dof_pos_scale
-
-    #             dqj = dqj * dof_vel_scale
-    #             gravity_orientation = get_gravity_orientation(quat)
-    #             lin_vel = lin_vel * lin_vel_scale
-    #             ang_vel = ang_vel * ang_vel_scale
-
-    #             obs[:3] = lin_vel
-    #             obs[3:6] = ang_vel
-    #             obs[6:9] = gravity_orientation
-    #             obs[9:12] = cmd * cmd_scale
-    #             obs[12 : 12 + num_actions] = qj
-    #             obs[12 + num_actions : 12 + 2 * num_actions] = dqj
-    #             obs[12 + 2 * num_actions : 12 + 3 * num_actions] = action
-    #             obs_tensor = torch.from_numpy(obs).unsqueeze(0)
-    #             # policy inference
-    #             action = policy(obs_tensor).detach().numpy().squeeze()
-    #             # transform action to target_dof_pos
-    #             target_dof_pos = action * action_scale + default_angles
-
-    #         # Pick up changes to the physics state, apply perturbations, update options from GUI.
-    #         viewer.sync()
-
-    #         # Rudimentary time keeping, will drift relative to wall clock.
-    #         time_until_next_step = m.opt.timestep - (time.time() - step_start)
-    #         if time_until_next_step > 0:
-    #             time.sleep(time_until_next_step)

@@ -2,10 +2,10 @@
 
   <compiler angle="radian" meshdir="assets"/>
 
-
   <statistic meansize="0.144785" extent="1.23314" center="0.025392 2.0634e-05 -0.245975"/>
   <default>
-    <joint damping="0.001" armature="0.01" frictionloss="0.1"/>
+    <geom solref="-2e8 -5e5"/>
+    <!-- <joint damping="0.001" armature="0.01" frictionloss="0.1"/> -->
     <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
     </default>
@@ -68,7 +68,7 @@
         <geom size="0.055 0.01225 0.017" pos="0 0 -0.1065" quat="0.707107 0 0.707107 0" type="box" rgba="1 1 1 1"/>
         <body name="FL_calf" pos="0 0 -0.213">
         <inertial pos="0.00629595 -0.000622121 -0.141417" quat="0.710672 0.00154099 -0.00450087 0.703508" mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05"/>
-        <joint name="FL_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-35.55 35.55"/>
+        <joint name="FL_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 0.83776" actuatorfrcrange="-35.55 35.55"/>
         <geom mesh="calf_0" material="gray" class="visual" />
         <geom mesh="calf_1" material="black" class="visual" />
         <geom size="0.012 0.06" pos="0.008 0 -0.06" quat="0.994493 0 -0.104807 0" type="cylinder" rgba="1 1 1 1"/>
@@ -93,7 +93,7 @@
         <geom size="0.055 0.01225 0.017" pos="0 0 -0.1065" quat="0.707107 0 0.707107 0" type="box" rgba="1 1 1 1"/>
         <body name="FR_calf" pos="0 0 -0.213">
         <inertial pos="0.00629595 0.000622121 -0.141417" quat="0.703508 -0.00450087 0.00154099 0.710672" mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05"/>
-        <joint name="FR_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-35.55 35.55"/>
+        <joint name="FR_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 0.83776" actuatorfrcrange="-35.55 35.55"/>
         <geom mesh="calf_mirror_0" material="gray" class="visual" />
         <geom mesh="calf_mirror_1" material="black" class="visual" />
         <geom size="0.013 0.06" pos="0.01 0 -0.06" quat="0.995004 0 -0.0998334 0" type="cylinder" rgba="1 1 1 1"/>
@@ -118,7 +118,7 @@
         <geom size="0.055 0.01225 0.017" pos="0 0 -0.1065" quat="0.707107 0 0.707107 0" type="box" rgba="1 1 1 1"/>
         <body name="RL_calf" pos="0 0 -0.213">
         <inertial pos="0.00629595 -0.000622121 -0.141417" quat="0.710672 0.00154099 -0.00450087 0.703508" mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05"/>
-        <joint name="RL_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-35.55 35.55"/>
+        <joint name="RL_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 0.83776" actuatorfrcrange="-35.55 35.55"/>
         <geom mesh="calf_0" material="gray" class="visual" />
         <geom mesh="calf_1" material="black" class="visual" />
         <geom size="0.013 0.06" pos="0.01 0 -0.06" quat="0.995004 0 -0.0998334 0" type="cylinder" rgba="1 1 1 1"/>
@@ -146,7 +146,7 @@
         <geom size="0.055 0.01225 0.017" pos="0 0 -0.1065" quat="0.707107 0 0.707107 0" type="box" rgba="1 1 1 1"/>
         <body name="RR_calf" pos="0 0 -0.213">
         <inertial pos="0.00629595 0.000622121 -0.141417" quat="0.703508 -0.00450087 0.00154099 0.710672" mass="0.241352" diaginertia="0.0014901 0.00146356 5.31397e-05"/>
-        <joint name="RR_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 -0.83776" actuatorfrcrange="-35.55 35.55"/>
+        <joint name="RR_calf_joint" pos="0 0 0" axis="0 1 0" range="-2.7227 0.83776" actuatorfrcrange="-35.55 35.55"/>
         <geom mesh="calf_mirror_0" material="gray" class="visual" />
         <geom mesh="calf_mirror_1" material="black" class="visual" />
         <geom size="0.013 0.06" pos="0.01 0 -0.06" quat="0.995004 0 -0.0998334 0" type="cylinder" rgba="1 1 1 1"/>

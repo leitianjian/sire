@@ -96,31 +96,36 @@ def animateRobotByRecords(numLinks, records, frameRate, vis):
   vis.set_animation(anim)
 
 if __name__ == "__main__":
-  # import sys
-  # sys.path.append("D:/code/sire/install/python/release")
+  import sys
+  sys.path.append("D:/code/sire/install/python/debug")
   import sire
   from os.path import abspath
   import os
   cs = sire.ControlServer.instance()
+  result = []
+  stiffness = 7.899990922441310928e+37
+  # parameters = [[2e3, 0], [2e5, 0], [3e6, 0], [2e8, 0], [7.899990922441310928e+37, 0]]
+  sim_duration = 1
+  dt = 0.001
+  ctrlt = 10
+
   sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/box.xml')
   cs.init()
-  
   simulator = sire.simulator(cs)
+  pe = cs.physicsEngine()
+  simulator.simDuration = sim_duration
+  simulator.deltaT = dt
+  simulator.ctrlT = ctrlt
+  contactPropStr = f"{{k:{stiffness},d:0,cof:0,threshold_velocity:1e-4}}"
+  print(contactPropStr)
+  pe.contactPositionForceSolver().addMaterialPair("steel", "copper", contactPropStr)
   while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
-    simulator.integrate()
-    simulator.handleContact()
-    # simulator.step(1, False)
-  
+    simulator.step(1, False)
   model = cs.model()
   displayInitJson = model.displayInitJson()
-  result = simulator.recordsToJson()
-  
-  import meshcat
-  displayInitJson
-  vis = meshcat.Visualizer()
-  resourcePath = "D:/code/sire/web_interface/public"
-  sire.robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
-  sire.animateRobotByRecords(model.numLinks(), result, 1000, vis)
+  sim_result = simulator.recordsToJson()
+  contact_solver_result = simulator.recordsContactCptInfo()
+  print(contact_solver_result)
   # robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
   # animateRobotByRecords(model.numLinks(), result, 1000, vis)
   

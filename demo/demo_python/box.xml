@@ -18,7 +18,7 @@
 					<BoxGeometry id="0" part_id="0" is_dynamic="false" side="{100, 100, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
 				</GeometryPoolElement>
 			</Part>
-			<Part name="L1" active="true" pe="{0,0,0.6,0,0,0}" vel="{3,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
+			<Part name="L1" active="true" pe="{0,0,4.5,0,0,0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{1,0,0,0,0.1,0.1,0.1,0,0,0}">
 				<MarkerPoolElement __prop_name__="marker_pool">
 					<Marker name="box_center" active="true" pe="{0,0,0,0,0,0}"/>
 				</MarkerPoolElement>
@@ -80,7 +80,7 @@
 		<SireHttpInterface name="http_interface" document_root="D:\code\sire\web_interface\build" port="8001"/>
 	</InterfacePoolObject>
 	<SireMiddleware __prop_name__="middleware">
-		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="-1" sim_duration="15" global_variable_pool="{}">
+		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="10" realtime_rate="-1" sim_duration="1" global_variable_pool="{}">
 			<EventManager __prop_name__="event_manager">
 				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
 					<EventHandlerIdPair event_id="0" handler_id="6"/>
@@ -95,7 +95,7 @@
 			<ContactPositionForceSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
 				<MaterialManager default_prop="{k:1.4e8,d:1500,cr:0.2}">
 					<MaterialPairPropPool>
-						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2e8,d:3000,cr:0.4,cof:0.2,threshold_velocity:1e-1}"/>
+						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:7.899990922441310928e+37,d:0,cr:0.4,cof:0,threshold_velocity:1e-4}"/>
 					</MaterialPairPropPool>
 				</MaterialManager>
 			</ContactPositionForceSolver>
