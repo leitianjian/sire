@@ -12,6 +12,8 @@ namespace sire::simulator {
 class SIRE_API SemiImplicitEulerIntegrator final : public IntegratorBase {
  public:
   auto doStep(double dt) -> bool override;
+  auto updPs(double dt) -> bool override;
+  auto updVs(double dt) -> bool override;
   auto integrate(double** diff_data_in, double* old_result, double* result_out)
       -> bool override;
   ~SemiImplicitEulerIntegrator() = default;

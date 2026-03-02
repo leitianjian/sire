@@ -53,6 +53,8 @@ struct PenetrationAsPointPair {
   Vec3s nhat_AB_W;
   /** The penetration depth. Should be positive*/
   double depth{-1.0};
+
+  double modifiedDepth{-1.0};
 };
 
 }  // namespace sire::physics::common

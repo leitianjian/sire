@@ -479,8 +479,8 @@ auto PhysicsEngine::cptContactInfo(
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
-    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
-                            pe_C, separation_speed, slip_speed, pair, f_C});
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i],
+                            pe_C, separation_speed, slip_speed, pair, fs, f_C});
   }
   return solver_result.dt;
 }
@@ -524,8 +524,8 @@ auto PhysicsEngine::cptContactInfo(
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
-    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
-                            pe_C, separation_speed, slip_speed, pair, f_C});
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i],
+                            pe_C, separation_speed, slip_speed, pair, fs, f_C});
   }
   return solver_result.dt;
 }
@@ -569,10 +569,20 @@ auto PhysicsEngine::cptContactInfo(
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
-    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
-                            pe_C, separation_speed, slip_speed, pair, f_C});
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i],
+                            pe_C, separation_speed, slip_speed, pair, fs, f_C});
   }
   return solver_result.dt;
+}
+auto PhysicsEngine::integrateByContactInfo(
+    double suggestTime,
+    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    std::vector<common::PointPairContactInfo>& contact_info) -> void {
+  contact::ContactSolverResult solver_result;
+  solver_result.dt = suggestTime;
+  std::vector<std::array<double, 16>> T_C_vec;
+  imp_->contact_solver_->cptContactSolverResult(
+      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
 }
 auto PhysicsEngine::recordsContactCptInfo() -> nlohmann::json {
   return imp_->contact_solver_->debugByRecords();

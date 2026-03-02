@@ -37,6 +37,7 @@ auto PenetrationAsPointPairCallback::calcDistance(
   // to osculation, we consider the geometries to be non-penetrating.
   if (depth <= std::numeric_limits<double>::epsilon()) return;
   pair_data->depth = depth;
+  pair_data->modifiedDepth = depth;
 
   // By convention, Sire requires the contact normal to from A
   // to B. FCL uses the same convention.

@@ -93,22 +93,25 @@
 		<SimulationLoop __prop_name__="simulator" dt="0.001" ctrlt="0.001" realtime_rate="1" sim_duration="10" global_variable_pool="{}">
 			<EventManager __prop_name__="event_manager">
 				<EventHandlerPairPool __prop_name__="event_handler_pair_pool">
-					<EventHandlerIdPair event_id="0" handler_id="6"/>
+					<!-- <EventHandlerIdPair event_id="0" handler_id="6"/>
 					<EventHandlerIdPair event_id="1" handler_id="7"/>
-					<EventHandlerIdPair event_id="2" handler_id="8"/>
+					<EventHandlerIdPair event_id="2" handler_id="8"/> -->
+					<EventHandlerIdPair event_id="0" handler_id="9"/>
+          <EventHandlerIdPair event_id="1" handler_id="10"/>
+          <EventHandlerIdPair event_id="2" handler_id="11"/>
 				</EventHandlerPairPool>
 			</EventManager>
 			<ZeroForce __prop_name__="controller"/>
 		</SimulationLoop>
 		<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
 			<CollisionDetection __prop_name__="collision_detection"/>
-			<ContactPositionForceSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
+			<PsVsSolver __prop_name__="contact_solver" default_k="2.8e8" default_cr="0.5">
 				<MaterialManager default_prop="{k:1.4e8,d:1500,cr:0.2}">
 					<MaterialPairPropPool>
-						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2e8,d:0,cof:0.2,threshold_velocity:1e-4}"/>
+						<MaterialPairProp first_name="steel" second_name="copper" prop="{k:2e8,d:2e6,cof:0.2,threshold_velocity:1e-4}"/>
 					</MaterialPairPropPool>
 				</MaterialManager>
-			</ContactPositionForceSolver>
+			</PsVsSolver>
 			<GeometryPoolObject __prop_name__="dynamic_geometry_pool">
 				<BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="steel" contact_prop="{k:2e8,d:2000}" side="{5, 5, 1}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1}"/>
 				<SphereCollisionGeometry id="1" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2e8,d:2000}" radius="0.50" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>

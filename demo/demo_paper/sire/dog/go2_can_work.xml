@@ -271,22 +271,25 @@
         <SimulationLoop __prop_name__="simulation_loop" dt="0.001" ctrlt="0.02" realtime_rate="-1" sim_duration="1" global_variable_pool="{}">
             <EventManager __prop_name__="event_manager">
                 <EventHandlerPairPool __prop_name__="event_handler_pair_pool">
-                    <EventHandlerIdPair event_id="0" handler_id="6"/>
+                    <!-- <EventHandlerIdPair event_id="0" handler_id="6"/>
                     <EventHandlerIdPair event_id="1" handler_id="7"/>
-                    <EventHandlerIdPair event_id="2" handler_id="8"/>
+                    <EventHandlerIdPair event_id="2" handler_id="8"/> -->
+                    <EventHandlerIdPair event_id="0" handler_id="9"/>
+                    <EventHandlerIdPair event_id="1" handler_id="10"/>
+                    <EventHandlerIdPair event_id="2" handler_id="11"/>
                 </EventHandlerPairPool>
             </EventManager>
             <ZeroPosition __prop_name__="controller"/>
         </SimulationLoop>
         <PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
             <CollisionDetection __prop_name__="collision_detection"/>
-            <ContactPositionForceSolver __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
+            <PsVsSolver __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
                 <MaterialManager __prop_name__="material_manager" default_prop="{k:140000000,d:1000,cr:1}">
                     <MaterialPairPropPool __prop_name__="material_pair_prop_pool">
-                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:2e5,cr:0.3,cof:0.8,threshold_velocity:1e-4}"/>
+                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:5e5,d:2e3,cr:0.3,cof:0.6,threshold_velocity:0.3}"/>
                     </MaterialPairPropPool>
                 </MaterialManager>
-            </ContactPositionForceSolver>
+            </PsVsSolver>
             <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
                 <BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{20, 20, 0.02}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
                 <!-- <SphereCollisionGeometry id="2" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="0.5" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" /> -->

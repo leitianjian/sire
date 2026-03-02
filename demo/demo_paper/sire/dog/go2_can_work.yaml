@@ -3,7 +3,7 @@ policy_path: "{LEGGED_GYM_ROOT_DIR}/policy_1.pt"
 xml_path: "{LEGGED_GYM_ROOT_DIR}/scene.xml"
 
 # Total simulation time
-simulation_duration: 5
+simulation_duration: 6
 # Simulation time step
 simulation_dt: 0.001
 ctrl_dt: 0.005
@@ -22,8 +22,9 @@ lin_vel_scale: 2.0
 ang_vel_scale: 0.25 
 dof_pos_scale: 1.0 
 dof_vel_scale: 0.05 
-action_scale: 0.25 
 cmd_scale: [2.0, 2.0, 0.25]
+
+action_scale: 0.25 
 num_actions: 12
 num_obs: 45
 

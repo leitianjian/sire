@@ -5,7 +5,7 @@ import torch
 import yaml
 import sire
 
-LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_python/dogRL"
+LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_paper/sire/dog"
 def get_gravity_orientation(quaternion):
     qx = quaternion[0]
     qy = quaternion[1]
@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # Load robot model
     # print(sire.pq2tfmatrix([0,0,0,1,0,0,0]))
     cs = sire.ControlServer.instance()
-    sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/dogRL/go2_can_work.xml')
+    sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_paper/sire/dog/go2_can_work.xml')
     cs.init()
     simulator = sire.simulator(cs)
     model = cs.model()

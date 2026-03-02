@@ -16,7 +16,9 @@ namespace simulator {
 class SIRE_API IntegratorBase {
  public:
   auto virtual integrate(double** diff_data_in, double* old_result,
-                         double* result_out) -> bool{ return true; };
+                         double* result_out) -> bool {
+    return true;
+  };
   auto init(physics::PhysicsEngine* engine) -> void;
   auto step(double dt) -> bool;
 
@@ -40,6 +42,8 @@ class SIRE_API IntegratorBase {
   *       `false`时间会重设回t
   */
   auto virtual doStep(double dt) -> bool;
+  auto virtual updPs(double dt) -> bool { return true; };
+  auto virtual updVs(double dt) -> bool { return true; };
   auto stepSize() const -> double;
   auto setStepSize(double step_size) -> void;
   auto dataLength() const -> sire::Size;

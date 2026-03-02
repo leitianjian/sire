@@ -208,5 +208,33 @@ class SIRE_API CtrlHandler3 final : public core::HandlerBase {
   auto handle(core::EventBase* e) -> bool override;
   simulator::SimulationLoop* simulator_ptr;
 };
+// without adjustPenetrationPosition
+class SIRE_API InitHandler4 final : public core::HandlerBase {
+ public:
+  InitHandler4() : HandlerBase() {}
+  ~InitHandler4() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto integrate(core::EventBase* e) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
+class SIRE_API StepHandler4 final : public core::HandlerBase {
+ public:
+  StepHandler4() : HandlerBase() {}
+  ~StepHandler4() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto integrate(core::EventBase* e) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
+class SIRE_API CtrlHandler4 final : public core::HandlerBase {
+ public:
+  CtrlHandler4() : HandlerBase() {}
+  ~CtrlHandler4() = default;
+  auto init(simulator::SimulationLoop* simulator) -> void override;
+  auto integrate(core::EventBase* e) -> void override;
+  auto handle(core::EventBase* e) -> bool override;
+  simulator::SimulationLoop* simulator_ptr;
+};
 }  // namespace sire::simulator
 #endif
