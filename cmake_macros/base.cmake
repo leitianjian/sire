@@ -35,6 +35,7 @@ macro(INSTALL_DLL)
       FILES
         "${aris_DIR}/../../../lib/${CMAKE_BUILD_TYPE_LOWER}/aris_lib.dll"
         "${TARGET_HPP_FCL_PATH}/bin/coal.dll"
+        "${CMAKE_SOURCE_DIR}/third_party/clarabel/rust_wrapper/target/$<IF:$<CONFIG:Debug>,debug,release>/clarabel_c.dll"
       DESTINATION
         ${_INSTALLDLL_DESTINATION}
     )

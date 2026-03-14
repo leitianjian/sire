@@ -23,6 +23,7 @@ target_link_libraries(${sire_demo}
 		sire_physics 
 		sire_actuator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 	)
 install(
 	TARGETS

@@ -154,6 +154,10 @@ target_link_libraries(force_screw_test
 
 find_package(Eigen3 REQUIRED NO_MODULE)
 
+if(NOT TARGET libclarabel_c_shared)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)
+endif()
+
 add_executable(physics_engine_test
 	"physics/collision/physics_engine_test.cpp")
 target_compile_features(physics_engine_test PUBLIC cxx_std_17)
@@ -163,9 +167,44 @@ target_include_directories(physics_engine_test
 		${aris_INCLUDE_DIRS}
 		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
+		${CMAKE_SOURCE_DIR}/third_party/clarabel/include  # Manually add include path just in case
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
 target_link_libraries(physics_engine_test
+	PRIVATE
+		GTest::gtest_main
+		Eigen3::Eigen
+		libclarabel_c_shared # 使用 shared，避免静态链接的 Rust NT 库报错
+		sire_physics
+		sire_log
+		sire_core
+		sire_simulator
+		sire_middleware
+		sire_server
+		sire_integrator
+		sire_actuator
+		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
+)
+
+# Clarabel doesn't export a CMake config, so we include it directly from the source tree
+if(NOT TARGET libclarabel_c_shared)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)
+endif()
+
+add_executable(test_clarabel
+	"physics/contact/test_clarabel.cpp")
+target_compile_features(test_clarabel PUBLIC cxx_std_17)
+target_include_directories(test_clarabel
+	PRIVATE
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+		${coal_INCLUDE_DIRS}
+		${ASSIMP_INCLUDE_DIRS}
+		${CMAKE_SOURCE_DIR}/third_party/clarabel/include  # Manually add include path just in case
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+)
+target_link_libraries(test_clarabel
 	PRIVATE
 		GTest::gtest_main
 		Eigen3::Eigen
@@ -178,7 +217,14 @@ target_link_libraries(physics_engine_test
 		sire_integrator
 		sire_actuator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 )
+
+if(WIN32)
+	add_custom_command(TARGET test_clarabel POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/third_party/clarabel/rust_wrapper/target/$<IF:$<CONFIG:Debug>,debug,release>/clarabel_c.dll $<TARGET_FILE_DIR:test_clarabel>
+	)
+endif()
 
 add_executable(multi_contact_mass_matrix
 	"physics/contact/multi_contact_mass_matrix.cpp")
@@ -219,6 +265,7 @@ target_link_libraries(geometry_serialization_test
 		sire_integrator
 		sire_actuator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 )
 
 if(WIN32)

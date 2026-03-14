@@ -16,6 +16,7 @@ target_link_libraries(${sire_demo}
 		sire_middleware 
 		sire_integrator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 	)
 # DEBUG INSTALL 
 install(

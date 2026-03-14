@@ -21,6 +21,10 @@ find_package(pybind11 REQUIRED)
 set(PYTHON_MODULE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python_modules")
 file(MAKE_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR})
 
+# Clarabel doesn't export a CMake config, so we include it directly from the source tree
+if(NOT TARGET libclarabel_c_shared)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)
+endif()
 # SIRE PYTHON BINDING
 pybind11_add_module(sire
   "pybind11_json.hpp"
@@ -32,6 +36,8 @@ target_include_directories(sire
     ${PROJECT_BINARY_DIR}
     ${coal_INCLUDE_DIRS}
     ${ASSIMP_INCLUDE_DIRS}
+  PRIVATE
+		${CMAKE_SOURCE_DIR}/third_party/clarabel/include
 )
 
 # 链接库
@@ -48,6 +54,7 @@ target_link_libraries(sire
     sire_actuator
     ${aris_LIBRARIES}
     ${PUB_RELY_LINK_LIB} # 继承第三方依赖
+    ${PRI_RELY_LINK_LIB}
 )
 
 # 设置模块输出名称和路径

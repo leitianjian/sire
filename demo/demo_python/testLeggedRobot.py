@@ -226,7 +226,7 @@ def main():
   # kps = np.array([20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0])
   # kds = np.array([0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
   # 仿真控制循环
-  simulator.simDuration = 3
+  simulator.simDuration = 1
   while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
     isCtrl = simulator.integrate()
     sim_time = simulator.simTime()

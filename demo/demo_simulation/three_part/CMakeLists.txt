@@ -16,6 +16,7 @@ target_link_libraries(${sire_demo}
 	PRIVATE
 		sire_lib
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 )
 install(
 	TARGETS

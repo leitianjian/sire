@@ -7,3 +7,6 @@
 [submodule "third_party/stduuid"]
 	path = third_party/stduuid
 	url = https://github.com/mariusbancila/stduuid.git
+[submodule "third_party/clarabel"]
+	path = third_party/clarabel
+	url = https://github.com/oxfordcontrol/Clarabel.cpp.git

@@ -100,6 +100,11 @@ auto cptContactForceWithTargetState(sire::Size n, std::vector<double>& invM,
                                     std::vector<double>& b, double minTime,
                                     double stiffScale, bool isVel,
                                     std::vector<double>& contactFce) -> void;
+auto cptContactForceWithTargetState2(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 20, double max_err = 1e-6) -> double;
 auto cptGlbContactWrench(
     aris::dynamic::Model& model, sire::physics::PhysicsEngine& engine,
     const std::vector<double>& contactFce,

@@ -10,7 +10,7 @@
                 <Marker name="ground_marker" active="true" pe="{0,0,0,-0,0,-0}"/>
             </MarkerPoolElement>
             <GeometryPoolElement __prop_name__="geometry_pool">
-              <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{20, 20, 0.02}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
+              <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.2,0,0,0,1}" />
             </GeometryPoolElement>
         </Part>
         <Part name="base" active="true" pe="{0,0,0.445,0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{6.921,0.146116152,0,-0.037138086,0.024679282969476,0.1013610871705,0.110084804201024,0,0.000784059271632,0}">
@@ -286,12 +286,12 @@
             <PsVsSolver __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
                 <MaterialManager __prop_name__="material_manager" default_prop="{k:140000000,d:1000,cr:1}">
                     <MaterialPairPropPool __prop_name__="material_pair_prop_pool">
-                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:5e5,d:2e3,cr:0.3,cof:0.6,threshold_velocity:0.3}"/>
+                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:2e4,cr:0.3,cof:0.6,threshold_velocity:0.3}"/>
                     </MaterialPairPropPool>
                 </MaterialManager>
             </PsVsSolver>
             <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
-                <BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{20, 20, 0.02}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
+                <BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.2,0,0,0,1}" />
                 <!-- <SphereCollisionGeometry id="2" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="0.5" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" /> -->
                 <SphereCollisionGeometry id="1" part_id="4" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.022" pm="{1,0,0,-0.002,0,1,0,0,0,0,1,-0.213,0,0,0,1}" />
                 <SphereCollisionGeometry id="2" part_id="7" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.022" pm="{1,0,0,-0.002,0,1,0,0,0,0,1,-0.213,0,0,0,1}" />
