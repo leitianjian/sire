@@ -850,7 +850,8 @@ auto process_penetration_depth_and_maintain_impact_set6(
     auto& pair = pairs[i];
     if (auto search = contact_pair_map.find({pair.id_A, pair.id_B});
         search == contact_pair_map.end()) {
-      contact_pair_map.insert({{pair.id_A, pair.id_B}, {pair.modifiedDepth, false}});
+      contact_pair_map.insert(
+          {{pair.id_A, pair.id_B}, {pair.modifiedDepth, false}});
       pair.modifiedDepth = 0;
     } else {
       auto& contact_pair_value = contact_pair_map[{pair.id_A, pair.id_B}];
@@ -1301,7 +1302,7 @@ auto InitHandler3::handle(core::EventBase* e) -> bool {
   // 记录模型状态和接触信息
   simulator_ptr->recorder().recordDt(0);
   simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
-  simulator_ptr->recorder().recordContactInfo(contact_info);
+  simulator_ptr->recorder().recordContactInfo(contact_info, 1);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << nextSuggestDt;
@@ -1368,7 +1369,7 @@ auto StepHandler3::handle(core::EventBase* e) -> bool {
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
   simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
-  simulator_ptr->recorder().recordContactInfo(contact_info);
+  simulator_ptr->recorder().recordContactInfo(contact_info, 1);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << nextSuggestDt;
@@ -1436,7 +1437,7 @@ auto CtrlHandler3::handle(core::EventBase* e) -> bool {
   engine_ptr->cptGlbForceByContactInfo(contact_info);
   // 记录模型状态和接触信息
   simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
-  simulator_ptr->recorder().recordContactInfo(contact_info);
+  simulator_ptr->recorder().recordContactInfo(contact_info, 1);
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << nextSuggestDt;
@@ -1479,7 +1480,7 @@ auto InitHandler4::handle(core::EventBase* e) -> bool {
   // 碰撞检测
   {
     SIRE_PROFILE_SCOPE("sim/collisionDetection");
-  engine_ptr->cptPointPairPenetration(pairs);
+    engine_ptr->cptPointPairPenetration(pairs);
   }
   simulator_ptr->eventManager().updateCtrlSimTime(0, 0);
   double nextCtrlSimSuggestDt =
@@ -1489,7 +1490,7 @@ auto InitHandler4::handle(core::EventBase* e) -> bool {
   std::vector<common::PointPairContactInfo> contact_info;
   {
     SIRE_PROFILE_SCOPE("sim/contactSolving");
-  process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
+    process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
     engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
                                        contact_info);
   }
@@ -1552,20 +1553,18 @@ auto StepHandler4::handle(core::EventBase* e) -> bool {
   engine_ptr->fwdActuators();
   // initLog();
   // logCurrentState(0, 1, simulator_ptr);
-  engine_ptr->updateGeometryLocationFromModel();
-  std::vector<common::PenetrationAsPointPair> pairs;
   // 碰撞检测
   std::vector<common::PenetrationAsPointPair> pairs;
   {
     SIRE_PROFILE_SCOPE("sim/collisionDetection");
     engine_ptr->updateGeometryLocationFromModel();
-  engine_ptr->cptPointPairPenetration(pairs);
+    engine_ptr->cptPointPairPenetration(pairs);
   }
   double nextSuggestDt{nextCtrlSimSuggestDt};
   std::vector<common::PointPairContactInfo> contact_info;
   {
     SIRE_PROFILE_SCOPE("sim/contactSolving");
-  process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
+    process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
     engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
                                        contact_info);
   }
@@ -1632,7 +1631,7 @@ auto CtrlHandler4::handle(core::EventBase* e) -> bool {
   // 碰撞检测
   {
     SIRE_PROFILE_SCOPE("sim/collisionDetection");
-  engine_ptr->cptPointPairPenetration(pairs);
+    engine_ptr->cptPointPairPenetration(pairs);
   }
 
   double nextSuggestDt{nextCtrlSimSuggestDt};
@@ -1640,8 +1639,8 @@ auto CtrlHandler4::handle(core::EventBase* e) -> bool {
 
   {
     SIRE_PROFILE_SCOPE("sim/contactSolving");
-  process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
-  // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+    process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
+    // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
     engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
                                        contact_info);
   }

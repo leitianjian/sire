@@ -24,3 +24,5 @@ target_include_directories(sire_log
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 	)
+
+target_link_libraries(sire_log PRIVATE sire_profiler)

@@ -76,6 +76,7 @@ struct PhysicsEngine::Imp {
   aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
       part_pool_ptr_{nullptr};
   sire::Size part_size_{0};
+  sire::Size forcePool_offset_{0};
   int contact_force_idx_{0};
   sire::Size contact_force_size_{0};
 
@@ -388,7 +389,9 @@ auto PhysicsEngine::cptContactVelocityAB(
     // v_contact.data());
   }
 }
-
+auto PhysicsEngine::contactForceIdx() -> sire::Size {
+  return imp_->contact_force_idx_;
+}
 auto PhysicsEngine::setContactForceIdxSize(int contact_force_idx,
                                            sire::Size contact_force_size)
     -> void {
@@ -454,8 +457,8 @@ auto PhysicsEngine::cptContactInfo(
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   {
     SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
-  imp_->contact_solver_->cptContactSolverResult(
-      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+    imp_->contact_solver_->cptContactSolverResult(
+        imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
   }
   const sire::Size num_contacts = penetration_pairs.size();
   SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
@@ -504,8 +507,8 @@ auto PhysicsEngine::cptContactInfo(
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   {
     SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
-  imp_->contact_solver_->cptContactSolverResult(
-      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+    imp_->contact_solver_->cptContactSolverResult(
+        imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
   }
   const sire::Size num_contacts = penetration_pairs.size();
   SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
@@ -554,8 +557,8 @@ auto PhysicsEngine::cptContactInfo(
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
   {
     SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
-  imp_->contact_solver_->cptContactSolverResult(
-      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+    imp_->contact_solver_->cptContactSolverResult(
+        imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
   }
   const sire::Size num_contacts = penetration_pairs.size();
   SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
@@ -613,11 +616,12 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
   using aris::dynamic::SingleComponentForce;
   const sire::Size motion_size = imp_->model_ptr_->motionPool().size();
   const sire::Size part_size = imp_->part_size_;
-  const sire::Size force_size = motion_size + part_size - 1;  // 减去ground的力
+  // const sire::Size force_size = motion_size + part_size - 1;  // 减去ground的力
   auto& force_pool = imp_->model_ptr_->forcePool();
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
-  force_pool.clear();
+  imp_->forcePool_offset_ = force_pool.size();
+  // force_pool.clear();
   // TODO: 这种写法有很大的问题。关于外力不能这样调整
   for (int i = 0; i < motion_size; ++i) {
     auto& force = force_pool.add<SingleComponentForce>(
@@ -629,7 +633,7 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
       actuator->setFcePtr(&force);
     }
   }
-  imp_->contact_force_idx_ = motion_size;
+  imp_->contact_force_idx_ = imp_->forcePool_offset_ + motion_size;
   for (int i = 0; i < part_size; ++i) {
     auto& force = force_pool.add<GeneralForce>(
         std::string("cf_" + std::to_string(i)),
@@ -651,7 +655,7 @@ auto PhysicsEngine::resetPartContactForce() -> void {
   //   dynamic_cast<SingleComponentForce&>(force_pool.at(i +
   //   imp_->contact_force_idx_)).setFce(0);
   // }
-  for (sire::Size i = motion_size; i < part_size + motion_size; ++i) {
+  for (sire::Size i = imp_->contact_force_idx_; i < imp_->contact_force_idx_ + part_size; ++i) {
     dynamic_cast<GeneralForce&>(force_pool.at(i))
         .setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
@@ -664,7 +668,7 @@ auto PhysicsEngine::resetMotionForce() -> void {
   auto& force_pool = imp_->model_ptr_->forcePool();
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
-  for (int i = 0; i < motion_size; ++i) {
+  for (int i = imp_->forcePool_offset_; i < imp_->forcePool_offset_ + motion_size; ++i) {
     dynamic_cast<SingleComponentForce&>(force_pool.at(i)).setFce(0);
   }
 }
@@ -682,7 +686,7 @@ auto PhysicsEngine::resetInitialModel() -> void {
 auto PhysicsEngine::cptGlbForceByContactInfo(
     const std::vector<common::PointPairContactInfo>& contact_info) -> bool {
   const sire::Size num_contacts = contact_info.size();
-  const sire::Size contact_force_offset = imp_->model_ptr_->motionPool().size();
+  const sire::Size contact_force_offset = imp_->contact_force_idx_;
   auto& force_pool = imp_->model_ptr_->forcePool();
   for (int i = 0; i < num_contacts; ++i) {
     const common::PointPairContactInfo& info = contact_info.at(i);

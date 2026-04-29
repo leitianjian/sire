@@ -59,11 +59,26 @@ auto Recorder::recordModelState(aris::dynamic::Model& model) -> void {
     prt.getVs(cr.prtVs[i].data());
     prt.getAs(cr.prtAs[i].data());
   }
+  auto& fcePool = model.forcePool();
+  auto& motionPool = model.motionPool();
+  sire::Size fceSize = fcePool.size();
+  sire::Size motionSize = motionPool.size();
+  sire::Size startIdx = fceSize - motionSize - prtSize;
+  cr.singleComponentForces.resize(motionSize, 0);
+  for (sire::Size i{0}; i < motionSize; ++i) {
+    auto& motion = motionPool.at(i);
+    cr.singleComponentForces[i] = dynamic_cast<aris::dynamic::SingleComponentForce&>(fcePool[startIdx + i]).fce();
+  }
+  cr.generalForces.resize(prtSize);
+  for (sire::Size i{0}; i < prtSize; ++i) {
+    auto& fce = dynamic_cast<aris::dynamic::GeneralForce&>(fcePool.at(startIdx + motionSize + i));
+    std::copy(fce.fce(), fce.fce() + 6, cr.generalForces[i].data());
+  }
 }
 auto Recorder::recordContactInfo(
     const std::vector<sire::physics::common::PointPairContactInfo>&
-        contactInfos) -> void {
-  auto& cr = records.back();
+        contactInfos, sire::Size n) -> void {
+  auto& cr = records[records.size() - n];
   cr.contactInfos = contactInfos;
 }
 auto Recorder::setInterestedDataSize(sire::Size size) -> void {
@@ -81,6 +96,10 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
       nlohmann::json::array();  // 外层数组，长度=records.size()
   nlohmann::json part_as_json =
       nlohmann::json::array();  // 外层数组，长度=records.size()
+  nlohmann::json single_component_force_json =
+      nlohmann::json::array();  // 外层数组，长度=records.size()
+  nlohmann::json general_force_json =
+      nlohmann::json::array();  // 外层数组，长度=records.size
   nlohmann::json contact_info_json =
       nlohmann::json::array();          // 外层数组，长度=records.size()
   for (const auto& record : records) {  // 遍历每个 Record
@@ -105,6 +124,18 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
     }
     part_as_json.push_back(prt_as_array);  // 将当前 Record 数据加入外层数组
 
+    // nlohmann::json single_component_force_array;
+    // for (const auto& fce : record.singleComponentForces) {
+    //   single_component_force_array.push_back(fce);
+    // }
+    single_component_force_json.push_back(record.singleComponentForces);
+
+    nlohmann::json general_force_array;
+    for (const auto& fce : record.generalForces) {
+      general_force_array.push_back(std::vector<double>(fce.begin(), fce.end()));
+    }
+    general_force_json.push_back(general_force_array);
+
     // 处理 contactInfos 数据
     nlohmann::json contact_info_array;  // 每个 Record 的 contactInfos 数组
     for (const auto& contact :
@@ -122,6 +153,8 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
   j["partPq"] = part_pq_json;            // 添加 partpq 数据
   j["partVs"] = part_vs_json;            // 添加 partpq 数据
   j["partAs"] = part_as_json;            // 添加 partpq 数据
+  j["singleComponentForces"] = single_component_force_json;
+  j["generalForces"] = general_force_json;
   j["timeIndex"] = timeIndices;          // 添加 timeindex 数据
   j["dts"] = dts;                        // 添加 timeindex 数据
   j["contactInfo"] = contact_info_json;  // 添加 contact_info 数据
