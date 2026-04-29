@@ -25,6 +25,7 @@
 #include "sire/core/constants.hpp"
 #include "sire/core/force_screw.hpp"
 #include "sire/core/material_manager.hpp"
+#include "sire/core/profiler.hpp"
 #include "sire/core/prop_map.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
@@ -146,6 +147,7 @@ auto cptAllAccelExtVector(
     const std::vector<std::array<double, 16>>& T_C_vec,
     const std::vector<sire::Size>& preservedPairsIdx,
     const sire::PartId* prtIdVector, double* accelExt) -> void {
+  SIRE_PROFILE_SCOPE("ps_vs/cptAllAccelExtVector");
   auto& partPool = model.partPool();
   // TODO: 可能需要关掉contactForce
   // TODO: 不知道是否需要，记录杆件的加速度数据，然后要重新填回去
@@ -395,6 +397,7 @@ auto cptDAECoeff(sire::physics::PhysicsEngine& engine, sire::Size n,
                  const double* stiffness, const double* damping,
                  double stiffScale, double* accelExt, double* invCpi, double* A,
                  double* b) -> void {
+  SIRE_PROFILE_SCOPE("ps_vs/cptDAECoeff");
   sire::Size n2{2 * n};
   std::vector<double> kdMatrix(n2 * n2);
   // 假设ground不会与ground相撞。A指向B
@@ -562,6 +565,7 @@ auto cptFormulaIXdtComposeAbx0(sire::Size n, const double* Abx0, double t0,
 auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
                           const double* x0, double tolerance,
                           sire::Size maxIter) -> double {
+  SIRE_PROFILE_SCOPE("ps_vs/findMinRootBisection");
   const sire::Size n2 = 2 * nContact;
   // 因为矩阵 A 经常无逆，所以使用其增广形式 [A b; 0 0] 作为状态转移矩阵，x0 =
   // [x0 1] 作为初始状态（求微分方程解的微分部分）
@@ -848,6 +852,7 @@ auto cptInverseCpiMatrix(
     const std::vector<std::array<double, 16>>& T_C_vec,
     const std::vector<sire::Size>& preservedPairsIdx,
     const sire::PartId* prtIdVector, double* accelExt, double* invCpi) -> void {
+  SIRE_PROFILE_SCOPE("ps_vs/cptInverseCpiMatrix");
   auto init_interaction = [](aris::dynamic::Interaction& interaction,
                              aris::dynamic::Model* m) -> void {
     if (interaction.prtNameM().empty() && interaction.prtNameN().empty() &&
@@ -1527,6 +1532,7 @@ auto cptNormalContactForceByX0X1tPos(
     Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd>& cod,
     const double* b, double minTime, double stiffScale,
     std::vector<double>& contactPosFce) -> void {
+  SIRE_PROFILE_SCOPE("ps_vs/cptNormalContactForceByX0X1tPos");
   // 使用目标位置计算接触力
   std::vector<double> temp1(x1t, x1t + n);
   aris::dynamic::s_vs(n, x0, temp1.data());
@@ -1553,6 +1559,7 @@ auto cptNormalContactForceByX0X1tVel(
     Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd>& cod,
     const double* b, double minTime, double stiffScale,
     std::vector<double>& contactVelFce) -> void {
+  SIRE_PROFILE_SCOPE("ps_vs/cptNormalContactForceByX0X1tVel");
   // 使用目标速度计算接触力
   std::vector<double> temp2(x1t + n, x1t + 2 * n);
   aris::dynamic::s_vs(n, x0 + n, temp2.data());
@@ -1587,11 +1594,15 @@ auto PsVsSolver::cptContactSolverResult(
   std::vector<sire::PartId> prtIdVector;
   std::vector<sire::Size> pairsNeedModifiedIdx;
   std::vector<sire::Size> targetConditionIdx;
+  {
+    SIRE_PROFILE_SCOPE("ps_vs/filterPairsAndPreprocessInfo");
   filterPairsAndPreprocessInfo(
       *enginePtr, penetration_pairs, imp_->contactEnded, imp_->contactNotEnd,
       T_C_vec, preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx,
       prtIdVector, accelExt, invCpi);
+  }
   sire::Size n{preservedPairsIdx.size()};
+  SIRE_PROFILE_PLOT("ps_vs.n_contacts", static_cast<double>(n));
 
   // result.resize(partPool.size() * 6, penetration_pairs.size());
   // for (sire::Size i{0}; i < penetration_pairs.size(); ++i) {
@@ -2270,7 +2281,9 @@ auto cptContactForceWithTargetState(sire::Size n, std::vector<double>& invM,
                                     std::vector<double>& b, double minTime,
                                     double stiffScale, bool isVel,
                                     std::vector<double>& contactFce) -> void {
+  SIRE_PROFILE_SCOPE("ps_vs/cptContactForceWithTargetState");
   std::vector<double> invMD(n * n, 0);
+  DLOG(DEBUG) << "inv M: " << invM;
   aris::dynamic::s_mm(n, n, 3 * n, invM.data(), D.data(), invMD.data());
   DLOG(DEBUG) << "matrix D: " << D;
   DLOG(DEBUG) << "invMD: " << invMD;
@@ -2303,6 +2316,9 @@ auto cptContactForceWithTargetState(sire::Size n, std::vector<double>& invM,
     D[(3 * idx + 1) * n + idx] = -D[(3 * idx + 1) * n + idx];
   }
   if (negativeNormalFceIdx.size() > 0) {
+    {
+      SIRE_PROFILE_SCOPE(
+          "ps_vs/cptContactForceWithTargetState/rebuildAfterNegativeNormal");
     DLOG(DEBUG) << "updated matrix D: " << D;
     aris::dynamic::s_mm(n, n, 3 * n, invM.data(), D.data(), invMD.data());
     DLOG(DEBUG) << "updated invMD: " << invMD;
@@ -2321,7 +2337,9 @@ auto cptContactForceWithTargetState(sire::Size n, std::vector<double>& invM,
                                       contactNormalFce);
     }
   }
-  DLOG(DEBUG) << "(real x0) Contact normal force updated: " << contactNormalFce;
+  }
+  // DLOG(DEBUG) << "(real x0) Contact normal force updated: " <<
+  // contactNormalFce;
 
   aris::dynamic::s_mm(3 * n, 1, n, D.data(), contactNormalFce.data(),
                       contactFce.data());
@@ -2344,7 +2362,7 @@ auto cptContactForceWithTargetState2(
   // // Wait, the arguments are: n (number of pairs), invM (3n x 3n), D (3n x
   // 3n). aris::dynamic::s_mm(3 * n, 3 * n, 3 * n, invM.data(), D.data(),
   // invMD.data());
-
+  SIRE_PROFILE_SCOPE("ps_vs/cptContactForceWithTargetState2");
   Eigen::Map<Eigen::MatrixXd> WMat(invM.data(), 3 * n, 3 * n);
   Eigen::MatrixXd P =
       -h * 0.5 * (WMat + WMat.transpose());  // Or W, depending on signs
@@ -2464,7 +2482,7 @@ auto cptGlbContactWrench(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     const std::vector<std::array<double, 16>>& T_C_vec,
     const std::vector<sire::Size>& preservedPairsIdx) -> void {
-  // 重置上次contact forcePool设置的力
+  SIRE_PROFILE_SCOPE("ps_vs/cptGlbContactWrench");
   engine.resetPartContactForce();
   const sire::Size contact_force_offset = model.motionPool().size();
   auto& force_pool = model.forcePool();

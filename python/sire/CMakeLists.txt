@@ -34,7 +34,6 @@ target_include_directories(sire
   PUBLIC
     ${aris_INCLUDE_DIRS}
     ${PROJECT_BINARY_DIR}
-    ${coal_INCLUDE_DIRS}
     ${ASSIMP_INCLUDE_DIRS}
   PRIVATE
 		${CMAKE_SOURCE_DIR}/third_party/clarabel/include

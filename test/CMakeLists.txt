@@ -165,7 +165,6 @@ target_include_directories(physics_engine_test
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 		${CMAKE_SOURCE_DIR}/third_party/clarabel/include  # Manually add include path just in case
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
@@ -199,7 +198,6 @@ target_include_directories(test_clarabel
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 		${CMAKE_SOURCE_DIR}/third_party/clarabel/include  # Manually add include path just in case
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
@@ -249,7 +247,6 @@ target_include_directories(geometry_serialization_test
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )

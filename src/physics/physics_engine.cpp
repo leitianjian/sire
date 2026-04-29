@@ -13,6 +13,7 @@
 #include "sire/actuator/actuator.hpp"
 #include "sire/core/force_screw.hpp"
 #include "sire/core/geometry/geometry_base.hpp"
+#include "sire/core/profiler.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
@@ -435,6 +436,7 @@ auto PhysicsEngine::hasCollision() -> bool {
 }
 auto PhysicsEngine::computePointPairPenetration()
     -> std::vector<common::PenetrationAsPointPair> {
+  SIRE_PROFILE_FUNCTION();
   std::vector<common::PenetrationAsPointPair> pairs;
   if (imp_->collision_detection_flag_) {
     imp_->collision_detection_->computePointPairPenetration(pairs);
@@ -445,13 +447,18 @@ auto PhysicsEngine::cptContactInfo(
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  SIRE_PROFILE_FUNCTION();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
 
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
+  {
+    SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  }
   const sire::Size num_contacts = penetration_pairs.size();
+  SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
@@ -489,14 +496,19 @@ auto PhysicsEngine::cptContactInfo(
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  SIRE_PROFILE_FUNCTION();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
   solver_result.dt = suggestTime;
 
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
+  {
+    SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  }
   const sire::Size num_contacts = penetration_pairs.size();
+  SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
@@ -533,15 +545,20 @@ auto PhysicsEngine::cptContactInfo(
     double suggestTime,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  SIRE_PROFILE_FUNCTION();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
   solver_result.dt = suggestTime;
   std::vector<std::array<double, 16>> T_C_vec;
 
   // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
+  {
+    SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  }
   const sire::Size num_contacts = penetration_pairs.size();
+  SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;

@@ -10,6 +10,9 @@ macro(FIND_PKG_PATH pkg_name alias)
     else()
     	message(STATUS "File/Directory at variable TARGET_${alias_upper}_PATH not exists! ${TARGET_${alias_upper}_PATH}")
     endif()
+  if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+  endif()
     find_package(${pkg_name} REQUIRED)
 endmacro(FIND_PKG_PATH)
 
@@ -47,6 +50,7 @@ macro(INSTALL_DLL)
           "${VCPKG_DLL_PREFIX}/zlib$<$<CONFIG:Debug>:d>1.dll"
           "${VCPKG_DLL_PREFIX}/pugixml.dll"
           "${VCPKG_DLL_PREFIX}/poly2tri.dll"
+          "${VCPKG_DLL_PREFIX}/TracyClient.dll"
           "${VCPKG_DLL_PREFIX}/kubazip.dll"
           "${VCPKG_DLL_PREFIX}/minizip.dll"
           "${VCPKG_DLL_PREFIX}/boost_serialization-vc${MSVC_TOOLSET_VERSION}-mt$<$<CONFIG:Debug>:-gd>-x64-${Boost_VERSION_MAJOR}_${Boost_VERSION_MINOR}.dll"

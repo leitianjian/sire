@@ -9,6 +9,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/dynamic/screw.hpp>
 
+#include "sire/core/profiler.hpp"
 #include "sire/core/sire_fixed_joint.hpp"
 #include "sire/ext/json.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
@@ -1476,26 +1477,31 @@ auto InitHandler4::handle(core::EventBase* e) -> bool {
   engine_ptr->updateGeometryLocationFromModel();
   std::vector<common::PenetrationAsPointPair> pairs;
   // 碰撞检测
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
   engine_ptr->cptPointPairPenetration(pairs);
+  }
   simulator_ptr->eventManager().updateCtrlSimTime(0, 0);
   double nextCtrlSimSuggestDt =
       simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
 
   double nextSuggestDt{nextCtrlSimSuggestDt};
   std::vector<common::PointPairContactInfo> contact_info;
-  // std::vector<std::array<double, 16>> T_C_vec;
+  {
+    SIRE_PROFILE_SCOPE("sim/contactSolving");
   process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
-
-  // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
-  engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs, contact_info);
+    engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
+                                       contact_info);
+  }
   // // 重置上一时刻关节和forcePool设置的力
   // engine_ptr->resetPartContactForce();
   // // 根据接触信息将力设置回model的forcePool
   // engine_ptr->cptGlbForceByContactInfo(contact_info);
   // // 记录模型状态和接触信息
-  // simulator_ptr->recorder().recordDt(0);
+  // simulator_ptr->recorder().recordDt(nextCtrlSimSuggestDt);
   // simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
-  // simulator_ptr->recorder().recordContactInfo(contact_info);
+  // simulator_ptr->recorder().recordContactInfo(contact_info, 2);
+  // simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
   // std::unique_ptr<core::EventBase> eventPtr{nullptr};
   // DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
   //             << " suggestDt: " << nextSuggestDt;
@@ -1549,22 +1555,28 @@ auto StepHandler4::handle(core::EventBase* e) -> bool {
   engine_ptr->updateGeometryLocationFromModel();
   std::vector<common::PenetrationAsPointPair> pairs;
   // 碰撞检测
+  std::vector<common::PenetrationAsPointPair> pairs;
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
+    engine_ptr->updateGeometryLocationFromModel();
   engine_ptr->cptPointPairPenetration(pairs);
-
+  }
   double nextSuggestDt{nextCtrlSimSuggestDt};
   std::vector<common::PointPairContactInfo> contact_info;
-
+  {
+    SIRE_PROFILE_SCOPE("sim/contactSolving");
   process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
+    engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
+                                       contact_info);
+  }
 
-  // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
-  engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs, contact_info);
   // // 重置上一时刻关节和forcePool设置的力
   // engine_ptr->resetPartContactForce();
   // // 根据接触信息将力设置回model的forcePool
   // engine_ptr->cptGlbForceByContactInfo(contact_info);
   // // 记录模型状态和接触信息
   // simulator_ptr->recorder().recordModelState(*simulator_ptr->model());
-  // simulator_ptr->recorder().recordContactInfo(contact_info);
+  // simulator_ptr->recorder().recordContactInfo(contact_info, 2);
   // std::unique_ptr<core::EventBase> eventPtr{nullptr};
   // DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
   //             << " suggestDt: " << nextSuggestDt;
@@ -1580,6 +1592,8 @@ auto StepHandler4::handle(core::EventBase* e) -> bool {
 
   // eventPtr->eventProp().addProp("dt", nextSuggestDt);
   // simulator_ptr->eventManager().addEvent(std::move(eventPtr));
+  // SIRE_PROFILE_FRAME_NAMED("sim/frame");
+  SIRE_PROFILE_FRAME();
   return true;
 }
 auto CtrlHandler4::init(simulator::SimulationLoop* simulator) -> void {
@@ -1616,15 +1630,24 @@ auto CtrlHandler4::handle(core::EventBase* e) -> bool {
   engine_ptr->updateGeometryLocationFromModel();
   std::vector<common::PenetrationAsPointPair> pairs;
   // 碰撞检测
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
   engine_ptr->cptPointPairPenetration(pairs);
+  }
 
   double nextSuggestDt{nextCtrlSimSuggestDt};
   std::vector<common::PointPairContactInfo> contact_info;
 
+  {
+    SIRE_PROFILE_SCOPE("sim/contactSolving");
   process_penetration_depth_and_maintain_impact_set6(simulator_ptr, pairs);
   // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
-  engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs, contact_info);
+    engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
+                                       contact_info);
+  }
 
+  // SIRE_PROFILE_FRAME_NAMED("sim/frame");
+  SIRE_PROFILE_FRAME();
   return true;
 }
 ARIS_REGISTRATION {

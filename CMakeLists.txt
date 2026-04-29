@@ -2,6 +2,11 @@
 cmake_minimum_required(VERSION 3.18.0)
 project(sire VERSION 1.0.0)
 
+if(POLICY CMP0167)
+	cmake_policy(SET CMP0167 NEW)
+	set(CMAKE_POLICY_DEFAULT_CMP0167 NEW)
+endif()
+
 # set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 if(UNIX)
 	set(CMAKE_INSTALL_PREFIX "/usr/sire/sire-1.0")
@@ -24,11 +29,45 @@ endif(WIN32)
 
 include(cmake_macros/base.cmake)
 
+# ---------------------- profiling hooks ---------------------------
+# A stable project-level instrumentation API (see include/sire/core/profiler.hpp).
+# Default backend is no-op; Tracy is optional.
+option(SIRE_ENABLE_TRACY "Enable Tracy profiler instrumentation (requires Tracy package)" OFF)
+
+add_library(sire_profiler INTERFACE)
+target_include_directories(sire_profiler
+	INTERFACE
+		$<INSTALL_INTERFACE:include>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+
+if(SIRE_ENABLE_TRACY)
+	find_package(Tracy CONFIG QUIET)
+	if(Tracy_FOUND)
+		target_link_libraries(sire_profiler INTERFACE Tracy::TracyClient)
+		target_compile_definitions(sire_profiler INTERFACE SIRE_PROFILE_TRACY TRACY_ENABLE)
+		message(STATUS "Sire profiling backend: Tracy")
+	else()
+		message(WARNING "SIRE_ENABLE_TRACY=ON but Tracy not found; profiling will be disabled")
+	endif()
+endif()
+
 find_pkg_path(aris aris)
 
 find_pkg_path(assimp assimp)
 
 find_pkg_path(coal hpp_fcl)
+
+# coal (hpp-fcl) headers include <Eigen/Core>, but Eigen's headers are typically under
+# <prefix>/include/eigen3, so we must pull Eigen's include dirs into our compile lines.
+find_package(Eigen3 CONFIG REQUIRED)
+
+# Aggregate coal + Eigen usage requirements so targets can just link this once.
+add_library(sire_deps_coal INTERFACE)
+target_link_libraries(sire_deps_coal
+	INTERFACE
+		coal::coal
+)
 
 find_pkg_path(stduuid stduuid)
 
@@ -126,6 +165,7 @@ target_include_directories(sire_core
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
+target_link_libraries(sire_core PRIVATE sire_profiler)
 install(DIRECTORY include/sire/core DESTINATION include/sire)
 
 add_subdirectory(src/log)
@@ -148,6 +188,7 @@ target_include_directories(sire_actuator
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
+target_link_libraries(sire_actuator PRIVATE sire_profiler)
 install(DIRECTORY include/sire/actuator DESTINATION include/sire)
 
 # TODO(ltj)  Physics cmakelist to sub-directory
@@ -177,6 +218,7 @@ target_sources(sire_physics
 		"src/physics/contact/contact_position_force_solver.cpp"
 		"src/physics/contact/contact_force_solver.cpp"
 		"src/physics/contact/ps_vs_solver.cpp"
+		"src/physics/contact/ps_vs_solver2.cpp"
 		"src/physics/collision/collision_detection.cpp"
 		"src/physics/collision/collision_filter.cpp"
 		"src/physics/collision/collision_exists_callback.cpp"
@@ -200,6 +242,7 @@ target_sources(sire_physics
 		"include/sire/physics/contact/avg_force_contact_solver.hpp"
 		"include/sire/physics/contact/contact_force_solver.hpp"
 		"include/sire/physics/contact/ps_vs_solver.hpp"
+		"include/sire/physics/contact/ps_vs_solver2.hpp"
 		"include/sire/physics/contact/contact_solver_result.hpp"
 		"include/sire/physics/collision/collision_detection.hpp"
 		"include/sire/physics/collision/collision_filter.hpp"
@@ -221,10 +264,10 @@ target_include_directories(sire_physics
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 		${CMAKE_SOURCE_DIR}/third_party/clarabel/include
 )
+target_link_libraries(sire_physics PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/physics DESTINATION include/sire)
 
 # Build lib integrator of sire
@@ -252,9 +295,9 @@ target_include_directories(sire_integrator
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
+target_link_libraries(sire_integrator PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/integrator DESTINATION include/sire)
 
 # Build lib simulator of sire
@@ -298,9 +341,9 @@ target_include_directories(sire_simulator
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
+target_link_libraries(sire_simulator PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/simulator DESTINATION include/sire)
 
 # add_subdirectory(third_party/stduuid)
@@ -366,8 +409,8 @@ target_include_directories(sire_server
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 		${ASSIMP_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 )
+target_link_libraries(sire_server PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
 install(DIRECTORY include/sire/ext DESTINATION include/sire)
 install(DIRECTORY include/sire/plan DESTINATION include/sire)
@@ -394,9 +437,9 @@ target_include_directories(sire_middleware
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
+target_link_libraries(sire_middleware PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/middleware DESTINATION include/sire)
 
 add_library(sire_sensor OBJECT)
@@ -417,6 +460,7 @@ target_include_directories(sire_sensor
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
+target_link_libraries(sire_sensor PRIVATE sire_profiler)
 install(DIRECTORY include/sire/sensor DESTINATION include/sire)
 
 # Build library for sire
@@ -442,10 +486,10 @@ target_include_directories(sire_lib
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 )
-set(PUB_RELY_LINK_LIB ${coal_LIBRARIES} ${aris_LIBRARIES} msgpack-cxx)
+set(PUB_RELY_LINK_LIB coal::coal ${aris_LIBRARIES} msgpack-cxx)
 set(PRI_RELY_LINK_LIB libclarabel_c_shared)
 message(STATUS ${coal_LIBRARIES})
-target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB} PRIVATE ${PRI_RELY_LINK_LIB})
+target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB} PRIVATE ${PRI_RELY_LINK_LIB} sire_profiler)
 
 if(WIN32)
 	add_custom_command(TARGET sire_lib POST_BUILD

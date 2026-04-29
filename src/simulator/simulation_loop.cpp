@@ -9,6 +9,7 @@
 #include "sire/core/constants.hpp"
 #include "sire/core/module_base.hpp"
 #include "sire/core/prop_map.hpp"
+#include "sire/core/profiler.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/sensor/sensor.hpp"
@@ -193,6 +194,8 @@ auto SimulationLoop::handleContact() -> void {
 }
 auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
   for (sire::Size i = 0; i < frame_skip; ++i) {
+    // SIRE_PROFILE_FRAME_NAMED("sim/frame");
+    SIRE_PROFILE_FRAME();
     // Get header event pointer
     core::EventBase* header = imp_->event_manager_->eventListHeader();
     // New handler by event id
@@ -200,9 +203,17 @@ auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
         createHandlerByEventId(header->eventId());
     handler->init(this);
     imp_->can_get_data_.store(false);
-    handler->integrate(header);
+    {
+      SIRE_PROFILE_SCOPE("sim/integrate");
+      handler->integrate(header);
+    }
     imp_->can_get_data_.store(true);
-    if (handler->handle(header)) {
+    bool handled = false;
+    {
+      SIRE_PROFILE_SCOPE("sim/handle");
+      handled = handler->handle(header);
+    }
+    if (handled) {
       // imp_->event_manager_->generateEvent();
       if (pause_if_fast) {
         imp_->timer_.pauseIfTooFast();
