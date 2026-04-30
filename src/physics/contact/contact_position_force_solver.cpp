@@ -1762,6 +1762,7 @@ auto ContactPositionForceSolver::cptContactSolverResult(
   //             << " avgFce: " << avgFce;
 
   DLOG(DEBUG) << "Real x0: " << realX0;
+  DLOG(DEBUG) << "x1: " << x1t;
   std::vector<double> contactVelFce2(n);
   cptNormalContactForceByX0X1tVel(n, realX0.data(), x1t.data(), cod, b.data(),
                                   minTime, stiffScale, contactVelFce2);
@@ -1769,15 +1770,19 @@ auto ContactPositionForceSolver::cptContactSolverResult(
   //                              minTime, stiffScale, contactPosFce2,
   //                              contactVelFce2);
   // DLOG(DEBUG) << "(real x0) Contact position force: " << contactPosFce2
-  //             << " Contact veclocity force: " << contactVelFce2;
-  DLOG(DEBUG) << "(real x0) Contact veclocity force: " << contactVelFce2;
+  //             << " Contact velocity force: " << contactVelFce2;
+  DLOG(DEBUG) << "(real x0) Contact velocity force: " << contactVelFce2;
 
   for (sire::Size i{0}; i < n; ++i) {
     sire::Size idx = preservedPairsIdx[i];
     const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
     // 用pos可能会有问题，因为在平衡状态下，速度可能没有被抵消，
     // 后续可能要综合pos 和 vel，给velFce加上一个pos的约束稳定项
-    result.fn[idx] = contactVelFce2[i];
+    if (contactVelFce2[i] < 0) {
+      result.fn[idx] = 0;
+    } else {
+      result.fn[idx] = contactVelFce2[i];
+    }
   }
   std::vector<double> ftVec(n2 * 2, 0);
   for (sire::Size i{0}, ftIdx{0}; i < n; ++i) {

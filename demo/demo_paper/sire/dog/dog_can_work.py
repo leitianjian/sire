@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import yaml
 import sire
+import json
 
 LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_paper/sire/dog"
 def get_gravity_orientation(quaternion):
@@ -63,12 +64,12 @@ def assignTau(model, tau):
 
 if __name__ == "__main__":
     # get config file name from command line
-    import argparse
+    # import argparse
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("config_file", type=str, help="config file name in the config folder")
-    args = parser.parse_args()
-    config_file = args.config_file
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("config_file", type=str, help="config file name in the config folder")
+    # args = parser.parse_args()
+    config_file = "go2_can_work.yaml"
     with open(f"{LEGGED_GYM_ROOT_DIR}/{config_file}", "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
         policy_path = config["policy_path"].replace("{LEGGED_GYM_ROOT_DIR}", LEGGED_GYM_ROOT_DIR)
@@ -129,6 +130,8 @@ if __name__ == "__main__":
     motionMvRecords = []
     motionMaRecords = []
     motionMfRecords = []
+    timeRecord2 = []
+    targetPosRecords = []
     action = np.zeros(num_actions, dtype=np.float32)
     obs = np.zeros(num_obs, dtype=np.float32)
     while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
@@ -138,14 +141,14 @@ if __name__ == "__main__":
         motionMv = getMotionsMv(model)
         motionMa = getMotionsMa(model)
         motionMf = getMotionsMf(model)
-
+        timeRecord.append(sim_time)
+        motionMpRecords.append(motionMp)
+        motionMvRecords.append(motionMv)
+        motionMaRecords.append(motionMa)
+        motionMfRecords.append(motionMf)
         counter += 1
         if isCtrl:# and counter != 0:
-            timeRecord.append(sim_time)
-            motionMpRecords.append(motionMp)
-            motionMvRecords.append(motionMv)
-            motionMaRecords.append(motionMa)
-            motionMfRecords.append(motionMf)
+            timeRecord2.append(sim_time)
             qj = motionMp
             dqj = motionMv
             quat = getBodyQuat(model, 1)
@@ -177,6 +180,7 @@ if __name__ == "__main__":
             action = policy(obs_tensor).detach().numpy().squeeze()
             # transform action to target_dof_pos
             target_dof_pos = action * action_scale + default_angles
+            targetPosRecords.append(target_dof_pos)
             # if sim_time < 0.04:
             #     target_dof_pos = default_angles.copy()
         # if isCtrl:
@@ -230,14 +234,22 @@ if __name__ == "__main__":
         bodyHeightRecord[1, j] = partpq[j][1][2] + 0.1
         
     np.savetxt(dataPath + f"/body_height.csv", bodyHeightRecord.transpose(), delimiter=",")
+    
+    # python save json
+    with open(str(currentDir) + "/simulation_result.json", "w") as f:
+        json.dump(result, f)
+    
     for i in range(model.numMotions()):
-        motionRecord = np.zeros((5, len(timeRecord)))
+        motionRecord = np.zeros((7, len(timeRecord)))
         motionRecord[0, :] = timeRecord
+        motionRecord[5, :len(timeRecord2)] = timeRecord2
         for j in range(len(timeRecord)):
             motionRecord[1, j] = motionMpRecords[j][i]
             motionRecord[2, j] = motionMvRecords[j][i]
             motionRecord[3, j] = motionMaRecords[j][i]
             motionRecord[4, j] = motionMfRecords[j][i]
+        for j in range(len(timeRecord2)):
+            motionRecord[6, j] = targetPosRecords[j][i]
         np.savetxt(motionDataPath + f"/motion_{i}.csv", motionRecord.transpose(), delimiter=",")
 
     # with mujoco.viewer.launch_passive(m, d) as viewer:

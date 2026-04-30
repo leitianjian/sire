@@ -213,7 +213,9 @@ class CMakeBuildExt(build_ext):
             "BUILD_DEMO": True if build_config.get("build_demo", 0) else False,
             "BUILD_TEST": True if build_config.get("build_test", 0) else False,
             "BUILD_PYTHON": True if build_config.get("build_python", 0) else False,
+            "SIRE_ENABLE_TRACY": True if build_config.get("sire_enable_tracy", 0) else False
         }
+        print("[sire] cmake args:", cmake_args)
         if "toolchain_path" in build_config:
             cmake_args["CMAKE_TOOLCHAIN_FILE"] = str(build_config["toolchain_path"])
         install_dir = {}
@@ -242,7 +244,7 @@ class CMakeBuildExt(build_ext):
                 # cmake_python_library=None,
                 # build_python=False,
                 rerun_config=build_config.get("rerun_config", False),
-                rm_cache=build_config.get("rm_cache", False),
+                rm_cache=build_config.get("rm_cmake_cache", False),
                 cmake_only=build_config.get("cmake_only", False),
                 build_only=False,
                 install_dir=None if build_config.get("install_dir", None) is None else str(build_config.get("install_dir", None)),

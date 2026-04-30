@@ -29,6 +29,7 @@
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
 #include "sire/physics/contact/contact_position_force_solver.hpp"
+#include "sire/physics/contact/ps_vs_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable.hpp"
@@ -114,6 +115,12 @@ PYBIND11_MODULE(sire, m) {
     std::vector<double> vs(6);
     aris::dynamic::s_vp2vs(pp.data(), vp.data(), vs.data());
     return vs;
+  });
+  m.def("as2ap", [](std::vector<double>& vs, std::vector<double>& as,
+                    std::vector<double>& pWorld) {
+    std::vector<double> ap(3);
+    aris::dynamic::s_as2ap(vs.data(), as.data(), pWorld.data(), ap.data());
+    return ap;
   });
   m.def("as2ap", [](std::vector<double>& pq, std::vector<double>& vs,
                     std::vector<double>& as, std::vector<double>& p) {
@@ -403,6 +410,15 @@ PYBIND11_MODULE(sire, m) {
                   },
           py::return_value_policy::reference_internal)
       .def(
+          "psVsSolver",
+          [](sire::physics::PhysicsEngine& self)
+              -> sire::physics::contact::ps_vs_solver::PsVsSolver& {
+            return dynamic_cast<
+                sire::physics::contact::ps_vs_solver::PsVsSolver&>(
+                self.contactSolver());
+          },
+          py::return_value_policy::reference_internal)
+      .def(
           "addContactPositionForceSolver",
           [](sire::physics::PhysicsEngine& self)
               -> sire::physics::contact::contact_force::
@@ -458,6 +474,22 @@ PYBIND11_MODULE(sire, m) {
              self.materialManager().setDefaultProp(sire::core::PropMap(prop));
            });  // 默认构造函数
 
+  py::class_<sire::physics::contact::ps_vs_solver::PsVsSolver>(m, "PsVsSolver")
+      .def(py::init<>())
+      .def("addMaterialPair",
+           [](sire::physics::contact::ps_vs_solver::PsVsSolver& self,
+              const std::string& name1, const std::string& name2,
+              const std::string& prop) {
+             self.materialManager().addProp(
+                 sire::core::SortedPair<std::string>(name1, name2),
+                 sire::core::PropMap(prop));
+           })
+      .def("setDefaultProp",
+           [](sire::physics::contact::ps_vs_solver::PsVsSolver& self,
+              const std::string& prop) {
+             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+           });  // 默认构造函数
+
   py::class_<aris::dynamic::DeltaParam>(m, "DeltaParam")
       .def(py::init<>())  // 默认构造函数
       .def_readwrite("a", &aris::dynamic::DeltaParam::a)
@@ -491,6 +523,29 @@ PYBIND11_MODULE(sire, m) {
              self.solverPool().add<aris::dynamic::ForwardKinematicSolver>();
              self.solverPool().add<aris::dynamic::InverseDynamicSolver>();
              self.solverPool().add<aris::dynamic::ForwardDynamicSolver>();
+           })
+      .def("cptProjectedMassMatrix",
+           [](const aris::dynamic::Model& self) {
+             auto& fd =
+                 dynamic_cast<const aris::dynamic::ForwardDynamicSolver&>(
+                     self.solverPool()[3]);
+             const_cast<aris::dynamic::ForwardDynamicSolver&>(fd)
+                 .cptProjectedMassMatrix();
+           })
+      .def("cptContactInverseInertiaMatrix",
+           [](const aris::dynamic::Model& self, int nContact,
+              std::vector<int> partid,
+              std::vector<double> T_vec,
+              std::vector<double> contactPoint) {
+             std::vector<double> A_out, b_out;
+             auto& fd =
+                 dynamic_cast<const aris::dynamic::ForwardDynamicSolver&>(
+                     self.solverPool()[3]);
+             const_cast<aris::dynamic::ForwardDynamicSolver&>(fd)
+                 .cptContactInverseInertiaMatrix(nContact, partid.data(),
+                                                 T_vec.data(),
+                                                 contactPoint.data(), A_out, b_out);
+             return A_out;
            })
       .def("displayInitJson",
            [](aris::dynamic::Model& self) -> nlohmann::json {
@@ -688,6 +743,79 @@ PYBIND11_MODULE(sire, m) {
           py::return_value_policy::reference_internal)
       .def("init", &aris::dynamic::Model::init)        // 初始化模型
       .def("settime", &aris::dynamic::Model::setTime)  // 设置时间
+      .def("getPartAs",
+           [](const aris::dynamic::Model& self) {
+             std::vector<std::vector<double>> as(self.partPool().size());
+             for (size_t i = 0; i < self.partPool().size(); ++i) {
+               as[i].resize(7);
+               self.partPool().at(i).getAs(as[i].data());
+             }
+             return as;
+           })
+      .def("setPartPq",
+           [](aris::dynamic::Model& self,
+              const std::vector<std::vector<double>>& pqs) {
+             if (pqs.size() != self.partPool().size()) {
+               throw std::runtime_error(
+                   "Input array 'pqs' size must match the number of parts!");
+             }
+
+             for (size_t i = 0; i < pqs.size(); ++i) {
+               if (pqs[i].size() != 7) {
+                 throw std::runtime_error(
+                     "Each part's 'pq' array must be 7-element!");
+               }
+               self.partPool().at(i).setPq(pqs[i].data());
+             }
+           })
+      .def("setPartVs",
+           [](aris::dynamic::Model& self,
+              const std::vector<std::vector<double>>& vss) {
+             if (vss.size() != self.partPool().size()) {
+               throw std::runtime_error(
+                   "Input array 'vss' size must match the number of parts!");
+             }
+
+             for (size_t i = 0; i < vss.size(); ++i) {
+               if (vss[i].size() != 6) {
+                 throw std::runtime_error(
+                     "Each part's 'vs' array must be 6-element!");
+               }
+               self.partPool().at(i).setVs(vss[i].data());
+             }
+           })
+      .def(
+          "setMotorForce",
+          [](aris::dynamic::Model& self, const std::vector<double>& forces) {
+            if (forces.size() != self.motionPool().size()) {
+              throw std::runtime_error(
+                  "Input array 'forces' size must match the number of joints!");
+            }
+            sire::Size startIdx = self.forcePool().size() -
+                                  self.motionPool().size() -
+                                  self.partPool().size();
+            for (size_t i = 0; i < forces.size(); ++i) {
+              dynamic_cast<aris::dynamic::SingleComponentForce&>(
+                  self.forcePool().at(startIdx + i))
+                  .setFce(forces[i]);
+            }
+          })
+      .def(
+          "setGeneralForce",
+          [](aris::dynamic::Model& self,
+             const std::vector<std::vector<double>>& gf) {
+            if (gf.size() != self.partPool().size()) {
+              throw std::runtime_error(
+                  "Input array 'forces' size must match the number of forces!");
+            }
+            sire::Size startIdx =
+                self.forcePool().size() - self.partPool().size();
+            for (size_t i = 0; i < gf.size(); ++i) {
+              dynamic_cast<aris::dynamic::GeneralForce&>(
+                  self.forcePool().at(startIdx + i))
+                  .setFce(gf[i].data());
+            }
+          })
       .def("setInputPos",
            [](aris::dynamic::Model& self, const std::vector<double>& input) {
              if (input.empty()) {
@@ -794,6 +922,8 @@ PYBIND11_MODULE(sire, m) {
            })
       .def("forwardKinematics",
            [](aris::dynamic::Model& self) { return self.forwardKinematics(); })
+      .def("forwardKinematicsVel",
+           [](aris::dynamic::Model& self) { return self.forwardKinematicsVel(); })
       .def("inverseKinematics",
            [](aris::dynamic::Model& self) { return self.inverseKinematics(); })
       .def("forwardDynamics",

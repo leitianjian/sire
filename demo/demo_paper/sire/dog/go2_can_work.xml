@@ -283,13 +283,13 @@
         </SimulationLoop>
         <PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
             <CollisionDetection __prop_name__="collision_detection"/>
-            <PsVsSolver __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
+            <PsVsSolver2 __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
                 <MaterialManager __prop_name__="material_manager" default_prop="{k:140000000,d:1000,cr:1}">
                     <MaterialPairPropPool __prop_name__="material_pair_prop_pool">
-                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:2e4,cr:0.3,cof:0.6,threshold_velocity:0.3}"/>
+                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:5e4,cr:0.3,cof:0.6,threshold_velocity:0.3}"/>
                     </MaterialPairPropPool>
                 </MaterialManager>
-            </PsVsSolver>
+            </PsVsSolver2>
             <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
                 <BoxCollisionGeometry id="0" part_id="0" is_dynamic="false" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.2,0,0,0,1}" />
                 <!-- <SphereCollisionGeometry id="2" part_id="1" is_dynamic="true" material="copper" contact_prop="{k:2.8e8,d:2000}" radius="0.5" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}" /> -->

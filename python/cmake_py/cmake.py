@@ -6,6 +6,7 @@ import os
 import platform
 import sys
 import shutil
+import hashlib
 from packaging.version import parse as LooseVersion
 from subprocess import CalledProcessError, check_call, check_output
 from typing import Any, cast, Dict, List, Optional
@@ -69,6 +70,70 @@ class CMake:
           string: The path to CMakeFiles.
         """
         return os.path.join(self.build_dir, "CMakeFiles");
+
+    @property
+    def _cmake_py_signature_file(self) -> str:
+        return os.path.join(self.build_dir, ".cmake_py_config_signature")
+
+    def _expected_config_signature(self, my_env: Dict[str, str]) -> str:
+        """Return a stable signature of inputs that should trigger reconfigure.
+
+        We use this to decide whether it is safe to skip running CMake
+        configuration. The previous logic only checked build type / generator
+        artifacts and could miss changed -D options (e.g. SIRE_ENABLE_TRACY).
+        """
+
+        signature_parts: List[str] = []
+        signature_parts.append(f"base_dir={self.base_dir}")
+        signature_parts.append(f"build_dir={self.build_dir}")
+        signature_parts.append(f"install_dir={self.install_dir}")
+        signature_parts.append(f"build_type={self.build_type.build_type_string}")
+
+        use_ninja = not check_negative_env_flag("USE_NINJA", env=my_env)
+        signature_parts.append(f"use_ninja={int(use_ninja)}")
+        if use_ninja:
+            signature_parts.append("generator=Ninja")
+        elif IS_WINDOWS:
+            generator = os.getenv("CMAKE_GENERATOR", "Visual Studio 16 2019")
+            signature_parts.append(f"generator={generator}")
+            signature_parts.append(f"arch={'ARM64' if platform.machine() == 'ARM64' else 'x64' if IS_64BIT else 'x86'}")
+            toolset_version = os.getenv("CMAKE_GENERATOR_TOOLSET_VERSION")
+            if toolset_version is not None:
+                signature_parts.append(f"toolset_version={toolset_version}")
+            curr_toolset = os.getenv("VCToolsVersion")
+            if curr_toolset is not None:
+                signature_parts.append(f"vctools_version={curr_toolset}")
+
+        # Capture the -D defines already collected via `defines()`.
+        # Sort to avoid order-based churn.
+        # NOTE: `configure()` may append some auto-derived -D options (e.g.
+        # CMAKE_INSTALL_PREFIX) before running CMake. We intentionally filter
+        # those out here and instead add their expected values deterministically
+        # below, so the signature remains stable across runs.
+        filtered_define_args: List[str] = []
+        for arg in self.config_args:
+            if not arg.startswith("-D"):
+                continue
+            # Parse "-DKEY=VALUE".
+            key = arg[2:].split("=", 1)[0]
+            if key in {"CMAKE_INSTALL_PREFIX", "CMAKE_C_COMPILER", "CMAKE_CXX_COMPILER"}:
+                continue
+            filtered_define_args.append(arg)
+        for arg in sorted(filtered_define_args):
+            signature_parts.append(arg)
+
+        # Auto-derived options.
+        signature_parts.append(f"-DCMAKE_INSTALL_PREFIX={self.install_dir}")
+
+        expected_wrapper = "/usr/local/opt/ccache/libexec"
+        if IS_DARWIN and os.path.exists(expected_wrapper):
+            if "CC" not in os.environ:
+                signature_parts.append(f"-DCMAKE_C_COMPILER={expected_wrapper}/gcc")
+            if "CXX" not in os.environ:
+                signature_parts.append(f"-DCMAKE_CXX_COMPILER={expected_wrapper}/g++")
+
+        signature_blob = "\n".join(signature_parts).encode("utf-8")
+        return hashlib.sha256(signature_blob).hexdigest()
 
     @staticmethod
     def _get_cmake_command(env: os._Environ[str] = os.environ) -> str:
@@ -153,9 +218,16 @@ class CMake:
         ninja_build_file = os.path.join(self.build_dir, "build.ninja")
         if os.path.exists(self._cmake_cache_file) and not (
             not check_negative_env_flag("USE_NINJA", env=my_env) and not os.path.exists(ninja_build_file)) and self.build_type.build_type_string == self.BuildType(cmake_cache_path=self.build_dir).build_type_string:
-            # hotpatch environment variable 'CMAKE_BUILD_TYPE'. 'CMAKE_BUILD_TYPE' always prevails over DEBUG or REL_WITH_DEB_INFO.
-            # Everything's in place. Do not rerun.
-            return
+            expected_sig = self._expected_config_signature(my_env)
+            try:
+                with open(self._cmake_py_signature_file, "r", encoding="utf-8") as f:
+                    cached_sig = f.read().strip()
+            except FileNotFoundError:
+                cached_sig = ""
+
+            # Everything's in place AND inputs are unchanged: skip configure.
+            if cached_sig == expected_sig:
+                return
 
         if not check_negative_env_flag("USE_NINJA", env=my_env):
             # Avoid conflicts in '-G' and the `CMAKE_GENERATOR`
@@ -232,6 +304,14 @@ class CMake:
         # 2. https://stackoverflow.com/a/27169347
         self.config_args.append(self.base_dir)
         self.run(args=self.config_args, env=my_env)
+
+        # Persist the signature so subsequent builds can detect changed -D args.
+        try:
+            with open(self._cmake_py_signature_file, "w", encoding="utf-8") as f:
+                f.write(self._expected_config_signature(my_env))
+        except OSError:
+            # Best-effort: inability to write this file should not break builds.
+            pass
         # hotpatch environment variable 'CMAKE_BUILD_TYPE'. 'CMAKE_BUILD_TYPE' always prevails over DEBUG or REL_WITH_DEB_INFO.
         if "CMAKE_BUILD_TYPE" not in os.environ:
             if check_env_flag("DEBUG"):
