@@ -241,7 +241,7 @@ def main():
       actuator.kp = 10
       actuator.kd = 1
   cs.init()
-  simulator = sire.simulator(cs)
+  simulator = sire.simulationLoop(cs)
   for i in range(7):
     print(isinstance(model.force(0), sire.SingleComponentForce))
     if (isinstance(model.force(0), sire.SingleComponentForce)):

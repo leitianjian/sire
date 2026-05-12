@@ -1,5 +1,7 @@
 #include "sire/simulator/simulation_loop.hpp"
 
+#include <typeinfo>
+
 #include <aris/core/object.hpp>
 #include <aris/core/reflection.hpp>
 #include <aris/dynamic/model.hpp>
@@ -8,8 +10,8 @@
 #include "sire/core/base_factory.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/core/module_base.hpp"
-#include "sire/core/prop_map.hpp"
 #include "sire/core/profiler.hpp"
+#include "sire/core/prop_map.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/sensor/sensor.hpp"
@@ -19,6 +21,73 @@
 #include "sire/simulator/simulator_modules.hpp"
 
 namespace sire::simulator {
+auto ModelData::initFromModel(const aris::dynamic::Model& model) -> void {
+  partSize = model.partPool().size();
+  motionSize = model.motionPool().size();
+  fcePoolSize = model.forcePool().size();
+  partPqVec.resize(partSize);
+  partVsVec.resize(partSize);
+}
+auto ModelData::update(aris::dynamic::Model& model) -> void {
+  for (size_t i = 0; i < partSize; ++i) {
+    const auto& part = model.partPool()[i];
+    part.getPq(partPqVec[i].data());
+    part.getVs(partVsVec[i].data());
+  }
+  for (size_t i = 0; i < fcePoolSize; ++i) {
+    auto& fce = model.forcePool()[i];
+    if (typeid(fce) == typeid(aris::dynamic::GeneralForce)) {
+      generalFceIdx.push_back(i);
+      std::array<double, 6> arr;
+      std::copy_n(dynamic_cast<aris::dynamic::GeneralForce&>(fce).fce(), 6,
+                  arr.begin());
+      generalFceVec.push_back(std::move(arr));  // move 可省略，array 是值语义
+    } else if (typeid(fce) == typeid(aris::dynamic::SingleComponentForce)) {
+      singleCompFceIdx.push_back(i);
+      singleCompFceVec.push_back(
+          dynamic_cast<aris::dynamic::SingleComponentForce&>(fce).fce());
+    }
+  }
+}
+auto ModelData::resetModel(aris::dynamic::Model& model) -> void {
+  for (sire::Size i = 0; i < partSize; ++i) {
+    model.partPool()[i].setPq(partPqVec[i].data());
+    model.partPool()[i].setVs(partVsVec[i].data());
+    std::fill_n(const_cast<double*>(model.partPool()[i].as()), 6, 0);
+  }
+  // TODO: 重要：一定要加这个，要不然会导致初始状态积分存在不一致的情况
+  // 单独的Mp不行，Mp,Mv之后效果比较好，好像Mp Mv Ma之后效果才最好，很奇怪。
+  for (sire::Size i = 0; i < motionSize; ++ i) {
+    model.motionPool()[i].setMp(0);
+    model.motionPool()[i].setMv(0);
+    model.motionPool()[i].setMa(0);
+  }
+  // double cf[6]{0};
+  // for (sire::Size i = 0; i < model.jointPool().size(); ++ i) {
+  //   model.jointPool()[i].setCf(cf);
+  // }
+  sire::Size gfSize{generalFceIdx.size()}, scfSize{singleCompFceIdx.size()};
+  for (sire::Size i = 0; i < gfSize; ++i) {
+    auto& gf = dynamic_cast<aris::dynamic::GeneralForce&>(
+        model.forcePool()[generalFceIdx[i]]);
+    gf.setFce(generalFceVec[i].data());
+  }
+  for (sire::Size i = 0; i < scfSize; ++i) {
+    dynamic_cast<aris::dynamic::SingleComponentForce&>(
+        model.forcePool()[singleCompFceIdx[i]])
+        .setFce(singleCompFceVec[i]);
+  }
+  for (sire::Size i = gfSize + scfSize; i < model.forcePool().size(); ++i) {
+    if (i < gfSize + scfSize + motionSize) {
+      dynamic_cast<aris::dynamic::SingleComponentForce&>(model.forcePool()[i])
+          .setFce(0);
+    } else {
+      auto& gf =
+          dynamic_cast<aris::dynamic::GeneralForce&>(model.forcePool()[i]);
+      std::fill_n(const_cast<double*>(gf.fce()), 6, 0);
+    }
+  }
+}
 using core::TriggerBase, core::EventBase, core::HandlerBase;
 using std::map;
 struct SimulationLoop::Imp {
@@ -29,6 +98,7 @@ struct SimulationLoop::Imp {
   SensorPool* sensor_pool_ptr_;
   // std::vector<aris::dynamic::Model*> model_pool_{2};
   aris::dynamic::Model* model_ptr_;
+  ModelData init_model_data_;
 
   // 用来保存全局变量，使用xml配置，在trigger event handle中可以使用
   core::PropMap global_variable_pool_;
@@ -119,6 +189,8 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
 
   imp_->model_ptr_->solverPool().add<solver::JointConstraintSolver>();
 
+  imp_->init_model_data_.initFromModel(*imp_->model_ptr_);
+  imp_->init_model_data_.update(*imp_->model_ptr_);
   // 正确设置model中的力
   imp_->physics_engine_ptr_->initPartContactForce2Model();
   // std::cout << aris::core::toXmlString(*(imp_->model_ptr_)) << std::endl;
@@ -144,6 +216,25 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
       imp_->if_get_data_.store(false);
     }
   });
+}
+auto SimulationLoop::init(aris::dynamic::Model* m, physics::PhysicsEngine* e,
+                          simulator::SimulatorModules* sm) -> void {
+  imp_->physics_engine_ptr_ = e;
+  imp_->integrator_pool_ptr_ = &sm->integratorPool();
+
+  // 初始化Simulator中的Model指针
+  // ControlServer中有一个Model的资源，另一个用来备份的Model由Simulator管理
+  imp_->model_ptr_ = m;
+  imp_->timer_.init();
+
+  imp_->event_manager_->init(this);
+  imp_->ctrlPtr_->init(this);
+
+  // 很重要，与积分器用的.back().kinPos()相关，去掉这个就要用fk，不用back
+  imp_->model_ptr_->solverPool().add<solver::JointConstraintSolver>();
+  imp_->init_model_data_.initFromModel(*imp_->model_ptr_);
+  imp_->init_model_data_.update(*imp_->model_ptr_);
+  // 正确设置model中的力
 }
 auto SimulationLoop::timer() -> core::Timer& { return imp_->timer_; }
 auto SimulationLoop::recorder() -> simulator::Recorder& {
@@ -392,7 +483,9 @@ auto SimulationLoop::getGlobalVariablePool() const -> const core::PropMap& {
   return imp_->global_variable_pool_;
 }
 auto SimulationLoop::reset() -> void {
-  imp_->contact_pair_manager_.contactPairMap().clear();
+  imp_->contact_pair_manager_.clear();
+  imp_->event_manager_->reset();
+  imp_->init_model_data_.resetModel(*imp_->model_ptr_);
   imp_->timer_.reset();
   imp_->recorder_.reset();
 }

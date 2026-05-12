@@ -28,7 +28,7 @@ namespace sire::physics::contact {
 using PartPool =
     aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>;
 struct ContinuousForceContactSolver::Imp {
-  unique_ptr<core::MaterialManager> material_manager_;
+  std::unique_ptr<core::MaterialManager> material_manager_;
   // 消耗系数
   double default_cr_;
   // 摩擦系数
@@ -122,8 +122,8 @@ auto ContinuousForceContactSolver::cptContactSolverResult(
         contact_prop_A.getPropValueOrDefault("k", imp_->default_k_),
         contact_prop_B.getPropValueOrDefault("k", imp_->default_k_));
     auto m = imp_->combineContactMass(
-        this->partPoolPtr()->at(geometry_A->partId()).prtIv()[0],
-        this->partPoolPtr()->at(geometry_B->partId()).prtIv()[0]);
+        this->physicsEnginePtr()->currentModel()->partPool().at(geometry_A->partId()).prtIv()[0],
+        this->physicsEnginePtr()->currentModel()->partPool().at(geometry_B->partId()).prtIv()[0]);
     double fn =
         k * pair.depth +
         2 * absLnCr * vn *

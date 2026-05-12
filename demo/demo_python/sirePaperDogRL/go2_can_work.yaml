@@ -3,7 +3,7 @@ policy_path: "{LEGGED_GYM_ROOT_DIR}/policy_1.pt"
 xml_path: "{LEGGED_GYM_ROOT_DIR}/scene.xml"
 
 # Total simulation time
-simulation_duration: 3.13
+simulation_duration: 3
 # Simulation time step
 simulation_dt: 0.002
 ctrl_dt: 0.02

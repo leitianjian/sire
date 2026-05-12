@@ -13,7 +13,6 @@
 #include "sire/server/interface.hpp"
 
 namespace sire::middleware {
-using namespace std;
 // middleware可以在controlserver中调用init，所以有需要的可以放这里，而不是custom_module
 class SIRE_API SireProgramMiddleware : public aris::server::MiddleWare {
   using ModulesPool =

@@ -1,5 +1,7 @@
 #include "sire/physics/physics_engine.hpp"
 
+#include <memory>
+
 #include <coal/data_types.h>
 #include <eigen3/Eigen/Eigenvalues>
 #include <gtest/gtest.h>
@@ -20,6 +22,7 @@
 using namespace sire::geometry;
 using namespace sire::physics;
 using namespace coal;
+using namespace std;
 using sire::physics::common::PenetrationAsPointPair;
 class SimplePenetrationTest : public ::testing::Test {
  protected:
@@ -133,7 +136,7 @@ class SimplePenetrationTest : public ::testing::Test {
     EXPECT_EQ(penetration_results.size(), 0);
   }
 
-  unique_ptr<PhysicsEngine> engine_{std::make_unique<PhysicsEngine>()};
+  std::unique_ptr<PhysicsEngine> engine_{std::make_unique<PhysicsEngine>()};
   collision::CollisionDetection* collision_engine_;
 
   double X_WGs_[14]{

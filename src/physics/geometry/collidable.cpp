@@ -17,6 +17,9 @@
 #include <aris/server/control_server.hpp>
 
 namespace sire::physics::geometry {
+using namespace std;
+using namespace coal;
+
 struct Collidable::Imp {
   unique_ptr<CollisionObject> fcl_object_ptr_{nullptr};
 

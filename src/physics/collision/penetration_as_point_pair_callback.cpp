@@ -12,6 +12,7 @@
 #include "sire/physics/geometry/collidable_geometry.hpp"
 
 namespace sire::physics::collision {
+using namespace coal;
 auto PenetrationAsPointPairCallback::calcDistance(
     const CollisionObject* a, const CollisionObject* b,
     const CollisionRequest& request, common::PenetrationAsPointPair* pair_data)
@@ -92,7 +93,7 @@ auto PenetrationAsPointPairCallback::collide(CollisionObject* fcl_object_A_ptr,
 }
 PenetrationAsPointPairCallback::PenetrationAsPointPairCallback(
     CollisionFilter* filter_in,
-    vector<common::PenetrationAsPointPair>* point_pairs_in)
+    std::vector<common::PenetrationAsPointPair>* point_pairs_in)
     : CollisionCallBackBase(), filter_(filter_in), point_pairs(point_pairs_in) {
   request.num_max_contacts = 1;
   request.enable_contact = true;

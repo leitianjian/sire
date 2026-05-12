@@ -11,29 +11,21 @@
 #include <aris/dynamic/model_basic.hpp>
 #include <aris/dynamic/model_coordinate.hpp>
 
-#include "sire/core/geometry/geometry_on_part.hpp"
+#include "sire/core/geometry/geometry_adapter.hpp"
 #include "sire/core/geometry/sphere_shape.hpp"
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/ext/json.hpp"
 
 namespace sire::geometry {
-using namespace std;
-using json = nlohmann::json;
-class SphereGeometry : public GeometryOnPart {
+class SphereGeometry : public GeometryAdapter<SphereGeometry, SphereShape> {
  public:
-  SphereShape sphereShape;
-  auto virtual shape() -> ShapeBase* override { return &sphereShape; };
   explicit SphereGeometry(double radius = 0.1, int part_id = 0,
                           bool is_dynamic = false,
                           const double* prt_pm = nullptr);
   virtual ~SphereGeometry();
   ARIS_DECLARE_BIG_FOUR(SphereGeometry)
 
-  // 类内部使用的to_json from_json的声明
-  SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
-
-  // nlohammn::json j = o;的时候会自动调用的to_json from_json的声明
-  SIRE_DECLARE_JSON_FRIEND_TWO(SphereGeometry)
+  auto to_json(nlohmann::json& j) const -> void override;
 };
 }  // namespace sire::geometry
 #endif

@@ -28,7 +28,6 @@
 
 namespace sire::physics {
 namespace contact::ps_vs_solver {
-using namespace coal;
 // TODO: 手动去掉两个ground相关的碰撞。
 enum class LhsVariableType { OneDelta, TwoAccel };
 auto cptAccelExtVector(

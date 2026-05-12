@@ -12,7 +12,6 @@
 #include "sire/physics/physics.hpp"
 
 namespace sire::physics::collision {
-using namespace std;
 // drake-based implementation
 enum CollisionRelationship {
   kUnfiltered = 0,
@@ -20,8 +19,8 @@ enum CollisionRelationship {
 };
 class SIRE_API CollisionFilter {
  public:
-  using GeometryMap = map<physics::GeometryId, CollisionRelationship>;
-  using FilterState = map<physics::GeometryId, GeometryMap>;
+  using GeometryMap = std::map<physics::GeometryId, CollisionRelationship>;
+  using FilterState = std::map<physics::GeometryId, GeometryMap>;
   auto addGeometry(geometry::CollidableGeometry& geo) -> bool;
   auto addGeometry(GeometryId id, coal::CollisionObject* obj_ptr) -> bool;
   auto updateGeometry(GeometryId id, coal::CollisionObject* obj_ptr) -> bool;

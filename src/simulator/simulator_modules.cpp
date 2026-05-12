@@ -22,13 +22,24 @@ auto SimulatorModules::init(middleware::SireMiddleware* middleware_ptr)
   imp_->engine_ptr_ = &middleware_ptr->physicsEngine();
   SIRE_ASSERT(imp_->engine_ptr_ != nullptr);
   for (auto& integrator : *imp_->integrator_pool_) {
-    integrator.init(&(middleware_ptr->physicsEngine()));
+    integrator.init(imp_->engine_ptr_);
   }
   for (auto& sensor : *imp_->sensor_pool_) {
     sensor.init();
   }
 }
-
+auto SimulatorModules::init(physics::PhysicsEngine* engine_ptr)
+    -> void {
+  imp_->engine_ptr_ = engine_ptr;
+  for (auto& integrator : *imp_->integrator_pool_) {
+    integrator.init(imp_->engine_ptr_);
+  }
+  for (auto& sensor : *imp_->sensor_pool_) {
+    sensor.init();
+  }
+}
+auto SimulatorModules::reset() -> void {
+}
 auto SimulatorModules::resetIntegratorPool(IntegratorPool* pool) -> void {
   imp_->integrator_pool_.reset(pool);
 }

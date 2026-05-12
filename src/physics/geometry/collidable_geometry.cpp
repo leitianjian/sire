@@ -17,6 +17,8 @@
 #include "sire/core/constants.hpp"
 
 namespace sire::physics::geometry {
+using namespace std;
+using namespace coal;
 // This prt_pm should be the part pose in world coordinate.
 auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
   prt_pm = prt_pm ? prt_pm : sire::default_pm;

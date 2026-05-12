@@ -24,8 +24,6 @@
 
 namespace sire::physics {
 namespace contact {
-using namespace std;
-using namespace coal;
 /* contact-based implementation
  */
 class SIRE_API StiffnessDampingContactSolver : public ContactSolver {

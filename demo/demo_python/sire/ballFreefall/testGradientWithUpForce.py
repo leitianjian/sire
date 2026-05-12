@@ -22,7 +22,7 @@ for i in range(len(parameters)):
     f = force_range[k]
     sire.fromXmlFile(cs, r"D:\code\sire\demo\demo_python\sire\ballFreefall\sire_ball_with_up_force.xml")
     cs.init()
-    simulator = sire.simulator(cs)
+    simulator = sire.simulationLoop(cs)
     pe = cs.physicsEngine()
     simulator.simDuration = sim_duration
     simulator.deltaT = dt

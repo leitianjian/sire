@@ -20,9 +20,9 @@ struct GeometryOnPart::Imp {
   sire::PartId part_id_{0};
   bool relative_to_part_{true};
 };
-auto GeometryOnPart::partPm() const -> const aris::dynamic::double4x4& {
-  return imp_->prt_pm_;
-}
+// auto GeometryOnPart::partPm() const -> const aris::dynamic::double4x4& {
+//   return imp_->prt_pm_;
+// }
 auto GeometryOnPart::isDynamic() const -> bool { return imp_->is_dynamic_; }
 auto GeometryOnPart::setDynamic(bool is_dynamic) -> void {
   imp_->is_dynamic_ = is_dynamic;
@@ -60,14 +60,14 @@ ARIS_DEFINE_BIG_FOUR_CPP(GeometryOnPart)
 GeometryOnPart::~GeometryOnPart() = default;
 
 ARIS_REGISTRATION {
-  auto getPartPm = [](GeometryOnPart* g) -> aris::core::Matrix {
-    double pm[16];
-    aris::dynamic::s_vc(16, *g->partPm(), pm);
-    return aris::core::Matrix(1, 16, pm);
-  };
-  auto setPartPm = [](GeometryOnPart* g, aris::core::Matrix pm) -> void {
-    std::copy_n(pm.data(), 16, const_cast<double*>(*g->partPm()));
-  };
+  // auto getPartPm = [](GeometryOnPart* g) -> aris::core::Matrix {
+  //   double pm[16];
+  //   aris::dynamic::s_vc(16, *g->partPm(), pm);
+  //   return aris::core::Matrix(1, 16, pm);
+  // };
+  // auto setPartPm = [](GeometryOnPart* g, aris::core::Matrix pm) -> void {
+  //   std::copy_n(pm.data(), 16, const_cast<double*>(*g->partPm()));
+  // };
   auto setPartId = [](GeometryOnPart* geometry, sire::PartId part_id) {
     geometry->setPartId(part_id);
   };

@@ -12,7 +12,6 @@
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 
 namespace sire::physics::common {
-using namespace coal;
 // 全局接触点数据池 (存放整个仿真生命周期内所有的点)
 // 所有标量都在一个巨长无比的内存条里，Cache-line 命中率极高
 struct ContactDataPool {

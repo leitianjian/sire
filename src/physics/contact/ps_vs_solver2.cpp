@@ -1407,7 +1407,7 @@ auto filterPairsAndPreprocessInfo(
 }
 
 struct PsVsSolver2::Imp {
-  unique_ptr<core::MaterialManager> material_manager_;
+  std::unique_ptr<core::MaterialManager> material_manager_;
   nlohmann::json records;
   // 消耗系数
   double default_cr_;
@@ -1417,7 +1417,7 @@ struct PsVsSolver2::Imp {
   double default_tv_;
   double default_k_;
   double default_d_;
-  ContactSolverResult prevResult;
+  // ContactSolverResult prevResult;
   std::vector<common::PenetrationAsPointPair> contactEnded;
   std::vector<common::PenetrationAsPointPair> contactNotEnd;
   std::vector<double> contactNotEndCondition;  // x0 \dot{x0}
@@ -1440,7 +1440,8 @@ struct PsVsSolver2::Imp {
         default_cr_(0.2),
         default_k_(2.8e8),
         default_cof_(0.3),
-        default_tv_(0.1) {}
+        default_tv_(0.1),
+        prevStiffScale(1) {}
 };
 PsVsSolver2::PsVsSolver2() : imp_(std::make_unique<Imp>()) {}
 PsVsSolver2::~PsVsSolver2() {};
@@ -1571,7 +1572,7 @@ auto PsVsSolver2::cptContactSolverResult(
     DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
     simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
                                                     currentTime);
-    simulator_ptr->model()->setTime(currentTime);
+    // simulator_ptr->model()->setTime(currentTime);
     simulator_ptr->eventManager().addEvent(std::move(eventPtr));
     return;
   }

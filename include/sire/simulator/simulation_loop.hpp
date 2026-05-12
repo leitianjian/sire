@@ -18,6 +18,7 @@
 #include "sire/physics/physics_engine.hpp"
 #include "sire/sensor/sensor.hpp"
 #include "sire/simulator/controller.hpp"
+#include "sire/simulator/simulator_modules.hpp"
 #include "sire/simulator/event_manager.hpp"
 #include "sire/simulator/recorder.hpp"
 
@@ -26,6 +27,22 @@ namespace middleware {
 class SireMiddleware;
 }
 namespace simulator {
+class SIRE_API ModelData {
+ public:
+   sire::Size partSize{0};
+   sire::Size motionSize{0};
+   std::vector<std::array<double, 7>> partPqVec;
+   std::vector<std::array<double, 6>> partVsVec;
+   sire::Size fcePoolSize{0};
+   std::vector<sire::Size> generalFceIdx;
+   std::vector<sire::Size> singleCompFceIdx;
+   std::vector<std::array<double, 6>> generalFceVec;
+   std::vector<double> singleCompFceVec;
+
+   auto initFromModel(const aris::dynamic::Model& model) -> void;
+   auto update(aris::dynamic::Model& model) -> void;
+   auto resetModel(aris::dynamic::Model& model) -> void;
+}; 
 // Under Model node, using pointer to get useful resource
 class SIRE_API SimulationLoop {
   using IntegratorPool = aris::core::PointerArray<IntegratorBase>;
@@ -115,6 +132,7 @@ class SIRE_API SimulationLoop {
   auto isTimeout() -> bool;
   auto isEventListEmpty() -> bool;
   auto init(middleware::SireMiddleware* middleware) -> void;
+  auto init(aris::dynamic::Model* m, physics::PhysicsEngine* e, simulator::SimulatorModules* sm) -> void;
   auto start() -> void;
   auto isRunning() -> bool;
   auto handleContact() -> void;

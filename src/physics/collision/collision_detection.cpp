@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <unordered_map>
 
 #include <coal/broadphase/broadphase_callbacks.h>
 #include <coal/broadphase/broadphase_collision_manager.h>
@@ -40,9 +41,9 @@ struct CollisionDetection::Imp {
   aris::core::PointerArray<geometry::CollidableGeometry,
                            aris::dynamic::Geometry>* geometry_pool_ptr_{
       nullptr};
-  unordered_map<GeometryId, geometry::CollidableGeometry*>*
+  std::unordered_map<GeometryId, geometry::CollidableGeometry*>*
       dynamic_objects_map_ptr_{nullptr};
-  unordered_map<GeometryId, geometry::CollidableGeometry*>*
+  std::unordered_map<GeometryId, geometry::CollidableGeometry*>*
       anchored_objects_map_ptr_{nullptr};
   CollisionFilter* collision_filter_ptr_{nullptr};
 

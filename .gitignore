@@ -94,7 +94,9 @@ trash/
 
 # simulation results log
 contact_solver_result.json
-result.json
+*result.json
+motion_data/
+*.pdb
 
 # python
 */.env
@@ -104,6 +106,7 @@ result.json
 
 MUJOCO_LOG.txt
 
+*.zip
 *.npz
 *.png
 *.jpg

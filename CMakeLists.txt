@@ -113,6 +113,7 @@ target_sources(sire_core
 		"src/core/geometry/mesh_geometry.cpp"
 		"src/core/geometry/sphere_shape.cpp"
 		"src/core/geometry/sphere_geometry.cpp"
+		"src/core/geometry/height_field_shape.cpp"
 		"src/core/geometry/geometry_base.cpp"
 		"src/core/geometry/geometry_on_part.cpp"
 		#"src/core/geometry/geometry_properties.cpp"
@@ -152,8 +153,12 @@ target_sources(sire_core
 		"include/sire/core/geometry/cylinder_geometry.hpp"
 		"include/sire/core/geometry/mesh_shape.hpp"
 		"include/sire/core/geometry/mesh_geometry.hpp"
+		"include/sire/core/geometry/height_field_shape.hpp"
 		"include/sire/core/geometry/geometry_base.hpp"
 		"include/sire/core/geometry/geometry_on_part.hpp"
+		"include/sire/core/geometry/geometry_adapter.hpp"
+		"include/sire/ext/stb_image_write.h"
+		"include/sire/ext/stb_image.h"
 		#"include/sire/core/geometry/geometry_properties.hpp"
 )
 target_include_directories(sire_core
@@ -208,6 +213,7 @@ target_sources(sire_physics
 		"src/physics/geometry/collidable_geometry.cpp"
 		"src/physics/geometry/sphere_collision_geometry.cpp"
 		"src/physics/geometry/box_collision_geometry.cpp"
+		"src/physics/geometry/height_field.cpp"
 		"src/physics/geometry/capsule_collision_geometry.cpp"
 		"src/physics/geometry/cylinder_collision_geometry.cpp"
 		"src/physics/geometry/mesh_collision_geometry.cpp"
@@ -231,8 +237,10 @@ target_sources(sire_physics
 	PUBLIC
 		"include/sire/physics/geometry/collidable.hpp"
 		"include/sire/physics/geometry/collidable_geometry.hpp"
+		"include/sire/physics/geometry/collision_adapter.hpp"
 		"include/sire/physics/geometry/sphere_collision_geometry.hpp"
 		"include/sire/physics/geometry/box_collision_geometry.hpp"
+		"include/sire/physics/geometry/height_field.hpp"
 		"include/sire/physics/geometry/capsule_collision_geometry.hpp"
 		"include/sire/physics/geometry/cylinder_collision_geometry.hpp"
 		"include/sire/physics/geometry/mesh_collision_geometry.hpp"
@@ -314,6 +322,7 @@ target_sources(sire_simulator
 	PRIVATE
 		"src/simulator/recorder.cpp"
 		"src/simulator/simulation_loop.cpp"
+		"src/simulator/simulator.cpp"
 		"src/simulator/events.cpp"
 		"src/simulator/simulation_result.cpp"
 		"src/simulator/simulator_modules.cpp"
@@ -322,8 +331,9 @@ target_sources(sire_simulator
 		"src/simulator/controller.cpp"
 		"src/simulator/joint_constraint_solver.cpp"
 	PUBLIC
-	"include/sire/simulator/recorder.hpp"
+		"include/sire/simulator/recorder.hpp"
 		"include/sire/simulator/simulation_loop.hpp"
+		"include/sire/simulator/simulator.hpp"
 		"include/sire/simulator/events.hpp"
 		"include/sire/simulator/simulation_result.hpp"
 		"include/sire/simulator/simulator_modules.hpp"
@@ -377,7 +387,7 @@ target_sources(sire_server
 		"src/server/base64.hpp"
 	# "src/server/sire_socket_server.cpp"
 	# "src/server/uuid.h"
-	"src/ext/tinyxml2.cpp"
+		"src/ext/tinyxml2.cpp"
 	PUBLIC
 		"include/sire/server/api.hpp"
 		"include/sire/server/interface.hpp"

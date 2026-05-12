@@ -1444,7 +1444,7 @@ auto filterPairsAndPreprocessInfo(
 }
 
 struct ContactPositionForceSolver::Imp {
-  unique_ptr<core::MaterialManager> material_manager_;
+  std::unique_ptr<core::MaterialManager> material_manager_;
   nlohmann::json records;
   // 消耗系数
   double default_cr_;

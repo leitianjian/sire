@@ -8,43 +8,34 @@
 #include <aris/core/expression_calculator.hpp>
 #include <aris/core/reflection.hpp>
 #include <aris/dynamic/model.hpp>
-#include <aris/server/control_server.hpp>
-
-#include "sire/core/geometry/shape_calculator.hpp"
 
 namespace sire::geometry {
-SIRE_DEFINE_TO_JSON_HEAD(CapsuleGeometry) {
-  GeometryOnPart::to_json(j);
-  ShapeToName cal;
-  capsuleShape.Reify(&cal);
-  j["shape_type"] = cal.string();
-  j["radius"] = capsuleShape.radius();
-  j["length"] = capsuleShape.length();
+auto CapsuleGeometry::to_json(nlohmann::json& j) const -> void {
+  GeometryAdapter::to_json(j);
+  j["radius"] = typedShape.radius();
+  j["length"] = typedShape.length();
 }
 
 CapsuleGeometry::CapsuleGeometry(double radius, double length, int part_id,
                                  bool is_dynamic, const double* prt_pm)
-    : GeometryOnPart(prt_pm, part_id, is_dynamic),
-      capsuleShape(radius, length) {}
+    : GeometryAdapter(part_id, is_dynamic, prt_pm, radius, length) {}
 
 CapsuleGeometry::~CapsuleGeometry() = default;
 
 ARIS_DEFINE_BIG_FOUR_CPP(CapsuleGeometry)
 
-SIRE_DEFINE_JSON_OUTER_TWO(CapsuleGeometry)
-
 ARIS_REGISTRATION {
-  auto setRadius = [](CapsuleGeometry* geo, double radius) -> void {
-    geo->capsuleShape.setRadius(radius);
+  auto setRadius = [](CapsuleGeometry* cyl, double radius) -> void {
+    cyl->typedShape.setRadius(radius);
   };
-  auto getRadius = [](CapsuleGeometry* geo) -> double {
-    return geo->capsuleShape.radius();
+  auto setLength = [](CapsuleGeometry* cyl, double length) -> void {
+    cyl->typedShape.setLength(length);
   };
-  auto setLength = [](CapsuleGeometry* geo, double length) -> void {
-    geo->capsuleShape.setLength(length);
+  auto getRadius = [](CapsuleGeometry* cyl) -> double {
+    return cyl->typedShape.radius();
   };
-  auto getLength = [](CapsuleGeometry* geo) -> double {
-    return geo->capsuleShape.length();
+  auto getLength = [](CapsuleGeometry* cyl) -> double {
+    return cyl->typedShape.length();
   };
   aris::core::class_<CapsuleGeometry>("CapsuleGeometry")
       .inherit<GeometryOnPart>()

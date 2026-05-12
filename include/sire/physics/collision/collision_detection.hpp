@@ -19,8 +19,6 @@
 namespace sire::physics {
 class PhysicsEngine;
 namespace collision {
-using namespace std;
-
 /* drake-based implementation
  * filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
  * 使用无锁数据同步从transfer中取数据

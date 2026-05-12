@@ -13,23 +13,16 @@
 #include <aris/dynamic/model_basic.hpp>
 #include <aris/dynamic/model_coordinate.hpp>
 
-#include "sire/core/geometry/sphere_geometry.hpp"
 #include "sire/core/geometry/sphere_shape.hpp"
 #include "sire/core/sire_decl_def_macro.hpp"
 #include "sire/ext/json.hpp"
-#include "sire/physics/geometry/collidable.hpp"
-#include "sire/physics/geometry/collidable_geometry.hpp"
+#include "sire/physics/geometry/collision_adapter.hpp"
 
-namespace sire::physics {
-namespace geometry {
-using json = nlohmann::json;
-/* unique geometry id for every added collision geometry */
-using namespace std;
-using namespace coal;
-using GeometryId = sire::geometry::GeometryId;
-class SphereCollisionGeometry : public CollidableGeometry {
+namespace sire::physics::geometry {
+class SphereCollisionGeometry
+    : public CollisionAdapter<SphereCollisionGeometry,
+                              sire::geometry::SphereShape> {
  public:
-  sire::geometry::SphereShape sphereShape;
   auto init() -> void override;
   explicit SphereCollisionGeometry(double radius = 0.1, int part_id = 0,
                                    bool is_dynamic = false,
@@ -37,9 +30,9 @@ class SphereCollisionGeometry : public CollidableGeometry {
                                    const std::string& material = "m1",
                                    const std::string& propStr = "{}");
   virtual ~SphereCollisionGeometry();
-  ARIS_DELETE_BIG_FOUR(SphereCollisionGeometry)
-  SIRE_DECLARE_JSON_INTER_OVERRIDE_TWO
+  SIRE_DECLARE_MOVE_CTOR(SphereCollisionGeometry)
+
+  auto to_json(nlohmann::json& j) const -> void override;
 };
-}  // namespace geometry
-}  // namespace sire::physics
+}  // namespace sire::physics::geometry
 #endif

@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
   sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/box.xml')
   cs.init()
-  simulator = sire.simulator(cs)
+  simulator = sire.simulationLoop(cs)
   pe = cs.physicsEngine()
   simulator.simDuration = sim_duration
   simulator.deltaT = dt

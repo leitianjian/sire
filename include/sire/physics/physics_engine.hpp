@@ -19,7 +19,8 @@
 namespace sire {
 namespace simulator {
 class SimulationLoop;
-};
+class Simulator;
+};  // namespace simulator
 namespace middleware {
 class SireMiddleware;
 }
@@ -120,6 +121,8 @@ class SIRE_API PhysicsEngine {
   auto init(middleware::SireMiddleware* middlewarePtr) -> void;
   auto init(simulator::SimulationLoop* simLoopPtr) -> void;
   auto init(aris::dynamic::Model* m) -> void;
+  auto init(aris::dynamic::Model* m, simulator::SimulationLoop* simLoopPtr)
+      -> void;
 
   // this prt_pm represent the pose of geometry on part coordinate
   auto addSphereGeometry(double radius, int part_id = 0,
@@ -164,9 +167,9 @@ class SIRE_API PhysicsEngine {
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
   auto integrateByContactInfo(
-    double suggestTime,
-    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    std::vector<common::PointPairContactInfo>& contact_info) -> void;
+      double suggestTime,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<common::PointPairContactInfo>& contact_info) -> void;
   auto recordsContactCptInfo() -> nlohmann::json;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
@@ -180,6 +183,7 @@ class SIRE_API PhysicsEngine {
 
   auto saveInitialModel(aris::dynamic::Model& model) -> void;
   auto resetInitialModel() -> void;
+  auto reset() -> void;
 
   PhysicsEngine();
   virtual ~PhysicsEngine();

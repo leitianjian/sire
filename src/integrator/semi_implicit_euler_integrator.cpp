@@ -33,7 +33,7 @@ auto SemiImplicitEulerIntegrator::updPs(double dt) -> bool {
     pm = *part.pm();
     part.getVs(vs_buffer);
     // part.getPm(pm_buffer);
-    // aris::dynamic::dsp(1, 6, as_buffer);
+    // aris::dynamic::dsp(1, 6, as);
     double temp_pm[16]{0}, pm_result[16]{0};
     for (sire::Size j = 0; j < kTwistSize; ++j) {
       vs_buffer[j] += dt * as[j];

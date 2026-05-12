@@ -103,10 +103,10 @@ if __name__ == "__main__":
   import os
   cs = sire.ControlServer.instance()
   # sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/sire_ball_rotate.xml')
-  sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/sire_ball_free_fall.xml')
+  sire.fromXmlFile(cs, r'D:\code\sire\demo\demo_python\sire\ballFreefall\sire_ball_free_fall2.xml')
   cs.init()
   
-  simulator = sire.simulator(cs)
+  simulator = sire.simulationLoop(cs)
   while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
     simulator.step(1, False)
   

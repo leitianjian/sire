@@ -30,8 +30,8 @@ CallbackData::CallbackData(CollisionFilter* collision_filter_in)
   collision_data_.request.gjk_tolerance = 2e-12;
 }
 }  // namespace has_collisions
-auto CollisionExistsCallback::collide(CollisionObject* o1,
-                                      CollisionObject* o2) -> bool {
+auto CollisionExistsCallback::collide(coal::CollisionObject* o1,
+                                      coal::CollisionObject* o2) -> bool {
   if (!data.collision_filter_.canCollideWith(o1, o2)) return false;
   if (data.collision_data_.done) return data.collision_exist_;
 

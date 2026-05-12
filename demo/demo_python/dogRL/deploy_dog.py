@@ -95,7 +95,7 @@ if __name__ == "__main__":
     cs = sire.ControlServer.instance()
     sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/dogRL/go2_modified.xml')
     cs.init()
-    simulator = sire.simulator(cs)
+    simulator = sire.simulationLoop(cs)
     model = cs.model()
     simulator.simDuration = 10
     simulator.ctrlT = 0.002

@@ -209,7 +209,7 @@ def main():
   cs = sire.ControlServer.instance()
   sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/a1_modified.xml')
   cs.init()
-  simulator = sire.simulator(cs)
+  simulator = sire.simulationLoop(cs)
   model = cs.model()
   gait = GaitParams()
 

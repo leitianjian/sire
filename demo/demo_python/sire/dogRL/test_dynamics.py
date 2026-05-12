@@ -232,12 +232,11 @@ def main():
   # configPath = str((currentDir / "sire_edge_simple.xml").resolve())
   sire.fromXmlFile(cs, configPath)
   cs.init()
-  simulator = sire.simulator(cs)
+  simulator = sire.simulationLoop(cs)
   model = cs.model()
   for i in range(12):
-    print(isinstance(model.force(0), sire.SingleComponentForce))
     if (isinstance(model.force(0), sire.SingleComponentForce)):
-      model.force(0).setFce(1)
+      model.force(0).fce = 1
   print("model joint constraints force before forward dynamics")
   for i in range(model.numJoints()):
     print("joint", i, "cf =", model.joint(i).cf())
@@ -249,12 +248,12 @@ def main():
     print("joint", i, "cf =", model.joint(i).cf())
   print("After forward dynamics and before update motion accel")
   for i in range(model.numMotions()):
-    print("motion", i, "accel =", model.motion(i).ma())
+    print("motion", i, "accel =", model.motion(i).ma)
   for i in range(model.numMotions()):
     model.motion(i).updA()
   print("After update motion accel")
   for i in range(model.numMotions()):
-    print("motion", i, "accel =", model.motion(i).ma())
+    print("motion", i, "accel =", model.motion(i).ma)
   
   for i in range(model.numLinks()):
     print("Link", i, "pq", model.link(i).getPq())

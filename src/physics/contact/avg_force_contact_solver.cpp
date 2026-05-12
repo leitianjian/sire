@@ -973,7 +973,7 @@ auto filterPairsAndPreprocessInfo(
 }
 
 struct AverageForceContactSolver::Imp {
-  unique_ptr<core::MaterialManager> material_manager_;
+  std::unique_ptr<core::MaterialManager> material_manager_;
   // 消耗系数
   double default_cr_;
   // 摩擦系数

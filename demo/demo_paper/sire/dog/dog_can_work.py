@@ -109,7 +109,7 @@ if __name__ == "__main__":
     cs = sire.ControlServer.instance()
     sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_paper/sire/dog/go2_can_work.xml')
     cs.init()
-    simulator = sire.simulator(cs)
+    simulator = sire.simulationLoop(cs)
     model = cs.model()
     simulator.simDuration = simulation_duration
     simulator.deltaT = simulation_dt

@@ -10,6 +10,7 @@
 #include "sire/core/string_utils.hpp"
 #include "sire/core/constants.hpp"
 namespace sire::core {
+using std::string;
 using std::unordered_map;
 struct PropMap::Imp {
   unordered_map<string, double> map_;

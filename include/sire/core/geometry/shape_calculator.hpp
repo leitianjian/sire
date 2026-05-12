@@ -16,6 +16,7 @@ class MeshShape;
 class SphereShape;
 class CapsuleShape;
 class CylinderShape;
+class HeightFieldShape;
 class ShapeCalculator {
  public:
   virtual ~ShapeCalculator();
@@ -25,6 +26,7 @@ class ShapeCalculator {
   // virtual void ImplementGeometry(const Capsule& capsule, void* user_data);
   // virtual void ImplementGeometry(const Convex& convex, void* user_data);
   virtual void ImplementGeometry(const CylinderShape& cylinder, void* user_data);
+  virtual void ImplementGeometry(const HeightFieldShape& height_field, void* user_data);
   // virtual void ImplementGeometry(const Ellipsoid& ellipsoid, void* user_data);
   // virtual void ImplementGeometry(const HalfSpace& half_space, void* user_data);
   virtual void ImplementGeometry(const MeshShape& mesh, void* user_data);
@@ -71,6 +73,7 @@ class ShapeToName final : public ShapeCalculator {
   void ImplementGeometry(const MeshShape& mesh, void* user_data) final;
   // void ImplementGeometry(const MeshcatCone& cone, void* user_data) final;
   void ImplementGeometry(const SphereShape& sphere, void* user_data) final;
+  void ImplementGeometry(const HeightFieldShape& height_field, void* user_data) final;
 
   //@}
   const std::string& string() const { return string_; }
@@ -94,6 +97,7 @@ class ShapeToInertia final : public ShapeCalculator {
   void ImplementGeometry(const MeshShape& mesh, void* user_data) final;
   // void ImplementGeometry(const MeshcatCone& cone, void* user_data) final;
   void ImplementGeometry(const SphereShape& sphere, void* user_data) final;
+  void ImplementGeometry(const HeightFieldShape& height_field, void* user_data) final;
 };
 }  // namespace sire::geometry
 #endif

@@ -11,6 +11,8 @@
 #include "sire/physics/geometry/collidable_geometry.hpp"
 
 namespace sire::physics::collision {
+using namespace std;
+using namespace coal;
 auto CollidedObjectsCallback::collide(CollisionObject* o1, CollisionObject* o2)
     -> bool {
   // NOTE: Here and below, false is returned regardless of whether collision

@@ -7,7 +7,6 @@
 #include "sire/core/geometry/geometry_base.hpp"
 
 namespace sire::physics::common {
-using namespace coal;
 /** A characterization of the intersection of two penetrating geometries. The
  characterization consists of a pair of points and a normal. The points
  represent a point on each geometry that most deeply penetrates the other
@@ -41,16 +40,16 @@ struct PenetrationAsPointPair {
   sire::geometry::GeometryId id_B;
   /** The point on A that most deeply penetrates B, measured and expressed in
    the world frame. */
-  Vec3s p_WCa;
+  coal::Vec3s p_WCa;
   /** The point on B that most deeply penetrates A, measured and expressed in
    the world frame. */
-  Vec3s p_WCb;
+  coal::Vec3s p_WCb;
   /** Contact point position in world frame*/
-  Vec3s p_WC;
+  coal::Vec3s p_WC;
   /** The unit-length normal which defines the penetration direction, pointing
    from geometry A into geometry B, measured and expressed in the world frame.
    It _approximates_ the normal to the plane on which the contact patch lies. */
-  Vec3s nhat_AB_W;
+  coal::Vec3s nhat_AB_W;
   /** The penetration depth. Should be positive*/
   double depth{-1.0};
 

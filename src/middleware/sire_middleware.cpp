@@ -9,11 +9,11 @@
 
 namespace sire::middleware {
 struct SireMiddleware::Imp {
-  unique_ptr<simulator::SimulationLoop> simulator_{
+  std::unique_ptr<simulator::SimulationLoop> simulator_{
       new simulator::SimulationLoop()};
-  unique_ptr<physics::PhysicsEngine> physics_engine_{
+  std::unique_ptr<physics::PhysicsEngine> physics_engine_{
       new physics::PhysicsEngine()};
-  unique_ptr<simulator::SimulatorModules> simulator_modules_{
+  std::unique_ptr<simulator::SimulatorModules> simulator_modules_{
       new simulator::SimulatorModules()};
 };
 SireMiddleware::SireMiddleware() : imp_(new Imp) {}

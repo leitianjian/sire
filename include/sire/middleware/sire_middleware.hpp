@@ -20,7 +20,6 @@
 
 // TODO(leitianjian): SireMiddleware和Programming middleware功能上需要合并
 namespace sire::middleware {
-using namespace std;
 class SIRE_API SireMiddleware : public aris::server::MiddleWare {
  public:
   auto virtual init() -> void override;

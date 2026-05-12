@@ -63,11 +63,16 @@ EventManager::EventManager() : imp_(std::make_unique<Imp>()) {
 EventManager::~EventManager() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(EventManager);
 auto EventManager::init(simulator::SimulationLoop* simulationLoopPtr) -> void {
+  addEvent(createEventById(0));
   imp_->header_ = imp_->event_list_.begin();
   SIRE_ASSERT(simulationLoopPtr != nullptr);
   imp_->simulationLoopPtr_ = simulationLoopPtr;
 }
-
+auto EventManager::reset() -> void {
+  imp_->event_list_.clear();
+  addEvent(createEventById(0));
+  imp_->header_ = imp_->event_list_.begin();
+}
 auto EventManager::eventHandlerMap() -> std::map<sire::Size, sire::Size>& {
   return imp_->event_handler_map_;
 }
@@ -75,7 +80,6 @@ auto EventManager::addEventHandlerRule(sire::core::EventId name1,
                                        sire::core::HandlerId name2) -> void {
   imp_->event_handler_map_[name1] = name2;
 }
-
 auto EventManager::resetEventHandlerPairPool(
     aris::core::PointerArray<EventHandlerIdPair>* pool) -> void {
   for (auto& id_pair : *pool) {

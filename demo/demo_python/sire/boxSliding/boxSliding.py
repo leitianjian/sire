@@ -129,7 +129,7 @@ for i in range(lowerBound, upperBound + 1):
   # boxPrt.add
   # sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/sire_ball_rotate.xml')
   
-  # simulator = sire.simulator(cs)
+  # simulator = sire.simulationLoop(cs)
   # while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
   #   simulator.step(1, False)
   
