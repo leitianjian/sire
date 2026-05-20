@@ -1,6 +1,7 @@
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 
 #include <coal/shape/geometric_shapes.h>
+
 #include <aris/core/reflection.hpp>
 
 namespace sire::physics::geometry {
@@ -20,9 +21,11 @@ auto CapsuleCollisionGeometry::init() -> void {
 CapsuleCollisionGeometry::CapsuleCollisionGeometry(double radius, double length,
                                                    int part_id, bool is_dynamic,
                                                    const double* prt_pm,
+                                                   bool visible,
                                                    const std::string& material,
                                                    const std::string& propStr)
-    : CollisionAdapter(part_id, is_dynamic, prt_pm, material, propStr, radius, length) {}
+    : CollisionAdapter(part_id, is_dynamic, prt_pm, visible, material, propStr,
+                       radius, length) {}
 
 CapsuleCollisionGeometry::~CapsuleCollisionGeometry() = default;
 

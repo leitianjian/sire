@@ -17,9 +17,10 @@ auto CylinderCollisionGeometry::init() -> void {
 CylinderCollisionGeometry::CylinderCollisionGeometry(double radius, double length,
                                                      int part_id, bool is_dynamic,
                                                      const double* prt_pm,
+                                                     bool visible,
                                                      const std::string& material,
                                                      const std::string& propStr)
-    : CollisionAdapter(part_id, is_dynamic, prt_pm, material, propStr, radius, length) {}
+    : CollisionAdapter(part_id, is_dynamic, prt_pm, visible, material, propStr, radius, length) {}
 
 CylinderCollisionGeometry::~CylinderCollisionGeometry() = default;
 

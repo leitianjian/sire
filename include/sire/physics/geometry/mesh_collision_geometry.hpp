@@ -15,6 +15,7 @@ class MeshCollisionGeometry
                                  const std::array<double, 3>& scale = {1.0},
                                  int part_id = 0, bool is_dynamic = false,
                                  const double* prt_pm = nullptr,
+                                 bool visible = true,
                                  const std::string& material = "m1",
                                  const std::string& propStr = "{}");
   virtual ~MeshCollisionGeometry();

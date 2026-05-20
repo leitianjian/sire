@@ -27,11 +27,11 @@ auto BoxCollisionGeometry::init() -> void {
 
 BoxCollisionGeometry::BoxCollisionGeometry(double x, double y, double z,
                                            int part_id, bool is_dynamic,
-                                           const double* prt_pm,
+                                           const double* prt_pm, bool visible,
                                            const std::string& material,
                                            const std::string& propStr)
-    : CollisionAdapter(part_id, is_dynamic, prt_pm, material, propStr, x, y,
-                       z) {}
+    : CollisionAdapter(part_id, is_dynamic, prt_pm, visible, material, propStr,
+                       x, y, z) {}
 
 BoxCollisionGeometry::~BoxCollisionGeometry() = default;
 

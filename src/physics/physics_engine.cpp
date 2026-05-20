@@ -239,35 +239,35 @@ auto PhysicsEngine::anchoredObjectsMap()
     -> std::unordered_map<GeometryId, geometry::CollidableGeometry*>& {
   return imp_->anchored_objects_map_;
 }
-auto PhysicsEngine::addSphereGeometry(double radius, int part_id,
-                                      bool is_dynamic, const double* prt_pm)
-    -> bool {
-  imp_->geometry_pool_->add<geometry::SphereCollisionGeometry>(
-      radius, part_id, is_dynamic, prt_pm);
-  return true;
-}
-auto PhysicsEngine::addBoxGeometry(double x, double y, double z, int part_id,
-                                   bool is_dynamic, const double* prt_pm)
-    -> bool {
-  imp_->geometry_pool_->add<geometry::BoxCollisionGeometry>(x, y, z, part_id,
-                                                            is_dynamic, prt_pm);
-  return true;
-}
-auto PhysicsEngine::addMeshGeometry(const std::string& resource_path,
-                                    int part_id, bool is_dynamic,
-                                    const double* prt_pm) -> bool {
-  std::array<double, 3> default_scale{1.0, 1.0, 1.0};
-  imp_->geometry_pool_->add<geometry::MeshCollisionGeometry>(
-      resource_path, default_scale, part_id, is_dynamic, prt_pm);
-  return true;
-}
-auto PhysicsEngine::addCapsuleGeometry(double radius, double length,
-                                       int part_id, bool is_dynamic,
-                                       const double* prt_pm) -> bool {
-  imp_->geometry_pool_->add<geometry::CapsuleCollisionGeometry>(
-      radius, length, part_id, is_dynamic, prt_pm);
-  return true;
-}
+// auto PhysicsEngine::addSphereGeometry(double radius, int part_id,
+//                                       bool is_dynamic, const double* prt_pm)
+//     -> bool {
+//   imp_->geometry_pool_->add<geometry::SphereCollisionGeometry>(
+//       radius, part_id, is_dynamic, prt_pm);
+//   return true;
+// }
+// auto PhysicsEngine::addBoxGeometry(double x, double y, double z, int part_id,
+//                                    bool is_dynamic, const double* prt_pm)
+//     -> bool {
+//   imp_->geometry_pool_->add<geometry::BoxCollisionGeometry>(x, y, z, part_id,
+//                                                             is_dynamic, prt_pm);
+//   return true;
+// }
+// auto PhysicsEngine::addMeshGeometry(const std::string& resource_path,
+//                                     int part_id, bool is_dynamic,
+//                                     const double* prt_pm) -> bool {
+//   std::array<double, 3> default_scale{1.0, 1.0, 1.0};
+//   imp_->geometry_pool_->add<geometry::MeshCollisionGeometry>(
+//       resource_path, default_scale, part_id, is_dynamic, prt_pm);
+//   return true;
+// }
+// auto PhysicsEngine::addCapsuleGeometry(double radius, double length,
+//                                        int part_id, bool is_dynamic,
+//                                        const double* prt_pm) -> bool {
+//   imp_->geometry_pool_->add<geometry::CapsuleCollisionGeometry>(
+//       radius, length, part_id, is_dynamic, prt_pm);
+//   return true;
+// }
 auto PhysicsEngine::addDynamicGeometry(
     geometry::CollidableGeometry& dynamic_geometry) -> bool {
   imp_->collision_detection_->addDynamicGeometry2FCL(dynamic_geometry);

@@ -245,7 +245,7 @@ def main():
   # for i in range(model.numMotions()):
   #   motion = model.motionPool()[i]
   #   motion.desiredValue = motion_fce[i]
-#   simulator = sire.simulator(cs)
+#   simulator = sire.simulationLoop(cs)
   for i in range(model.numMotions()):
     print(isinstance(model.force(i), sire.SingleComponentForce))
     if (isinstance(model.force(i), sire.SingleComponentForce)):
@@ -254,6 +254,10 @@ def main():
   print("model joint constraints force before forward dynamics")
   for i in range(model.numJoints()):
     print("joint", i, "cf =", model.joint(i).cf())
+  for i in range(model.numMotions()):
+    model.motion(i).ma = 100
+    model.motion(i).mv = 100
+    model.motion(i).mp = 100
   if model.forwardDynamics():
     print("Model forward dynamics failed, please check the model configuration.")
     return
@@ -271,8 +275,8 @@ def main():
   
   for i in range(model.numLinks()):
     print("Link", i, "pq", model.link(i).getPq())
-    print("Link", i, "as", model.link(i).getAs())
     print("Link", i, "vs", model.link(i).vs)
+    print("Link", i, "as", model.link(i).getAs())
 
 if __name__ == "__main__":
   main()

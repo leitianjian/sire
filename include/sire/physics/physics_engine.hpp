@@ -125,18 +125,18 @@ class SIRE_API PhysicsEngine {
       -> void;
 
   // this prt_pm represent the pose of geometry on part coordinate
-  auto addSphereGeometry(double radius, int part_id = 0,
-                         bool is_dynamic = false,
-                         const double* prt_pm = nullptr) -> bool;
-  auto addBoxGeometry(double x, double y, double z, int part_id = 0,
-                      bool is_dynamic = false, const double* prt_pm = nullptr)
-      -> bool;
-  auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
-                       bool is_dynamic = false, const double* prt_pm = nullptr)
-      -> bool;
-  auto addCapsuleGeometry(double radius, double length, int part_id = 0,
-                          bool is_dynamic = false,
-                          const double* prt_pm = nullptr) -> bool;
+//   auto addSphereGeometry(double radius, int part_id = 0,
+//                          bool is_dynamic = false,
+//                          const double* prt_pm = nullptr) -> bool;
+//   auto addBoxGeometry(double x, double y, double z, int part_id = 0,
+//                       bool is_dynamic = false, const double* prt_pm = nullptr)
+//       -> bool;
+//   auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
+//                        bool is_dynamic = false, const double* prt_pm = nullptr)
+//       -> bool;
+//   auto addCapsuleGeometry(double radius, double length, int part_id = 0,
+//                           bool is_dynamic = false,
+//                           const double* prt_pm = nullptr) -> bool;
   auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
       -> bool;
   auto addAnchoredGeometry(geometry::CollidableGeometry& anchored_geometry)

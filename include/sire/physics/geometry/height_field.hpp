@@ -9,8 +9,8 @@ namespace sire::physics::geometry {
 class HeightField
     : public CollisionAdapter<HeightField, sire::geometry::HeightFieldShape> {
  private:
-  double scaleZ_ {1};
-  std::string filePath_ {""};
+  double scaleZ_{1};
+  std::string filePath_{""};
 
  public:
   auto init() -> void override;
@@ -18,7 +18,7 @@ class HeightField
                        int ncol = 1, double min_height = 0,
                        const std::vector<double>& heights = {0},
                        int part_id = 0, bool is_dynamic = false,
-                       const double* prt_pm = nullptr,
+                       const double* prt_pm = nullptr, bool visible = true,
                        const std::string& material = "m1",
                        const std::string& propStr = "{}");
   virtual ~HeightField();

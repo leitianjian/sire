@@ -35,15 +35,14 @@ def calculate_inclined_positions(angle_deg=10):
   # import sys
   # sys.path.append("D:/code/sire/install/python/debug")
 import sire
-cs = sire.ControlServer.instance()
-model = cs.model()
+sim = sire.Simulator()
+model = sim.model()
 model.addSolvers()
-middleware = cs.addSireMiddleware()
-simulator = middleware.simulationLoop()
-simulator.simDuration = 0.6
-simulator.setEventHandlerMap({0:6, 1:7, 2:8})
-physicsEngine = middleware.physicsEngine()
-contactSolver = physicsEngine.addContactPositionForceSolver()
+simulator = sim.simulationLoop()
+simulator.simDuration = 0.107
+simulator.setEventHandlerMap({0:9, 1:10, 2:11})
+physicsEngine = sim.physicsEngine()
+contactSolver = physicsEngine.addPsVsSolver2()
 physicsEngine.collisionDetectionFlag = True
 physicsEngine.contactSolverFlag = True
 contactSolver.setDefaultProp("{k:1.4e8,d:10000,cr:0.2}")
@@ -74,8 +73,8 @@ physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,0.5,0,1,0,0.5,0,0,1
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,0.5,0,1,0,-0.5,0,0,1,-0.4,0,0,0,1], material="m2")
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,-0.5,0,1,0,0.5,0,0,1,-0.4,0,0,0,1], material="m2")
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,-0.5,0,1,0,-0.5,0,0,1,-0.4,0,0,0,1], material="m2")
-print(sire.toXmlString(cs))
-cs.init()
+print(sire.toXmlString(sim))
+sim.init()
 for i in range(4):
   physicsEngine.collisionFilter().enableCollisionPair(1, i + 3)
 

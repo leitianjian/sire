@@ -22,13 +22,11 @@ auto SphereCollisionGeometry::init() -> void {
       std::make_shared<coal::Sphere>(typedShape.radius()), getCoalTransform()));
 }
 
-SphereCollisionGeometry::SphereCollisionGeometry(double radius, int part_id,
-                                                 bool is_dynamic,
-                                                 const double* prt_pm,
-                                                 const std::string& material,
-                                                 const std::string& propStr)
-    : CollisionAdapter(part_id, is_dynamic, prt_pm, material, propStr, radius) {
-}
+SphereCollisionGeometry::SphereCollisionGeometry(
+    double radius, int part_id, bool is_dynamic, const double* prt_pm,
+    bool visible, const std::string& material, const std::string& propStr)
+    : CollisionAdapter(part_id, is_dynamic, prt_pm, visible, material, propStr,
+                       radius) {}
 
 SphereCollisionGeometry::~SphereCollisionGeometry() = default;
 

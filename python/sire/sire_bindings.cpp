@@ -31,6 +31,7 @@
 #include "sire/physics/collision/collision_filter.hpp"
 #include "sire/physics/contact/contact_position_force_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver.hpp"
+#include "sire/physics/contact/ps_vs_solver2.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable.hpp"
@@ -72,6 +73,12 @@ PYBIND11_MODULE(sire, m) {
         [](aris::dynamic::Model& self, const std::string& xml) {
           aris::core::fromXmlString(self, xml);
         });
+  m.def("s_mm", [](int m, int n, int k, std::vector<double>& pm1,
+                   std::vector<double>& pm2) {
+    std::vector<double> pm_out(m * n);
+    aris::dynamic::s_mm(m, n, k, pm1.data(), pm2.data(), pm_out.data());
+    return pm_out;
+  });
   // 其他常用构建函数
   m.def("createModelDelta", [](const aris::dynamic::DeltaParam& param) {
     return aris::dynamic::createModelDelta(param);
@@ -185,7 +192,59 @@ PYBIND11_MODULE(sire, m) {
       .def("simulatorModules",
            py::overload_cast<>(&sire::simulator::Simulator::simulatorModules),
            py::return_value_policy::reference_internal)
-      .def("reset", &sire::simulator::Simulator::simReset);
+      .def("reset", &sire::simulator::Simulator::simReset)
+      .def("displayInitJson",
+           [](sire::simulator::Simulator& self) -> nlohmann::json {
+             // get control server config of geometry in part pool
+             nlohmann::json geo_pool;
+             // 取出 Part下面的每一个geometry
+             nlohmann::json displayInitJson = nlohmann::json::object();
+             auto& model = self.model();
+             for (sire::Size i = 0; i < model.partPool().size(); ++i) {
+               nlohmann::json json;
+               aris::dynamic::Part& part = model.partPool().at(i);
+               std::array<double, 16> buffer;
+               for (sire::Size j = 0; j < part.geometryPool().size(); ++j) {
+                 dynamic_cast<sire::geometry::GeometryBase&>(
+                     part.geometryPool().at(j))
+                     .to_json(json);
+                 aris::dynamic::s_vc(
+                     16,
+                     const_cast<double*>(
+                         *dynamic_cast<sire::geometry::GeometryBase&>(
+                              part.geometryPool().at(j))
+                              .pm()),
+                     buffer.data());
+                 json["init_pm"] = buffer;
+                 geo_pool.push_back(json);
+               }
+             }
+             auto& gp = self.physicsEngine().geometryPool();
+             for (sire::Size i = 0; i < gp.size(); ++i) {
+               if (gp[i].visible()) {
+                 std::array<double, 16> buffer;
+                 nlohmann::json json;
+                 gp.at(i).to_json(json);
+                 aris::dynamic::s_vc(16, const_cast<double*>(*gp.at(i).pm()),
+                                     buffer.data());
+                 json["init_pm"] = buffer;
+                 geo_pool.push_back(json);
+               }
+             }
+             // 设置part相关初始化的信息
+             nlohmann::json part_init_config;
+             part_init_config.push_back(
+                 std::array<double, sire::kPosQuatSize>({0, 0, 0, 0, 0, 0, 1}));
+             for (sire::Size i = 1; i < model.partPool().size(); ++i) {
+               aris::dynamic::Part& part = model.partPool().at(i);
+               std::array<double, sire::kPosQuatSize> part_pq_buffer;
+               part.getPq(part_pq_buffer.data());
+               part_init_config.push_back(part_pq_buffer);
+             }
+             displayInitJson["geometry_pool"] = geo_pool;
+             displayInitJson["part_init_config"] = part_init_config;
+             return displayInitJson;
+           });
 
   py::class_<aris::server::ControlServer,
              std::unique_ptr<aris::server::ControlServer, py::nodelete>>(
@@ -330,16 +389,19 @@ PYBIND11_MODULE(sire, m) {
           "addBoxGeometry",
           [](sire::physics::PhysicsEngine& self, double x, double y, double z,
              sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
-             const std::string& material, const std::string& propStr) {
+             bool visible, const std::string& material,
+             const std::string& propStr) {
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
             self.geometryPool()
                 .add<sire::physics::geometry::BoxCollisionGeometry>(
-                    x, y, z, part_id, is_dynamic, pm.data(), material, propStr);
+                    x, y, z, part_id, is_dynamic, pm.data(), visible, material,
+                    propStr);
           },
           py::arg("x"), py::arg("y"), py::arg("z"), py::arg("part_id"),
           py::arg("is_dynamic") = true, py::arg("prt_pm") = py::list(),
-          py::arg("material") = "m1", py::arg("propStr") = "{}")
+          py::arg("visible") = true, py::arg("material") = "m1",
+          py::arg("propStr") = "{}")
       .def(
           "addSphereGeometry",
           [](sire::physics::PhysicsEngine& self, double radius,
@@ -353,63 +415,73 @@ PYBIND11_MODULE(sire, m) {
           "addSphereGeometry",
           [](sire::physics::PhysicsEngine& self, double radius,
              sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
-             const std::string& material, const std::string& propStr) {
+             bool visible, const std::string& material,
+             const std::string& propStr) {
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
             // 创建球体几何体
             self.geometryPool()
                 .add<sire::physics::geometry::SphereCollisionGeometry>(
-                    radius, part_id, is_dynamic, prt_pm);
+                    radius, part_id, is_dynamic, prt_pm, visible, material,
+                    propStr);
           },
           py::arg("radius"), py::arg("part_id"), py::arg("is_dynamic") = true,
-          py::arg("prt_pm") = py::none(), py::arg("material") = "m1",
-          py::arg("propStr") = "{}")
+          py::arg("prt_pm") = py::none(), py::arg("visible") = true,
+          py::arg("material") = "m1", py::arg("propStr") = "{}")
       .def(
           "addMeshGeometry",
           [](sire::physics::PhysicsEngine& self, const std::string& resPath,
              sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
-             const std::string& material, const std::string& propStr) {
+             bool visible, const std::string& material,
+             const std::string& propStr) {
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
             std::array<double, 3> default_scale{1.0, 1.0, 1.0};
             // 创建网格几何体
             self.geometryPool()
                 .add<sire::physics::geometry::MeshCollisionGeometry>(
-                    resPath, default_scale, part_id, is_dynamic, prt_pm);
+                    resPath, default_scale, part_id, is_dynamic, prt_pm,
+                    visible, material, propStr);
           },
           py::arg("resPath"), py::arg("part_id"), py::arg("is_dynamic") = true,
-          py::arg("prt_pm") = py::none(), py::arg("material") = "m1",
-          py::arg("propStr") = "{}")
+          py::arg("prt_pm") = py::none(), py::arg("visible") = true,
+          py::arg("material") = "m1", py::arg("propStr") = "{}")
       .def(
           "addCapsuleGeometry",
           [](sire::physics::PhysicsEngine& self, double radius, double length,
              sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
-             const std::string& material, const std::string& propStr) {
+             bool visible, const std::string& material,
+             const std::string& propStr) {
             // 创建胶囊几何体
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
             self.geometryPool()
                 .add<sire::physics::geometry::CapsuleCollisionGeometry>(
-                    radius, length, part_id, is_dynamic, prt_pm);
+                    radius, length, part_id, is_dynamic, prt_pm, visible,
+                    material, propStr);
           },
           py::arg("radius"), py::arg("length"), py::arg("part_id"),
           py::arg("is_dynamic") = true, py::arg("prt_pm") = py::none(),
-          py::arg("material") = "m1", py::arg("propStr") = "{}")
+          py::arg("visible") = true, py::arg("material") = "m1",
+          py::arg("propStr") = "{}")
       .def(
           "addCylinderGeometry",
           [](sire::physics::PhysicsEngine& self, double radius, double length,
              sire::PartId part_id, bool is_dynamic, std::vector<double>& pm,
-             const std::string& material, const std::string& propStr) {
+             bool visible, const std::string& material,
+             const std::string& propStr) {
             // 创建胶囊几何体
             const double* prt_pm =
                 pm.size() != 16 ? sire::default_pm : pm.data();
             self.geometryPool()
                 .add<sire::physics::geometry::CylinderCollisionGeometry>(
-                    radius, length, part_id, is_dynamic, prt_pm);
+                    radius, length, part_id, is_dynamic, prt_pm, visible,
+                    material, propStr);
           },
           py::arg("radius"), py::arg("length"), py::arg("part_id"),
           py::arg("is_dynamic") = true, py::arg("prt_pm") = py::none(),
-          py::arg("material") = "m1", py::arg("propStr") = "{}")
+          py::arg("visible") = true, py::arg("material") = "m1",
+          py::arg("propStr") = "{}")
       .def("contactSolver",
            py::overload_cast<>(&sire::physics::PhysicsEngine::contactSolver),
            py::return_value_policy::reference_internal)
@@ -444,6 +516,17 @@ PYBIND11_MODULE(sire, m) {
                                             ContactPositionForceSolver&>(
                         self.contactSolver());
                   },
+          py::return_value_policy::reference_internal)
+      .def(
+          "addPsVsSolver2",
+          [](sire::physics::PhysicsEngine& self)
+              -> sire::physics::contact::ps_vs_solver2::PsVsSolver2& {
+            self.resetContactSolver(
+                new sire::physics::contact::ps_vs_solver2::PsVsSolver2);
+            return dynamic_cast<
+                sire::physics::contact::ps_vs_solver2::PsVsSolver2&>(
+                self.contactSolver());
+          },
           py::return_value_policy::reference_internal)
       .def("collisionFilter", &sire::physics::PhysicsEngine::collisionFilter,
            py::return_value_policy::reference_internal)
@@ -500,6 +583,21 @@ PYBIND11_MODULE(sire, m) {
            })
       .def("setDefaultProp",
            [](sire::physics::contact::ps_vs_solver::PsVsSolver& self,
+              const std::string& prop) {
+             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+           });  // 默认构造函数
+  py::class_<sire::physics::contact::ps_vs_solver2::PsVsSolver2>(m, "PsVsSolver2")
+      .def(py::init<>())
+      .def("addMaterialPair",
+           [](sire::physics::contact::ps_vs_solver2::PsVsSolver2& self,
+              const std::string& name1, const std::string& name2,
+              const std::string& prop) {
+             self.materialManager().addProp(
+                 sire::core::SortedPair<std::string>(name1, name2),
+                 sire::core::PropMap(prop));
+           })
+      .def("setDefaultProp",
+           [](sire::physics::contact::ps_vs_solver2::PsVsSolver2& self,
               const std::string& prop) {
              self.materialManager().setDefaultProp(sire::core::PropMap(prop));
            });  // 默认构造函数

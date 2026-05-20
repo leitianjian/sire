@@ -68,7 +68,7 @@ void ShapeToName::ImplementGeometry(const SphereShape& sphere, void*) {
 }
 
 void ShapeToName::ImplementGeometry(const HeightFieldShape& height_field, void*) {
-  string_ = "heightfield";
+  string_ = "hfield";
 }
 
 void ShapeToInertia::ImplementGeometry(const MeshShape& mesh, void* user_data) {

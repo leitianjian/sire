@@ -14,6 +14,7 @@ class CapsuleCollisionGeometry
   explicit CapsuleCollisionGeometry(double radius = 0.1, double length = 0.1,
                                     int part_id = 0, bool is_dynamic = false,
                                     const double* prt_pm = nullptr,
+                                    bool visible = true,
                                     const std::string& material = "m1",
                                     const std::string& propStr = "{}");
   virtual ~CapsuleCollisionGeometry();

@@ -6,6 +6,8 @@ import meshcat.transformations as tf
 from meshcat.animation import Animation
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import RigidTransform as TF
+from PIL import Image
+from meshcat.geometry import TriangularMeshGeometry, MeshPhongMaterial, Mesh
 
 def pq2tfmatrix(pq):
   """
@@ -32,6 +34,70 @@ def pe3132tfmatrix(pe):
                 rotation=R.from_euler("ZXZ", pe[3:], degrees=False))
   return tf1.as_matrix().flatten()
 
+def buildHFieldMeshHeights(width, depth, nrow, ncol, heights):
+    # 生成顶点
+    x_vals = np.linspace(-width / 2, width / 2, ncol)
+    y_vals = np.linspace(depth/2, -depth/2, nrow)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+    zz = np.array(heights).reshape(nrow, ncol)
+
+    vertices = np.stack([xx.ravel(), yy.ravel(), zz.ravel()], axis=1).astype(np.float32)
+
+    # 生成三角面索引
+    faces = []
+    for r in range(nrow - 1):
+        for c in range(ncol - 1):
+            a = r * ncol + c
+            b = a + 1
+            c_idx = a + ncol
+            d = c_idx + 1
+            faces.append([a, b, d])
+            faces.append([a, d, c_idx])
+    faces = np.array(faces, dtype=np.uint32)
+
+    return TriangularMeshGeometry(vertices, faces)
+
+def buildHFieldMeshPNG(png_path, width, depth, scale_z):
+    """
+    按照 MuJoCo 的 hfield 归一化方式从 PNG 生成三角网格。
+
+    png_path  : MuJoCo 输出的高度场 PNG
+    width     : 地形全长（X 方向，米）
+    depth     : 地形全长（Y 方向，米）
+    scale_z   : 高度缩放（对应 MuJoCo geom.size[2]）
+    pos_z     : 垂直偏移（对应 MuJoCo geom.pos.z）
+    """
+    # 1. 读取 PNG 并转换为 [0, 1]（MuJoCo 用红色通道或灰度，256 或 65535）
+    img = Image.open(png_path)
+    if img.mode in ('I', 'I;16'):
+        # 16 位灰度
+        pixels = np.array(img, dtype=np.float64) / 65535.0
+    elif img.mode == 'L':
+        pixels = np.array(img, dtype=np.float64) / 255.0
+    else:
+        # RGB/RGBA -> 取红色通道
+        pixels = np.array(img.convert('RGB'))[:, :, 0].astype(np.float64) / 255.0
+
+    # 2. MuJoCo 风格的 min‑max 归一化到 [0, 1]
+    emin = pixels.min()
+    emax = pixels.max()
+    if emin > emax:
+        raise ValueError("Invalid height field data: min > max")
+    pixels -= emin
+    if emax - emin > 1e-10:  # MuJoCo 中用的是 mjEPS ≈ 1e-10
+        pixels /= (emax - emin)
+
+    rows, cols = pixels.shape
+
+    # 3. 生成顶点（局部坐标，中心在 origin）
+    # x_vals = np.linspace(-width / 2, width / 2, cols)
+    # y_vals = np.linspace(-depth / 2, depth / 2, rows)
+    # y_vals = np.linspace(depth/2, -depth/2, rows)    # 修正后
+    # xx, yy = np.meshgrid(x_vals, y_vals)
+    zz = pixels * scale_z
+
+    return buildHFieldMeshHeights(width, depth, rows, cols, zz)
+
 def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
   robot = vis['robot']
   partInitConfig = displayInitJson['part_init_config']
@@ -57,6 +123,14 @@ def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
       meshcatGeo.set_object(g.Cylinder(geometry['length'], geometry['radius']), material=material)
     elif(geometry['shape_type'] == 'sphere'):
       meshcatGeo.set_object(g.Sphere(geometry['radius']), material=material)
+    elif(geometry['shape_type'] == 'hfield'):
+      meshcatGeo.set_object(buildHFieldMeshHeights(
+        width=geometry['x_dim'],
+        depth=geometry['y_dim'],
+        nrow=geometry['nrow'],
+        ncol=geometry['ncol'],
+        heights=geometry['heights']
+      ), material=material)
     elif(geometry['shape_type'] == 'mesh'):
       ext = geometry['resource_path'].split('.')[-1]
       if ext == 'stl' or ext == 'STL':

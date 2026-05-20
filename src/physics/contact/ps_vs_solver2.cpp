@@ -1717,15 +1717,25 @@ auto PsVsSolver2::cptContactSolverResult(
   sire::core::screw::matrixVectorComposeBack(n2, A.data(), b.data(), Ab.data());
   std::copy(x0.data(), x0.data() + n2, x01.data());
   x01[n2] = 1;
+  DLOG(DEBUG) << "Ab: " << Ab << " x01: " << x01 << " minTime: " << minTime;
+  int n3 = n2 + 1;
+  std::vector<double> temp(n3 * n3);
+  // aris::dynamic::s_mc(n3, n3, minTime, Ab.data(), temp.data());              // temp = At
+  // core::screw::matrix_exp_pade(n3, temp.data(), temp.data());  // temp = e^At
+  // DLOG(DEBUG) << "e^At: " << temp;
+  // DLOG(DEBUG) << "n3: " << n3 << " temp: " << temp << " x01: " << x01 << " x1t before mm: " << x1t;
+  // aris::dynamic::s_mm(n3, 1, n3, temp.data(), x01.data(), x1t.data());        // e^At * x01
+  // DLOG(DEBUG) << "x1t after mm: " << x1t;
   cptFormulaXComposeAb(n2 + 1, Ab.data(), minTime, x01.data(), x1t.data());
+  // DLOG(DEBUG) << "x01: " << x01 << " x1t: " << x1t;
   for (sire::Size i{0}; i < n; ++i) {
     if (x1t[i] >= 1e-10) {
-      // 由于碰撞点not end，但是计算出来的末位置条件会比较苛刻，调整计算接触力的
+      // 由于碰撞点not end，但是计算出来的末位置条件会比较苛刻，调整计算接触力的 
       // 目标条件为 x1t.depth = 1e-4 + x1t.depth.
       imp_->contactNotEnd.push_back(penetration_pairs[preservedPairsIdx[i]]);
       imp_->contactNotEnd.back().modifiedDepth = x1t[i] * stiffScale;
       imp_->contactNotEnd.back().depth = x1t[i] * stiffScale;
-      x1t[i] += 1e-4 / stiffScale;
+      // x1t[i] += 1e-4 / stiffScale;
       imp_->contactNotEndCondition.push_back(x1t[i]);
       imp_->contactNotEndCondition.push_back(x1t[n + i]);
     } else {
@@ -1838,9 +1848,10 @@ auto cptContactForceWithTargetState2(
   // 3n). aris::dynamic::s_mm(3 * n, 3 * n, 3 * n, invM.data(), D.data(),
   // invMD.data());
   SIRE_PROFILE_SCOPE("ps_vs/cptContactForceWithTargetState2");
+  // invM already negative, so we can directly use it to compute P
   Eigen::Map<Eigen::MatrixXd> WMat(invM.data(), 3 * n, 3 * n);
-  Eigen::MatrixXd P =
-      -h * 0.5 * (WMat + WMat.transpose());  // Or W, depending on signs
+  Eigen::MatrixXd P = - h * 0.5 * (WMat + WMat.transpose());
+  // Eigen::MatrixXd P = -h * 0.5 * (WMat + WMat.transpose());
   Eigen::Map<Eigen::VectorXd> vFree(v0.data(), 3 * n), bVec(b.data(), 3 * n),
       vTarget(v_target.data(), n);
   vFree -= h * bVec;
@@ -1918,7 +1929,8 @@ auto cptContactForceWithTargetState2(
   double error = -1;
   for (int iter = 1; iter <= max_iters; ++iter) {
     // outer_iters_used = iter;
-    Eigen::VectorXd rhs = vTarget - q_n - P_nt * ft_val;
+    // Eigen::VectorXd rhs = vTarget + q_n - P_nt * ft_val;
+    Eigen::VectorXd rhs = - vTarget - q_n - P_nt * ft_val;
     Eigen::VectorXd fn_new = P_nn_ldlt.solve(rhs);
     fn_new = fn_new.cwiseMax(0.0);
     fn_val = fn_new;

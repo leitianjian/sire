@@ -26,6 +26,7 @@ class BoxCollisionGeometry
   explicit BoxCollisionGeometry(double x = 0.1, double y = 0.1, double z = 0.1,
                                 int part_id = 0, bool is_dynamic = false,
                                 const double* prt_pm = nullptr,
+                                bool visible = true,
                                 const std::string& material = "m1",
                                 const std::string& propStr = "{}");
   virtual ~BoxCollisionGeometry();
