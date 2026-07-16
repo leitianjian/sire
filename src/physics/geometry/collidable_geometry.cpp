@@ -45,6 +45,7 @@ SIRE_DEFINE_MOVE_CTOR_CPP(CollidableGeometry);
 ARIS_REGISTRATION {
   aris::core::class_<CollidableGeometry>("CollidableGeometry")
       .inherit<sire::geometry::GeometryOnPart>()
-      .inherit<Collidable>();
+      .inherit<Collidable>()
+      .prop("visible", &CollidableGeometry::setVisible, &CollidableGeometry::visible);
 }
 }  // namespace sire::physics::geometry

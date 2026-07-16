@@ -92,6 +92,8 @@ class SIRE_API PhysicsEngine {
   // compute point pair penetration and get result
   auto cptPointPairPenetration(
       std::vector<common::PenetrationAsPointPair>& pairs) -> void;
+  auto cptHeightFieldPenetration(
+      std::vector<common::PenetrationAsPointPair>& pairs) -> void;
 
   // compute real contact time
   auto cptContactTime(const common::PenetrationAsPointPair& penetration)
@@ -125,18 +127,20 @@ class SIRE_API PhysicsEngine {
       -> void;
 
   // this prt_pm represent the pose of geometry on part coordinate
-//   auto addSphereGeometry(double radius, int part_id = 0,
-//                          bool is_dynamic = false,
-//                          const double* prt_pm = nullptr) -> bool;
-//   auto addBoxGeometry(double x, double y, double z, int part_id = 0,
-//                       bool is_dynamic = false, const double* prt_pm = nullptr)
-//       -> bool;
-//   auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
-//                        bool is_dynamic = false, const double* prt_pm = nullptr)
-//       -> bool;
-//   auto addCapsuleGeometry(double radius, double length, int part_id = 0,
-//                           bool is_dynamic = false,
-//                           const double* prt_pm = nullptr) -> bool;
+  //   auto addSphereGeometry(double radius, int part_id = 0,
+  //                          bool is_dynamic = false,
+  //                          const double* prt_pm = nullptr) -> bool;
+  //   auto addBoxGeometry(double x, double y, double z, int part_id = 0,
+  //                       bool is_dynamic = false, const double* prt_pm =
+  //                       nullptr)
+  //       -> bool;
+  //   auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
+  //                        bool is_dynamic = false, const double* prt_pm =
+  //                        nullptr)
+  //       -> bool;
+  //   auto addCapsuleGeometry(double radius, double length, int part_id = 0,
+  //                           bool is_dynamic = false,
+  //                           const double* prt_pm = nullptr) -> bool;
   auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
       -> bool;
   auto addAnchoredGeometry(geometry::CollidableGeometry& anchored_geometry)
@@ -151,6 +155,10 @@ class SIRE_API PhysicsEngine {
   auto updateGeometryLocationFromModel() -> void;
   auto hasCollision() -> bool;
   auto computePointPairPenetration()
+      -> std::vector<common::PenetrationAsPointPair>;
+  /// @brief 与 computePointPairPenetration 类似，但 HeightField
+  /// 碰撞对会检测多个接触点并做空间去重。
+  auto computeHeightFieldPenetration()
       -> std::vector<common::PenetrationAsPointPair>;
 
   auto cptContactInfo(

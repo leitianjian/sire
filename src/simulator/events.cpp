@@ -1,9 +1,11 @@
 #include "sire/simulator/events.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <iterator>
 #include <limits>
 #include <set>
+#include <unordered_set>
 
 #include <aris/core/log.hpp>
 #include <aris/dynamic/model.hpp>
@@ -866,6 +868,138 @@ auto process_penetration_depth_and_maintain_impact_set6(
                 << " modified depth: " << pair.modifiedDepth;
   }
 }
+
+/// @brief Set7: 使用接触点邻近匹配（同geom对内按世界坐标找最近点），
+/// 支持同一几何体对产生多个接触点的场景（如HeightField地形）。
+/// 与set6的区别：set6用SortedPair<PartId>作为map key，多接触点时所有
+/// 接触点共享同一个init_penetration_depth_；set7使用位置邻近匹配，
+/// 每个接触点独立记录，帧间容差2mm内视为同一接触点。
+auto process_penetration_depth_and_maintain_impact_set7(
+    simulator::SimulationLoop* simulator_ptr,
+    std::vector<common::PenetrationAsPointPair>& pairs) -> void {
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  auto& partPool = model_ptr->partPool();
+
+  // 帧间同一接触点判定距离（平方）：2mm（远大于帧间漂移 ~1mm）
+  constexpr double kMatchTol2 = (2e-3) * (2e-3);
+
+  // 量化精度 1mm，用于 map 键
+  auto makeKey = [](const common::PenetrationAsPointPair& pair) {
+    return core::ContactPointKey{
+        {pair.id_A, pair.id_B},
+        static_cast<long long>(std::round(pair.p_WC[0] * 1e3)),
+        static_cast<long long>(std::round(pair.p_WC[1] * 1e3)),
+        static_cast<long long>(std::round(pair.p_WC[2] * 1e3))};
+  };
+
+  // 从 map 提取旧记录到临时 vector，清空 map（避免迭代中修改引发 UB）
+  struct OldRec {
+    core::ContactPointKey key;
+    core::ContactPairValue value;
+    bool used = false;
+  };
+  std::vector<OldRec> old;
+  core::ContactPointMap& m = manager_ptr->contactPointMap();
+  for (auto& kv : m) old.push_back({kv.first, kv.second});
+  m.clear();
+
+  // 对每个当前接触点，在旧记录中找最近且未消耗的同 geom 对记录
+  for (sire::Size i{0}; i < pairs.size(); ++i) {
+    auto& p = pairs[i];
+    core::SortedPair<sire::PartId> gp(p.id_A, p.id_B);
+
+    int best_j = -1;
+    double best_d2 = kMatchTol2;
+    for (size_t j = 0; j < old.size(); ++j) {
+      if (old[j].used) continue;
+      if (!(old[j].key.geom_pair == gp)) continue;
+      double dx = p.p_WC[0] - old[j].key.qx * 1e-3;
+      double dy = p.p_WC[1] - old[j].key.qy * 1e-3;
+      double dz = p.p_WC[2] - old[j].key.qz * 1e-3;
+      double d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < best_d2) {
+        best_d2 = d2;
+        best_j = static_cast<int>(j);
+      }
+    }
+
+    if (best_j >= 0) {
+      old[best_j].used = true;
+      auto& v = old[best_j].value;
+      p.modifiedDepth -= v.init_penetration_depth_;
+      if (p.modifiedDepth < 0) v.init_penetration_depth_ += p.modifiedDepth;
+    } else {
+      p.modifiedDepth = 0;  // 新接触：消除初始穿深
+    }
+  }
+
+  // 重建 map：保留未消耗的旧记录 + 插入新记录
+  for (auto& r : old)
+    if (r.used) m.insert({r.key, r.value});
+  for (auto& p : pairs) {
+    auto k = makeKey(p);
+    if (m.find(k) == m.end())
+      m.insert({k, core::ContactPairValue(p.depth, false)});
+  }
+
+  for (auto& p : pairs)
+    DLOG(DEBUG) << "contact id:" << p.id_A << "," << p.id_B
+                << " depth:" << p.depth << " mod:" << p.modifiedDepth;
+}
+
+/// @brief TODO: 筛选 Set8: 仅做帧内接触点去重，不做跨帧记录与初始穿深比对。
+/// ps_vs_solver3 内部自己处理 modifiedDepth（直接清零），
+/// 这里只负责移除过于靠近的重复接触点，避免接触求解器做无用功。
+/// 去重标准：同geometry对、位置相距 < 2mm 且法向夹角 < 0.5° 视为重复，
+/// 保留穿深最大的那个。
+auto process_penetration_depth_and_maintain_impact_set8(
+    simulator::SimulationLoop* simulator_ptr,
+    std::vector<common::PenetrationAsPointPair>& pairs) -> void {
+  // if (pairs.size() <= 1) return;
+
+  // constexpr double kPosTol2 = (5e-3) * (5e-3);   // 位置容差 2mm
+  // constexpr double kNormalTol = 5e-2;              // 法向夹角容差 ~0.57°
+
+  // std::vector<bool> keep(pairs.size(), true);
+
+  // for (sire::Size i{0}; i < pairs.size(); ++i) {
+  //   if (!keep[i]) continue;
+  //   for (sire::Size j{i + 1}; j < pairs.size(); ++j) {
+  //     if (!keep[j]) continue;
+  //     // 必须是同一几何体对
+  //     if (pairs[i].id_A != pairs[j].id_A || pairs[i].id_B != pairs[j].id_B)
+  //       continue;
+  //     // 位置检查
+  //     double dx = pairs[i].p_WC[0] - pairs[j].p_WC[0];
+  //     double dy = pairs[i].p_WC[1] - pairs[j].p_WC[1];
+  //     double dz = pairs[i].p_WC[2] - pairs[j].p_WC[2];
+  //     double d2 = dx * dx + dy * dy + dz * dz;
+  //     if (d2 > kPosTol2) continue;
+  //     // 法向检查
+  //     if (pairs[i].nhat_AB_W.cross(pairs[j].nhat_AB_W).norm() > kNormalTol)
+  //       continue;
+  //     // 重复：保留穿深更大的
+  //     if (pairs[i].depth >= pairs[j].depth) {
+  //       keep[j] = false;
+  //     } else {
+  //       keep[i] = false;
+  //       break;  // i 被移除，跳到下一个 i
+  //     }
+  //   }
+  // }
+
+  // // 原地移除被标记的
+  // sire::Size w{0};
+  // for (sire::Size r{0}; r < pairs.size(); ++r) {
+  //   if (keep[r]) {
+  //     if (r != w) pairs[w] = pairs[r];
+  //     ++w;
+  //   }
+  // }
+  // pairs.resize(w);
+}
 auto InitEvent1::init() -> void {}
 auto InitHandler1::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
@@ -1459,10 +1593,10 @@ auto InitHandler4::init(simulator::SimulationLoop* simulator) -> void {
   simulator_ptr = simulator;
 }
 auto InitHandler4::integrate(core::EventBase* e) -> void {
-  simulator_ptr->timer().reset();
-  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
-  DLOG(DEBUG) << "initial handler current time: "
-              << simulator_ptr->timer().simTime();
+  // simulator_ptr->timer().reset();
+  // simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
+  // DLOG(DEBUG) << "initial handler current time: "
+  //             << simulator_ptr->timer().simTime();
 }
 auto InitHandler4::handle(core::EventBase* e) -> bool {
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
@@ -1471,6 +1605,10 @@ auto InitHandler4::handle(core::EventBase* e) -> bool {
   SIRE_ASSERT(engine_ptr != nullptr);
   SIRE_ASSERT(model_ptr != nullptr);
   SIRE_ASSERT(manager_ptr != nullptr);
+  simulator_ptr->timer().reset();
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
+  DLOG(DEBUG) << "initial handler current time: "
+              << simulator_ptr->timer().simTime();
   simulator_ptr->controller().control();
   engine_ptr->fwdActuators();
   // initLog();
@@ -1649,6 +1787,130 @@ auto CtrlHandler4::handle(core::EventBase* e) -> bool {
   SIRE_PROFILE_FRAME();
   return true;
 }
+// without adjustPenetrationPosition
+auto InitHandler5::init(simulator::SimulationLoop* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto InitHandler5::integrate(core::EventBase* e) -> void {}
+auto InitHandler5::handle(core::EventBase* e) -> bool {
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
+  simulator_ptr->timer().reset();
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
+  DLOG(DEBUG) << "initial handler current time: "
+              << simulator_ptr->timer().simTime();
+  simulator_ptr->controller().control();
+  engine_ptr->fwdActuators();
+  // initLog();
+  // logCurrentState(0, 1, simulator_ptr);
+  engine_ptr->updateGeometryLocationFromModel();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  // 碰撞检测
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
+    engine_ptr->cptHeightFieldPenetration(pairs);
+  }
+  simulator_ptr->eventManager().updateCtrlSimTime(0, 0);
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
+
+  double nextSuggestDt{nextCtrlSimSuggestDt};
+  std::vector<common::PointPairContactInfo> contact_info;
+  {
+    SIRE_PROFILE_SCOPE("sim/contactSolving");
+    process_penetration_depth_and_maintain_impact_set8(simulator_ptr, pairs);
+    engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
+                                       contact_info);
+  }
+  return true;
+}
+auto StepHandler5::init(simulator::SimulationLoop* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto StepHandler5::integrate(core::EventBase* e) -> void {}
+auto StepHandler5::handle(core::EventBase* e) -> bool {
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
+  // TODO:
+  // 这里添加record可能会触发内存重新分配，导致某个时刻的时间过长，可能可以用list替代
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
+  // 重置上一时刻关节和forcePool设置的力
+  engine_ptr->resetPartContactForce();
+  engine_ptr->fwdActuators();
+  // initLog();
+  // logCurrentState(0, 1, simulator_ptr);
+  // 碰撞检测
+  std::vector<common::PenetrationAsPointPair> pairs;
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
+    engine_ptr->updateGeometryLocationFromModel();
+    engine_ptr->cptHeightFieldPenetration(pairs);
+  }
+  double nextSuggestDt{nextCtrlSimSuggestDt};
+  std::vector<common::PointPairContactInfo> contact_info;
+  {
+    SIRE_PROFILE_SCOPE("sim/contactSolving");
+    process_penetration_depth_and_maintain_impact_set8(simulator_ptr, pairs);
+    engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
+                                       contact_info);
+  }
+  SIRE_PROFILE_FRAME();
+  return true;
+}
+auto CtrlHandler5::init(simulator::SimulationLoop* simulator) -> void {
+  simulator_ptr = simulator;
+}
+auto CtrlHandler5::integrate(core::EventBase* e) -> void {}
+auto CtrlHandler5::handle(core::EventBase* e) -> bool {
+  physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
+  aris::dynamic::Model* model_ptr = simulator_ptr->model();
+  core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();
+  SIRE_ASSERT(engine_ptr != nullptr);
+  SIRE_ASSERT(model_ptr != nullptr);
+  SIRE_ASSERT(manager_ptr != nullptr);
+  // TODO:
+  // 这里添加record可能会触发内存重新分配，导致某个时刻的时间过长，可能可以用list替代
+  simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
+  engine_ptr->resetPartContactForce();
+  simulator_ptr->controller().control();
+  engine_ptr->fwdActuators();
+  double nextCtrlSimSuggestDt =
+      simulator_ptr->eventManager().cptNextCtrlSimSuggestDt();
+  // initLog();
+  // logCurrentState(0, 1, simulator_ptr);
+  engine_ptr->updateGeometryLocationFromModel();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  // 碰撞检测
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
+    engine_ptr->cptHeightFieldPenetration(pairs);
+  }
+
+  double nextSuggestDt{nextCtrlSimSuggestDt};
+  std::vector<common::PointPairContactInfo> contact_info;
+
+  {
+    SIRE_PROFILE_SCOPE("sim/contactSolving");
+    process_penetration_depth_and_maintain_impact_set8(simulator_ptr, pairs);
+    // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+    engine_ptr->integrateByContactInfo(nextCtrlSimSuggestDt, pairs,
+                                       contact_info);
+  }
+
+  // SIRE_PROFILE_FRAME_NAMED("sim/frame");
+  SIRE_PROFILE_FRAME();
+  return true;
+}
 ARIS_REGISTRATION {
   // core::EventRegister<InitEvent>::registration("initial", 0);
   // core::EventRegister<StepEvent>::registration("step", 1);
@@ -1669,5 +1931,8 @@ ARIS_REGISTRATION {
   core::HandlerRegister<InitHandler4>::registration("initial4", 9);
   core::HandlerRegister<StepHandler4>::registration("step4", 10);
   core::HandlerRegister<CtrlHandler4>::registration("ctrl4", 11);
+  core::HandlerRegister<InitHandler5>::registration("initial5", 12);
+  core::HandlerRegister<StepHandler5>::registration("step5", 13);
+  core::HandlerRegister<CtrlHandler5>::registration("ctrl5", 14);
 }
 }  // namespace sire::simulator

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import torch
 
-from RLGym.envs.base.legged_robot import LeggedRobot
+from SireRLGym.envs.base.legged_robot import LeggedRobot
 
 
 class GO2Threshold(LeggedRobot):

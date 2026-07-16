@@ -191,6 +191,15 @@ class CMakeBuildExt(build_ext):
             raise RuntimeError("CMake 必须安装才能构建扩展")
         
         my_env = _create_build_env()
+
+        # CMake FetchContent proxy — set in local.toml as cmake_http_proxy / cmake_https_proxy
+        http_proxy = build_config.get("cmake_http_proxy", os.environ.get("HTTP_PROXY", ""))
+        https_proxy = build_config.get("cmake_https_proxy", os.environ.get("HTTPS_PROXY", ""))
+        if http_proxy:
+            my_env["HTTP_PROXY"] = str(http_proxy)
+        if https_proxy:
+            my_env["HTTPS_PROXY"] = str(https_proxy)
+
         USE_NINJA = which("ninja", env=my_env) is not None
         if "CMAKE_GENERATOR" in my_env:
             USE_NINJA = my_env["CMAKE_GENERATOR"].lower() == "ninja"

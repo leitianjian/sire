@@ -552,6 +552,30 @@ class LeggedRobot(VecEnv):
         if self.termination_contact_indices.numel() == 0:
             self.termination_contact_indices = torch.tensor([self.base_body_id_np], dtype=torch.long, device=self.device)
 
+        # ── diagnostic: dump body ID mappings ──
+        print("=" * 70)
+        print("MuJoCo Body Names (name → ID):")
+        for bid, bname in enumerate(body_names):
+            tags = []
+            if bid in feet_ids:              tags.append("FOOT")
+            if bid in penalized_ids:         tags.append("PENALTY")
+            if bid in self.termination_contact_indices.tolist(): tags.append("TERMINATE")
+            tag_str = " [" + ", ".join(tags) + "]" if tags else ""
+            print(f"  body[{bid:2d}] = {bname:20s}{tag_str}")
+
+        print(f"\nfeet_names                      = {self.foot_names}")
+        print(f"feet_ids                        = {self.feet_indices.tolist()}")
+        print(f"penalized_contact_names         = {penalized_contact_names}")
+        print(f"penalized_ids (excl feet)       = {penalized_ids}")
+        print(f"self.penalised_contact_indices  = {self.penalised_contact_indices.tolist()}")
+        print(f"termination_contact_names       = {termination_contact_names}")
+        print(f"termination_contact_indices     = {self.termination_contact_indices.tolist()}")
+        print(f"base_body_id_np                 = {self.base_body_id_np}")
+        print(f"world_body_id_np                = {self.world_body_id_np}")
+        print(f"dof_names                       = {self.dof_names}")
+        print(f"num_obs / num_priv_obs / num_act = {self.num_obs} / {self.num_privileged_obs} / {self.num_actions}")
+        print("=" * 70, flush=True)
+
         self.dof_pos_limits = torch.tensor(base_model.jnt_range[self.joint_ids_np], dtype=torch.float, device=self.device)
         self.torque_limits = torch.tensor(base_model.jnt_actfrcrange[self.joint_ids_np, 1], dtype=torch.float, device=self.device)
         # MuJoCo MJCF does not expose per-joint velocity limits in this model; use a conservative default.

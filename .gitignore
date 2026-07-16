@@ -54,6 +54,11 @@ install_manifest.txt
 .vscode/
 build/
 
+.reasonix/
+scripts/SireRLGym/logs/*
+**/logs/
+*.pt
+
 # for clion
 cmake-build-debug-visual-studio
 cmake-build-debug

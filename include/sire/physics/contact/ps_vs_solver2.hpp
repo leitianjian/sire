@@ -61,9 +61,15 @@ auto cptFormulaXComposeAb(sire::Size n, const double* Ab, double t,
                           const double* x01, double* x1t) -> void;
 auto cptFormulaIXdtComposeAbx0(sire::Size n, const double* Abx0, double t0,
                                double tc, double* ixdt) -> void;
-auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
+auto findMinRootOriginal(sire::Size nContact, double suggestDt, const double* A, const double* b,
+                         const double* x0, double tolerance,
+                         sire::Size maxIter) -> double;
+auto findMinRootBisection(sire::Size nContact, double suggestDt, const double* A, const double* b,
                           const double* x0, double tolerance,
                           sire::Size maxIter) -> double;
+auto findMinRootSchur(sire::Size nContact, double suggestDt, const double* A, const double* b,
+                     const double* x0, double tolerance,
+                     sire::Size maxIter) -> double;
 auto cptAvgContactFce(sire::Size nContact, const double* A, const double* b,
                       const double* x0, double t0, double tc,
                       const double* stiffness, const double* damping,
@@ -94,7 +100,7 @@ auto cptContactForceWithTargetState2(
     sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM,
     std::vector<double>& v0, std::vector<double>& v_target,
     std::vector<double>& b, double h, std::vector<double>& contactFce,
-    sire::Size max_iters = 20, double max_err = 1e-2) -> double;
+    sire::Size max_iters = 10, double max_err = 1e-2) -> double;
 auto cptGlbContactWrench(
     aris::dynamic::Model& model, sire::physics::PhysicsEngine& engine,
     const std::vector<double>& contactFce,

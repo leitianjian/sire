@@ -108,11 +108,11 @@ auto PhysicsEngine::doInit() -> void {
     }
   }
   // 初始化contact geometry的id相关
-  if (imp_->geometry_pool_ != nullptr) {
-    for (sire::Size i{0}; i < imp_->geometry_pool_->size(); ++i) {
-      imp_->geometry_pool_->at(i).setGeometryId(i);
-    }
-  }
+  // if (imp_->geometry_pool_ != nullptr) {
+  //   for (sire::Size i{0}; i < imp_->geometry_pool_->size(); ++i) {
+  //     imp_->geometry_pool_->at(i).setGeometryId(i);
+  //   }
+  // }
   if (collisionDetectionFlag()) {
     // 根据当前的PhysicalEngine的GeometryPool初始化碰撞检测引擎，添加到里面的Tree
     imp_->collision_detection_->init(this);
@@ -410,6 +410,10 @@ auto PhysicsEngine::cptPointPairPenetration(
     std::vector<common::PenetrationAsPointPair>& pairs) -> void {
   imp_->collision_detection_->computePointPairPenetration(pairs);
 }
+auto PhysicsEngine::cptHeightFieldPenetration(
+    std::vector<common::PenetrationAsPointPair>& pairs) -> void {
+  imp_->collision_detection_->computeHeightFieldPenetration(pairs);
+}
 auto PhysicsEngine::resetContactSolver(
     contact::ContactSolver* contact_solver_in) -> void {
   imp_->contact_solver_.reset(contact_solver_in);
@@ -445,6 +449,15 @@ auto PhysicsEngine::computePointPairPenetration()
   std::vector<common::PenetrationAsPointPair> pairs;
   if (imp_->collision_detection_flag_) {
     imp_->collision_detection_->computePointPairPenetration(pairs);
+  }
+  return pairs;
+}
+auto PhysicsEngine::computeHeightFieldPenetration()
+    -> std::vector<common::PenetrationAsPointPair> {
+  SIRE_PROFILE_FUNCTION();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  if (imp_->collision_detection_flag_) {
+    imp_->collision_detection_->computeHeightFieldPenetration(pairs);
   }
   return pairs;
 }
@@ -639,7 +652,7 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
     auto& force = force_pool.add<GeneralForce>(
         std::string("cf_" + std::to_string(i)),
         &part_pool.at(i).markerPool().at(0),
-        &part_pool.at(imp_->model_ptr_->ground().id()).markerPool().at(1));
+        &part_pool.at(imp_->model_ptr_->ground().id()).markerPool().at(0));
     force.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
   imp_->contact_force_size_ = force_pool.size() - imp_->contact_force_idx_;

@@ -141,7 +141,7 @@ class LeggedRobotCfg(BaseConfig):
             action_rate = -0.01
             stand_still = -0.0
 
-        only_positive_rewards = True
+        only_positive_rewards = False
         tracking_sigma = 0.25
         soft_dof_pos_limit = 1.0
         soft_dof_vel_limit = 1.0

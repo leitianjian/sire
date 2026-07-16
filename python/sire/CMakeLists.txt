@@ -28,7 +28,14 @@ endif()
 # SIRE PYTHON BINDING
 pybind11_add_module(sire
   "pybind11_json.hpp"
-  "sire_bindings.cpp")
+  "sire_bindings.cpp"
+  "bindings_core.cpp"
+  "bindings_model.cpp"
+  "bindings_physics.cpp"
+  "bindings_pointer_arrays.cpp"
+  "bindings_server.cpp"
+  "bindings_simulator.cpp"
+  "bindings_utils.cpp")
 target_compile_features(sire PUBLIC cxx_std_17)
 target_include_directories(sire
   PUBLIC

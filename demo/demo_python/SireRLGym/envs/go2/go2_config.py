@@ -1,7 +1,10 @@
-from RLGym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
+from SireRLGym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotCfgPPO
 
 
 class GO2RoughCfg(LeggedRobotCfg):
+    class sim(LeggedRobotCfg.sim):
+        dt = 0.001  # match go2.xml deltaT
+
     class terrain(LeggedRobotCfg.terrain):
         mesh_type = 'trimesh'
         curriculum = False
@@ -25,7 +28,7 @@ class GO2RoughCfg(LeggedRobotCfg):
         spawn_offset_y = 5.0
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.34]
+        pos = [0.0, 0.0, 0.44]  # 0.5× rand → -1.4cm (slight), 1.0× → +7.7cm
         init_yaw_range = [-3.1415926, 3.1415926]
         default_joint_angles = {
             'FL_hip_joint': 0.1,
@@ -60,7 +63,7 @@ class GO2RoughCfg(LeggedRobotCfg):
         stiffness = {'joint': 25.0}
         damping = {'joint': 0.6}
         action_scale = 0.25
-        decimation = 4
+        decimation = 10
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/flat.xml'

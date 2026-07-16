@@ -97,6 +97,6 @@ PenetrationAsPointPairCallback::PenetrationAsPointPairCallback(
     : CollisionCallBackBase(), filter_(filter_in), point_pairs(point_pairs_in) {
   request.num_max_contacts = 1;
   request.enable_contact = true;
-  request.gjk_tolerance = 2e-12;
+  request.gjk_tolerance = 2e-8;
 };
 }  // namespace sire::physics::collision

@@ -16,7 +16,7 @@ from typing import Dict, Tuple
 import numpy as np
 from PIL import Image
 
-from RLGym.scene_curriculum import load_scene_curriculum_metadata, load_terrain_scene
+from SireRLGym.scene_curriculum import load_scene_curriculum_metadata, load_terrain_scene
 
 
 @dataclass(frozen=True)
@@ -360,259 +360,173 @@ class TerrainLayout:
         alpha = (coord - terrain_start) / max(1e-6, terrain_extent)
         return int(np.clip(round(alpha * (num_samples - 1)), 0, num_samples - 1))
 
+    # ── XML scene generation (Sire-compatible) ───────────────────
+
     def write_scene(self, base_scene_path: Path) -> Path:
+        """
+        Generate a Sire-compatible Simulator XML with terrain geometry.
+        
+        Replaces the ground BoxGeometry with HeightField element(s)
+        in PhysicsEngine/GeometryPoolObject.
+        """
         tree = ET.parse(base_scene_path)
         root = tree.getroot()
-        for include in root.findall('include'):
-            include_file = include.get('file')
-            if include_file:
-                include_path = (base_scene_path.parent / include_file).resolve()
-                include.set('file', str(self._materialize_include(include_path)))
-        asset = root.find('asset')
-        if asset is None:
-            asset = ET.SubElement(root, 'asset')
-        worldbody = root.find('worldbody')
-        if worldbody is None:
-            worldbody = ET.SubElement(root, 'worldbody')
 
-        for geom in list(worldbody.findall('geom')):
-            if geom.get('name') == 'floor' or geom.get('type') == 'plane':
-                worldbody.remove(geom)
+        # Find or create GeometryPoolObject
+        pe = root.find('PhysicsEngine')
+        if pe is None:
+            raise ValueError("Base XML missing <PhysicsEngine>")
+        gpo = pe.find('GeometryPoolObject')
+        if gpo is None:
+            raise ValueError("Base XML missing <GeometryPoolObject>")
 
-        self._append_assets(asset)
+        # Remove existing ground geometry (id="0" or part_id="0", static)
+        for g in list(gpo):
+            pid = g.get('part_id', '')
+            gid = g.get('id', '')
+            dyn = g.get('is_dynamic', 'true')
+            if str(pid) == '0' and str(dyn).lower() != 'true':
+                gpo.remove(g)
+            elif str(gid) == '0' and str(dyn).lower() != 'true':
+                gpo.remove(g)
+
+        # Insert terrain geometries
         if self.terrain_type_mode == 'slope':
-            self._append_global_slope(asset, worldbody)
+            self._append_sire_slope(gpo)
         elif self.terrain_type_mode == 'heightfield':
-            self._append_global_heightfield(asset, worldbody)
+            self._append_sire_heightfield(gpo)
         elif self.terrain_type_mode == 'scene_curriculum':
-            self._append_scene_curriculum_course(asset, worldbody)
+            self._append_sire_scene_curriculum(gpo)
         else:
-            self._append_threshold_course(worldbody)
+            self._append_sire_threshold(gpo)
 
         self._indent_xml(root)
-        with tempfile.NamedTemporaryFile(prefix='terrain_scene_', suffix='.xml', delete=False, dir=str(self.generated_dir)) as tmp:
+        with tempfile.NamedTemporaryFile(
+            prefix='sire_terrain_', suffix='.xml',
+            delete=False, dir=str(self.generated_dir)
+        ) as tmp:
             tree.write(tmp.name, encoding='unicode')
             return Path(tmp.name)
 
-    def _materialize_include(self, include_path: Path) -> Path:
-        tree = ET.parse(include_path)
-        root = tree.getroot()
+    def _sire_heightfield_element(self, gpo, png_path: Path, x_dim: float,
+                                   y_dim: float, peak: float, base: float = 0.02,
+                                   pos_x: float = 0.0, pos_y: float = 0.0,
+                                   pos_z: float = 0.0,
+                                   geo_id: str = "0") -> ET.Element:
+        """Create a Sire <HeightField> XML element."""
+        pm = (f"{{1,0,0,{pos_x:.4f},"
+              f"0,1,0,{pos_y:.4f},"
+              f"0,0,1,{pos_z:.4f},"
+              f"0,0,0,1}}")
+        return ET.SubElement(
+            gpo, 'HeightField',
+            id=geo_id,
+            part_id="0",
+            is_dynamic="false",
+            visible="true",
+            material="m1",
+            file=str(png_path),
+            x_dim=f"{x_dim:.4f}",
+            y_dim=f"{y_dim:.4f}",
+            scale_z=f"{peak:.4f}",
+            min_height=f"{-base:.4f}",
+            contact_prop="{k:2.8e8,d:2000}",
+            pm=pm,
+        )
 
-        compiler = root.find('compiler')
-        meshdir = self._resolve_compiler_dir(include_path, compiler, 'meshdir')
-        texturedir = self._resolve_compiler_dir(include_path, compiler, 'texturedir')
-        asset = root.find('asset')
-        if asset is not None:
-            for tag, base_dir in (('mesh', meshdir), ('texture', texturedir), ('hfield', include_path.parent)):
-                for elem in asset.findall(tag):
-                    file_attr = elem.get('file')
-                    if file_attr and not Path(file_attr).is_absolute():
-                        resolved = (base_dir / file_attr).resolve()
-                        elem.set('file', str(resolved))
-        if compiler is not None:
-            for attr in ('meshdir', 'texturedir'):
-                if attr in compiler.attrib:
-                    compiler.attrib.pop(attr)
-
-        for include in root.findall('include'):
-            nested = include.get('file')
-            if nested:
-                include.set('file', str(self._materialize_include((include_path.parent / nested).resolve())))
-
-        self._indent_xml(root)
-        with tempfile.NamedTemporaryFile(prefix=f'{include_path.stem}_', suffix='.xml', delete=False, dir=str(self.generated_dir)) as tmp:
-            tree.write(tmp.name, encoding='unicode')
-            return Path(tmp.name)
-
-    def _resolve_compiler_dir(self, include_path: Path, compiler, attr: str) -> Path:
-        if compiler is None:
-            return include_path.parent
-        rel_dir = compiler.get(attr)
-        if not rel_dir:
-            return include_path.parent
-        return (include_path.parent / rel_dir).resolve()
-
-    def _append_assets(self, asset) -> None:
-        existing_materials = {elem.get('name') for elem in asset.findall('material')}
-        if 'terrain_slope' not in existing_materials:
-            ET.SubElement(asset, 'material', name='terrain_slope', rgba='0.66 0.57 0.43 1', reflectance='0.06')
-        if 'terrain_heightfield' not in existing_materials:
-            ET.SubElement(asset, 'material', name='terrain_heightfield', rgba='0.43 0.49 0.39 1', reflectance='0.04')
-
-    def _append_global_slope(self, asset, worldbody) -> None:
+    def _append_sire_slope(self, gpo) -> None:
         heights = self._generate_slope_heightfield()
-        peak_height = max(1e-4, float(np.max(heights)))
-        image_path = self._write_heightfield_png(heights)
-        hfield_name = 'terrain_slope_hfield'
-        center_x = self.border + self.total_length * 0.5
-        center_y = self.border + self.total_width * 0.5
-
-        ET.SubElement(
-            asset,
-            'hfield',
-            name=hfield_name,
-            file=str(image_path),
-            size=f'{self.total_length * 0.5:.4f} {self.total_width * 0.5:.4f} {peak_height:.4f} 0.02',
-        )
-        ET.SubElement(
-            worldbody,
-            'geom',
-            name='terrain_slope',
-            type='hfield',
-            hfield=hfield_name,
-            pos=f'{center_x:.4f} {center_y:.4f} 0.0000',
-            material='terrain_slope',
-            friction='1.0 0.1 0.1',
+        peak = max(1e-4, float(np.max(heights)))
+        png_path = self._write_heightfield_png(heights)
+        self._sire_heightfield_element(
+            gpo, png_path,
+            x_dim=self.total_length, y_dim=self.total_width,
+            peak=peak, base=0.02,
+            pos_x=float(self.border + self.total_length * 0.5),
+            pos_y=float(self.border + self.total_width * 0.5),
         )
 
-    def _append_global_heightfield(self, asset, worldbody) -> None:
+    def _append_sire_heightfield(self, gpo) -> None:
         heights = self.global_heightfield
-        peak_height = max(1e-4, float(np.max(heights)))
-        image_path = self._write_heightfield_png(heights)
-        hfield_name = 'terrain_hfield'
-        center_x = self.border + self.total_length * 0.5
-        center_y = self.border + self.total_width * 0.5
-
-        ET.SubElement(
-            asset,
-            'hfield',
-            name=hfield_name,
-            file=str(image_path),
-            size=f'{self.total_length * 0.5:.4f} {self.total_width * 0.5:.4f} {peak_height:.4f} 0.02',
-        )
-        ET.SubElement(
-            worldbody,
-            'geom',
-            name='terrain_heightfield',
-            type='hfield',
-            hfield=hfield_name,
-            pos=f'{center_x:.4f} {center_y:.4f} 0.0000',
-            material='terrain_heightfield',
-            friction='1.0 0.1 0.1',
+        peak = max(1e-4, float(np.max(heights)))
+        png_path = self._write_heightfield_png(heights)
+        self._sire_heightfield_element(
+            gpo, png_path,
+            x_dim=self.total_length, y_dim=self.total_width,
+            peak=peak, base=0.02,
+            pos_x=float(self.border + self.total_length * 0.5),
+            pos_y=float(self.border + self.total_width * 0.5),
         )
 
-    def _append_scene_curriculum_course(self, asset, worldbody) -> None:
-        center_x = self.border + self.total_length * 0.5
-        center_y = self.border + self.total_width * 0.5
-        ET.SubElement(
-            worldbody,
-            'geom',
-            name='terrain_floor',
-            type='plane',
-            pos=f'{center_x:.4f} {center_y:.4f} 0.0000',
-            size=f'{self.total_length:.4f} {self.total_width:.4f} 0.1000',
-            rgba='0.55 0.55 0.55 1',
-            friction='1.0 0.1 0.1',
-        )
+    def _append_sire_scene_curriculum(self, gpo) -> None:
         for patch in self.patch_map.values():
-            meta = patch.metadata
             level = self.scene_curriculum_levels[patch.row]
             scene = load_terrain_scene(Path(self.scene_curriculum_dir) / level.scene_npz)
-            scene_width, scene_length = scene.size_xy
-            peak_height = max(1e-4, float(np.max(scene.height_map)))
-            image_path = self._write_heightfield_png(scene.height_map)
-            hfield_name = f'scene_curriculum_hfield_r{patch.row}_c{patch.col}'
-            ET.SubElement(
-                asset,
-                'hfield',
-                name=hfield_name,
-                file=str(image_path),
-                size=f'{scene_width * 0.5:.4f} {scene_length * 0.5:.4f} {peak_height:.4f} 0.02',
+            sw, sl = scene.size_xy
+            peak = max(1e-4, float(np.max(scene.height_map)))
+            png_path = self._write_heightfield_png(scene.height_map)
+            ox = patch.start_x + float(patch.metadata.get('scene_offset_x', 0.0))
+            oy = patch.start_y + float(patch.metadata.get('scene_offset_y', 0.0))
+            self._sire_heightfield_element(
+                gpo, png_path,
+                x_dim=sw, y_dim=sl,
+                peak=peak, base=0.02,
+                pos_x=ox + sw * 0.5,
+                pos_y=oy + sl * 0.5,
+                geo_id=str(patch.row * self.num_cols + patch.col),
             )
-            scene_center_x = patch.start_x + float(meta.get('scene_offset_x', 0.0)) + scene_width * 0.5
-            scene_center_y = patch.start_y + float(meta.get('scene_offset_y', 0.0)) + scene_length * 0.5
-            ET.SubElement(
-                worldbody,
-                'geom',
-                name=f'scene_curriculum_r{patch.row}_c{patch.col}',
-                type='hfield',
-                hfield=hfield_name,
-                pos=f'{scene_center_x:.4f} {scene_center_y:.4f} 0.0000',
-                material='terrain_heightfield',
-                friction='1.0 0.1 0.1',
-            )
-        if not self.enable_corridor_walls:
-            return
-        for patch in self.patch_map.values():
-            meta = patch.metadata
-            threshold_y_min = float(meta.get('threshold_y_min', meta['corridor_center_y'] - 0.5 * meta.get('threshold_width', self.corridor_width)))
-            threshold_y_max = float(meta.get('threshold_y_max', meta['corridor_center_y'] + 0.5 * meta.get('threshold_width', self.corridor_width)))
-            wall_half_length = 0.5 * self.patch_length
-            wall_half_width = 0.5 * self.corridor_wall_thickness
-            wall_half_height = 0.5 * self.corridor_wall_height
-            wall_center_x = patch.start_x + wall_half_length
-            left_wall_y = threshold_y_min - self.corridor_margin - wall_half_width
-            right_wall_y = threshold_y_max + self.corridor_margin + wall_half_width
-            for wall_name, wall_y in (
-                (f'corridor_left_r{patch.row}_c{patch.col}', left_wall_y),
-                (f'corridor_right_r{patch.row}_c{patch.col}', right_wall_y),
-            ):
-                ET.SubElement(
-                    worldbody,
-                    'geom',
-                    name=wall_name,
-                    type='box',
-                    pos=f'{wall_center_x:.4f} {wall_y:.4f} {wall_half_height:.4f}',
-                    size=f'{wall_half_length:.4f} {wall_half_width:.4f} {wall_half_height:.4f}',
-                    rgba='0.35 0.35 0.38 1',
-                    friction='1.0 0.1 0.1',
-                )
 
-    def _append_threshold_course(self, worldbody) -> None:
-        center_x = self.border + self.total_length * 0.5
-        center_y = self.border + self.total_width * 0.5
-        ET.SubElement(
-            worldbody,
-            'geom',
-            name='terrain_floor',
-            type='plane',
-            pos=f'{center_x:.4f} {center_y:.4f} 0.0000',
-            size=f'{self.total_length:.4f} {self.total_width:.4f} 0.1000',
-            rgba='0.55 0.55 0.55 1',
-            friction='1.0 0.1 0.1',
+    def _sire_box_element(self, gpo, half_x: float, half_y: float, half_z: float,
+                           pos_x: float, pos_y: float, pos_z: float,
+                           geo_id: str, part_id: str = "0") -> ET.Element:
+        """Create a Sire <BoxCollisionGeometry> XML element."""
+        pm = (f"{{1,0,0,{pos_x:.4f},"
+              f"0,1,0,{pos_y:.4f},"
+              f"0,0,1,{pos_z:.4f},"
+              f"0,0,0,1}}")
+        return ET.SubElement(
+            gpo, 'BoxCollisionGeometry',
+            id=geo_id,
+            part_id=part_id,
+            is_dynamic="false",
+            visible="true",
+            material="m1",
+            side=f"{{{2*half_x:.4f},{2*half_y:.4f},{2*half_z:.4f}}}",
+            contact_prop="{k:2.8e8,d:2000}",
+            pm=pm,
         )
 
+    def _append_sire_threshold(self, gpo) -> None:
+        # Ground floor as large thin box
+        cx = self.border + self.total_length * 0.5
+        cy = self.border + self.total_width * 0.5
+        floor_half = max(self.total_length, self.total_width) * 0.75
+        self._sire_box_element(gpo, floor_half, floor_half, 0.001, cx, cy, -0.001, "0")
+
+        # Threshold box obstacles
+        next_id = 1
         for patch in self.patch_map.values():
             meta = patch.metadata
-            threshold_center_x = float(meta['threshold_center_x'])
-            threshold_center_y = float(meta['corridor_center_y'])
-            threshold_half_depth = 0.5 * self.threshold_depth
-            threshold_half_width = 0.5 * self.threshold_width
-            threshold_half_height = 0.5 * float(meta['threshold_height'])
-            ET.SubElement(
-                worldbody,
-                'geom',
-                name=f'threshold_r{patch.row}_c{patch.col}',
-                type='box',
-                pos=f'{threshold_center_x:.4f} {threshold_center_y:.4f} {threshold_half_height:.4f}',
-                size=f'{threshold_half_depth:.4f} {threshold_half_width:.4f} {threshold_half_height:.4f}',
-                rgba='0.72 0.48 0.26 1',
-                friction='1.2 0.1 0.1',
-            )
+            tcx = float(meta['threshold_center_x'])
+            tcy = float(meta['corridor_center_y'])
+            th = 0.5 * float(meta['threshold_height'])
+            td = 0.5 * self.threshold_depth
+            tw = 0.5 * self.threshold_width
+            self._sire_box_element(gpo, td, tw, th, tcx, tcy, th, str(next_id))
+            next_id += 1
 
-            if not self.enable_corridor_walls:
-                continue
+            if self.enable_corridor_walls:
+                whl = 0.5 * self.patch_length
+                whw = 0.5 * self.corridor_wall_thickness
+                whh = 0.5 * self.corridor_wall_height
+                wcx = patch.start_x + whl
+                left_y = tcy - 0.5 * self.corridor_width - whw - self.corridor_margin
+                right_y = tcy + 0.5 * self.corridor_width + whw + self.corridor_margin
+                for wy in (left_y, right_y):
+                    self._sire_box_element(gpo, whl, whw, whh, wcx, wy, whh, str(next_id))
+                    next_id += 1
 
-            wall_half_length = 0.5 * self.patch_length
-            wall_half_width = 0.5 * self.corridor_wall_thickness
-            wall_half_height = 0.5 * self.corridor_wall_height
-            wall_center_x = patch.start_x + wall_half_length
-            left_wall_y = threshold_center_y - 0.5 * self.corridor_width - wall_half_width - self.corridor_margin
-            right_wall_y = threshold_center_y + 0.5 * self.corridor_width + wall_half_width + self.corridor_margin
-            for wall_name, wall_y in (
-                (f'corridor_left_r{patch.row}_c{patch.col}', left_wall_y),
-                (f'corridor_right_r{patch.row}_c{patch.col}', right_wall_y),
-            ):
-                ET.SubElement(
-                    worldbody,
-                    'geom',
-                    name=wall_name,
-                    type='box',
-                    pos=f'{wall_center_x:.4f} {wall_y:.4f} {wall_half_height:.4f}',
-                    size=f'{wall_half_length:.4f} {wall_half_width:.4f} {wall_half_height:.4f}',
-                    rgba='0.35 0.35 0.38 1',
-                    friction='1.0 0.1 0.1',
-                )
+    # ── shared utilities ─────────────────────────────────────────
 
     def _write_heightfield_png(self, heights: np.ndarray) -> Path:
         peak = float(np.max(heights))

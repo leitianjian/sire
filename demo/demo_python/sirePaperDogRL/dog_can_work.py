@@ -103,6 +103,11 @@ def shrink_contact_inertia(A_ext: np.ndarray) -> np.ndarray:
   
   return A_rel
 
+def clampVec(vec, limitVec):
+  lower = limitVec[0::2]
+  upper = limitVec[1::2]
+  return np.minimum(np.maximum(vec, lower), upper)
+
 if __name__ == "__main__":
   # get config file name from command line
   # import argparse
@@ -168,8 +173,11 @@ if __name__ == "__main__":
   targetPosRecords = []
   action = np.zeros(num_actions, dtype=np.float32)
   obs = np.zeros(num_obs, dtype=np.float32)
+  fceLimit = [-23.7, 23.7, -23.7, 23.7, -35.55, 35.55,
+              -23.7, 23.7, -23.7, 23.7, -35.55, 35.55,
+              -23.7, 23.7, -23.7, 23.7, -35.55, 35.55,
+              -23.7, 23.7, -23.7, 23.7, -35.55, 35.55,]
   while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
-    isCtrl = simulator.integrate()
     sim_time = simulator.simTime()
     motionMp = getMotionsMp(model)
     motionMv = getMotionsMv(model)
@@ -181,6 +189,7 @@ if __name__ == "__main__":
     motionMaRecords.append(motionMa)
     motionMfRecords.append(motionMf)
 
+    isCtrl = simulator.headerIsCtrl()
     if isCtrl:# and counter != 0:
       timeRecord2.append(sim_time)
       qj = motionMp
@@ -218,7 +227,9 @@ if __name__ == "__main__":
       # if sim_time < 0.04:
       #     target_dof_pos = default_angles.copy()
     # if isCtrl:
-    tau = pd_control(target_dof_pos, motionMp, kps, np.zeros_like(kds), motionMv, kds)
+    tau1 = pd_control(target_dof_pos, motionMp, kps, np.zeros_like(kds), motionMv, kds)
+    tau = clampVec(tau1, fceLimit)
+    print(tau1, tau)
     for i in range(12):
       motion = model.motionPool()[i]
       if isinstance(motion, sire.ActuatorSISO):

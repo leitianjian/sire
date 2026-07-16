@@ -1,5 +1,6 @@
 #ifndef SIRE_CONTACT_PAIR_MANAGER_HPP_
 #define SIRE_CONTACT_PAIR_MANAGER_HPP_
+#include <unordered_map>
 #include <unordered_set>
 
 #include <sire_lib_export.h>
@@ -27,6 +28,39 @@ struct ContactPairValue {
         init_penetration_depth_(init_penetration_depth),
         is_depth_smaller_than_init_depth_(is_depth_smaller_than_init_depth) {}
 };
+
+/// @brief Compound key for multi-contact scenarios (e.g., HeightField) where
+/// the same geometry pair can have multiple contact points. Uses quantized
+/// world-space contact position to distinguish contacts.
+/// Precision is determined by the caller's quantization factor (e.g., *1e4
+/// for 0.1mm, matching HeightFieldCallback::kSpatialTolerance).
+struct SIRE_API ContactPointKey {
+  core::SortedPair<sire::PartId> geom_pair;
+  /// Quantized contact position (value = round(p_WC[m] * scale))
+  long long qx, qy, qz;
+};
+
+/// @brief Hash for ContactPointKey
+struct SIRE_API ContactPointKeyHash {
+  std::size_t operator()(const ContactPointKey& k) const {
+    auto h1 = std::hash<std::size_t>{}(k.geom_pair.first());
+    auto h2 = std::hash<std::size_t>{}(k.geom_pair.second());
+    auto h3 = std::hash<long long>{}(k.qx);
+    auto h4 = std::hash<long long>{}(k.qy);
+    auto h5 = std::hash<long long>{}(k.qz);
+    return (((h1 ^ (h2 << 1)) ^ (h3 << 2)) ^ (h4 << 3)) ^ (h5 << 4);
+  }
+};
+
+/// @brief Equality for ContactPointKey (exact match on quantized integers)
+inline bool operator==(const ContactPointKey& a, const ContactPointKey& b) {
+  return a.geom_pair == b.geom_pair && a.qx == b.qx && a.qy == b.qy &&
+         a.qz == b.qz;
+}
+
+/// @brief Map type keyed by contact point (geometry pair + position)
+using ContactPointMap =
+    std::unordered_map<ContactPointKey, ContactPairValue, ContactPointKeyHash>;
 
 // 需要三个表
 // 1. 用来记录需要缩小时间步长的情况，只需要保存partId
@@ -81,6 +115,7 @@ class SIRE_API ContactPairManager {
   auto impactedContactSet() -> std::unordered_set<SortedPair<sire::PartId>>&;
   auto contactPairMap()
       -> std::unordered_map<SortedPair<sire::PartId>, ContactPairValue>&;
+  auto contactPointMap() -> ContactPointMap&;
   auto impactedPrtSet() -> std::unordered_set<sire::PartId>&;
   auto getValue(const core::SortedPair<sire::PartId>& pair) const
       -> const ContactPairValue&;

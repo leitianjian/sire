@@ -1,5 +1,8 @@
+import matplotlib.pyplot as plt
+import scienceplots
 import math
 import numpy as np
+
 
 def calculate_inclined_positions(angle_deg=10):
     """
@@ -15,7 +18,6 @@ def calculate_inclined_positions(angle_deg=10):
     ground_height = 0.5  # 地面几何中心z坐标
     ground_thickness = 1  # 地面厚度
     cube_size = 1         # 小方块尺寸
-    sphere_radius = 0.1   # 小球半径
     
     # 计算斜面位置
     # 斜面绕x轴旋转10度，保持地面顶部与原点相切
@@ -39,7 +41,9 @@ sim = sire.Simulator()
 model = sim.model()
 model.addSolvers()
 simulator = sim.simulationLoop()
-simulator.simDuration = 0.107
+simulator.simDuration = 0.961
+simulator.deltaT = 0.001
+simulator.ctrlT = 10
 simulator.setEventHandlerMap({0:9, 1:10, 2:11})
 physicsEngine = sim.physicsEngine()
 contactSolver = physicsEngine.addPsVsSolver2()
@@ -47,12 +51,13 @@ physicsEngine.collisionDetectionFlag = True
 physicsEngine.contactSolverFlag = True
 contactSolver.setDefaultProp("{k:1.4e8,d:10000,cr:0.2}")
 # contactSolver.setDefaultProp("{k:2e7,d:10000,cr:0.2}")
-contactSolver.addMaterialPair("m1", "m1", "{k:2e8,d:10000,cr:0,cof:0.3,threshold_velocity:2e-3}")
-# contactSolver.addMaterialPair("m1", "m2", "{k:2e8,d:150000,cr:0.3,cof:0.5,threshold_velocity:1e-4}")
+# contactSolver.addMaterialPair("m1", "m1", "{k:2e8,d:10000,cr:0,cof:0.3,threshold_velocity:2e-6}")
+contactSolver.addMaterialPair("m1", "m2", "{k:2e8,d:150000,cr:0.2,cof:0.3,threshold_velocity:1e-4}")
 model.setGravity([0, 0, -9.81, 0, 0, 0])
 model.ground().addMarker("joint_0_k")
 model.ground().addMarker("ground_marker")
 ground_pe, cube_pe = calculate_inclined_positions(15)
+# cube_pe[2] = 2
 ground_pm = sire.pe3132tfmatrix(ground_pe).tolist()
 model.ground().addBoxGeometry(0, 100, 100, 1, [1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1])
 model.ground().addBoxGeometry(0, 5, 5, 1, ground_pm)
@@ -73,12 +78,13 @@ physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,0.5,0,1,0,0.5,0,0,1
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,0.5,0,1,0,-0.5,0,0,1,-0.4,0,0,0,1], material="m2")
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,-0.5,0,1,0,0.5,0,0,1,-0.4,0,0,0,1], material="m2")
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,-0.5,0,1,0,-0.5,0,0,1,-0.4,0,0,0,1], material="m2")
-print(sire.toXmlString(sim))
+# print(sire.toXmlString(sim))
 sim.init()
 for i in range(4):
   physicsEngine.collisionFilter().enableCollisionPair(1, i + 3)
 
 physicsEngine.collisionFilter().saveMatConfig()
+print(sire.toXmlString(sim))
 
 count = 0
 while(not simulator.isTimeout() and not simulator.isEventListEmpty()):

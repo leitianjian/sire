@@ -25,8 +25,8 @@ namespace sire::simulator {
 struct EventManager::Imp {
   SimulationLoop* simulationLoopPtr_;
   // prevCtrlTime <= prevIntTime_
-  double prevCtrlTime_{-1};
-  double prevIntTime_{-1};
+  double prevCtrlTime_{0};
+  double prevIntTime_{0};
   double nextSuggestTime_{-1};
   sire::Size nextEventId_{1};
 
@@ -69,6 +69,9 @@ auto EventManager::init(simulator::SimulationLoop* simulationLoopPtr) -> void {
   imp_->simulationLoopPtr_ = simulationLoopPtr;
 }
 auto EventManager::reset() -> void {
+  imp_->prevCtrlTime_ = 0;
+  imp_->prevIntTime_ = 0;
+  imp_->nextSuggestTime_ = -1;
   imp_->event_list_.clear();
   addEvent(createEventById(0));
   imp_->header_ = imp_->event_list_.begin();

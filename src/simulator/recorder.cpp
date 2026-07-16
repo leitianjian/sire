@@ -67,19 +67,35 @@ auto Recorder::recordModelState(aris::dynamic::Model& model) -> void {
   cr.singleComponentForces.resize(motionSize, 0);
   for (sire::Size i{0}; i < motionSize; ++i) {
     auto& motion = motionPool.at(i);
-    cr.singleComponentForces[i] = dynamic_cast<aris::dynamic::SingleComponentForce&>(fcePool[startIdx + i]).fce();
+    cr.singleComponentForces[i] =
+        dynamic_cast<aris::dynamic::SingleComponentForce&>(
+            fcePool[startIdx + i])
+            .fce();
   }
   cr.generalForces.resize(prtSize);
   for (sire::Size i{0}; i < prtSize; ++i) {
-    auto& fce = dynamic_cast<aris::dynamic::GeneralForce&>(fcePool.at(startIdx + motionSize + i));
+    auto& fce = dynamic_cast<aris::dynamic::GeneralForce&>(
+        fcePool.at(startIdx + motionSize + i));
     std::copy(fce.fce(), fce.fce() + 6, cr.generalForces[i].data());
   }
 }
 auto Recorder::recordContactInfo(
     const std::vector<sire::physics::common::PointPairContactInfo>&
-        contactInfos, sire::Size n) -> void {
+        contactInfos,
+    sire::Size n) -> void {
   auto& cr = records[records.size() - n];
   cr.contactInfos = contactInfos;
+}
+auto Recorder::recordPenetrationPairs(
+    const std::vector<sire::physics::common::PenetrationAsPointPair>&
+        penetrationPairs) -> void {
+  auto& cr = records.back();
+  cr.penetrationPairs = penetrationPairs;
+}
+auto Recorder::recordContactPairResults(
+    const std::vector<ContactPairResult>& results) -> void {
+  auto& cr = records.back();
+  cr.contactPairResults = results;
 }
 auto Recorder::setInterestedDataSize(sire::Size size) -> void {
   auto& cr = records.back();
@@ -101,6 +117,10 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
   nlohmann::json general_force_json =
       nlohmann::json::array();  // 外层数组，长度=records.size
   nlohmann::json contact_info_json =
+      nlohmann::json::array();          // 外层数组，长度=records.size()
+  nlohmann::json penetration_pairs_json =
+      nlohmann::json::array();          // 外层数组，长度=records.size()
+  nlohmann::json contact_result_json =
       nlohmann::json::array();          // 外层数组，长度=records.size()
   for (const auto& record : records) {  // 遍历每个 Record
     // 处理 partPqs 数据
@@ -132,7 +152,8 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
 
     nlohmann::json general_force_array;
     for (const auto& fce : record.generalForces) {
-      general_force_array.push_back(std::vector<double>(fce.begin(), fce.end()));
+      general_force_array.push_back(
+          std::vector<double>(fce.begin(), fce.end()));
     }
     general_force_json.push_back(general_force_array);
 
@@ -148,15 +169,43 @@ SIRE_DEFINE_TO_JSON_HEAD(Recorder) {
     }
     contact_info_json.push_back(
         contact_info_array);  // 将当前 Record 的 contactInfos 数据加入外层数组
+
+    // 处理 contactResults 数据
+    nlohmann::json contact_result_array;  // 每个 Record 的 contactResults 数组
+    for (const auto& contact :
+         record.contactPairResults) {  // 遍历 contactInfos 中的每个
+                                 // PointPairContactInfo
+      nlohmann::json
+          contactPairJson;  // 用于存储每个 PointPairContactInfo 的 JSON 对象
+      contact.to_json(contactPairJson);
+      contact_result_array.push_back(contactPairJson);
+    }
+    contact_result_json.push_back(
+        contact_result_array);  // 将当前 Record 的 contactResults 数据加入外层数组
+
+    // 处理 penetrationPairs 数据
+    nlohmann::json penetration_pairs_array;  // 每个 Record 的 penetrationPairs 数组
+    for (const auto& penetration :
+         record.penetrationPairs) {  // 遍历 penetrationPairs 中的每个
+                                      // PenetrationAsPointPair
+      nlohmann::json
+          contactJson;  // 用于存储每个 PointPairContactInfo 的 JSON 对象
+      penetration.to_json(contactJson);
+      penetration_pairs_array.push_back(contactJson);
+    }
+    penetration_pairs_json.push_back(
+        penetration_pairs_array);  // 将当前 Record 的 penetrationPairs 数据加入外层数组
   }
 
-  j["partPq"] = part_pq_json;            // 添加 partpq 数据
-  j["partVs"] = part_vs_json;            // 添加 partpq 数据
-  j["partAs"] = part_as_json;            // 添加 partpq 数据
+  j["partPq"] = part_pq_json;  // 添加 partpq 数据
+  j["partVs"] = part_vs_json;  // 添加 partpq 数据
+  j["partAs"] = part_as_json;  // 添加 partpq 数据
   j["singleComponentForces"] = single_component_force_json;
   j["generalForces"] = general_force_json;
-  j["timeIndex"] = timeIndices;          // 添加 timeindex 数据
-  j["dts"] = dts;                        // 添加 timeindex 数据
-  j["contactInfo"] = contact_info_json;  // 添加 contact_info 数据
+  j["timeIndex"] = timeIndices;                    // 添加 timeindex 数据
+  j["dts"] = dts;                                  // 添加 timeindex 数据
+  j["contactInfo"] = contact_info_json;            // 添加 contact_info 数据
+  j["penetrationPairs"] = penetration_pairs_json;  // 添加 penetrationPairs 数据
+  j["contactPairResults"] = contact_result_json;    // 添加 contactResults 数据
 }
 }  // namespace sire::simulator

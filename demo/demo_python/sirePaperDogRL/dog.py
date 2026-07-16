@@ -145,16 +145,16 @@ if __name__ == "__main__":
 
   # Load robot model
   sim = sire.Simulator()
-  sire.fromXmlFile(sim, r'D:\code\sire\demo\demo_python\sirePaperDogRL\go2.xml')
+  sire.fromXmlFile(sim, r'D:\code\sire\demo\demo_python\sirePaperDogRL\go2_rai_foot.xml')
   print("Model loaded, initializing simulator...")
   sim.init()
   print("Simulator initialized, starting simulation loop...")
-  print(sire.toXmlString(sim.model()))
   simulator = sim.simulationLoop()
   model = sim.model()
   simulator.simDuration = simulation_duration
   simulator.deltaT = simulation_dt
   simulator.ctrlT = ctrl_dt
+  print(sire.toXmlString(sim))
   # print("Model info:")
   # print(f"Number of joints: {model.numJoints()}")
   # print(f"Joint names: {[model.joint(i).name for i in range(model.numJoints())]}")
@@ -238,7 +238,8 @@ if __name__ == "__main__":
   print("before reset")
   
   simulator.recordsContactCptInfo()
-  displayInitJson = model.displayInitJson()
+  displayInitJson = sim.displayInitJson()
+  print(displayInitJson)
   result = simulator.recordsToJson()
   print("Simulation finished, records loaded")
   import meshcat

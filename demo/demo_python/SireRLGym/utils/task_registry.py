@@ -11,8 +11,9 @@ from pathlib import Path
 from typing import Type
 import re
 
-from RLGym.envs import GO2RoughCfg, GO2RoughCfgPPO, GO2Threshold, GO2ThresholdCfg, GO2ThresholdCfgPPO, LeggedRobot
-from RLGym import ROOT_DIR
+from SireRLGym.envs import GO2RoughCfg, GO2RoughCfgPPO, GO2ThresholdCfg, GO2ThresholdCfgPPO
+from SireRLGym.envs.base.legged_robot_sire import LeggedRobotSire
+from SireRLGym import ROOT_DIR
 
 
 @dataclass
@@ -23,8 +24,8 @@ class TaskSpec:
 
 
 _TASKS = {
-    'go2': TaskSpec(env_class=LeggedRobot, env_cfg_class=GO2RoughCfg, train_cfg_class=GO2RoughCfgPPO),
-    'go2_threshold': TaskSpec(env_class=GO2Threshold, env_cfg_class=GO2ThresholdCfg, train_cfg_class=GO2ThresholdCfgPPO),
+    'go2': TaskSpec(env_class=LeggedRobotSire, env_cfg_class=GO2RoughCfg, train_cfg_class=GO2RoughCfgPPO),
+    'go2_threshold': TaskSpec(env_class=LeggedRobotSire, env_cfg_class=GO2ThresholdCfg, train_cfg_class=GO2ThresholdCfgPPO),
 }
 
 
@@ -51,7 +52,7 @@ def make_env_cfg(task: str):
 
 def make_env_from_cfg(task: str, env_cfg, headless: bool = True):
     spec = _TASKS[task]
-    env = spec.env_class(env_cfg, sim_params=env_cfg.sim, physics_engine='mujoco', sim_device='cpu', headless=headless)
+    env = spec.env_class(env_cfg, sim_params=env_cfg.sim, physics_engine='sire', sim_device='cpu', headless=headless)
     return env
 
 

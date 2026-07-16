@@ -41,6 +41,10 @@ class SIRE_API CollisionDetection {
   auto hasCollisions() -> bool;
   auto computePointPairPenetration(
       std::vector<common::PenetrationAsPointPair>& contacts) -> bool;
+  /// @brief 与 computePointPairPenetration 类似，但 HeightField
+  /// 碰撞对会检测多个接触点并做空间去重。
+  auto computeHeightFieldPenetration(
+      std::vector<common::PenetrationAsPointPair>& contacts) -> bool;
   auto init(physics::PhysicsEngine* engine_ptr) -> void;
 
   CollisionDetection();

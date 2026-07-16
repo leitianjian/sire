@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -25,6 +26,7 @@
 #include "sire/core/constants.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
+#include "sire/physics/collision/height_field_contact_callback.hpp"
 #include "sire/physics/collision/penetration_as_point_pair_callback.hpp"
 #include "sire/physics/geometry/sphere_collision_geometry.hpp"
 #include "sire/physics/physics_engine.hpp"
@@ -61,6 +63,21 @@ auto CollisionDetection::updateLocation(const aris::dynamic::Model* model_ptr)
     if (geometry.isDynamic()) {
       double temp_pm[16];
       model_ptr->partPool().at(geometry.partId()).getPm(temp_pm);
+      // NaN guard: if part pose is invalid (e.g. after integration divergence),
+      // skip this update so coal's BVH doesn't segfault on bad data.
+      bool pose_valid = true;
+      for (int k = 0; k < 16; ++k) {
+        if (!std::isfinite(temp_pm[k])) {
+          pose_valid = false;
+          break;
+        }
+      }
+      if (!pose_valid) {
+        std::ostringstream oss;
+        oss << "[Sire] CollisionDetection: NaN pose for geometry "
+            << geometry.id() << " part " << geometry.partId();
+        throw std::runtime_error(oss.str());
+      }
       geometry.updateLocation(temp_pm);
     }
   }
@@ -73,6 +90,21 @@ auto CollisionDetection::updateLocation(const double* part_pq) -> bool {
     if (geometry.isDynamic()) {
       double temp_pm[16];
       aris::dynamic::s_pq2pm(part_pq + 7 * geometry.partId(), temp_pm);
+      // NaN guard for part_pq input
+      bool pose_valid = true;
+      for (int k = 0; k < 16; ++k) {
+        if (!std::isfinite(temp_pm[k])) {
+          pose_valid = false;
+          break;
+        }
+      }
+      if (!pose_valid) {
+        std::ostringstream oss;
+        oss << "[Sire] CollisionDetection: NaN pose for geometry "
+            << geometry.id() << " part " << geometry.partId()
+            << " (from part_pq)";
+        throw std::runtime_error(oss.str());
+      }
       geometry.updateLocation(temp_pm);
     }
   }
@@ -138,6 +170,13 @@ auto CollisionDetection::computePointPairPenetration(
     std::vector<common::PenetrationAsPointPair>& contacts) -> bool {
   PenetrationAsPointPairCallback callback(imp_->collision_filter_ptr_,
                                           &contacts);
+  imp_->dynamic_tree_.collide(&callback);
+  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
+  return true;
+}
+auto CollisionDetection::computeHeightFieldPenetration(
+    std::vector<common::PenetrationAsPointPair>& contacts) -> bool {
+  HeightFieldContactCallback callback(imp_->collision_filter_ptr_, &contacts);
   imp_->dynamic_tree_.collide(&callback);
   imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
   return true;

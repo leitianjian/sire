@@ -82,18 +82,24 @@ SIRE_DEFINE_TO_JSON_HEAD(HeightField) {
 }
 
 auto HeightField::init() -> void {
-  if (validatePngFile(filePath_) && scaleZ_ > 0) {
+  if (validatePngFile(filePath_)) {
     typedShape.loadMujocoPNG(filePath_.c_str(), typedShape.xDim() / 2,
                              typedShape.yDim() / 2, scaleZ_);
   }
-
   // 1. 创建一个列主序的 Eigen 矩阵（注意：矩阵尺寸为 nrow x ncol）
   int nrow = typedShape.nrow(), ncol = typedShape.ncol();
   coal::MatrixXs mat(nrow, ncol);
   auto& heights_ = typedShape.heights();
   for (int r = 0; r < nrow; ++r)
     for (int c = 0; c < ncol; ++c) mat(r, c) = heights_[r * ncol + c];
-
+  // std::cout << "HeightField init with file: " << filePath_
+  //           << ", x_dim: " << typedShape.xDim() << ", y_dim: " << typedShape.yDim()
+  //           << ", nrow: " << nrow << ", ncol: " << ncol
+  //           << ", min_height: " << typedShape.minHeight() << std::endl;
+  // std::cout << pm()[0][0] << " " << pm()[0][1] << " " << pm()[0][2] << std::endl;
+  // std::cout << pm()[1][0] << " " << pm()[1][1] << " " << pm()[1][2] << std::endl;
+  // std::cout << pm()[2][0] << " " << pm()[2][1] << " " << pm()[2][2] << std::endl;
+  // std::cout << pm()[0][3] << " " << pm()[1][3] << " " << pm()[2][3] << std::endl;
   resetCollisionObject(new coal::CollisionObject(
       std::make_shared<coal::HeightField<coal::AABB>>(
           typedShape.xDim(), typedShape.yDim(), mat, typedShape.minHeight()),

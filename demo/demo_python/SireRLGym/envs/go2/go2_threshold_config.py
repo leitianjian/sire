@@ -1,4 +1,4 @@
-from RLGym.envs.go2.go2_config import GO2RoughCfg, GO2RoughCfgPPO
+from SireRLGym.envs.go2.go2_config import GO2RoughCfg, GO2RoughCfgPPO
 
 
 class GO2ThresholdCfg(GO2RoughCfg):

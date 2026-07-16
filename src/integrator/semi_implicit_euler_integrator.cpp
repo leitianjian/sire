@@ -2,6 +2,7 @@
 
 #include <aris/core/serialization.hpp>
 #include <aris/dynamic/model.hpp>
+#include <sstream>
 
 #include "sire/core/constants.hpp"
 #include "sire/core/sire_assert.hpp"
@@ -38,6 +39,21 @@ auto SemiImplicitEulerIntegrator::updPs(double dt) -> bool {
     for (sire::Size j = 0; j < kTwistSize; ++j) {
       vs_buffer[j] += dt * as[j];
       ps_buffer[j] = dt * vs_buffer[j];
+    }
+    // MuJoCo-style NaN guard: if integration produced invalid velocity or
+    // position (e.g. contact force explosion), clamp to zero and warn.
+    bool integration_ok = true;
+    for (sire::Size j = 0; j < kTwistSize; ++j) {
+      if (!std::isfinite(vs_buffer[j]) || !std::isfinite(ps_buffer[j])) {
+        integration_ok = false;
+        break;
+      }
+    }
+    if (!integration_ok) {
+      std::ostringstream oss;
+      oss << "[Sire] Integrator: NaN in part " << i
+          << " after integration step";
+      throw std::runtime_error(oss.str());
     }
     aris::dynamic::s_ps2pm(ps_buffer, temp_pm);
     aris::dynamic::s_pm_dot_pm(temp_pm, pm, pm_result);

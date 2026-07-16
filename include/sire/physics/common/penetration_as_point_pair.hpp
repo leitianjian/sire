@@ -29,6 +29,11 @@ struct PenetrationAsPointPair {
     j["geomIdA"] = id_A;
     j["geomIdB"] = id_B;
     j["depth"] = depth;
+    j["modifiedDepth"] = modifiedDepth;
+    j["p_WC"] = p_WC;
+    j["p_WCa"] = p_WCa;
+    j["p_WCb"] = p_WCb;
+    j["nhat_AB_W"] = nhat_AB_W;
   }
   bool compareById(const PenetrationAsPointPair& other) const {
     return (id_A == other.id_A && id_B == other.id_B) ||
