@@ -281,32 +281,60 @@
         <BoxCollisionGeometry visible="false" id="5" part_id="1" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{0.38,0.12,0.12}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.02,0,0,0,1}" />
         <CylinderCollisionGeometry visible="false" id="6" part_id="2" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.046" length="0.06" pm="{1,0,0,0,0,0,-1,0.05,0,1,0,0,0,0,0,1}" />
         <BoxCollisionGeometry visible="false" id="7" part_id="3" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{0.12,0.035,0.04}" pm="{0,0,1,0,0,1,0,0,-1,0,0,-0.10,0,0,0,1}" />
+        <CylinderCollisionGeometry visible="false" id="14" part_id="4" material="m1" pm="{0.978031003830689,-0,-0.208459481784671,0.008,0,1,-0,0,0.208459481784671,0,0.978031003830689,-0.06,0,0,0,1}" is_dynamic="true" radius="0.012" length="0.12"/>
+        <CylinderCollisionGeometry visible="false" id="15" part_id="4" material="m1" pm="{0.998750261195416,0,0.0499791532750281,0.02,0,1,0,0,-0.0499791532750281,0,0.998750261195416,-0.148,0,0,0,1}" is_dynamic="true" radius="0.011" length="0.065"/>
+        <CylinderCollisionGeometry visible="false" id="16" part_id="4" material="m1" pm="{0.862807464337853,0,0.505532669056001,0.00801333,0,1,0,0,-0.505532669056001,0,0.862807464337853,-0.18745,0,0,0,1}" is_dynamic="true" radius="0.0155" length="0.03"/>
+        
         <CylinderCollisionGeometry visible="false" id="8" part_id="6" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.046" length="0.06" pm="{1,0,0,0,0,0,-1,-0.05,0,1,0,0,0,0,0,1}" />
         <BoxCollisionGeometry visible="false" id="9" part_id="7" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{0.12,0.035,0.04}" pm="{0,0,1,0,0,1,0,0,-1,0,0,-0.10,0,0,0,1}" />
+        <CylinderCollisionGeometry visible="false" id="17" part_id="8" material="m1" pm="{0.98006657786643,-0,-0.198669330670802,0.01,0,1,-0,0,0.198669330670802,0,0.98006657786643,-0.06,0,0,0,1}" is_dynamic="true" radius="0.013" length="0.12"/>
+        <CylinderCollisionGeometry visible="false" id="18" part_id="8" material="m1" pm="{0.998750261195416,0,0.0499791532750281,0.02,0,1,0,0,-0.0499791532750281,0,0.998750261195416,-0.148,0,0,0,1}" is_dynamic="true" radius="0.011" length="0.065"/>
+        <CylinderCollisionGeometry visible="false" id="19" part_id="8" material="m1" pm="{0.862807464337853,0,0.505532669056001,0.00801333,0,1,0,0,-0.505532669056001,0,0.862807464337853,-0.18745,0,0,0,1}" is_dynamic="true" radius="0.0155" length="0.03"/>
+        
         <CylinderCollisionGeometry visible="false" id="10" part_id="10" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.046" length="0.06" pm="{1,0,0,0,0,0,-1,0.05,0,1,0,0,0,0,0,1}" />
         <BoxCollisionGeometry visible="false" id="11" part_id="11" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{0.12,0.035,0.04}" pm="{0,0,1,0,0,1,0,0,-1,0,0,-0.10,0,0,0,1}" />
+        <CylinderCollisionGeometry visible="false" id="20" part_id="12" material="m1" pm="{0.98006657786643,-0,-0.198669330670802,0.01,0,1,-0,0,0.198669330670802,0,0.98006657786643,-0.06,0,0,0,1}" is_dynamic="true" radius="0.013" length="0.12"/>
+        <CylinderCollisionGeometry visible="false" id="21" part_id="12" material="m1" pm="{0.998750261195416,0,0.0499791532750281,0.02,0,1,0,0,-0.0499791532750281,0,0.998750261195416,-0.148,0,0,0,1}" is_dynamic="true" radius="0.011" length="0.065"/>
+        <CylinderCollisionGeometry visible="false" id="22" part_id="12" material="m1" pm="{0.862807464337853,0,0.505532669056001,0.00801333,0,1,0,0,-0.505532669056001,0,0.862807464337853,-0.18745,0,0,0,1}" is_dynamic="true" radius="0.0155" length="0.03"/>
+ 
         <CylinderCollisionGeometry visible="false" id="12" part_id="14" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.046" length="0.06" pm="{1,0,0,0,0,0,-1,-0.05,0,1,0,0,0,0,0,1}" />
         <BoxCollisionGeometry visible="false" id="13" part_id="15" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{0.12,0.035,0.04}" pm="{0,0,1,0,0,1,0,0,-1,0,0,-0.10,0,0,0,1}" />
+        <CylinderCollisionGeometry visible="false" id="23" part_id="16" material="m1" pm="{0.98006657786643,-0,-0.198669330670802,0.01,0,1,-0,0,0.198669330670802,0,0.98006657786643,-0.06,0,0,0,1}" is_dynamic="true" radius="0.013" length="0.12"/>
+        <CylinderCollisionGeometry visible="false" id="24" part_id="16" material="m1" pm="{0.998750261195416,0,0.0499791532750281,0.02,0,1,0,0,-0.0499791532750281,0,0.998750261195416,-0.148,0,0,0,1}" is_dynamic="true" radius="0.011" length="0.065"/>
+        <CylinderCollisionGeometry visible="false" id="25" part_id="16" material="m1" pm="{0.862807464337853,0,0.505532669056001,0.00801333,0,1,0,0,-0.505532669056001,0,0.862807464337853,-0.18745,0,0,0,1}" is_dynamic="true" radius="0.0155" length="0.03"/>
+ 
         <SphereCollisionGeometry visible="false" id="1" part_id="5" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.022" pm="{1,0,0,-0.002,0,1,0,0,0,0,1,0,0,0,0,1}" />
         <SphereCollisionGeometry visible="false" id="2" part_id="9" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.022" pm="{1,0,0,-0.002,0,1,0,0,0,0,1,0,0,0,0,1}" />
         <SphereCollisionGeometry visible="false" id="3" part_id="13" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.022" pm="{1,0,0,-0.002,0,1,0,0,0,0,1,0,0,0,0,1}" />
         <SphereCollisionGeometry visible="false" id="4" part_id="17" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.022" pm="{1,0,0,-0.002,0,1,0,0,0,0,1,0,0,0,0,1}" />
     </GeometryPoolObject>
     <CollisionFilter __prop_name__="collision_filter" filter_state="{
-1,0,0,0,0,0,0,0,0,0,0,0,0,0,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1,
-0,1,1,1,1,1,1,1,1,1,1,1,1,1
+1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
 }" />
 </PhysicsEngine>
 <SimulatorModules __prop_name__="simulator_modules">

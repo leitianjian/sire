@@ -126,7 +126,7 @@ class GO2ThresholdCfgPPO(GO2RoughCfgPPO):
     class runner(GO2RoughCfgPPO.runner):
         experiment_name = 'threshold_go2'
         max_iterations = 128
-        num_steps_per_env = 40
+        num_steps_per_env = 80
         save_interval = 16
         infinite_mode = False
         infinite_success_rate_threshold = 0.5

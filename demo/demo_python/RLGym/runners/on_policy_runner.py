@@ -157,11 +157,14 @@ class OnPolicyRunner:
             if isinstance(update_out, tuple):
                 mean_value_loss = update_out[0]
                 mean_surrogate_loss = update_out[1]
-                mean_sym_loss = update_out[2] if len(update_out) > 2 else 0.0
+                mean_entropy = update_out[2] if len(update_out) > 2 else 0.0
+                # update_out[3] = mean_rnd_loss (unused)
+                mean_sym_loss = update_out[4] if len(update_out) > 4 else None
             else:
                 mean_value_loss = update_out
                 mean_surrogate_loss = 0.0
-                mean_sym_loss = 0.0
+                mean_entropy = 0.0
+                mean_sym_loss = None
             stop = time.time()
             learn_time = stop - start
 
@@ -216,7 +219,8 @@ class OnPolicyRunner:
 
         self.writer.add_scalar('Loss/value_function', locs['mean_value_loss'], locs['it'])
         self.writer.add_scalar('Loss/surrogate', locs['mean_surrogate_loss'], locs['it'])
-        if 'mean_sym_loss' in locs:
+        self.writer.add_scalar('Loss/entropy', locs['mean_entropy'], locs['it'])
+        if locs.get('mean_sym_loss') is not None:
             self.writer.add_scalar('Loss/symmetry', locs['mean_sym_loss'], locs['it'])
         mean_std = self.alg.actor_critic.std.mean()
         self.writer.add_scalar('Policy/mean_noise_std', mean_std.item(), locs['it'])
@@ -241,8 +245,9 @@ class OnPolicyRunner:
                 f"{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs['collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"
                 f"{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"
                 f"{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"
-                f"{'Symmetry loss:':>{pad}} {locs.get('mean_sym_loss', 0.0):.4f}\n"
-                f"{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"
+                f"{'Mean entropy:':>{pad}} {locs.get('mean_entropy', 0.0):.4f}\n"
+                + (f"{'Symmetry loss:':>{pad}} {locs['mean_sym_loss']:.4f}\n" if locs.get('mean_sym_loss') is not None else "")
+                + f"{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"
                 f"{'Mean reward:':>{pad}} {statistics.mean(locs['rewbuffer']):.2f}\n"
                 f"{'Mean episode length:':>{pad}} {statistics.mean(locs['lenbuffer']):.2f}\n"
             )
@@ -253,8 +258,9 @@ class OnPolicyRunner:
                 f"{'Computation:':>{pad}} {fps:.0f} steps/s (collection: {locs['collection_time']:.3f}s, learning {locs['learn_time']:.3f}s)\n"
                 f"{'Value function loss:':>{pad}} {locs['mean_value_loss']:.4f}\n"
                 f"{'Surrogate loss:':>{pad}} {locs['mean_surrogate_loss']:.4f}\n"
-                f"{'Symmetry loss:':>{pad}} {locs.get('mean_sym_loss', 0.0):.4f}\n"
-                f"{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"
+                f"{'Mean entropy:':>{pad}} {locs.get('mean_entropy', 0.0):.4f}\n"
+                + (f"{'Symmetry loss:':>{pad}} {locs['mean_sym_loss']:.4f}\n" if locs.get('mean_sym_loss') is not None else "")
+                + f"{'Mean action noise std:':>{pad}} {mean_std.item():.2f}\n"
             )
 
         if self.debug_reward and isinstance(getattr(self.env, 'reward_debug_info', None), dict):

@@ -28,7 +28,7 @@ class GO2RoughCfg(LeggedRobotCfg):
         spawn_offset_y = 5.0
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.44]  # 0.5× rand → -1.4cm (slight), 1.0× → +7.7cm
+        pos = [0.0, 0.0, 0.34]  # 0.5× rand → -1.4cm (slight), 1.0× → +7.7cm
         init_yaw_range = [-3.1415926, 3.1415926]
         default_joint_angles = {
             'FL_hip_joint': 0.1,

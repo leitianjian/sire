@@ -138,7 +138,7 @@ def main():
         print("  Press Ctrl+C to stop.\n")
 
         sire.animateRobotByRecords(m.nbody, result, 1000, vis)
-        time.sleep(0.1)
+        input("[test] Press Enter to exit...")
     except ImportError:
         print("\n  meshcat not installed.  Install with: pip install meshcat")
     except KeyboardInterrupt:

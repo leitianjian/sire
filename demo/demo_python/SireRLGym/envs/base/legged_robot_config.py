@@ -224,7 +224,7 @@ class LeggedRobotCfgPPO(BaseConfig):
     class runner:
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
-        num_steps_per_env = 48
+        num_steps_per_env = 120
         max_iterations = 15000
         save_interval = 500
         experiment_name = 'test'

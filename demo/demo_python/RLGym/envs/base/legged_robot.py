@@ -87,6 +87,54 @@ class LeggedRobot(VecEnv):
         self.last_root_vel[:] = self.root_states[:, 7:13]
         self.last_feet_pos_world[:] = self.feet_pos_world[:]
 
+        # ---- MuJoCo reward decomposition diagnostic (first 20 steps) ----
+        if self.common_step_counter <= 20:
+            r_track_lin = self._reward_tracking_lin_vel().mean().item()
+            r_track_ang = self._reward_tracking_ang_vel().mean().item()
+            r_orient = self._reward_orientation().mean().item()
+            r_height = self._reward_base_height().mean().item()
+            r_torque = self._reward_torques().mean().item()
+            r_air = self._reward_feet_air_time().mean().item()
+            r_collision = self._reward_collision().mean().item()
+            r_lin_vel_z_raw = self._reward_lin_vel_z().mean().item()
+            r_dof_vel_raw = self._reward_dof_vel().mean().item()
+            r_dof_acc_raw = self._reward_dof_acc().mean().item()
+            r_action_rate_raw = self._reward_action_rate().mean().item()
+            r_ang_vel_xy_raw = self._reward_ang_vel_xy().mean().item()
+            world_vx = self.root_states[:, 7].mean().item()
+            world_vy = self.root_states[:, 8].mean().item()
+            world_vz = self.root_states[:, 9].mean().item()
+            base_vx = self.base_lin_vel[:, 0].mean().item()
+            base_vy = self.base_lin_vel[:, 1].mean().item()
+            base_vz = self.base_lin_vel[:, 2].mean().item()
+            qx = self.base_quat[0, 0].item()
+            qy = self.base_quat[0, 1].item()
+            qz = self.base_quat[0, 2].item()
+            qw = self.base_quat[0, 3].item()
+            base_z = self.root_states[:, 2].mean().item()
+            tilt = self.projected_gravity[:, :2].norm(dim=1).mean().item()
+            foot_ct = self.foot_ground_contact.float().mean().item()
+            contact_nz = (self.contact_forces.abs().sum(dim=-1).sum(dim=-1) > 0).sum().item()
+            cum_lin_vel_z = self.episode_sums.get("lin_vel_z",
+                torch.zeros(1))[0].item()
+            print(
+                f"[MuJoCo diag step {self.common_step_counter}] "
+                f"rew_total={self.rew_buf.mean():.4f} dt={self.dt:.4f}\n"
+                f"  raw_rew: lin_vel_z={r_lin_vel_z_raw:.2f} "
+                f"dof_vel={r_dof_vel_raw:.2f} dof_acc={r_dof_acc_raw:.2f} "
+                f"act_rate={r_action_rate_raw:.2f} ang_vel_xy={r_ang_vel_xy_raw:.2f}\n"
+                f"  world_vel: vx={world_vx:.3f} vy={world_vy:.3f} vz={world_vz:.3f}\n"
+                f"  base_vel:  vx={base_vx:.3f} vy={base_vy:.3f} vz={base_vz:.3f}\n"
+                f"  quat[0]: qx={qx:.4f} qy={qy:.4f} qz={qz:.4f} qw={qw:.4f}\n"
+                f"  base_z={base_z:.3f} tilt={tilt:.4f} foot_ct={foot_ct:.2f} "
+                f"nz_envs={contact_nz}\n"
+                f"  scaled: track_lin={r_track_lin:+.4f} track_ang={r_track_ang:+.4f} "
+                f"air={r_air:+.4f} orient={r_orient:+.4f} height={r_height:+.4f} "
+                f"torque={r_torque:+.4f} collision={r_collision:+.4f} "
+                f"cum_lin_vel_z={cum_lin_vel_z:.2f}",
+                flush=True,
+            )
+
     def check_termination(self):
         base_contacts = torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1.0
         self.reset_buf = torch.any(base_contacts, dim=1)

@@ -124,6 +124,64 @@ class LeggedRobotSire(VecEnv):
         self._sire_physics_failures = getattr(self, '_sire_physics_failures', [])
         self._sire_physics_failures.clear()
 
+        # ── Capture initial state BEFORE first physics step ──
+        if self.common_step_counter == 0:
+            m0 = self.sire_models[0]
+            sl0 = self.sire_sim_loops[0]
+            base_part = m0.link(1)
+            init_pq = list(base_part.pq)
+            init_vs = list(base_part.vs)
+            init_dof_pos = {}
+            for name in self.dof_names:
+                mi = self._sire_dof_to_motion[name]
+                init_dof_pos[name] = float(m0.motion(mi).mp)
+            self._diag_init_state = {
+                'base_pq': init_pq,       # [x,y,z, qx,qy,qz,qw]
+                'base_vs': init_vs,       # [vx,vy,vz, wx,wy,wz]
+                'dof_pos': init_dof_pos,  # {name: angle}
+                'seed': getattr(self, '_diag_seed', None),
+            }
+            self._diag_actions = []  # accumulate per-step actions
+
+            # ── Diagnostic: actual Sire timing params ──
+            print(
+                f"[Sire timing] deltaT={sl0.deltaT} ctrlT={sl0.ctrlT} "
+                f"cfg.sim.dt={self.cfg.sim.dt} decimation={self.cfg.control.decimation} "
+                f"simTime={sl0.simTime():.4f}",
+                flush=True,
+            )
+
+            # ── Print pre-physics initial state ("step 0") ──
+            px, py, pz = init_pq[0], init_pq[1], init_pq[2]
+            qx, qy, qz, qw = init_pq[3], init_pq[4], init_pq[5], init_pq[6]
+            vp_init = sire.vs2vp(init_vs, init_pq[:3])  # body linear velocity
+            vx, vy, vz = vp_init[0], vp_init[1], vp_init[2]
+            # Compute base_lin_vel = quat_rotate_inverse(quat, world_vel)
+            quat_t = torch.tensor([qx, qy, qz, qw], device=self.device)
+            world_vel_t = torch.tensor([vx, vy, vz], device=self.device)
+            base_vel_t = quat_rotate_inverse(quat_t, world_vel_t)
+            dof_str = ' '.join(f'{k}={v:.3f}' for k, v in init_dof_pos.items())
+            act = self.actions[0].cpu().tolist()
+            act_str = ' '.join(f'{a:.3f}' for a in act)
+            print(
+                f"[Sire diag step 0 (pre-physics)] "
+                f"pos=({px:.3f},{py:.3f},{pz:.3f})\n"
+                f"  world_vel: vx={vx:.3f} vy={vy:.3f} vz={vz:.3f}\n"
+                f"  base_vel:  vx={base_vel_t[0]:.3f} vy={base_vel_t[1]:.3f} vz={base_vel_t[2]:.3f}\n"
+                f"  quat=[{qx:.4f},{qy:.4f},{qz:.4f},{qw:.4f}]\n"
+                f"  dof: {dof_str}\n"
+                f"  action: [{act_str}]",
+                flush=True,
+            )
+
+        # ── Record action for this step (from env 0) ──
+        if self.common_step_counter < 20:
+            act = self.actions[0].cpu().tolist() if hasattr(self.actions[0], 'cpu') else list(self.actions[0])
+            self._diag_actions.append(act)
+
+        # ── Per-substep counter for env 0 diag ──
+        substep_idx = 0
+
         for i in range(self.num_envs):
             sl = self.sire_sim_loops[i]
 
@@ -131,17 +189,60 @@ class LeggedRobotSire(VecEnv):
                 # Process all non-ctrl (step) events.
                 # Recompute PD torque from current Sire joint state
                 # before EVERY handleContact, matching MuJoCo/dog.py.
+                step_count = 0
                 while not sl.headerIsCtrl():
                     self._update_actuator_torque(i)
                     t0 = sl.simTime()
                     sl.handleContact()
                     self._sire_dt_actual[i] = sl.simTime() - t0
+                    step_count += 1
+                    # ── Per-substep diag (env 0 only, first 2 ctrl steps) ──
+                    if i == 0 and self.common_step_counter <= 1:
+                        pq = self.sire_models[0].link(1).pq
+                        vs = self.sire_models[0].link(1).vs
+                        as1 = self.sire_models[0].link(1).getAs()
+                        vp = sire.vs2vp(vs, pq[:3])
+                        ap = sire.as2ap(vs, as1, pq[:3])
+                        cr = sl.lastContactPairResultsWithPartIds()
+                        nc = len(cr)
+                        f0 = f"f=({cr[0][2]:.1f},{cr[0][3]:.1f},{cr[0][4]:.1f})" if nc > 0 else "no_contact"
+                        print(
+                            f"  [substep {substep_idx}] step  "
+                            f"vp=({vp[0]:.3f},{vp[1]:.3f},{vp[2]:.3f})  "
+                            f"ap=({ap[0]:.3f},{ap[1]:.3f},{ap[2]:.3f})  "
+                            f"z={pq[2]:.4f}  nc={nc}  {f0}",
+                            flush=True,
+                        )
+                        substep_idx += 1
 
                 # Process the ctrl event — also recompute torque first.
                 self._update_actuator_torque(i)
                 t0 = sl.simTime()
                 sl.handleContact()
                 self._sire_dt_actual[i] = sl.simTime() - t0
+                # ── Timing diag: substep count per env (first 3 steps, env 0) ──
+                if i == 0 and self.common_step_counter <= 2:
+                    print(
+                        f"[Sire timing] step={self.common_step_counter} "
+                        f"substeps={step_count} (step events) + 1 (ctrl) = {step_count+1} total, "
+                        f"t_start={t0:.4f} t_end={sl.simTime():.4f}",
+                        flush=True,
+                    )
+                # ── Per-substep diag for ctrl event too (env 0 only) ──
+                if i == 0 and self.common_step_counter <= 1:
+                    pq = self.sire_models[0].link(1).pq
+                    vs = self.sire_models[0].link(1).vs
+                    vp = sire.vs2vp(vs, pq[:3])
+                    cr = sl.lastContactPairResultsWithPartIds()
+                    nc = len(cr)
+                    f0 = f"f=({cr[0][2]:.1f},{cr[0][3]:.1f},{cr[0][4]:.1f})" if nc > 0 else "no_contact"
+                    print(
+                        f"  [substep {substep_idx}] ctrl  "
+                        f"vp=({vp[0]:.3f},{vp[1]:.3f},{vp[2]:.3f})  "
+                        f"z={pq[2]:.4f}  nc={nc}  {f0}",
+                        flush=True,
+                    )
+                    substep_idx += 1
             except Exception as e:
                 self._sire_physics_failures.append(i)
                 print(f"[Sire physics reset] env {i}: {type(e).__name__}: {e}", flush=True)
@@ -185,6 +286,33 @@ class LeggedRobotSire(VecEnv):
         self.reset_buf |= self.time_out_buf
         self._update_task_termination()
 
+        # ── Diagnostic: log WHY reset triggered (first 50 steps only) ──
+        if self.common_step_counter <= 50:
+            reset_envs = self.reset_buf.nonzero(as_tuple=False).flatten()
+            for eid in reset_envs.tolist():
+                if self.time_out_buf[eid]:
+                    continue  # timeout is normal, skip
+                # Find which termination bodies had contact
+                cf = self.contact_forces[eid, self.termination_contact_indices, :]
+                force_norms = torch.norm(cf, dim=-1)  # [num_term_bodies]
+                triggered = (force_norms > 1.0).nonzero(as_tuple=False).flatten()
+                parts_info = []
+                for idx in triggered:
+                    term_body_id = self.termination_contact_indices[idx].item()
+                    # Look up body name via partPool
+                    try:
+                        body_name = self.sire_models[eid].partPool()[term_body_id].name
+                    except Exception:
+                        body_name = f"id_{term_body_id}"
+                    f_norm = force_norms[idx].item()
+                    parts_info.append(f"{body_name}={f_norm:.1f}N")
+                print(
+                    f"[Sire termination] step={self.common_step_counter} env={eid} "
+                    f"bodies: {parts_info if parts_info else 'unknown'}"
+                    f"  base_z={self.root_states[eid, 2].item():.3f}",
+                    flush=True,
+                )
+
     def reset_idx(self, env_ids):
         if len(env_ids) == 0:
             return
@@ -197,6 +325,8 @@ class LeggedRobotSire(VecEnv):
             self.update_command_curriculum(env_ids)
         # for i in env_ids.tolist():
         #     self.sire_simulators[i].reset()
+        for eid in env_ids.tolist():
+            self.sire_sim_loops[eid].resetRLNoTimer()
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
 
@@ -438,33 +568,33 @@ class LeggedRobotSire(VecEnv):
     #  Called EVERY event (step + ctrl), matching MuJoCo/dog.py.
     # ------------------------------------------------------------------
     def _update_actuator_torque(self, env_idx: int):
-        """Read current mp/mv from Sire model, compute PD torque, set desiredValue."""
+        """Compute and apply PD torques every simulation substep.
+
+        Reads fresh joint state from C++ each call — necessary for accurate
+        position control where joint angles evolve within a control cycle.
+        """
         model = self.sire_models[env_idx]
-        action_i = self.actions[env_idx]
-        action_scaled = action_i * self.cfg.control.action_scale
+        # ── Read joint state in motionPool order, reorder to dof_names order ──
+        mps = np.array(sire.getMotionMps(model), dtype=np.float64)[self._motion_idx]
+        mvs = np.array(sire.getMotionMvs(model), dtype=np.float64)[self._motion_idx]
+        # ── Vectorized PD control (same formula as MuJoCo's _compute_torques) ──
+        actions_scaled = (self.actions[env_idx] * self.cfg.control.action_scale).numpy().astype(np.float64)
         control_type = self.cfg.control.control_type
-        default_pos = self.default_dof_pos.squeeze(0)  # [A]
-        torque = torch.zeros(self.num_actions, device=self.device)
-        for j, dof_name in enumerate(self.dof_names):
-            mot_idx = self._sire_dof_to_motion[dof_name]
-            mot = model.motionPool()[mot_idx]
-            mp = float(mot.mp)
-            mv = float(mot.mv)
-            if control_type == "P":
-                t = (self.p_gains[j].item() * (action_scaled[j].item() + default_pos[j].item() - mp)
-                     - self.d_gains[j].item() * mv)
-            elif control_type == "V":
-                t = (self.p_gains[j].item() * (action_scaled[j].item() - mv)
-                     - self.d_gains[j].item() * (mv - float(self.last_dof_vel[env_idx, j])) / max(self.dt, 1e-6))
-            elif control_type == "T":
-                t = action_scaled[j].item()
-            else:
-                t = 0.0
-            t = max(float(-self.torque_limits[j]), min(float(self.torque_limits[j]), t))
-            torque[j] = t
-            if isinstance(mot, sire.ActuatorSISO):
-                mot.desiredValue = t
-        self.torques[env_idx] = torque
+        if control_type == "P":
+            torques = (self._p_gains * (actions_scaled + self._default_pos - mps)
+                       - self._d_gains * mvs)
+        elif control_type == "V":
+            last_dof_vel = self.last_dof_vel[env_idx].numpy().astype(np.float64)
+            torques = (self._p_gains * (actions_scaled - mvs)
+                       - self._d_gains * (mvs - last_dof_vel) / max(self.dt, 1e-6))
+        elif control_type == "T":
+            torques = actions_scaled
+        else:
+            torques = np.zeros(self.num_actions, dtype=np.float64)
+        torques = np.clip(torques, -self._torque_limits, self._torque_limits)
+        # Write to torch tensor (dof_names order) and C++ (motionPool order)
+        self.torques[env_idx] = torch.as_tensor(torques, dtype=torch.float)
+        sire.setMotionDesiredValues(model, torques[self._motion_idx_inv].tolist())
 
     # ------------------------------------------------------------------
     #  Reset helpers
@@ -480,10 +610,11 @@ class LeggedRobotSire(VecEnv):
         self.dof_vel[env_ids] = 0.0
         for eid in env_ids.tolist():
             m = self.sire_models[eid]
-            for j, dof_name in enumerate(self.dof_names):
-                mot_idx = self._sire_dof_to_motion[dof_name]
-                m.motionPool()[mot_idx].mp = float(self.dof_pos[eid, j])
-                m.motionPool()[mot_idx].mv = 0.0
+            # Build full motionPool arrays via numpy advanced indexing (like MuJoCo's qpos_adr_np)
+            mps_full = np.zeros(self._num_motions, dtype=np.float64)
+            mps_full[self._motion_idx] = self.dof_pos[eid].cpu().numpy()
+            sire.setMotionMps(m, mps_full.tolist())
+            sire.setMotionMvs(m, [0.0] * self._num_motions)
             m.forwardKinematics()
             m.forwardKinematicsVel()
 
@@ -543,9 +674,14 @@ class LeggedRobotSire(VecEnv):
         for eid in env_ids.tolist():
             m = self.sire_models[eid]
             r = self.root_states[eid]
-            # root_states uses Aris convention: [x,y,z, qx,qy,qz,qw, vx,vy,vz,wx,wy,wz]
-            m.partPool()[1].pq = r[:7].cpu().numpy()
-            m.partPool()[1].vs = r[7:13].cpu().numpy()
+            # root_states uses body-point velocity (MuJoCo convention);
+            # Sire part.vs expects spatial velocity (twist at origin).
+            pp = r[:3].cpu().numpy()
+            vp = r[7:10].cpu().numpy()
+            w  = r[10:13].cpu().numpy()
+            vs = np.array(sire.vp2vs(pp, vp, w))   # body-point → spatial twist (with ω)
+            m.link(1).pq = r[:7].cpu().numpy()
+            m.link(1).vs = vs
             m.forwardKinematics()
             m.forwardKinematicsVel()
 
@@ -591,9 +727,13 @@ class LeggedRobotSire(VecEnv):
             -max_vel, max_vel, (self.num_envs, 2), device=self.device
         )
         for i in range(self.num_envs):
-            vs = self.sire_models[i].partPool()[1].vs
-            vs[:2] = self.root_states[i, 7:9].cpu().numpy()
-            self.sire_models[i].partPool()[1].vs = vs
+            m = self.sire_models[i]
+            pq = m.link(1).pq
+            vs = list(m.link(1).vs)
+            vp_new = self.root_states[i, 7:9].cpu().numpy().tolist() + [0.0]  # xy push, z=0
+            w = vs[3:6]  # preserve current angular velocity
+            vs_spatial = sire.vp2vs(pq[:3], vp_new, w)
+            m.link(1).vs = list(vs_spatial)
 
     def _update_terrain_curriculum(self, env_ids):
         if (
@@ -661,7 +801,15 @@ class LeggedRobotSire(VecEnv):
         return noise_vec
 
     def _init_buffers(self):
-        self._refresh_sim_tensors_sire()
+        # ── Pre-allocate tensors (reused in-place by _refresh_sim_tensors_sire) ──
+        self.root_states = torch.zeros(self.num_envs, 13, dtype=torch.float, device=self.device)
+        self.dof_pos = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device)
+        self.dof_vel = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device)
+        self.contact_forces = torch.zeros(self.num_envs, self.num_bodies, 3, dtype=torch.float, device=self.device)
+        self.feet_pos_world = torch.zeros(self.num_envs, len(self.feet_indices), 3, dtype=torch.float, device=self.device)
+        self.body_ground_contact = torch.zeros(self.num_envs, self.num_bodies, dtype=torch.bool, device=self.device)
+        self.foot_ground_contact = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device)
+        self._refresh_sim_tensors_sire()   # fill with current Sire state
 
         self.common_step_counter = 0
         self.extras = {}
@@ -756,6 +904,22 @@ class LeggedRobotSire(VecEnv):
                 self.p_gains[i] = 0.0
                 self.d_gains[i] = 0.0
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
+        # ── Pre-convert to numpy (for vectorized PD math, matching MuJoCo) ──
+        self._p_gains = self.p_gains.numpy().astype(np.float64)
+        self._d_gains = self.d_gains.numpy().astype(np.float64)
+        self._torque_limits = self.torque_limits.numpy().astype(np.float64)
+        self._default_pos = self.default_dof_pos.squeeze(0).numpy().astype(np.float64)
+        self._dof_limits_lo = self.dof_pos_limits[:, 0].tolist()
+        self._dof_limits_hi = self.dof_pos_limits[:, 1].tolist()
+        # ── Pre-compute motion index arrays (like MuJoCo's qpos_adr_np) ──
+        self._num_motions = self.sire_models[0].numMotions()
+        # _motion_idx[i] = motionPool index for dof_names[i]
+        self._motion_idx = np.array(
+            [self._sire_dof_to_motion[name] for name in self.dof_names], dtype=np.int32)
+        # Inverse: _motion_idx_inv[motionPool_idx] = dof_names index
+        self._motion_idx_inv = np.zeros(self._num_motions, dtype=np.int32)
+        for dof_i, mot_i in enumerate(self._motion_idx):
+            self._motion_idx_inv[mot_i] = dof_i
         hip_ids = [i for i, name in enumerate(self.dof_names) if "hip_joint" in name]
         self.hip_indices = torch.tensor(hip_ids, dtype=torch.long, device=self.device)
         self.episode_hip_abs_sums = torch.zeros(
@@ -811,31 +975,17 @@ class LeggedRobotSire(VecEnv):
         }
 
     def _reinit_sire_env(self, env_idx: int) -> None:
-        """Re-create a single Sire environment after physics crash (like MuJoCo reset)."""
-        sim = sire.Simulator()
-        sire.fromXmlFile(sim, str(self.generated_model_path))
-        model = sim.model()
-        sloop = sim.simulationLoop()
-        sloop.deltaT = float(self.cfg.sim.dt)
-        sloop.ctrlT = float(self.cfg.sim.dt) * self.cfg.control.decimation
-        sim.init()
+        """Reset a single Sire environment after physics crash.
 
-        pe = sim.physicsEngine()
-        gmap = {}
-        gp = pe.geometryPool
-        for idx in range(pe.numGeometries()):
-            g = gp[idx]
-            if g is not None:
-                gmap[int(g.id)] = int(g.prtId)
-
-        self.sire_simulators[env_idx] = sim
-        self.sire_models[env_idx] = model
-        self.sire_sim_loops[env_idx] = sloop
-        self.sire_physics[env_idx] = pe
-        self._sire_geom_to_part[env_idx] = gmap
+        Uses the existing Simulator (sim.reset()) rather than creating a new one
+        from XML, to avoid leaking old C++ Simulator/Model/SimulationLoop objects
+        whose pybind11 wrappers won't be freed until Python GC runs.
+        """
+        # ── Full simulator reset: model state, recorder, contacts, events, timer ──
+        self.sire_simulators[env_idx].reset()
         self._sire_dt_actual.pop(env_idx, None)
 
-        # Reset env state tensors
+        # ── Same init flow as a fresh episode ──
         env_ids = torch.tensor([env_idx], device=self.device)
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
@@ -1490,19 +1640,93 @@ class LeggedRobotSire(VecEnv):
             r_torque = self._reward_torques().mean().item()
             r_air = self._reward_feet_air_time().mean().item()
             r_collision = self._reward_collision().mean().item()
+            r_lin_vel_z_raw = self._reward_lin_vel_z().mean().item()
+            r_dof_vel_raw = self._reward_dof_vel().mean().item()
+            r_dof_acc_raw = self._reward_dof_acc().mean().item()
+            r_action_rate_raw = self._reward_action_rate().mean().item()
+            r_ang_vel_xy_raw = self._reward_ang_vel_xy().mean().item()
+            world_vx = self.root_states[:, 7].mean().item()
+            world_vy = self.root_states[:, 8].mean().item()
+            world_vz = self.root_states[:, 9].mean().item()
+            base_vx = self.base_lin_vel[:, 0].mean().item()
+            base_vy = self.base_lin_vel[:, 1].mean().item()
+            base_vz = self.base_lin_vel[:, 2].mean().item()
+            qx = self.base_quat[0, 0].item()
+            qy = self.base_quat[0, 1].item()
+            qz = self.base_quat[0, 2].item()
+            qw = self.base_quat[0, 3].item()
+            dt_val = self.dt
+            cum_lin_vel_z = self.episode_sums.get("lin_vel_z",
+                torch.zeros(1))[0].item()
             base_z = self.root_states[:, 2].mean().item()
             tilt = self.projected_gravity[:, :2].norm(dim=1).mean().item()
             foot_contact_frac = self.foot_ground_contact.float().mean().item()
+            contact_nz = (self.contact_forces.abs().sum(dim=-1).sum(dim=-1) > 0).sum().item()
+            try:
+                cr0 = self.sire_sim_loops[0].lastContactPairResultsWithPartIds()
+                first_force = f"fx={cr0[0][2]:.1f},fy={cr0[0][3]:.1f},fz={cr0[0][4]:.1f}" if len(cr0) > 0 else "no_contacts"
+            except Exception:
+                first_force = "err"
             print(
                 f"[Sire diag step {self.common_step_counter}] "
-                f"rew_total={self.rew_buf.mean():.4f} "
-                f"track_lin={r_track_lin:+.4f} track_ang={r_track_ang:+.4f} "
-                f"air={r_air:+.4f} "
-                f"orient={r_orient:+.4f} height={r_height:+.4f} "
+                f"rew_total={self.rew_buf.mean():.4f} dt={dt_val:.4f}\n"
+                f"  raw_rew: lin_vel_z={r_lin_vel_z_raw:.2f} "
+                f"dof_vel={r_dof_vel_raw:.2f} dof_acc={r_dof_acc_raw:.2f} "
+                f"act_rate={r_action_rate_raw:.2f} ang_vel_xy={r_ang_vel_xy_raw:.2f}\n"
+                f"  world_vel: vx={world_vx:.3f} vy={world_vy:.3f} vz={world_vz:.3f}\n"
+                f"  base_vel:  vx={base_vx:.3f} vy={base_vy:.3f} vz={base_vz:.3f}\n"
+                f"  quat[0]: qx={qx:.4f} qy={qy:.4f} qz={qz:.4f} qw={qw:.4f}\n"
+                f"  base_z={base_z:.3f} tilt={tilt:.4f} foot_ct={foot_contact_frac:.2f} "
+                f"nz_envs={contact_nz} force0={first_force}\n"
+                f"  scaled: track_lin={r_track_lin:+.4f} track_ang={r_track_ang:+.4f} "
+                f"air={r_air:+.4f} orient={r_orient:+.4f} height={r_height:+.4f} "
                 f"torque={r_torque:+.4f} collision={r_collision:+.4f} "
-                f"base_z={base_z:.3f} tilt={tilt:.4f} foot_ct={foot_contact_frac:.2f}",
+                f"cum_lin_vel_z={cum_lin_vel_z:.2f}",
                 flush=True,
             )
+            # ---- Save recording at step 20 for debugging ----
+            if self.common_step_counter == 20:
+                import json, os, shutil
+                sim0 = self.sire_simulators[0]
+                m0 = self.sire_models[0]
+                sl0 = self.sire_sim_loops[0]
+                result = sl0.recordsToJson()
+                display_init = sim0.displayInitJson()
+                rec = {
+                    "nlinks": int(m0.nbody),
+                    "display_init": display_init,
+                    "frames": result,
+                }
+                vis_dir = getattr(self, '_diag_vis_dir', None)
+                if vis_dir:
+                    out_dir = Path(vis_dir)
+                else:
+                    out_dir = Path(__file__).resolve().parent
+                out_path = out_dir / "sire_first20_debug.json"
+                with open(out_path, "w") as f:
+                    json.dump(rec, f)
+                # Also copy the generated XML for standalone repro
+                xml_src = Path(self.generated_model_path)
+                xml_dst = out_dir / "sire_first20_scene.xml"
+                if xml_src.exists():
+                    shutil.copy2(xml_src, xml_dst)
+                    print(f"[Sire diag] Copied scene XML → {xml_dst}", flush=True)
+                # Save initial state + actions for exact repro
+                replay_path = out_dir / "sire_first20_replay.json"
+                replay = {
+                    'init_state': self._diag_init_state,
+                    'actions': self._diag_actions,  # actions for steps 1..20
+                    'dof_names': self.dof_names,
+                }
+                with open(replay_path, "w") as f:
+                    json.dump(replay, f)
+                print(f"[Sire diag] Saved replay data → {replay_path}  "
+                      f"(init_state + {len(self._diag_actions)} actions)", flush=True)
+                times = result.get("timeIndex", [])
+                t_info = f"{times[0]:.3f}~{times[-1]:.3f}" if times else "empty"
+                print(f"[Sire diag] Saved first 20 steps recording → {out_path}  "
+                      f"(frames={len(times)}, time={t_info})", flush=True)
+                # import sys; sys.exit(0)
 
     # ------------------------------------------------------------------
     #  State reading  (the core Sire ↔ MuJoCo compatibility layer)
@@ -1558,70 +1782,79 @@ class LeggedRobotSire(VecEnv):
     def _refresh_sim_tensors_sire(self):
         dt = float(self.cfg.sim.dt)
 
-        # Allocate tensors (same as MuJoCo _refresh_sim_tensors)
-        self.root_states = torch.zeros(self.num_envs, 13, dtype=torch.float, device=self.device)
-        self.dof_pos = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device)
-        self.dof_vel = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device)
-        self.contact_forces = torch.zeros(self.num_envs, self.num_bodies, 3, dtype=torch.float, device=self.device)
-        self.feet_pos_world = torch.zeros(self.num_envs, len(self.feet_indices), 3, dtype=torch.float, device=self.device)
-        self.body_ground_contact = torch.zeros(self.num_envs, self.num_bodies, dtype=torch.bool, device=self.device)
-        self.foot_ground_contact = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device)
+        # ── Zero out pre-allocated tensors (in-place, no re-allocation) ──
+        self.root_states.zero_()
+        self.dof_pos.zero_()
+        self.dof_vel.zero_()
+        self.contact_forces.zero_()
+        self.feet_pos_world.zero_()
+        self.body_ground_contact.zero_()
+        self.foot_ground_contact.zero_()
 
         for i in range(self.num_envs):
             m = self.sire_models[i]
             s = self.sire_sim_loops[i]
 
             try:
-                # --- root (base link) -------------------------------------------
-                # Aris Part.pq returns [x, y, z, qx, qy, qz, qw] (scalar-last).
-                # root_states uses the same Aris convention.
-                base_part = m.partPool()[1]
-                pq = base_part.pq   # [x, y, z, qx, qy, qz, qw]
-                vs = base_part.vs   # [vx, vy, vz, wx, wy, wz]
+                # --- root (base link) --- batch read pq + vs in one C++ call ---
+                pq, vs = sire.getBasePqVs(m, 1)  # (list[7], list[6])
+
+                # Convert spatial velocity (at origin) to body-point velocity
+                # so the bounds check is physically meaningful.
+                # vs = [v_O, ω] can be huge from ω×p even when the body is
+                # nearly stationary — use vp (body linear velocity) instead.
+                vp = sire.vs2vp(vs, pq[:3])  # body linear velocity at pq[:3]
 
                 # MuJoCo-style sanity check: if simulation has blown up
                 # (e.g. robot penetrated deep into ground), mark env for
                 # reset rather than letting garbage observations through.
                 if (abs(pq[0]) > 100.0 or abs(pq[1]) > 100.0
                         or pq[2] < -5.0 or pq[2] > 50.0
-                        or any(abs(v) > 200.0 for v in vs)):
+                        or any(abs(v) > 100.0 for v in vp)
+                        or any(abs(w) > 100.0 for w in vs[3:6])):
                     self._sire_physics_failures.append(i)
+                    print(
+                        f"[Sire physics bounds] step={self.common_step_counter} env={i} "
+                        f"pq={pq[:3]} vp=[{vp[0]:.1f},{vp[1]:.1f},{vp[2]:.1f}]"
+                        f" ω=[{vs[3]:.1f},{vs[4]:.1f},{vs[5]:.1f}]",
+                        flush=True,
+                    )
                     self._reinit_sire_env(i)
                     continue
 
-                self.root_states[i, :7] = torch.tensor(pq, dtype=torch.float)
-                self.root_states[i, 7:13] = torch.tensor(vs, dtype=torch.float)
+                self.root_states[i, :7] = torch.as_tensor(pq, dtype=torch.float)
+                self.root_states[i, 7:10] = torch.as_tensor(vp, dtype=torch.float)
+                self.root_states[i, 10:13] = torch.as_tensor(vs[3:6], dtype=torch.float)
 
-                # --- joints ------------------------------------------------------
-                for j, dof_name in enumerate(self.dof_names):
-                    mot_idx = self._sire_dof_to_motion[dof_name]
-                    mot = m.motionPool()[mot_idx]
-                    mp = float(mot.mp)
-                    mv = float(mot.mv)
-                    # Joint limit enforcement: clamp position to [min, max]
-                    # and write back to simulation (MuJoCo does this internally).
-                    lo = self.dof_pos_limits[j, 0].item()
-                    hi = self.dof_pos_limits[j, 1].item()
-                    if mp < lo:
-                        mp = lo
-                        mot.mp = lo
-                        if mv < 0.0:
-                            mot.mv = 0.0
-                            mv = 0.0
-                    elif mp > hi:
-                        mp = hi
-                        mot.mp = hi
-                        if mv > 0.0:
-                            mot.mv = 0.0
-                            mv = 0.0
-                    self.dof_pos[i, j] = mp
-                    self.dof_vel[i, j] = mv
+                # --- joints --- batch read + numpy reorder (like MuJoCo's qpos_adr_np) ---
+                mps_all = np.array(sire.getMotionMps(m), dtype=np.float64)
+                mvs_all = np.array(sire.getMotionMvs(m), dtype=np.float64)
+                mps = mps_all[self._motion_idx]  # [12] in dof_names order
+                mvs = mvs_all[self._motion_idx]
+                # Joint limit enforcement: clamp position to [min, max]
+                # and write back to simulation (MuJoCo does this internally).
+                for j in range(self.num_actions):
+                    lo, hi = self._dof_limits_lo[j], self._dof_limits_hi[j]
+                    if mps[j] < lo:
+                        mps[j] = lo
+                        m.motion(self._motion_idx[j]).mp = lo
+                        if mvs[j] < 0.0:
+                            mvs[j] = 0.0
+                            m.motion(self._motion_idx[j]).mv = 0.0
+                    elif mps[j] > hi:
+                        mps[j] = hi
+                        m.motion(self._motion_idx[j]).mp = hi
+                        if mvs[j] > 0.0:
+                            mvs[j] = 0.0
+                            m.motion(self._motion_idx[j]).mv = 0.0
+                self.dof_pos[i] = torch.as_tensor(mps, dtype=torch.float)
+                self.dof_vel[i] = torch.as_tensor(mvs, dtype=torch.float)
 
                 # --- foot positions ----------------------------------------------
                 for f_idx, fname in enumerate(self.foot_names):
                     pid = self._sire_part_name_to_idx.get(f"{fname.upper()}_calf")
                     if pid is not None:
-                        pm = m.partPool()[pid].getPm()
+                        pm = m.link(pid).getPm()
                         self.feet_pos_world[i, f_idx, 0] = pm[3]
                         self.feet_pos_world[i, f_idx, 1] = pm[7]
                         self.feet_pos_world[i, f_idx, 2] = pm[11]
@@ -1634,17 +1867,16 @@ class LeggedRobotSire(VecEnv):
                     # analogous to MuJoCo's mj_geom2body), so that pa/pb are
                     # valid part pool indices for contact_forces indexing.
                     cr = s.lastContactPairResultsWithPartIds()
-                    print(f"[Sire] env {i} contact pair results: {cr}")
                     for (pa, pb, fx, fy, fz, px, py, pz) in cr:
                         sfx, sfy, sfz = fx * scale, fy * scale, fz * scale
                         # Accumulate forces (MuJoCo uses +=; we previously
                         # overwrote with =, losing multi-contact data).
-                        self.contact_forces[i, pa, 0] += sfx
-                        self.contact_forces[i, pa, 1] += sfy
-                        self.contact_forces[i, pa, 2] += sfz
-                        self.contact_forces[i, pb, 0] -= sfx
-                        self.contact_forces[i, pb, 1] -= sfy
-                        self.contact_forces[i, pb, 2] -= sfz
+                        self.contact_forces[i, pa, 0] -= sfx
+                        self.contact_forces[i, pa, 1] -= sfy
+                        self.contact_forces[i, pa, 2] -= sfz
+                        self.contact_forces[i, pb, 0] += sfx
+                        self.contact_forces[i, pb, 1] += sfy
+                        self.contact_forces[i, pb, 2] += sfz
                         if pa == 0 and pb != 0:
                             self.body_ground_contact[i, pb] = True
                         if pb == 0 and pa != 0:
