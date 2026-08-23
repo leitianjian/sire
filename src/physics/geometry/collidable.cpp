@@ -43,7 +43,7 @@ auto Collidable::setContactProp(core::PropMap& map) -> void {
   std::swap(imp_->contact_properties_, map);
 }
 auto Collidable::setContactProp(std::string& propString) -> void {
-  std::swap(imp_->contact_properties_, core::PropMap(propString));
+  imp_->contact_properties_ = core::PropMap(propString);
 }
 auto Collidable::contactProp() const -> const core::PropMap& {
   return imp_->contact_properties_;

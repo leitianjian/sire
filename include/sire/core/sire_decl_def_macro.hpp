@@ -46,6 +46,9 @@
 #define SIRE_DEFINE_TO_JSON_HEAD(type_name) \
   auto type_name::to_json(nlohmann::json& j) const -> void
 
+#define SIRE_DEFINE_TO_JSON_IN_CLASS_HEAD \
+  auto to_json(nlohmann::json& j) const -> void
+
 #define SIRE_DEFINE_FROM_JSON_HEAD(type_name) \
   auto type_name::from_json(const nlohmann::json& j) -> void
 #endif

@@ -1564,7 +1564,7 @@ auto filterPairsAndPreprocessInfo(
     std::vector<sire::Size>& targetConditionIdx) -> void {
   for (sire::Size i{0}; i < contactNotEnd.size(); ++i) {
     auto& pair = contactNotEnd[i];
-    if (auto& search =
+    if (auto search =
             std::find_if(penetration_pairs.begin(), penetration_pairs.end(),
                          [&pair](const common::PenetrationAsPointPair& p) {
                            return pair.compareById(p);
@@ -1779,6 +1779,9 @@ auto PsVsSolver2::cptContactSolverResult(
     imp_->contactNotEndCondition.clear();
     sire::simulator::SimulationLoop* simulator_ptr = enginePtr->simLoopPtr();
     simulator_ptr->recorder().recordModelState(*modelPtr);
+    // Keep the lightweight latest-contact cache exact for RL.  Without this,
+    // a no-contact event would expose forces from the preceding event.
+    simulator_ptr->recorder().recordContactPairResults({});
     std::unique_ptr<core::EventBase> eventPtr{nullptr};
     DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
                 << " suggestDt: " << result.dt;
@@ -1927,8 +1930,20 @@ auto PsVsSolver2::cptContactSolverResult(
       findMinRootSchur(n, result.dt, A.data(), b.data(), x0.data(), 1e-10, 50);
   DLOG(DEBUG) << " minTime: " << minTime << " b: " << b << " A: " << A
               << " x0: " << x0 << " stiffScale: " << stiffScale;
-  imp_->records["currentTime"].push_back(modelPtr->time());
-  imp_->records["minTime"].push_back(minTime);
+  // These timing samples are diagnostic-only.  Historically every solver
+  // instance appended forever, which made long multi-environment RL jobs grow
+  // until the OS killed them.  RL disables recorder history for all but env 0;
+  // retain a small bounded sample there and allocate nothing in other envs.
+  auto* simulation_loop = enginePtr->simLoopPtr();
+  constexpr std::size_t kMaxDebugRecordCount = 4096;
+  if (simulation_loop != nullptr &&
+      simulation_loop->recorder().historyEnabled()) {
+    auto& current_time_records = imp_->records["currentTime"];
+    if (current_time_records.size() < kMaxDebugRecordCount) {
+      current_time_records.push_back(modelPtr->time());
+      imp_->records["minTime"].push_back(minTime);
+    }
+  }
   // 没有零点的情况下，取A中的最大值作为参考计算步长（修改为采用suggest_dt作为步长，不变result.dt）
   if (minTime <= 0) {
     minTime = result.dt;

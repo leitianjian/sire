@@ -914,7 +914,7 @@ auto filterPairsAndPreprocessInfo(
   }
   for (sire::Size i{0}; i < contactNotEnd.size(); ++i) {
     auto& pair = contactNotEnd[i];
-    if (auto& search =
+    if (auto search =
             std::find_if(penetration_pairs.begin(), penetration_pairs.end(),
                          [&pair](const common::PenetrationAsPointPair& p) {
                            return pair.compareById(p);
