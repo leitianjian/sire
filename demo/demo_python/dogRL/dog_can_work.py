@@ -1,11 +1,13 @@
-import time
+import os
+import sys
+from pathlib import Path
 
 import numpy as np
 import torch
 import yaml
 import sire
 
-LEGGED_GYM_ROOT_DIR = "D:/code/sire/demo/demo_python/dogRL"
+LEGGED_GYM_ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 def get_gravity_orientation(quaternion):
     qx = quaternion[0]
     qy = quaternion[1]
@@ -37,23 +39,53 @@ def getMotionsMv(model):
         motionsMv[i] = model.motion(i).mv
     return motionsMv
 
-def getMotionsMa(model):
-    motionsMa = np.zeros(model.numMotions())
-    for i in range(model.numMotions()):
-        motionsMa[i] = model.motion(i).ma
-    return motionsMa
-
-def getMotionsMf(model):
-    motionsMf = np.zeros(model.numMotions())
-    for i in range(model.numMotions()):
-        motionsMf[i] = model.motion(i).desiredValue
-    return motionsMf
-
 def getBodyQuat(model, i):
     return np.array(model.link(i).getPq()[3:])
 
+
+def rotateWorldToBody(quaternion, vector):
+    """Rotate a world-frame vector into the body frame.
+
+    Sire/Aris stores quaternions scalar-last as ``[qx, qy, qz, qw]``.
+    The quaternion describes the body's orientation in the world, so its
+    transpose (inverse rotation) is required for policy observations.
+    """
+    quaternion = np.asarray(quaternion, dtype=np.float64)
+    vector = np.asarray(vector, dtype=np.float64)
+    norm = np.linalg.norm(quaternion)
+    if norm <= np.finfo(np.float64).eps:
+        raise ValueError("body quaternion has zero norm")
+
+    qx, qy, qz, qw = quaternion / norm
+    rotation = np.array([
+        [1.0 - 2.0 * (qy * qy + qz * qz),
+         2.0 * (qx * qy - qz * qw),
+         2.0 * (qx * qz + qy * qw)],
+        [2.0 * (qx * qy + qz * qw),
+         1.0 - 2.0 * (qx * qx + qz * qz),
+         2.0 * (qy * qz - qx * qw)],
+        [2.0 * (qx * qz - qy * qw),
+         2.0 * (qy * qz + qx * qw),
+         1.0 - 2.0 * (qx * qx + qy * qy)],
+    ])
+    return rotation.T @ vector
+
+
 def getBodyVa(model, i):
-    return np.array(sire.vs2va(model.link(i).getVs(), model.link(i).getPq()))
+    link = model.link(i)
+    pq = np.asarray(link.getPq(), dtype=np.float64)
+    world_va = np.asarray(
+        sire.vs2va(link.getVs(), pq[:3].tolist()), dtype=np.float64
+    )
+
+    # vs2va changes the velocity reference point, but leaves both vector
+    # components expressed in the world frame. The policy was trained with
+    # base-frame linear and angular velocity, so rotate both components.
+    quaternion = pq[3:]
+    return np.concatenate([
+        rotateWorldToBody(quaternion, world_va[:3]),
+        rotateWorldToBody(quaternion, world_va[3:]),
+    ])
 
 def assignTau(model, tau):
     for i in range(len(tau)):
@@ -61,17 +93,69 @@ def assignTau(model, tau):
         if isinstance(fce, sire.SingleComponentForce):
             fce.fce = tau[i]
 
+
+def build_dof_motion_map(model, joint_names):
+    """Return motionPool indices in the policy's named DOF order."""
+    joint_to_motion = {
+        model.jointPool()[i].name: i for i in range(model.numMotions())
+    }
+    missing = [name for name in joint_names if name not in joint_to_motion]
+    if missing:
+        raise RuntimeError(
+            f"Policy joints missing from Sire model: {missing}; "
+            f"available={list(joint_to_motion)}"
+        )
+    return np.asarray([joint_to_motion[name] for name in joint_names], dtype=np.int32)
+
+
+def initialize_training_state(model, motion_indices, default_angles, base_pos, base_quat):
+    """Apply the deterministic counterpart of SireRLGym's episode reset."""
+    motion_mps = np.asarray(sire.getMotionMps(model), dtype=np.float64)
+    motion_mvs = np.zeros(model.numMotions(), dtype=np.float64)
+    motion_mps[motion_indices] = default_angles
+    sire.setMotionMps(model, motion_mps.tolist())
+    sire.setMotionMvs(model, motion_mvs.tolist())
+    model.forwardKinematics()
+    model.forwardKinematicsVel()
+
+    base = model.link(1)
+    base.pq = np.concatenate([base_pos, base_quat])
+    base.vs = np.zeros(6, dtype=np.float64)
+    model.forwardKinematics()
+    model.forwardKinematicsVel()
+
 if __name__ == "__main__":
     # get config file name from command line
     import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("config_file", type=str, help="config file name in the config folder")
+    parser.add_argument(
+        "--policy",
+        type=str,
+        default=None,
+        help="Override policy_path from YAML with a TorchScript policy file.",
+    )
+    parser.add_argument(
+        "--cmd",
+        type=float,
+        nargs=3,
+        default=None,
+        metavar=("VX", "VY", "YAW"),
+        help="Override cmd_init from YAML.",
+    )
+    parser.add_argument(
+        "--no-viz",
+        action="store_true",
+        help="Run the physics/policy regression without starting MeshCat.",
+    )
     args = parser.parse_args()
     config_file = args.config_file
     with open(f"{LEGGED_GYM_ROOT_DIR}/{config_file}", "r") as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
         policy_path = config["policy_path"].replace("{LEGGED_GYM_ROOT_DIR}", LEGGED_GYM_ROOT_DIR)
+        if args.policy is not None:
+            policy_path = str(Path(args.policy).expanduser().resolve())
         xml_path = config["xml_path"].replace("{LEGGED_GYM_ROOT_DIR}", LEGGED_GYM_ROOT_DIR)
 
         simulation_duration = config["simulation_duration"]
@@ -83,6 +167,10 @@ if __name__ == "__main__":
         kds = np.array(config["kds"], dtype=np.float32)
 
         default_angles = np.array(config["default_angles"], dtype=np.float32)
+        joint_names = list(config["joint_names"])
+        torque_limits = np.array(config["torque_limits"], dtype=np.float32)
+        base_pos = np.array(config["base_pos"], dtype=np.float64)
+        base_quat = np.array(config["base_quat"], dtype=np.float64)
 
         lin_vel_scale = config["lin_vel_scale"]
         ang_vel_scale = config["ang_vel_scale"]
@@ -94,58 +182,56 @@ if __name__ == "__main__":
         num_actions = config["num_actions"]
         num_obs = config["num_obs"]
         
-        cmd = np.array(config["cmd_init"], dtype=np.float32)
+        cmd = np.array(
+            args.cmd if args.cmd is not None else config["cmd_init"],
+            dtype=np.float32,
+        )
 
     # define context variables
     action = np.zeros(num_actions, dtype=np.float32)
     target_dof_pos = default_angles.copy()
     obs = np.zeros(num_obs, dtype=np.float32)
 
-    counter = 0
-
     # Load robot model
     # print(sire.pq2tfmatrix([0,0,0,1,0,0,0]))
-    cs = sire.ControlServer.instance()
-    sire.fromXmlFile(cs, 'D:/code/sire/demo/demo_python/dogRL/go2_can_work.xml')
-    cs.init()
-    simulator = sire.simulationLoop(cs)
-    model = cs.model()
+    sim = sire.Simulator()
+    sire.fromXmlFile(sim, xml_path)
+    sim.init()
+    simulator = sim.simulationLoop()
+    model = sim.model()
     simulator.simDuration = simulation_duration
     simulator.deltaT = simulation_dt
     simulator.ctrlT = ctrl_dt
-    print(sire.toXmlString(cs))
-    
-    # 添加调试代码到deploy_dog.py中
+    expected_ctrl_dt = simulation_dt * control_decimation
+    if not np.isclose(ctrl_dt, expected_ctrl_dt, rtol=0.0, atol=1e-12):
+        raise ValueError(
+            f"ctrl_dt={ctrl_dt} must equal simulation_dt*control_decimation="
+            f"{expected_ctrl_dt}"
+        )
+    motion_indices = build_dof_motion_map(model, joint_names)
+    initialize_training_state(
+        model, motion_indices, default_angles, base_pos, base_quat
+    )
     print("Model info:")
     print(f"Number of joints: {model.numJoints()}")
     print(f"Joint names: {[model.joint(i).name for i in range(model.numJoints())]}")
     print(f"Number of actuators: {model.numMotions()}")
     print(f"Actuator names: {[model.motion(i).name for i in range(model.numMotions())]}")
-    counter = 0
     # load policy
     policy = torch.jit.load(policy_path)
-    timeRecord = []
-    motionMpRecords = []
-    motionMvRecords = []
-    motionMaRecords = []
-    motionMfRecords = []
     action = np.zeros(num_actions, dtype=np.float32)
     obs = np.zeros(num_obs, dtype=np.float32)
+    next_ctrl_time = 0.0
+    control_step = 0
+    min_base_z = float(model.link(1).getPq()[2])
     while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
-        isCtrl = simulator.integrate()
         sim_time = simulator.simTime()
-        motionMp = getMotionsMp(model)
-        motionMv = getMotionsMv(model)
-        motionMa = getMotionsMa(model)
-        motionMf = getMotionsMf(model)
+        isCtrl = sim_time >= next_ctrl_time - 1e-12
+        # Reorder XML motionPool state into the exact DOF order used by PPO.
+        motionMp = getMotionsMp(model)[motion_indices]
+        motionMv = getMotionsMv(model)[motion_indices]
 
-        counter += 1
-        if isCtrl:# and counter != 0:
-            timeRecord.append(sim_time)
-            motionMpRecords.append(motionMp)
-            motionMvRecords.append(motionMv)
-            motionMaRecords.append(motionMa)
-            motionMfRecords.append(motionMf)
+        if isCtrl:
             qj = motionMp
             dqj = motionMv
             quat = getBodyQuat(model, 1)
@@ -174,27 +260,36 @@ if __name__ == "__main__":
             obs[9 + 2 * num_actions : 9 + 3 * num_actions] = action
             obs_tensor = torch.from_numpy(obs).unsqueeze(0)
             # policy inference
-            action = policy(obs_tensor).detach().numpy().squeeze()
+            with torch.no_grad():
+                action = policy(obs_tensor).numpy().squeeze()
+            if action.shape != (num_actions,) or not np.all(np.isfinite(action)):
+                raise RuntimeError(
+                    f"Invalid policy action at t={sim_time:.6f}: {action}"
+                )
             # transform action to target_dof_pos
             target_dof_pos = action * action_scale + default_angles
+            next_ctrl_time += ctrl_dt
+            control_step += 1
             # if sim_time < 0.04:
             #     target_dof_pos = default_angles.copy()
         # if isCtrl:
         tau = pd_control(target_dof_pos, motionMp, kps, np.zeros_like(kds), motionMv, kds)
-        for i in range(12):
-          motion = model.motionPool()[i]
+        tau = np.clip(tau, -torque_limits, torque_limits)
+        for dof_i, motion_i in enumerate(motion_indices):
+          motion = model.motionPool()[int(motion_i)]
           if isinstance(motion, sire.ActuatorSISO):
-            motion.desiredValue = tau[i]
-        print(sim_time)
+            motion.desiredValue = float(tau[dof_i])
+        base_pq = np.asarray(model.link(1).getPq(), dtype=np.float64)
+        min_base_z = min(min_base_z, float(base_pq[2]))
+        if not np.all(np.isfinite(base_pq)):
+            raise RuntimeError(f"Non-finite base state at t={sim_time:.6f}: {base_pq}")
+        if isCtrl and (control_step == 1 or control_step % 50 == 0):
+            print(
+                f"sim_time={sim_time:.3f}s base_xyz="
+                f"[{base_pq[0]:.3f}, {base_pq[1]:.3f}, {base_pq[2]:.3f}]"
+            )
         # print(motionMp, target_dof_pos, motionMv, tau)
         simulator.handleContact()
-        motion_fce = []
-        for i in range(model.numForces()):
-            fce = model.forcePool()[i]
-            if isinstance(fce, sire.SingleComponentForce):
-                motion_fce.append(fce.fce)
-            # if isinstance(fce, sire.GeneralForce):
-            #     motion_fce.append(fce.fce)
         # part_as_before = []
         # for i in range(model.numLinks()):
         #     part = model.partPool()[i]
@@ -209,28 +304,30 @@ if __name__ == "__main__":
         # print(isCtrl, sim_time, target_dof_pos, obs)
 
     simulator.recordsContactCptInfo()
-    displayInitJson = model.displayInitJson()
     result = simulator.recordsToJson()
-    print("Simulation finished, records loaded")
-    import meshcat
-    vis = meshcat.Visualizer()
-    resourcePath = "D:/code/sire/demo/demo_python/dogRL"
-    # print(displayInitJson)
-    sire.robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
-    sire.animateRobotByRecords(model.numLinks(), result, 1000, vis)
-    input("按 Enter 键保存数据...")
-    import pathlib
-    currentDir = pathlib.Path(__file__).parent.resolve()
-    dataPath = str((currentDir / "motion_data").resolve())
-    for i in range(model.numMotions()):
-        motionRecord = np.zeros((5, len(timeRecord)))
-        motionRecord[0, :] = timeRecord
-        for j in range(len(timeRecord)):
-            motionRecord[1, j] = motionMpRecords[j][i]
-            motionRecord[2, j] = motionMvRecords[j][i]
-            motionRecord[3, j] = motionMaRecords[j][i]
-            motionRecord[4, j] = motionMfRecords[j][i]
-        np.savetxt(dataPath + f"/motion_{i}.csv", motionRecord.transpose(), delimiter=",")
+    final_pq = np.asarray(model.link(1).getPq(), dtype=np.float64)
+    print(
+        f"Simulation finished at t={simulator.simTime():.3f}s "
+        f"base_xyz=[{final_pq[0]:.3f}, {final_pq[1]:.3f}, {final_pq[2]:.3f}] "
+        f"min_base_z={min_base_z:.3f}"
+    )
+    resourcePath = LEGGED_GYM_ROOT_DIR
+    try:
+        if args.no_viz:
+            raise ModuleNotFoundError("disabled by --no-viz")
+        import meshcat
+        displayInitJson = sim.displayInitJson()
+        vis = meshcat.Visualizer()
+        # print(displayInitJson)
+        sire.robotInit(model.numLinks(), resourcePath, displayInitJson, vis)
+        sire.animateRobotByRecords(model.numLinks(), result, 1000, vis)
+        print(f"Meshcat visualizer running at: {vis.url()}")
+        # Keep the process (and the meshcat server) alive so the animation
+        # stays viewable in the browser. No CSV is written to disk anymore.
+        if sys.stdin.isatty():
+            input("按 Enter 键退出可视化...")
+    except ModuleNotFoundError as e:
+        print(f"[viz skipped] meshcat visualization unavailable: {e}")
 
     # with mujoco.viewer.launch_passive(m, d) as viewer:
     #     # Close the viewer automatically after simulation_duration wall-seconds.

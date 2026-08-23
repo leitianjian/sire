@@ -1,22 +1,32 @@
 # policy_path: "{LEGGED_GYM_ROOT_DIR}/deploy/pre_train/go2/motion.pt"
 policy_path: "{LEGGED_GYM_ROOT_DIR}/policy_1.pt"
-xml_path: "{LEGGED_GYM_ROOT_DIR}/scene.xml"
+# Use the exact rigid-body and collision model used by SireRLGym training.
+xml_path: "{LEGGED_GYM_ROOT_DIR}/../sirePaperDogRL/go2_rai_foot.xml"
 
 # Total simulation time
-simulation_duration: 0.75
+simulation_duration: 10
 # Simulation time step
 simulation_dt: 0.001
-ctrl_dt: 0.005
+ctrl_dt: 0.02
 # Controller update frequency (meets the requirement of simulation_dt * controll_decimation=0.02; 50Hz)
-control_decimation: 10
+control_decimation: 20
 
-kps: [20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0, 20.0] 
-kds: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5] 
-# kps: [50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0, 50.0] 
-# kds: [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2] 
+kps: [25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0, 25.0]
+kds: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
 
-default_angles: [0.1,  0.8,  -1.5,  -0.1, 0.8, -1.5, 
-                 0.1,  1.0,  -1.5,  -0.1, 1.0, -1.5] 
+# Policy/DOf order used during training.  The XML motionPool uses a different
+# (leg-major) order; dog_can_work.py maps between them by joint name.
+joint_names: [FL_hip_joint, FR_hip_joint, RL_hip_joint, RR_hip_joint,
+              FL_thigh_joint, FR_thigh_joint, RL_thigh_joint, RR_thigh_joint,
+              FL_calf_joint, FR_calf_joint, RL_calf_joint, RR_calf_joint]
+default_angles: [0.1, -0.1, 0.1, -0.1,
+                 0.8, 0.8, 1.0, 1.0,
+                 -1.5, -1.5, -1.5, -1.5]
+torque_limits: [23.7, 23.7, 23.7, 23.7,
+                23.7, 23.7, 23.7, 23.7,
+                35.55, 35.55, 35.55, 35.55]
+base_pos: [0.0, 0.0, 0.34]
+base_quat: [0.0, 0.0, 0.0, 1.0]
 
 lin_vel_scale: 2.0
 ang_vel_scale: 0.25 
@@ -27,4 +37,4 @@ cmd_scale: [2.0, 2.0, 0.25]
 num_actions: 12
 num_obs: 45
 
-cmd_init: [0.8, 0, 0]
+cmd_init: [1, 1, 1]
