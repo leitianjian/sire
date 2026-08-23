@@ -11,7 +11,31 @@ from pathlib import Path
 
 import torch
 import yaml
-from torch.utils.tensorboard import SummaryWriter
+
+try:
+    from torch.utils.tensorboard import SummaryWriter
+except ModuleNotFoundError as error:
+    if error.name != "tensorboard":
+        raise
+
+    class SummaryWriter:  # type: ignore[no-redef]
+        """No-op writer used when the optional TensorBoard package is absent."""
+
+        def __init__(self, *args, **kwargs):
+            print(
+                "[Sire training] tensorboard is not installed; file-based "
+                "scalar logging is disabled.",
+                flush=True,
+            )
+
+        def add_scalar(self, *args, **kwargs):
+            return None
+
+        def flush(self):
+            return None
+
+        def close(self):
+            return None
 
 from rsl_rl.algorithms import PPO
 from rsl_rl.modules import ActorCritic
@@ -101,6 +125,13 @@ class OnPolicyRunner:
             if match:
                 stored_iter = int(match.group(1))
         self.current_learning_iteration = stored_iter
+        self.tot_timesteps = int(
+            checkpoint.get(
+                'tot_timesteps',
+                stored_iter * self.num_steps_per_env * self.env.num_envs,
+            )
+        )
+        self.tot_time = float(checkpoint.get('tot_time', 0.0))
         return checkpoint
 
     def learn(self, num_learning_iterations, init_at_random_ep_len=False):
@@ -127,6 +158,7 @@ class OnPolicyRunner:
         cur_reward_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
         cur_episode_length = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
 
+        resume_tot_time = self.tot_time
         it = self.current_learning_iteration
         total_iterations = None if self.infinite_mode else (self.current_learning_iteration + num_learning_iterations)
         while self.infinite_mode or it < total_iterations:
@@ -184,10 +216,9 @@ class OnPolicyRunner:
                 self.save(os.path.join(self.log_dir, f'model_{it}.pt'), iteration=it)
             if self.visualize_interval is not None and it % self.visualize_interval == 0:
                 self._save_recording(it)
-            # Clear all envs' timer + recorder every iter to prevent unbounded growth
-            for sl in self.env.sire_sim_loops:
-                sl.resetRL()
-                sl.resetRecorder()
+            # A PPO rollout boundary is not an episode boundary.  Preserve all
+            # simulator/model/timer state and clear only recorder storage.
+            self.env.resetSireRecorders()
             # Force GC to release pybind11-held C++ wrappers (motionPool, partPool, etc.)
             if it % 5 == 0:
                 gc.collect()
@@ -322,9 +353,16 @@ class OnPolicyRunner:
                     f"best_rel_x={summary['mean_best_rel_x']:.3f}\n"
                 )
         else:
-            eta = self.tot_time / (locs['it'] + 1) * (locs['num_learning_iterations'] - locs['it'])
+            completed = max(1, locs['it'] - self.current_learning_iteration)
+            remaining = max(0, int(locs['total_iterations']) - locs['it'])
+            recent_time = max(0.0, self.tot_time - locs.get('resume_tot_time', 0.0))
+            seconds_per_iteration = recent_time / completed
+            eta = seconds_per_iteration * remaining
             log_string += f"{'ETA:':>{pad}} {eta:.1f}s\n"
-        print(log_string)
+        # Training commonly runs under systemd with stdout redirected to a
+        # regular file.  Flush once per PPO iteration so progress is visible
+        # immediately without restoring the expensive per-scalar CSV writer.
+        print(log_string, flush=True)
 
     def save(self, path, iteration=None):
         if iteration is None:
@@ -334,6 +372,8 @@ class OnPolicyRunner:
                 'model_state_dict': self.alg.actor_critic.state_dict(),
                 'optimizer_state_dict': self.alg.optimizer.state_dict(),
                 'iter': int(iteration),
+                'tot_timesteps': int(self.tot_timesteps),
+                'tot_time': float(self.tot_time),
             },
             path,
         )
@@ -433,4 +473,3 @@ class OnPolicyRunner:
 
         sire.animateRobotByRecords(int(m.nbody), result, 1000, vis)
         input("Press Enter to close the meshcat visualizer...")
-

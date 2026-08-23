@@ -42,8 +42,24 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--task', type=str, default='go2')
     p.add_argument('--num_envs', type=int, default=None)
+    p.add_argument(
+        '--sire_batch_threads', '--sirebatchthread',
+        dest='sire_batch_threads', type=int, default=None,
+        help='Persistent Sire batch thread count; 0 selects an automatic value.',
+    )
     p.add_argument('--max_iterations', type=int, default=None)
+    p.add_argument(
+        '--save_interval',
+        type=int,
+        default=None,
+        help='Checkpoint interval in PPO iterations.',
+    )
     p.add_argument('--seed', type=int, default=None)
+    p.add_argument(
+        '--flat_terrain',
+        action='store_true',
+        help='Train with the base scene plane instead of per-env rough heightfields.',
+    )
     p.add_argument('--debug_reward', action='store_true')
     p.add_argument('--resume', nargs='?', const='auto', default=None, help='Resume from latest checkpoint, or provide a checkpoint path.')
     p.add_argument('--head', type=_str2bool, nargs='?', const=True, default=False, help='Enable live MuJoCo viewer during training.')
@@ -115,10 +131,22 @@ def main():
 
     if args.num_envs is not None:
         env_cfg.env.num_envs = args.num_envs
+    if args.sire_batch_threads is not None:
+        if args.sire_batch_threads < 0:
+            raise ValueError('--sire_batch_threads must be >= 0')
+        env_cfg.sim.sire_batch_threads = args.sire_batch_threads
     if args.max_iterations is not None:
         train_cfg.runner.max_iterations = args.max_iterations
+    if args.save_interval is not None:
+        if args.save_interval <= 0:
+            raise ValueError('--save_interval must be > 0')
+        train_cfg.runner.save_interval = args.save_interval
     if args.seed is not None:
         train_cfg.seed = args.seed
+    if args.flat_terrain:
+        env_cfg.terrain.mesh_type = 'plane'
+        env_cfg.terrain.measure_heights = False
+        env_cfg.terrain.curriculum = False
     if args.scene_source_npz is not None:
         env_cfg.terrain.scene_source_npz = args.scene_source_npz
 
@@ -181,10 +209,16 @@ def main():
         if checkpoint_privileged_obs_dim is not None:
             env_cfg.env.num_privileged_obs = int(checkpoint_privileged_obs_dim)
 
+    mesh_type = str(env_cfg.terrain.mesh_type)
+    active_terrain_type = (
+        str(env_cfg.terrain.terrain_type_mode)
+        if mesh_type in {'heightfield', 'trimesh'}
+        else mesh_type
+    )
     print(
         "train_terrain "
-        f"type={env_cfg.terrain.terrain_type_mode} "
-        f"mesh_type={env_cfg.terrain.mesh_type} "
+        f"type={active_terrain_type} "
+        f"mesh_type={mesh_type} "
         f"scene_curriculum_dir={getattr(env_cfg.terrain, 'scene_curriculum_dir', None)} "
         f"slope_angle_override_deg={getattr(env_cfg.terrain, 'slope_angle_override_deg', None)} "
         f"heightfield_height_override={getattr(env_cfg.terrain, 'heightfield_height_override', None)} "
@@ -202,6 +236,7 @@ def main():
         "train_start "
         f"task={args.task} "
         f"num_envs={env_cfg.env.num_envs} "
+        f"sire_batch_threads={env_cfg.sim.sire_batch_threads} "
         f"max_iterations={'inf' if getattr(train_cfg.runner, 'infinite_mode', False) else train_cfg.runner.max_iterations} "
         f"save_interval={train_cfg.runner.save_interval} "
         f"visualize_interval={args.visualize_interval} "
@@ -220,7 +255,16 @@ def main():
     if resume_path is not None:
         checkpoint = runner.load(resume_path)
         print(f"train_resume path={resume_path} iter={runner.current_learning_iteration} log_dir={log_dir}", flush=True)
-    runner.learn(train_cfg.runner.max_iterations)
+    target_iteration = int(train_cfg.runner.max_iterations)
+    remaining_iterations = max(
+        0, target_iteration - int(runner.current_learning_iteration)
+    )
+    print(
+        f"train_iterations current={runner.current_learning_iteration} "
+        f"target={target_iteration} remaining={remaining_iterations}",
+        flush=True,
+    )
+    runner.learn(remaining_iterations)
 
 
 if __name__ == '__main__':

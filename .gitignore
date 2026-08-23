@@ -121,3 +121,10 @@ MUJOCO_LOG.txt
 *.tiff
 *.tif
 *.npy
+
+# Local diagnostic note; intentionally never committed.
+/LOCAL_MEMORY_ISSUE.txt
+
+# Local toolchains and dependency installs.
+/.deps/
+/.rust/

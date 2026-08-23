@@ -97,6 +97,45 @@ class LeggedRobotSire(VecEnv):
     #  Main simulation step
     # ------------------------------------------------------------------
     def step(self, actions):
+        """Advance every independent Sire environment through the C++ batch path."""
+        return self.stepSireBatch(actions)
+
+    def stepSireBatch(self, actions):
+        """Batched Sire step: one Python call, persistent native worker threads."""
+        clip_actions = self.cfg.normalization.clip_actions
+        self.actions = torch.clip(actions, -clip_actions, clip_actions).to(
+            self.device
+        ).contiguous()
+        outputs = self._sire_batch_stepper.step(self.actions.numpy())
+        (
+            root_states,
+            dof_pos,
+            dof_vel,
+            torques,
+            contact_forces,
+            feet_pos_world,
+            body_ground_contact,
+            foot_ground_contact,
+            _dt_actual,
+        ) = outputs
+        self.root_states.copy_(torch.from_numpy(root_states))
+        self.dof_pos.copy_(torch.from_numpy(dof_pos))
+        self.dof_vel.copy_(torch.from_numpy(dof_vel))
+        self.torques.copy_(torch.from_numpy(torques))
+        self.contact_forces.copy_(torch.from_numpy(contact_forces))
+        self.feet_pos_world.copy_(torch.from_numpy(feet_pos_world))
+        self.body_ground_contact.copy_(torch.from_numpy(body_ground_contact))
+        self.foot_ground_contact.copy_(torch.from_numpy(foot_ground_contact))
+        # Native physics runs on a shared generated terrain coordinate system,
+        # while every independent Simulator exposes its own local world frame
+        # to RL.  Thus every environment starts at local (0, 0, base_height).
+        self.root_states[:, :3] -= self._physics_origins
+        self.feet_pos_world -= self._physics_origins.unsqueeze(1)
+
+        self._post_physics_step_sire(refresh_from_sire=False)
+        return self._clip_and_collect_step_result()
+
+    def legacySireStep(self, actions):
         """
         Sire version — per-environment time-driven loop.
 
@@ -121,11 +160,11 @@ class LeggedRobotSire(VecEnv):
         """
         clip_actions = self.cfg.normalization.clip_actions
         self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
-        self._sire_physics_failures = getattr(self, '_sire_physics_failures', [])
-        self._sire_physics_failures.clear()
-
         # ── Capture initial state BEFORE first physics step ──
-        if self.common_step_counter == 0:
+        if (
+            getattr(self.cfg.sim, "sire_diagnostics", False)
+            and self.common_step_counter == 0
+        ):
             m0 = self.sire_models[0]
             sl0 = self.sire_sim_loops[0]
             base_part = m0.link(1)
@@ -175,7 +214,10 @@ class LeggedRobotSire(VecEnv):
             )
 
         # ── Record action for this step (from env 0) ──
-        if self.common_step_counter < 20:
+        if (
+            getattr(self.cfg.sim, "sire_diagnostics", False)
+            and self.common_step_counter < 20
+        ):
             act = self.actions[0].cpu().tolist() if hasattr(self.actions[0], 'cpu') else list(self.actions[0])
             self._diag_actions.append(act)
 
@@ -197,7 +239,11 @@ class LeggedRobotSire(VecEnv):
                     self._sire_dt_actual[i] = sl.simTime() - t0
                     step_count += 1
                     # ── Per-substep diag (env 0 only, first 2 ctrl steps) ──
-                    if i == 0 and self.common_step_counter <= 1:
+                    if (
+                        getattr(self.cfg.sim, "sire_diagnostics", False)
+                        and i == 0
+                        and self.common_step_counter <= 1
+                    ):
                         pq = self.sire_models[0].link(1).pq
                         vs = self.sire_models[0].link(1).vs
                         as1 = self.sire_models[0].link(1).getAs()
@@ -221,7 +267,11 @@ class LeggedRobotSire(VecEnv):
                 sl.handleContact()
                 self._sire_dt_actual[i] = sl.simTime() - t0
                 # ── Timing diag: substep count per env (first 3 steps, env 0) ──
-                if i == 0 and self.common_step_counter <= 2:
+                if (
+                    getattr(self.cfg.sim, "sire_diagnostics", False)
+                    and i == 0
+                    and self.common_step_counter <= 2
+                ):
                     print(
                         f"[Sire timing] step={self.common_step_counter} "
                         f"substeps={step_count} (step events) + 1 (ctrl) = {step_count+1} total, "
@@ -229,7 +279,11 @@ class LeggedRobotSire(VecEnv):
                         flush=True,
                     )
                 # ── Per-substep diag for ctrl event too (env 0 only) ──
-                if i == 0 and self.common_step_counter <= 1:
+                if (
+                    getattr(self.cfg.sim, "sire_diagnostics", False)
+                    and i == 0
+                    and self.common_step_counter <= 1
+                ):
                     pq = self.sire_models[0].link(1).pq
                     vs = self.sire_models[0].link(1).vs
                     vp = sire.vs2vp(vs, pq[:3])
@@ -244,19 +298,22 @@ class LeggedRobotSire(VecEnv):
                     )
                     substep_idx += 1
             except Exception as e:
-                self._sire_physics_failures.append(i)
-                print(f"[Sire physics reset] env {i}: {type(e).__name__}: {e}", flush=True)
-                self._reinit_sire_env(i)
+                raise RuntimeError(self._format_sire_exception(i, e)) from e
 
         # ---- post-step (once per control interval) ----
         self._post_physics_step_sire()
+        return self._clip_and_collect_step_result()
+
+    def legacy_sire_step(self, actions):
+        """PEP-8 alias retained alongside the requested legacySireStep API."""
+        return self.legacySireStep(actions)
+
+    def _clip_and_collect_step_result(self):
         clip_obs = self.cfg.normalization.clip_observations
         self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
         if self.privileged_obs_buf is not None:
             self.privileged_obs_buf = torch.clip(
-                self.privileged_obs_buf,
-                -clip_obs,
-                clip_obs,
+                self.privileged_obs_buf, -clip_obs, clip_obs
             )
         return (
             self.obs_buf,
@@ -282,12 +339,27 @@ class LeggedRobotSire(VecEnv):
             > 1.0
         )
         self.reset_buf = torch.any(base_contacts, dim=1)
-        self.time_out_buf = self.episode_length_buf > self.max_episode_length
+        # A low base is an ordinary fall, not a numerical exception.  This is
+        # evaluated per environment and complements contact-based termination
+        # when the last plane-contact sample disappears after tunnelling.
+        termination_height = float(
+            getattr(self.cfg.asset, "termination_height", -float("inf"))
+        )
+        self.base_height_fall_buf = self.root_states[:, 2] < termination_height
+        self.reset_buf |= self.base_height_fall_buf
+        # Leaving the finite terrain is a truncation (timeout), not a fall or
+        # a native physics failure. This keeps PPO bootstrapping semantics
+        # correct and resets only the affected independent environment.
+        self.time_out_buf = self.episode_length_buf >= self.max_episode_length
+        self.time_out_buf |= self._terrain_out_of_bounds()
         self.reset_buf |= self.time_out_buf
         self._update_task_termination()
 
         # ── Diagnostic: log WHY reset triggered (first 50 steps only) ──
-        if self.common_step_counter <= 50:
+        if (
+            getattr(self.cfg.sim, "sire_diagnostics", False)
+            and self.common_step_counter <= 50
+        ):
             reset_envs = self.reset_buf.nonzero(as_tuple=False).flatten()
             for eid in reset_envs.tolist():
                 if self.time_out_buf[eid]:
@@ -300,10 +372,7 @@ class LeggedRobotSire(VecEnv):
                 for idx in triggered:
                     term_body_id = self.termination_contact_indices[idx].item()
                     # Look up body name via partPool
-                    try:
-                        body_name = self.sire_models[eid].partPool()[term_body_id].name
-                    except Exception:
-                        body_name = f"id_{term_body_id}"
+                    body_name = self.sire_models[eid].partPool()[term_body_id].name
                     f_norm = force_norms[idx].item()
                     parts_info.append(f"{body_name}={f_norm:.1f}N")
                 print(
@@ -323,10 +392,14 @@ class LeggedRobotSire(VecEnv):
             self.common_step_counter % int(self.max_episode_length) == 0
         ):
             self.update_command_curriculum(env_ids)
-        # for i in env_ids.tolist():
-        #     self.sire_simulators[i].reset()
-        for eid in env_ids.tolist():
-            self.sire_sim_loops[eid].resetRLNoTimer()
+        # An episode reset is a full reset of only the completed independent
+        # Simulator instances (model, contacts, events, timer, and recorder).
+        env_ids_np = env_ids.detach().cpu().numpy().astype(np.int64, copy=False)
+        if hasattr(self, "_sire_batch_stepper"):
+            self._sire_batch_stepper.reset(env_ids_np)
+        else:
+            for eid in env_ids.tolist():
+                self.sire_simulators[eid].reset()
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
 
@@ -343,6 +416,9 @@ class LeggedRobotSire(VecEnv):
         self.last_actions[env_ids] = 0.0
         self.last_dof_vel[env_ids] = 0.0
         self.feet_air_time[env_ids] = 0.0
+        self.contact_forces[env_ids] = 0.0
+        self.body_ground_contact[env_ids] = False
+        self.foot_ground_contact[env_ids] = False
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
 
@@ -620,25 +696,11 @@ class LeggedRobotSire(VecEnv):
 
     def _reset_root_states(self, env_ids):
         """Sire version: write root pose through body pq."""
-        # (identical randomisation logic as parent, only setter differs)
-        if self.custom_origins:
-            self.root_states[env_ids] = self.base_init_state
-            self.root_states[env_ids, :3] += self.env_origins[env_ids]
-            rx = torch_rand_float(
-                *self.cfg.terrain.spawn_rand_x_range,
-                (len(env_ids), 1),
-                device=self.device,
-            ).squeeze(1)
-            ry = torch_rand_float(
-                *self.cfg.terrain.spawn_rand_y_range,
-                (len(env_ids), 1),
-                device=self.device,
-            ).squeeze(1)
-            self.root_states[env_ids, 0] += rx
-            self.root_states[env_ids, 1] += ry
-        else:
-            self.root_states[env_ids] = self.base_init_state
-            self.root_states[env_ids, :3] += self.env_origins[env_ids]
+        # Simulators do not share a world, so actor-grid offsets and random
+        # x/y spawn offsets are incorrect here.  State buffers use the local
+        # frame; _physics_origins is applied only when writing the generated
+        # terrain's physical coordinates into Sire.
+        self.root_states[env_ids] = self.base_init_state
 
         yl, yh = self.cfg.init_state.init_yaw_range
         if yl != 0.0 or yh != 0.0:
@@ -674,13 +736,16 @@ class LeggedRobotSire(VecEnv):
         for eid in env_ids.tolist():
             m = self.sire_models[eid]
             r = self.root_states[eid]
+            physical_position = r[:3] + self._physics_origins[eid]
             # root_states uses body-point velocity (MuJoCo convention);
             # Sire part.vs expects spatial velocity (twist at origin).
-            pp = r[:3].cpu().numpy()
+            pp = physical_position.cpu().numpy()
             vp = r[7:10].cpu().numpy()
             w  = r[10:13].cpu().numpy()
             vs = np.array(sire.vp2vs(pp, vp, w))   # body-point → spatial twist (with ω)
-            m.link(1).pq = r[:7].cpu().numpy()
+            physical_pq = r[:7].clone()
+            physical_pq[:3] = physical_position
+            m.link(1).pq = physical_pq.cpu().numpy()
             m.link(1).vs = vs
             m.forwardKinematics()
             m.forwardKinematicsVel()
@@ -712,8 +777,7 @@ class LeggedRobotSire(VecEnv):
                     sl.handleContact()
                     # print(sl.simTime())
                 except Exception as e:
-                    print(f"[Sire settle] env {eid}: {e}", flush=True)
-                    self._reinit_sire_env(eid)
+                    raise RuntimeError(self._format_sire_exception(eid, e)) from e
 
         self.actions[env_ids] = saved
 
@@ -742,9 +806,7 @@ class LeggedRobotSire(VecEnv):
             or not hasattr(self, "terrain_origins")
         ):
             return
-        distance = torch.norm(
-            self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1
-        )
+        distance = torch.norm(self.root_states[env_ids, :2], dim=1)
         move_up = distance > (self.terrain.patch_length * 0.5)
         move_down = (
             distance
@@ -759,7 +821,7 @@ class LeggedRobotSire(VecEnv):
             torch.randint_like(self.terrain_levels[env_ids], self.max_terrain_level),
             torch.clamp(self.terrain_levels[env_ids], min=0),
         )
-        self.env_origins[env_ids] = self.terrain_origins[
+        self._physics_origins[env_ids] = self.terrain_origins[
             self.terrain_levels[env_ids], self.terrain_types[env_ids]
         ]
 
@@ -801,6 +863,20 @@ class LeggedRobotSire(VecEnv):
         return noise_vec
 
     def _init_buffers(self):
+        # These mappings are required by the initial state refresh below.
+        # Keeping them ahead of all reads also ensures initialization errors
+        # are reported instead of being hidden by partially initialized state.
+        self._dof_limits_lo = self.dof_pos_limits[:, 0].tolist()
+        self._dof_limits_hi = self.dof_pos_limits[:, 1].tolist()
+        self._num_motions = self.sire_models[0].numMotions()
+        self._motion_idx = np.array(
+            [self._sire_dof_to_motion[name] for name in self.dof_names],
+            dtype=np.int32,
+        )
+        self._motion_idx_inv = np.zeros(self._num_motions, dtype=np.int32)
+        for dof_i, mot_i in enumerate(self._motion_idx):
+            self._motion_idx_inv[mot_i] = dof_i
+
         # ── Pre-allocate tensors (reused in-place by _refresh_sim_tensors_sire) ──
         self.root_states = torch.zeros(self.num_envs, 13, dtype=torch.float, device=self.device)
         self.dof_pos = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device)
@@ -909,17 +985,31 @@ class LeggedRobotSire(VecEnv):
         self._d_gains = self.d_gains.numpy().astype(np.float64)
         self._torque_limits = self.torque_limits.numpy().astype(np.float64)
         self._default_pos = self.default_dof_pos.squeeze(0).numpy().astype(np.float64)
-        self._dof_limits_lo = self.dof_pos_limits[:, 0].tolist()
-        self._dof_limits_hi = self.dof_pos_limits[:, 1].tolist()
-        # ── Pre-compute motion index arrays (like MuJoCo's qpos_adr_np) ──
-        self._num_motions = self.sire_models[0].numMotions()
-        # _motion_idx[i] = motionPool index for dof_names[i]
-        self._motion_idx = np.array(
-            [self._sire_dof_to_motion[name] for name in self.dof_names], dtype=np.int32)
-        # Inverse: _motion_idx_inv[motionPool_idx] = dof_names index
-        self._motion_idx_inv = np.zeros(self._num_motions, dtype=np.int32)
-        for dof_i, mot_i in enumerate(self._motion_idx):
-            self._motion_idx_inv[mot_i] = dof_i
+        sire_batch_threads = int(getattr(self.cfg.sim, "sire_batch_threads", 0))
+        self._sire_batch_stepper = sire.SireRLBatchStepper(
+            self.sire_simulators,
+            self._motion_idx,
+            self.feet_indices_np,
+            self.cfg.control.control_type,
+            float(self.cfg.control.action_scale),
+            self._p_gains,
+            self._d_gains,
+            self._default_pos,
+            self._torque_limits,
+            np.asarray(self._dof_limits_lo, dtype=np.float64),
+            np.asarray(self._dof_limits_hi, dtype=np.float64),
+            float(self.cfg.sim.dt),
+            float(self.dt),
+            sire_batch_threads,
+        )
+        # Public spelling requested by the training CLI/config.  It reports
+        # the effective count after clamping to num_envs.
+        self.sireBatchThread = self._sire_batch_stepper.threadCount
+        print(
+            f"[Sire batch] envs={self.num_envs} threads={self.sireBatchThread} "
+            f"persistent_workers={self._sire_batch_stepper.workerCount}",
+            flush=True,
+        )
         hip_ids = [i for i, name in enumerate(self.dof_names) if "hip_joint" in name]
         self.hip_indices = torch.tensor(hip_ids, dtype=torch.long, device=self.device)
         self.episode_hip_abs_sums = torch.zeros(
@@ -991,6 +1081,35 @@ class LeggedRobotSire(VecEnv):
         self._reset_root_states(env_ids)
         self.episode_length_buf[env_idx] = 0
         self.reset_buf[env_idx] = 1
+
+    def _format_sire_state(self, env_idx: int) -> str:
+        """Return a complete compact state snapshot for an error report."""
+        model = self.sire_models[env_idx]
+        loop = self.sire_sim_loops[env_idx]
+        pq, vs = sire.getBasePqVs(model, 1)
+        mp = np.asarray(sire.getMotionMps(model), dtype=np.float64)[
+            self._motion_idx
+        ].tolist()
+        mv = np.asarray(sire.getMotionMvs(model), dtype=np.float64)[
+            self._motion_idx
+        ].tolist()
+        actions = self.actions[env_idx].detach().cpu().tolist()
+        return (
+            f"env_id={env_idx} sim_time={loop.simTime():.17g} "
+            f"pq={list(pq)} vs={list(vs)} mp={mp} mv={mv} actions={actions}"
+        )
+
+    def _format_sire_exception(self, env_idx: int, error: Exception) -> str:
+        try:
+            state = self._format_sire_state(env_idx)
+        except Exception as snapshot_error:
+            state = (
+                f"env_id={env_idx} state_snapshot_error="
+                f"{type(snapshot_error).__name__}: {snapshot_error}"
+            )
+        return (
+            f"Sire environment failed: {type(error).__name__}: {error}\n{state}"
+        )
 
     # ------------------------------------------------------------------
     #  Sire environment construction
@@ -1213,8 +1332,13 @@ class LeggedRobotSire(VecEnv):
             base_init_state_list, device=self.device, dtype=torch.float,
         )
         # ── diagnostic: dump config mappings ──
-        self._print_config_diagnostic(sire_part_names, feet_names_raw,
-                                       penalized_names, termination_names)
+        if getattr(self.cfg.sim, "sire_diagnostics", False):
+            self._print_config_diagnostic(
+                sire_part_names,
+                feet_names_raw,
+                penalized_names,
+                termination_names,
+            )
         # No MuJoCo MjData — Sire manages state internally via partPool / motionPool
 
 
@@ -1266,12 +1390,7 @@ class LeggedRobotSire(VecEnv):
         return True
 
     def _get_env_origins(self):
-        """为每个并行环境分配世界坐标系下的初始位置（spawn point）。
-
-        有 terrain 时：从 TerrainLayout 的地形网格中随机选择 (row, col)，
-        读取对应的 env_origins（含 z=地面高度）。
-        无 terrain 时：将环境排列在均匀网格上，间距 = env_spacing，z=0。
-        """
+        """Assign terrain patches while exposing a local origin per simulator."""
         if self.terrain is not None:
             self.custom_origins = True
             self.env_origins = torch.zeros(self.cfg.env.num_envs, 3, device=self.device)
@@ -1299,27 +1418,43 @@ class LeggedRobotSire(VecEnv):
                 .to(self.device)
                 .to(torch.float)
             )
-            self.env_origins[:] = self.terrain_origins[
+            self._physics_origins = self.terrain_origins[
                 self.terrain_levels, self.terrain_types
-            ]
+            ].clone()
             return
 
+        # Sire environments are separate Simulator instances, not actors in a
+        # shared world. They therefore all use the same local world origin.
         self.custom_origins = False
         self.env_origins = torch.zeros(self.cfg.env.num_envs, 3, device=self.device)
-        num_cols = np.floor(np.sqrt(self.cfg.env.num_envs))
-        num_rows = np.ceil(self.cfg.env.num_envs / num_cols)
-        xx, yy = torch.meshgrid(
-            torch.arange(int(num_rows), device=self.device),
-            torch.arange(int(num_cols), device=self.device),
-            indexing="ij",
-        )
-        spacing = self.cfg.env.env_spacing
-        self.env_origins[:, 0] = spacing * xx.flatten()[: self.cfg.env.num_envs]
-        self.env_origins[:, 1] = spacing * yy.flatten()[: self.cfg.env.num_envs]
-        self.env_origins[:, 2] = 0.0
+        self._physics_origins = torch.zeros_like(self.env_origins)
         self.terrain_levels = torch.zeros(
             self.cfg.env.num_envs, dtype=torch.long, device=self.device
         )
+
+    def _terrain_out_of_bounds(self):
+        """Return env mask outside its assigned finite terrain patch."""
+        outside = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        if self.terrain is None:
+            return outside
+        margin = float(getattr(self.cfg.terrain, "boundary_margin", 0.0))
+        for env_id in range(self.num_envs):
+            row = int(self.terrain_levels[env_id].item())
+            col = int(self.terrain_types[env_id].item())
+            patch = self.terrain.patch_map.get((row, col))
+            if patch is None:
+                raise RuntimeError(
+                    f"missing terrain patch for env_id={env_id}, row={row}, col={col}"
+                )
+            x = self.root_states[env_id, 0] + self._physics_origins[env_id, 0]
+            y = self.root_states[env_id, 1] + self._physics_origins[env_id, 1]
+            outside[env_id] = (
+                (x < patch.start_x + margin)
+                | (x > patch.start_x + self.terrain.patch_length - margin)
+                | (y < patch.start_y + margin)
+                | (y > patch.start_y + self.terrain.patch_width - margin)
+            )
+        return outside
 
     def _parse_cfg(self, cfg):
         sim_dt = cfg.sim.dt if self.sim_params is None else self.sim_params.dt
@@ -1396,6 +1531,7 @@ class LeggedRobotSire(VecEnv):
             len(env_ids_tensor), self.num_height_points, 3
         )
         world_points = world_points + self.root_states[env_ids_tensor, :3].unsqueeze(1)
+        world_points = world_points + self._physics_origins[env_ids_tensor].unsqueeze(1)
 
         # ── terrain grid metadata ──
         terrain = self.terrain
@@ -1433,6 +1569,10 @@ class LeggedRobotSire(VecEnv):
                     heights[e, p] = float(slope * max(0.0, wx - float(terrain.border)))
                 else:
                     heights[e, p] = 0.0
+
+            # Convert queried physical heights back to this simulator's
+            # local terrain frame (spawn height is local z=0).
+            heights[e] -= self._physics_origins[env_ids_tensor[e], 2]
 
         return heights
 
@@ -1582,6 +1722,13 @@ class LeggedRobotSire(VecEnv):
         self.compute_observations()
         return self.obs_buf, self.privileged_obs_buf
 
+    def resetSireRecorders(self):
+        """Clear rollout recordings without changing episode/model state."""
+        self._sire_batch_stepper.resetRecorders()
+
+    def reset_sire_recorders(self):
+        return self.resetSireRecorders()
+
     def get_observations(self):
         return self.obs_buf
 
@@ -1593,11 +1740,12 @@ class LeggedRobotSire(VecEnv):
     # ------------------------------------------------------------------
     #  Post physics step (calls _refresh_sim_tensors_sire)
     # ------------------------------------------------------------------
-    def _post_physics_step_sire(self):
+    def _post_physics_step_sire(self, refresh_from_sire=True):
         self.extras = {}
         self.episode_length_buf += 1
         self.common_step_counter += 1
-        self._refresh_sim_tensors_sire()
+        if refresh_from_sire:
+            self._refresh_sim_tensors_sire()
 
         self.base_quat[:] = self.root_states[:, 3:7]
         self.base_lin_vel[:] = quat_rotate_inverse(
@@ -1619,12 +1767,18 @@ class LeggedRobotSire(VecEnv):
         self.reset_idx(env_ids)
         self.compute_observations()
 
-        # Sanitize: zero out NaN/Inf in observations that may leak
-        # from envs with undetected physics corruption.
-        self.obs_buf = torch.nan_to_num(self.obs_buf, nan=0.0, posinf=0.0, neginf=0.0)
+        # Never hide numerical failures from PPO.  Native stepping already
+        # reports full state; this catches errors introduced by observation or
+        # reward code and identifies the affected environments.
+        invalid_obs = ~torch.isfinite(self.obs_buf).all(dim=1)
         if self.privileged_obs_buf is not None:
-            self.privileged_obs_buf = torch.nan_to_num(
-                self.privileged_obs_buf, nan=0.0, posinf=0.0, neginf=0.0)
+            invalid_obs |= ~torch.isfinite(self.privileged_obs_buf).all(dim=1)
+        if invalid_obs.any():
+            env_ids = invalid_obs.nonzero(as_tuple=False).flatten().tolist()
+            states = [self._format_sire_state(eid) for eid in env_ids]
+            raise RuntimeError(
+                "non-finite Sire RL observation\n" + "\n".join(states)
+            )
 
         self.last_actions[:] = self.actions[:]
         self.last_dof_vel[:] = self.dof_vel[:]
@@ -1632,7 +1786,10 @@ class LeggedRobotSire(VecEnv):
         self.last_feet_pos_world[:] = self.feet_pos_world[:]
 
         # ---- reward decomposition diagnostic (first 20 steps) ----
-        if self.common_step_counter <= 20:
+        if (
+            getattr(self.cfg.sim, "sire_diagnostics", False)
+            and self.common_step_counter <= 20
+        ):
             r_track_lin = self._reward_tracking_lin_vel().mean().item()
             r_track_ang = self._reward_tracking_ang_vel().mean().item()
             r_orient = self._reward_orientation().mean().item()
@@ -1662,11 +1819,13 @@ class LeggedRobotSire(VecEnv):
             tilt = self.projected_gravity[:, :2].norm(dim=1).mean().item()
             foot_contact_frac = self.foot_ground_contact.float().mean().item()
             contact_nz = (self.contact_forces.abs().sum(dim=-1).sum(dim=-1) > 0).sum().item()
-            try:
-                cr0 = self.sire_sim_loops[0].lastContactPairResultsWithPartIds()
-                first_force = f"fx={cr0[0][2]:.1f},fy={cr0[0][3]:.1f},fz={cr0[0][4]:.1f}" if len(cr0) > 0 else "no_contacts"
-            except Exception:
-                first_force = "err"
+            force0 = self.contact_forces[0].reshape(-1, 3)
+            max_force_index = torch.norm(force0, dim=1).argmax().item()
+            first_force = (
+                f"fx={force0[max_force_index, 0]:.1f},"
+                f"fy={force0[max_force_index, 1]:.1f},"
+                f"fz={force0[max_force_index, 2]:.1f}"
+            )
             print(
                 f"[Sire diag step {self.common_step_counter}] "
                 f"rew_total={self.rew_buf.mean():.4f} dt={dt_val:.4f}\n"
@@ -1812,19 +1971,15 @@ class LeggedRobotSire(VecEnv):
                         or pq[2] < -5.0 or pq[2] > 50.0
                         or any(abs(v) > 100.0 for v in vp)
                         or any(abs(w) > 100.0 for w in vs[3:6])):
-                    self._sire_physics_failures.append(i)
-                    print(
-                        f"[Sire physics bounds] step={self.common_step_counter} env={i} "
-                        f"pq={pq[:3]} vp=[{vp[0]:.1f},{vp[1]:.1f},{vp[2]:.1f}]"
-                        f" ω=[{vs[3]:.1f},{vs[4]:.1f},{vs[5]:.1f}]",
-                        flush=True,
+                    raise RuntimeError(
+                        "physics state exceeded configured safety bounds: "
+                        f"pq={pq} vp={vp} vs={vs}"
                     )
-                    self._reinit_sire_env(i)
-                    continue
 
                 self.root_states[i, :7] = torch.as_tensor(pq, dtype=torch.float)
                 self.root_states[i, 7:10] = torch.as_tensor(vp, dtype=torch.float)
                 self.root_states[i, 10:13] = torch.as_tensor(vs[3:6], dtype=torch.float)
+                self.root_states[i, :3] -= self._physics_origins[i]
 
                 # --- joints --- batch read + numpy reorder (like MuJoCo's qpos_adr_np) ---
                 mps_all = np.array(sire.getMotionMps(m), dtype=np.float64)
@@ -1851,13 +2006,17 @@ class LeggedRobotSire(VecEnv):
                 self.dof_vel[i] = torch.as_tensor(mvs, dtype=torch.float)
 
                 # --- foot positions ----------------------------------------------
-                for f_idx, fname in enumerate(self.foot_names):
-                    pid = self._sire_part_name_to_idx.get(f"{fname.upper()}_calf")
-                    if pid is not None:
-                        pm = m.link(pid).getPm()
-                        self.feet_pos_world[i, f_idx, 0] = pm[3]
-                        self.feet_pos_world[i, f_idx, 1] = pm[7]
-                        self.feet_pos_world[i, f_idx, 2] = pm[11]
+                for f_idx, pid in enumerate(self.feet_indices_np):
+                    pm = m.link(int(pid)).getPm()
+                    self.feet_pos_world[i, f_idx, 0] = (
+                        pm[3] - self._physics_origins[i, 0]
+                    )
+                    self.feet_pos_world[i, f_idx, 1] = (
+                        pm[7] - self._physics_origins[i, 1]
+                    )
+                    self.feet_pos_world[i, f_idx, 2] = (
+                        pm[11] - self._physics_origins[i, 2]
+                    )
 
                 # --- contact forces & ground contact ---------------------------
                 dt_act = self._sire_dt_actual.get(i, dt)
@@ -1881,16 +2040,17 @@ class LeggedRobotSire(VecEnv):
                             self.body_ground_contact[i, pb] = True
                         if pb == 0 and pa != 0:
                             self.body_ground_contact[i, pa] = True
-                except Exception:
-                    pass  # solver doesn't support lastContactPairResults
+                except Exception as error:
+                    raise RuntimeError(
+                        "failed to read last contact-pair results"
+                    ) from error
 
                 if len(self.feet_indices_np) > 0:
                     self.foot_ground_contact[i] = self.body_ground_contact[
                         i, self.feet_indices
                     ]
-            except Exception:
-                # Reading corrupted state after physics failure — already reset
-                pass
+            except Exception as error:
+                raise RuntimeError(self._format_sire_exception(i, error)) from error
 
     # ------------------------------------------------------------------
     #  Trajectory recording (for comparison / debugging)
