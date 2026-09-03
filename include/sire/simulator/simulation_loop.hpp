@@ -178,6 +178,7 @@ class SIRE_API SimulationLoop {
   auto stop() -> void {};
   auto reset() -> void;
   auto resetRL() -> void;
+  auto resetRLNoTimer() -> void;
   auto resetRecorder() -> void;
 
   SimulationLoop();

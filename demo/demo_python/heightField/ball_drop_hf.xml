@@ -50,7 +50,7 @@
       </MaterialManager>
     </PsVsSolver3>
     <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
-      <HeightField visible="true" id="0" part_id="0" is_dynamic="false" material="m1" file="D:\code\sire\demo\demo_python\heightField\terrain_hf.png" x_dim="10.0000" y_dim="10.0000" scale_z="0.0000" min_height="-0.0200" contact_prop="{k:2.8e8,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0.0000,0,0,0,1}"/>
+      <HeightField visible="true" id="0" part_id="0" is_dynamic="false" material="m1" file="D:\code\sire\demo\demo_python\heightField\terrain_hf.png" x_dim="10.0000" y_dim="10.0000" scale_z="0.2000" min_height="-0.0200" contact_prop="{k:2.8e8,d:2000}" pm="{1,0,0,0,0,1,0,0,0,0,1,0.0000,0,0,0,1}"/>
       <SphereCollisionGeometry visible="true" id="1" part_id="1" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.05" pm="{1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1}"/>
     </GeometryPoolObject>
     <CollisionFilter __prop_name__="collision_filter" filter_state="{1,0, 0,1}"/>

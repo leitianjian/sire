@@ -3,8 +3,7 @@ policy_path: "{LEGGED_GYM_ROOT_DIR}/policy_1.pt"
 xml_path: "{LEGGED_GYM_ROOT_DIR}/scene.xml"
 
 # Total simulation time
-simulation_duration: 1.5
-# Simulation time step
+simulation_duration: 4 # Simulation time step
 simulation_dt: 0.002
 ctrl_dt: 0.02
 # Controller update frequency (meets the requirement of simulation_dt * controll_decimation=0.02; 50Hz)

@@ -92,11 +92,36 @@ void ShapeToInertia::ImplementGeometry(const BoxShape& box, void* user_data) {
 void ShapeToInertia::ImplementGeometry(const CapsuleShape& capsule, void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double mass = iv[0], radius{capsule.radius()}, length{capsule.length()};
+
+  // The capsule axis is local z.  `length` is the cylindrical section length;
+  // the two hemispheres add 2 * radius to the total end-to-end length.
+  // Assume uniform density and split the supplied total mass by volume.
+  const double volume_length = length + 4.0 * radius / 3.0;
+  const double cylinder_mass = mass * length / volume_length;
+  const double hemispheres_mass = mass - cylinder_mass;
+  const double hemisphere_center_offset = length / 2.0 + 3.0 * radius / 8.0;
+
+  const double axial_inertia =
+      0.5 * cylinder_mass * radius * radius +
+      0.4 * hemispheres_mass * radius * radius;
+  const double transverse_inertia =
+      cylinder_mass * (3.0 * radius * radius + length * length) / 12.0 +
+      hemispheres_mass *
+          (83.0 * radius * radius / 320.0 +
+           hemisphere_center_offset * hemisphere_center_offset);
+
+  iv[4] = iv[5] = transverse_inertia;
+  iv[6] = axial_inertia;
 }
 
 void ShapeToInertia::ImplementGeometry(const CylinderShape& cylinder, void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double mass = iv[0], radius{cylinder.radius()}, length{cylinder.length()};
+
+  // Coal cylinders use the local z axis as their symmetry axis.
+  iv[4] = iv[5] =
+      mass * (3.0 * radius * radius + length * length) / 12.0;
+  iv[6] = 0.5 * mass * radius * radius;
 }
 
 void ShapeToInertia::ImplementGeometry(const HeightFieldShape&, void*) {

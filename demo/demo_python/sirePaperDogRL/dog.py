@@ -331,7 +331,7 @@ if __name__ == "__main__":
     simulator.handleContact()
   
   simulator.recordsContactCptInfo()
-  displayInitJson = model.displayInitJson()
+  displayInitJson = sim.displayInitJson()
   result = simulator.recordsToJson()
   print("Simulation finished, records loaded")
   import meshcat

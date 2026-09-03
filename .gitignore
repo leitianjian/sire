@@ -99,6 +99,9 @@ trash/
 
 # simulation results log
 contact_solver_result.json
+solver_traces/
+tmp/
+log.txt
 *result.json
 motion_data/
 *.pdb

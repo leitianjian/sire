@@ -41,12 +41,14 @@ sim = sire.Simulator()
 model = sim.model()
 model.addSolvers()
 simulator = sim.simulationLoop()
-simulator.simDuration = 0.961
+simulator.simDuration = 1
 simulator.deltaT = 0.001
 simulator.ctrlT = 10
-simulator.setEventHandlerMap({0:9, 1:10, 2:11})
+simulator.setEventHandlerMap({0:12, 1:13, 2:14})
 physicsEngine = sim.physicsEngine()
-contactSolver = physicsEngine.addPsVsSolver2()
+# Standard ADMM v6.  Set SIRE_SOLVER_TRACE_DIR before this line (or before
+# launching Python) to record one JSON file per active-contact solver call.
+contactSolver = physicsEngine.addADMMSolver()
 physicsEngine.collisionDetectionFlag = True
 physicsEngine.contactSolverFlag = True
 contactSolver.setDefaultProp("{k:1.4e8,d:10000,cr:0.2}")
@@ -59,8 +61,8 @@ model.ground().addMarker("ground_marker")
 ground_pe, cube_pe = calculate_inclined_positions(15)
 # cube_pe[2] = 2
 ground_pm = sire.pe3132tfmatrix(ground_pe).tolist()
-model.ground().addBoxGeometry(0, 100, 100, 1, [1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1])
-model.ground().addBoxGeometry(0, 5, 5, 1, ground_pm)
+# model.ground().addBoxGeometry(0, 100, 100, 1, [1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1])
+# model.ground().addBoxGeometry(0, 5, 5, 1, ground_pm)
 
 physicsEngine.addBoxGeometry(100, 100, 1, 0, False, [1,0,0,0,0,1,0,0,0,0,1,-0.5,0,0,0,1])
 physicsEngine.addBoxGeometry(5, 5, 1, 0, False, ground_pm)
@@ -69,11 +71,14 @@ physicsEngine.addBoxGeometry(5, 5, 1, 0, False, ground_pm)
 boxPrt = model.addPartByPe(cube_pe, "313", [1, 0, 0, 0, 0.1, 0.1, 0.1, 0, 0, 0])
 model.link(1).addMarker("box_center")
 model.init()
-boxPrt.addBoxGeometry(boxPrt.id, 1.0, 1.0, 1.0, prt_pm=[1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1])
-boxPrt.cptGeometryInertial2Part(1)
-boxPrt.vs = sire.vp2vs(cube_pe[:3], [0, -2 * math.cos(math.radians(15)), 2 * math.sin(math.radians(15))])
+boxGeometry = physicsEngine.addBoxGeometry(1, 1, 1, boxPrt.id, True)
+# Only the mass-carrying box contributes to the rigid body's inertia.  The four
+# spheres below are contact helpers and intentionally do not contribute mass.
+boxGeometry.cptInertial(boxPrt, 1.0)
+print(f"Box initial position: {boxPrt.pq}")
+v = 2
+boxPrt.vs = sire.vp2vs(cube_pe[:3], [0, -v * math.cos(math.radians(15)), v * math.sin(math.radians(15))])
 
-physicsEngine.addBoxGeometry(1, 1, 1, boxPrt.id, True)
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,0.5,0,1,0,0.5,0,0,1,-0.4,0,0,0,1], material="m2")
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,0.5,0,1,0,-0.5,0,0,1,-0.4,0,0,0,1], material="m2")
 physicsEngine.addSphereGeometry(0.1, boxPrt.id, True, [1,0,0,-0.5,0,1,0,0.5,0,0,1,-0.4,0,0,0,1], material="m2")
@@ -88,14 +93,15 @@ print(sire.toXmlString(sim))
 
 count = 0
 while(not simulator.isTimeout() and not simulator.isEventListEmpty()):
+  isCtrl = simulator.integrate()
   sim_time = simulator.simTime()
   if abs(sim_time - 0.37) < 1e-8 and count == 0:
     print(boxPrt.getAs())
     count += 1
-  simulator.step(1, False)
+  simulator.handleContact()
 
 simulator.recordsContactCptInfo()
-displayInitJson = model.displayInitJson()
+displayInitJson = sim.displayInitJson()
 result = simulator.recordsToJson()
 print("Simulation finished, records loaded")
 import meshcat

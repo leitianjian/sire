@@ -15,6 +15,12 @@ class CollisionAdapter : public CollidableGeometry {
  public:
   ShapeType typedShape;
 
+  // Collision geometries already own their Sire shape as typedShape.  Expose
+  // that existing object through GeometryBase's common shape interface so
+  // shape calculators (inertia, serialization, etc.) work for both model and
+  // collision geometries without per-shape dispatch code.
+  auto shape() -> sire::geometry::ShapeBase* override { return &typedShape; }
+
   template <typename... Args>
   explicit CollisionAdapter(int part_id = 0, bool is_dynamic = false,
                             const double* prt_pm = nullptr, bool visible = true,

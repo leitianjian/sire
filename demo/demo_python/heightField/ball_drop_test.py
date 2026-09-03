@@ -51,7 +51,7 @@ for i in range(10000):  # max 6 seconds
         print(f"  Ball fell through terrain at t={t:.3f}s")
         break
     # if t > 0.221:
-    if t > 0.5:
+    if t > 3:
         break
 
 print(f"\nFinal: t={sl.simTime():.3f}s  ball_z={ball.pq[2]:.4f}")

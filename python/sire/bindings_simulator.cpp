@@ -31,7 +31,6 @@
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/collision/collision_filter.hpp"
 #include "sire/physics/contact/analytical_implicit_friction_solver.hpp"
-#include "sire/physics/contact/analytical_tangent_force_solver.hpp"
 #include "sire/physics/contact/contact_position_force_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver2.hpp"
@@ -157,6 +156,7 @@ void init_simulator(py::module& m) {
       .def("simTime", &sire::simulator::SimulationLoop::simTime)
       .def("reset", &sire::simulator::SimulationLoop::reset)
       .def("resetRL", &sire::simulator::SimulationLoop::resetRL)
+      .def("resetRLNoTimer", &sire::simulator::SimulationLoop::resetRLNoTimer)
       .def("resetRecorder", &sire::simulator::SimulationLoop::resetRecorder)
       .def("stop", &sire::simulator::SimulationLoop::stop)
       .def("pause", &sire::simulator::SimulationLoop::pause)
@@ -204,13 +204,6 @@ void init_simulator(py::module& m) {
                  pa = (geomA != nullptr) ? geomA->partId() : sire::Size(0);
                  pb = (geomB != nullptr) ? geomB->partId() : sire::Size(0);
                }
-               std::cout << "[Sire] lastContactPairResultsWithPartIds: geomIdA=" << r.geomIdA
-                         << " geomIdB=" << r.geomIdB
-                         << " partIdA=" << pa << " partIdB=" << pb
-                         << " force_W=[" << r.force_W[0] << ", " << r.force_W[1]
-                         << ", " << r.force_W[2] << "]"
-                         << " point_W=[" << r.point_W[0] << ", " << r.point_W[1]
-                         << ", " << r.point_W[2] << "]" << std::endl;
                lst.append(py::make_tuple(
                    pa, pb,
                    r.force_W[0], r.force_W[1], r.force_W[2],

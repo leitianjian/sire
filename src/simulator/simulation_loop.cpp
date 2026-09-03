@@ -650,6 +650,14 @@ auto SimulationLoop::resetRL() -> void {
   imp_->prevIntTime_ = 0;
   imp_->nextSuggestTime_ = -1;
 }
+auto SimulationLoop::resetRLNoTimer() -> void {
+  imp_->contact_pair_manager_.clear();
+  imp_->event_manager_->reset();
+  imp_->is_ctrl_flag_ = imp_->is_init_ctrl_;
+  imp_->prevCtrlTime_ = imp_->timer_.simTime();
+  imp_->prevIntTime_ = imp_->timer_.simTime();
+  imp_->nextSuggestTime_ = -1;
+}
 auto SimulationLoop::resetRecorder() -> void {
   imp_->recorder_.reset();
 }
