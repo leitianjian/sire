@@ -54,7 +54,9 @@ def getBodyQuat(model, i):
   return np.array(model.link(i).getPq()[3:])
 
 def getBodyVa(model, i):
-  return np.array(sire.vs2va(model.link(i).getVs(), model.link(i).getPq()))
+  link = model.link(i)
+  # Absolute velocity at the body origin, expressed along body axes.
+  return np.asarray(sire.vs2bodyVa(link.getPq(), link.getVs()), dtype=np.float64)
 
 def assignTau(model, tau):
   for i in range(len(tau)):

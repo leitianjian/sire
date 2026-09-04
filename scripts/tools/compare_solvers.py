@@ -31,6 +31,7 @@ SOLVER_FUNCTIONS = {
     "v5": "cptContactForceWithTargetState5",
     "v6": "cptContactForceWithTargetState6",
     "Spectral-ADMM": "cptContactForceSpectralAdmm",
+    "Shifted-Spectral-ADMM": "cptContactForceShiftedSpectralAdmm",
     "v7": "cptContactForceWithTargetState7",
     "v8": "cptContactForceWithTargetState8",
     "Newton-PIPG": "cptContactForceNewtonPipg",
@@ -51,6 +52,7 @@ SOLVER_METHODS = {
     "Spectral-ADMM": (
         "Spectral ADMM [Carpentier et al.]"
     ),
+    "Shifted-Spectral-ADMM": "Spectral ADMM | NCP normal shift by v_target",
     "v7": "v7 | DAE Davis-Yin three-operator splitting",
     "v8": "v8 | DAE PDDY / primal-dual DRS with exact F prox",
     "Newton-PIPG": "Newton-PIPG | equality QP + SOC-face Newton/rank compression",

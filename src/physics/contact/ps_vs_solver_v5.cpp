@@ -1,5 +1,6 @@
 #include "sire/physics/contact/ps_vs_solver_v5.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
@@ -21,6 +22,7 @@
 #include <aris/dynamic/model.hpp>
 #include <aris/dynamic/model_force.hpp>
 #include <aris/dynamic/model_interaction.hpp>
+#include <aris/dynamic/model_solver.hpp>
 #include <aris/server/control_server.hpp>
 
 #include "log/easyloggingConfig.hpp"
@@ -43,12 +45,6 @@ auto preprocessContactInfo(
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     const std::vector<sire::Size>& preservedPairsIdx,
     geometry::CollidableGeometry** geometryPtrVector) -> void;
-auto cptAllAccelExtVector(
-    aris::dynamic::Model& model,
-    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    const std::vector<std::array<double, 16>>& T_C_vec,
-    const std::vector<sire::Size>& preservedPairsIdx,
-    const sire::PartId* prtIdVector, double* accelExt) -> void;
 auto modifyPenetrationDepth(
     sire::physics::PhysicsEngine& engine,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -498,34 +494,42 @@ auto PsVsSolverV5::cptContactSolverResult(
 
   // ---- Filter contact pairs ----
   std::vector<sire::Size> preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx;
-  filterPairsAndPreprocessInfo(*enginePtr, penetration_pairs,
-      std::vector<common::PenetrationAsPointPair>{},
-      std::vector<common::PenetrationAsPointPair>{},
-      T_C_vec, preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx);
-  modifyPenetrationDepth(*enginePtr, penetration_pairs, preservedPairsIdx);
+  if (singlePointContactMode()) {
+    prepareSinglePointContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
+  } else {
+    std::vector<common::PenetrationAsPointPair> contactEnded, contactNotEnd;
+    filterPairsAndPreprocessInfo(*enginePtr, penetration_pairs,
+        contactEnded, contactNotEnd, T_C_vec, preservedPairsIdx,
+        pairsNeedModifiedIdx, targetConditionIdx);
+    modifyPenetrationDepth(*enginePtr, penetration_pairs, preservedPairsIdx);
+  }
   n = preservedPairsIdx.size();
   DLOG(DEBUG) << "v5 n_contacts=" << n << " suggest_dt=" << suggest_dt;
 
-  // ---- Event creation (must happen before updPs; same as v3) ----
+  // Select the next event only AFTER the actual contact step is known.
   auto simulator_ptr = enginePtr->simLoopPtr();
-  std::unique_ptr<core::EventBase> eventPtr{nullptr};
-  if (nextCtrlSimSuggestDt - result.dt > 1e-6) {
-    eventPtr = simulator_ptr->eventManager().createEventById(1);
-    eventPtr->eventProp().addProp("isCtrl", 0.0);
-  } else {
-    core::EventId nextEventId = simulator_ptr->eventManager().nextEventId();
-    eventPtr = simulator_ptr->eventManager().createEventById(nextEventId);
-    eventPtr->eventProp().addProp("isCtrl", (nextEventId == 2) ? 1.0 : 0.0);
-  }
-  eventPtr->eventProp().addProp("dt", result.dt);
+  auto createNextEvent = [&]() {
+    const bool contactEndsEarly = singlePointContactMode()
+                                     ? result.dt < nextCtrlSimSuggestDt
+                                     : nextCtrlSimSuggestDt - result.dt > 1e-6;
+    const core::EventId id = contactEndsEarly
+                                ? 1
+                                : simulator_ptr->eventManager().nextEventId();
+    auto event = simulator_ptr->eventManager().createEventById(id);
+    event->eventProp().addProp("isCtrl", (id == 2) ? 1.0 : 0.0);
+    event->eventProp().addProp("dt", result.dt);
+    return event;
+  };
 
   if (n == 0) {
+    auto eventPtr = createNextEvent();
     simulator_ptr->recorder().recordModelState(*modelPtr);
     simulator_ptr->recorder().recordContactPairResults({});
     double dt = result.dt;
     simulator_ptr->recorder().recordDt(dt);
     simulator_ptr->integratorPoolPtr()->at(0).updPs(dt);
     double currentTime = simulator_ptr->timer().updateSimTime(dt);
+    if (singlePointContactMode()) simulator_ptr->model()->setTime(currentTime);
     simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(), currentTime);
     simulator_ptr->eventManager().addEvent(std::move(eventPtr));
     return;
@@ -534,8 +538,10 @@ auto PsVsSolverV5::cptContactSolverResult(
   // ---- Geometry & part IDs ----
   std::vector<geometry::CollidableGeometry*> geomPtr(2 * n, nullptr);
   preprocessContactInfo(*enginePtr, penetration_pairs, preservedPairsIdx, geomPtr.data());
-  std::vector<sire::Size> prtIdVec(2 * n, 0);
-  for (sire::Size i = 0; i < 2 * n; ++i) prtIdVec[i] = geomPtr[i]->partId();
+  std::vector<int> prtIdVec(2 * n);
+  for (sire::Size i = 0; i < 2 * n; ++i) {
+    prtIdVec[i] = static_cast<int>(geomPtr[i]->partId());
+  }
 
   // ---- Initial conditions & stiffness ----
   std::vector<double> stiffness(n), damping(n), fri_coef(n);
@@ -547,14 +553,28 @@ auto PsVsSolverV5::cptContactSolverResult(
   DLOG(DEBUG) << "v5 stiffScale=" << stiffScale << " x0=" << std::vector<double>(x0.begin(), x0.end())
               << " v0=" << std::vector<double>(v0.begin(), v0.end());
 
-  // ---- Inverse inertia ----
-  std::vector<double> allAccelExt(6 * n);
-  cptAllAccelExtVector(*modelPtr, penetration_pairs, T_C_vec,
-                       preservedPairsIdx, prtIdVec.data(), allAccelExt.data());
-  std::vector<double> allInvCpi(36 * n * n, 0);
-  cptInverseCpiMatrix(*modelPtr, penetration_pairs, T_C_vec,
-                      preservedPairsIdx, prtIdVec.data(),
-                      allAccelExt.data(), allInvCpi.data());
+  // ---- Inverse inertia and free acceleration (same interface as V3) ----
+  std::vector<double> contactFrames(16 * n), contactPoints(3 * n);
+  std::vector<double> allInvCpi, allAccelExt;
+  {
+    SIRE_PROFILE_SCOPE("ps_vs/cptContactInverseInertiaMatrix");
+    for (sire::Size i = 0; i < n; ++i) {
+      const auto pairIndex = preservedPairsIdx[i];
+      std::copy(T_C_vec[pairIndex].begin(), T_C_vec[pairIndex].end(),
+                  contactFrames.begin() + 16 * i);
+      std::copy(penetration_pairs[pairIndex].p_WC.begin(),
+                  penetration_pairs[pairIndex].p_WC.end(),
+                  contactPoints.begin() + 3 * i);
+    }
+    auto& dynamics = dynamic_cast<aris::dynamic::ForwardDynamicSolver&>(
+        modelPtr->solverPool()[3]);
+    // Exclude the previous contact forces from the free acceleration.
+    enginePtr->activateContactForce(false);
+    dynamics.cptContactInverseInertiaMatrix(
+        static_cast<int>(n), prtIdVec.data(), contactFrames.data(),
+        contactPoints.data(), allInvCpi, allAccelExt);
+    enginePtr->activateContactForce(true);
+  }
 
   // Assemble 3n×3n invM
   std::vector<double> invM2(9 * n * n, 0);
@@ -584,14 +604,28 @@ auto PsVsSolverV5::cptContactSolverResult(
               allInvCpi[6 * n * (6 * i + 3 * i2 + 2) + 6 * j + 3 * j2 + 2];
 
   std::vector<double> A_mat(4 * n * n, 0), b_vec(2 * n, 0);
+  // cptDAECoeff expects [a_Az, a_Bz] per pair, not the 3D relative
+  // acceleration vector. Keep the existing height-field path unchanged.
+  std::vector<double> normalAccelExt(2 * n);
+  for (sire::Size i = 0; i < n; ++i) {
+    normalAccelExt[2 * i] = allAccelExt[6 * i + 2];
+    normalAccelExt[2 * i + 1] = allAccelExt[6 * i + 5];
+  }
   cptDAECoeff(*enginePtr, static_cast<sire::Size>(n), stiffness.data(),
-              damping.data(), stiffScale, accelExt2.data(), invCpi_dae.data(),
+              damping.data(), stiffScale,
+              singlePointContactMode() ? normalAccelExt.data() : accelExt2.data(),
+              invCpi_dae.data(),
               A_mat.data(), b_vec.data());
 
-  // double minTime = findMinRootSchur(static_cast<sire::Size>(n), suggest_dt,
-  //     A_mat.data(), b_vec.data(), x0.data(), 1e-10, 50);
-  double minTime = -1;
-  if (minTime < 0.0) minTime = suggest_dt;
+  const double contactEndTime = singlePointContactMode()
+      ? findSinglePointContactEndTime(n, suggest_dt, A_mat.data(),
+                                      b_vec.data(), x0.data(), contactTimeMethod())
+      : -1;
+  const double minTime = contactEndTime > 0
+                             ? std::min(contactEndTime, suggest_dt)
+                             : suggest_dt;
+  result.dt = minTime;
+  auto eventPtr = createNextEvent();
 
   // ---- DAE target velocity ----
   sire::Size n2 = 2 * n;

@@ -27,6 +27,17 @@ class SIRE_API ContactSolver {
 
   auto physicsEnginePtr() -> physics::PhysicsEngine* { return engine_ptr_; };
 
+  /// V3/V5 contact pipeline: "height_field" preserves the existing behavior;
+  /// "single_point" records one initial depth per geometry pair and computes
+  /// contact end times, without carrying predicted contact states across steps.
+  auto setContactModelMode(const std::string& mode) -> void;
+  auto contactModelMode() const -> std::string { return contact_model_mode_; }
+  auto setContactTimeMethod(const std::string& method) -> void;
+  auto contactTimeMethod() const -> std::string { return contact_time_method_; }
+  auto singlePointContactMode() const -> bool {
+    return contact_model_mode_ == "single_point";
+  }
+
   virtual auto cptContactSolverResult(
       const aris::dynamic::Model* current_state,
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -38,8 +49,18 @@ class SIRE_API ContactSolver {
     // Derived classes can override this method to implement debugging behavior.
   }
 
+ protected:
+  virtual auto supportsSinglePointContactMode() const -> bool { return false; }
+  /// Called once per collision batch by V3/V5, including empty batches.
+  auto prepareSinglePointContacts(
+      std::vector<common::PenetrationAsPointPair>& pairs,
+      std::vector<std::array<double, 16>>& frames,
+      std::vector<sire::Size>& preserved) -> void;
+
  private:
   physics::PhysicsEngine* engine_ptr_{nullptr};
+  std::string contact_model_mode_{"height_field"};
+  std::string contact_time_method_{"exponential"};
 };
 }  // namespace contact
 }  // namespace sire::physics

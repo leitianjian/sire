@@ -137,7 +137,8 @@ target_link_libraries(screw_test
 		${PUB_RELY_LINK_LIB}
 )
 
-add_executable(force_screw_test "core/force_screw_test.cpp")
+add_executable(force_screw_test "core/force_screw_test.cpp"
+    "core/matrix_exp_multiply_test.cpp")
 target_compile_features(force_screw_test PUBLIC cxx_std_17)
 target_include_directories(force_screw_test
 	PRIVATE
@@ -308,6 +309,19 @@ if(WIN32)
 endif(WIN32)
 
 include(GoogleTest)
+
+# Opt-in with BUILD_TEST; tests run only when explicitly requested.
+add_executable(single_point_contact_test
+	"physics/contact/single_point_contact_test.cpp"
+	"physics/contact/shifted_spectral_admm_test.cpp")
+target_compile_features(single_point_contact_test PRIVATE cxx_std_17)
+target_include_directories(single_point_contact_test PRIVATE
+	${PROJECT_SOURCE_DIR}/include
+	${PROJECT_BINARY_DIR}
+	${aris_INCLUDE_DIRS})
+target_link_libraries(single_point_contact_test PRIVATE
+	GTest::gtest_main sire_lib ${PUB_RELY_LINK_LIB})
+add_test(NAME single_point_contact_test COMMAND single_point_contact_test)
 
 # set not to run test post build
 # gtest_discover_tests(collision_detection_test sorted_pair_test multi_contact_mass_matrix force_screw_test)

@@ -99,16 +99,15 @@ auto complementarityResidual(const Eigen::VectorXd& force,
   return residual;
 }
 
-}  // namespace
-
-auto cptContactForceSpectralAdmm(
+// One iteration kernel for both variants. A null target preserves the paper
+// baseline; a non-null target shifts only the NCP's free normal velocity.
+auto solveSpectralAdmm(
     sire::Size n, std::vector<double>& fri_coef,
     std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
+    const std::vector<double>* normal_target, std::vector<double>& b, double h,
     std::vector<double>& contactFce, sire::Size max_iters,
     double max_err) -> double {
   SIRE_PROFILE_FUNCTION();
-  (void)v_target;
 
   const int contact_count = static_cast<int>(n);
   const int dimension = 3 * contact_count;
@@ -120,6 +119,7 @@ auto cptContactForceSpectralAdmm(
       invM_3n.size() < static_cast<size_t>(dimension * dimension) ||
       v0.size() < static_cast<size_t>(dimension) ||
       b.size() < static_cast<size_t>(dimension) ||
+      (normal_target && normal_target->size() < n) ||
       contactFce.size() < static_cast<size_t>(dimension) || h <= 0.0) {
     return std::numeric_limits<double>::infinity();
   }
@@ -134,7 +134,18 @@ auto cptContactForceSpectralAdmm(
   // preserves the paper's eta, rho, and absolute stopping-residual units.
   Eigen::MatrixXd G = -inverse_mass;
   G = 0.5 * (G + G.transpose());
-  const Eigen::VectorXd g = initial_velocity - h * external_acceleration;
+  Eigen::VectorXd g = initial_velocity - h * external_acceleration;
+  if (normal_target) {
+    for (int contact = 0; contact < contact_count; ++contact) {
+      if (!std::isfinite((*normal_target)[contact])) {
+        return std::numeric_limits<double>::infinity();
+      }
+      // c = G*lambda + v0 - h*b is the physical post-step velocity.
+      // Desired c_N = -v_target, so w_N = c_N + v_target. This constant
+      // velocity shift enters g once, with no h scaling or extra constraint.
+      g(3 * contact + 2) += (*normal_target)[contact];
+    }
+  }
 
   // Algorithm 1 parameters.  eta and the residual ratio come from the paper;
   // p0 and dp match the accompanying Pinocchio reference implementation.
@@ -255,6 +266,29 @@ auto cptContactForceSpectralAdmm(
   return error;
 }
 
+}  // namespace
+
+auto cptContactForceSpectralAdmm(
+    sire::Size n, std::vector<double>& fri_coef,
+    std::vector<double>& invM_3n, std::vector<double>& v0,
+    std::vector<double>& v_target, std::vector<double>& b, double h,
+    std::vector<double>& contactFce, sire::Size max_iters,
+    double max_err) -> double {
+  (void)v_target;
+  return solveSpectralAdmm(n, fri_coef, invM_3n, v0, nullptr, b, h,
+                           contactFce, max_iters, max_err);
+}
+
+auto cptContactForceShiftedSpectralAdmm(
+    sire::Size n, std::vector<double>& fri_coef,
+    std::vector<double>& invM_3n, std::vector<double>& v0,
+    std::vector<double>& v_target, std::vector<double>& b, double h,
+    std::vector<double>& contactFce, sire::Size max_iters,
+    double max_err) -> double {
+  return solveSpectralAdmm(n, fri_coef, invM_3n, v0, &v_target, b, h,
+                           contactFce, max_iters, max_err);
+}
+
 auto cptContactForceSimpleAdmm(
     sire::Size n, std::vector<double>& fri_coef,
     std::vector<double>& invM_3n, std::vector<double>& v0,
@@ -275,9 +309,26 @@ auto SimpleAdmmContactSolver::solveContactForceQP(
                                      contactFce, max_iters, max_err);
 }
 
+ShiftedSpectralAdmmContactSolver::ShiftedSpectralAdmmContactSolver() {
+  setContactModelMode("single_point");
+}
+
+auto ShiftedSpectralAdmmContactSolver::solveContactForceQP(
+    sire::Size n, std::vector<double>& fri_coef,
+    std::vector<double>& invM_3n, std::vector<double>& v0,
+    std::vector<double>& v_target, std::vector<double>& b, double h,
+    std::vector<double>& contactFce, sire::Size max_iters,
+    double max_err) -> double {
+  return cptContactForceShiftedSpectralAdmm(
+      n, fri_coef, invM_3n, v0, v_target, b, h, contactFce, max_iters, max_err);
+}
+
 ARIS_REGISTRATION {
   aris::core::class_<SimpleAdmmContactSolver>("SimpleAdmmContactSolver")
       .inherit<ps_vs_solver_v5::PsVsSolverV5>();
+  aris::core::class_<ShiftedSpectralAdmmContactSolver>(
+      "ShiftedSpectralAdmmContactSolver")
+      .inherit<SimpleAdmmContactSolver>();
 }
 
 }  // namespace sire::physics::contact::simple_admm

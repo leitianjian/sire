@@ -1,6 +1,9 @@
 #include "sire/core/force_screw.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
+#include <stdexcept>
 
 #include <aris/core/log.hpp>
 #include <aris/dynamic/pose.hpp>
@@ -8,6 +11,7 @@
 #include <aris/ext/Array.hh>
 
 #include "sire/core/constants.hpp"
+#include "sire/core/profiler.hpp"
 
 namespace sire::core::screw {
 /// Sire矩阵、旋量和向量相关的数学算法扩展 \n
@@ -189,46 +193,278 @@ auto squareMatrixRemoveLines(sire::Size n, const double* squareMatrix,
     }
   }
 }
-// 基于Pade Approximation 计算矩阵指数的方法，res可以与 A相等（原址操作）
+MatrixExpPadeWorkspace::MatrixExpPadeWorkspace(sire::Size n) : n_(n) {
+  if (n && n > std::numeric_limits<sire::Size>::max() / n)
+    throw std::invalid_argument("Invalid Pade matrix size");
+}
+
+auto MatrixExpPadeWorkspace::apply(const double* A, double* res, double t) -> void {
+  SIRE_PROFILE_SCOPE("core/matrix_exp_pade");
+  const auto n = n_;
+  if (!n) return;
+  if (!A || !res || !std::isfinite(t))
+    throw std::invalid_argument("Invalid Pade input");
+  const auto size = n * n;
+  // Lazy allocation: a Taylor-only action never allocates these matrices.
+  scaled_.resize(size); power_.resize(size); numerator_.resize(size);
+  denominator_.resize(size); scratch_.resize(size);
+  double norm = 0;
+  for (sire::Size i = 0; i < n; ++i) {
+    double rowNorm = 0;
+    for (sire::Size j = 0; j < n; ++j) {
+      const double value = t * A[i * n + j];
+      if (!std::isfinite(value)) throw std::overflow_error("Non-finite Pade input");
+      scaled_[i * n + j] = value;
+      rowNorm += std::abs(value);
+    }
+    norm = std::max(norm, rowNorm);
+  }
+  if (!std::isfinite(norm)) throw std::overflow_error("Pade norm overflow");
+  // Preserve the old scaling rule, including its conservative extra factor 2.
+  const int squarings = norm > 0 ? std::max(0, 1 + static_cast<int>(std::ceil(std::log2(norm)))) : 0;
+  for (auto& value : scaled_) value = std::ldexp(value, -squarings);
+  power_ = scaled_;
+  for (sire::Size i = 0; i < size; ++i) {
+    const double identity = i / n == i % n ? 1.0 : 0.0;
+    numerator_[i] = identity + 0.5 * scaled_[i];
+    denominator_[i] = identity - 0.5 * scaled_[i];
+  }
+  double coefficient = 0.5;
+  for (int k = 2; k <= 6; ++k) {
+    coefficient *= static_cast<double>(7 - k) / (k * (13 - k));
+    aris::dynamic::s_mm(n, n, n, scaled_.data(), power_.data(), scratch_.data());
+    power_.swap(scratch_);
+    for (sire::Size i = 0; i < size; ++i) {
+      const double term = coefficient * power_[i];
+      numerator_[i] += term;
+      denominator_[i] += k % 2 ? -term : term;
+    }
+  }
+  {
+    SIRE_PROFILE_SCOPE("core/matrix_exp_pade/solve");
+    // Gaussian elimination with partial pivoting and n simultaneous RHS.
+    // Reuse the numerator as the solution; never form the inverse.
+    for (sire::Size k = 0; k < n; ++k) {
+      sire::Size pivot = k;
+      for (sire::Size i = k + 1; i < n; ++i)
+        if (std::abs(denominator_[i*n+k]) > std::abs(denominator_[pivot*n+k])) pivot = i;
+      if (denominator_[pivot*n+k] == 0.0)
+        throw std::runtime_error("Singular Pade denominator");
+      if (pivot != k) for (sire::Size j = 0; j < n; ++j) {
+        std::swap(denominator_[k*n+j], denominator_[pivot*n+j]);
+        std::swap(numerator_[k*n+j], numerator_[pivot*n+j]);
+      }
+      for (sire::Size i = k + 1; i < n; ++i) {
+        const double factor = denominator_[i*n+k] / denominator_[k*n+k];
+        denominator_[i*n+k] = 0;
+        for (sire::Size j = k + 1; j < n; ++j)
+          denominator_[i*n+j] -= factor * denominator_[k*n+j];
+        for (sire::Size j = 0; j < n; ++j)
+          numerator_[i*n+j] -= factor * numerator_[k*n+j];
+      }
+    }
+    for (sire::Size row = n; row-- > 0;) {
+      for (sire::Size k = row + 1; k < n; ++k)
+        for (sire::Size j = 0; j < n; ++j)
+          numerator_[row*n+j] -= denominator_[row*n+k] * numerator_[k*n+j];
+      for (sire::Size j = 0; j < n; ++j) numerator_[row*n+j] /= denominator_[row*n+row];
+    }
+  }
+  {
+    SIRE_PROFILE_SCOPE("core/matrix_exp_pade/square");
+    for (int k = 0; k < squarings; ++k) {
+      aris::dynamic::s_mm(n, n, n, numerator_.data(), numerator_.data(), scratch_.data());
+      numerator_.swap(scratch_);
+    }
+  }
+  for (double value : numerator_)
+    if (!std::isfinite(value)) throw std::overflow_error("Non-finite Pade result");
+  std::copy(numerator_.begin(), numerator_.end(), res);
+}
+
 auto matrix_exp_pade(sire::Size n, const double* A, double* res) -> void {
-  // 缩放，在 Matrix Computations, 3rd edition. Baltimore 1996.
-  // 书中 p572 11.3.1部分有描述
-  double j =
-      std::max(0, 1 + (int)std::ceil(std::log2(matrix_norm(n, n, A, 0))));
-  const sire::Size l = n * n;
-  std::vector<double> sA(l);
-  aris::dynamic::s_mc(n, n, A, sA.data());
-  aris::dynamic::s_nm(n, n, 1 / std::pow(2, j), sA.data());  // sA = A / 2 ^ j;
-  // Pade approximation
-  std::vector<double> X(l), E(l), D(l);
-  aris::dynamic::s_mc(n, n, sA.data(), X.data());  // X = sA;
-  double c = 0.5;                                  // c = 1 / 2;
-  aris::dynamic::s_eye(n, E.data());               // eye(size(A))
-  aris::dynamic::s_eye(n, D.data());               // eye(size(A))
-  aris::dynamic::s_ma(n, n, c, sA.data(),
-                      E.data());  // E = eye(size(A)) + c * sA
-  aris::dynamic::s_ma(n, n, -c, sA.data(),
-                      D.data());  // E = eye(size(A)) - c * sA
-  double q{6}, p{1};
-  for (int k{2}; k <= q; ++k) {
-    c = c * (q - k + 1) / (k * (2 * q - k + 1));
-    std::vector<double> cX(l);
-    aris::dynamic::s_mm(n, n, n, sA.data(), X.data(),
-                        cX.data());                  // CX = sA * X
-    aris::dynamic::s_mc(n, n, cX.data(), X.data());  // X = cX
-    aris::dynamic::s_nm(n, n, c, cX.data());         // cX = c * X
-    aris::dynamic::s_ma(n, n, cX.data(), E.data());  // E = E + cX;
-    // D = D + (-1)^k * cX;
-    aris::dynamic::s_ma(n, n, std::pow(-1, k), cX.data(), D.data());
+  MatrixExpPadeWorkspace workspace(n);
+  workspace.apply(A, res);
+}
+
+MatrixExpMultiplyWorkspace::MatrixExpMultiplyWorkspace(sire::Size n,
+                                                       const double* A)
+    : n_(n), pade_workspace_(n) {
+  SIRE_PROFILE_SCOPE("core/matrix_exp_multiply/prepare");
+  if (n == 0) return;
+  if (!A || n > std::numeric_limits<sire::Size>::max() / n) {
+    throw std::invalid_argument("Invalid matrix exponential action input");
   }
-  quadprogpp::Matrix<double> e(E.data(), n, n);
-  quadprogpp::Matrix<double> d(D.data(), n, n);
-  // D x = E x = D^-1 * E;
-  e = quadprogpp::dot_prod(quadprogpp::lu_inverse(d), e);
-  for (int i{0}; i < j; ++i) {
-    e = quadprogpp::dot_prod(e, e);  // E = E * E;
+  for (sire::Size i = 0; i < n * n; ++i) {
+    if (!std::isfinite(A[i])) {
+      throw std::invalid_argument("Non-finite exponential action matrix");
+    }
   }
-  aris::dynamic::s_mc(n, n, e[0], res);
+  // Al-Mohy & Higham (2011), Algorithm 3.2: scaled Taylor action.
+  // Use the exact 1-norm bound, not estimates of powers/eigenvalues. This
+  // retains nonnormal and affine coupling, though it can overscale.
+  // https://eprints.maths.manchester.ac.uk/1536/3/paper16.pdf
+  matrix_.assign(A, A + n * n);
+  shifted_ = matrix_;
+  state_.resize(n);
+  term_.resize(n);
+  next_.resize(n);
+  for (sire::Size i = 0; i < n; ++i) {
+    shift_ += A[i * n + i] / static_cast<double>(n);
+  }
+  for (sire::Size j = 0; j < n; ++j) {
+    double fullColumn = 0.0, shiftedColumn = 0.0;
+    for (sire::Size i = 0; i < n; ++i) {
+      fullColumn += std::abs(A[i * n + j]);
+      if (i == j) shifted_[i * n + j] -= shift_;
+      shiftedColumn += std::abs(shifted_[i * n + j]);
+    }
+    full_norm_ = std::max(full_norm_, fullColumn);
+    shifted_norm_ = std::max(shifted_norm_, shiftedColumn);
+  }
+  if (!std::isfinite(shift_) || !std::isfinite(full_norm_) ||
+      !std::isfinite(shifted_norm_)) {
+    throw std::overflow_error("Exponential action norm overflow");
+  }
+}
+
+auto MatrixExpMultiplyWorkspace::apply(const double* v, double* res,
+                                       double t) -> void {
+  SIRE_PROFILE_SCOPE("core/matrix_exp_multiply");
+  const auto n = n_;
+  if (n == 0) return;
+  if (!v || !res || !std::isfinite(t)) {
+    throw std::invalid_argument("Invalid exponential action vector/time");
+  }
+  auto& state = state_;
+  std::copy(v, v + n, state.begin());
+  bool zeroVector = true;
+  for (double value : state) {
+    if (!std::isfinite(value)) {
+      throw std::invalid_argument("Non-finite exponential action vector");
+    }
+    zeroVector = zeroVector && value == 0.0;
+  }
+  if (t == 0.0 || zeroVector) {
+    std::copy(state.begin(), state.end(), res);
+    return;
+  }
+  const double shift = t * shift_;
+  const double fullNorm = std::abs(t) * full_norm_;
+  const double shiftedNorm = std::abs(t) * shifted_norm_;
+  if (!std::isfinite(shift) || !std::isfinite(fullNorm) ||
+      !std::isfinite(shiftedNorm)) {
+    throw std::overflow_error("Exponential action norm overflow");
+  }
+
+  // Subset of double-precision theta_m bounds (Higham, Table A.3;
+  // Al-Mohy & Higham, Table 3.1). Minimize the upper bound m*s on matvecs.
+  struct TaylorBound { int degree; double theta; };
+  constexpr TaylorBound bounds[]{
+      {1, 2.29e-16}, {2, 2.58e-8}, {3, 1.39e-5}, {4, 3.40e-4},
+      {5, 2.40e-3}, {6, 9.07e-3}, {7, 2.38e-2}, {8, 5.00e-2},
+      {9, 8.96e-2}, {10, 1.44e-1}, {15, 6.41e-1}, {20, 1.44},
+      {25, 2.43}, {30, 3.54}, {35, 4.7}, {40, 6.0},
+      {45, 7.2}, {50, 8.5}, {55, 9.9}};
+  int degree = 0;
+  double steps = 1.0, bestCost = std::numeric_limits<double>::infinity();
+  // Keep the scalar trace factor representable, even for a scalar matrix.
+  const double shiftSteps = std::max(1.0, std::ceil(std::abs(shift) / 500.0));
+  for (const auto& bound : bounds) {
+    const double count = std::max(shiftSteps,
+                                  std::ceil(shiftedNorm / bound.theta));
+    const double cost = count * bound.degree;
+    if (cost < bestCost) {
+      bestCost = cost;
+      steps = count;
+      degree = bound.degree;
+    }
+  }
+
+  // Work heuristic only, not an error threshold: avoid excessive norm-only
+  // scaling for stiff/nonnormal matrices. The fallback is independently timed.
+  const double padeWork = std::max(
+      512.0, 16.0 * static_cast<double>(n) *
+                 (1.0 + std::ceil(std::log2(std::max(1.0, fullNorm)))));
+  SIRE_PROFILE_PLOT("exp_action.time_interval", std::abs(t));
+  SIRE_PROFILE_PLOT("exp_action.scaled_norm", shiftedNorm);
+  SIRE_PROFILE_PLOT("exp_action.degree", static_cast<double>(degree));
+  SIRE_PROFILE_PLOT("exp_action.scaling_steps", steps);
+  if (!std::isfinite(bestCost) || bestCost > padeWork ||
+      steps >= static_cast<double>(std::numeric_limits<int>::max())) {
+    SIRE_PROFILE_PLOT("exp_action.pade_fallback", 1.0);
+    SIRE_PROFILE_PLOT("exp_action.matvecs", 0.0);
+    SIRE_PROFILE_SCOPE("core/matrix_exp_multiply/padeFallback");
+    auto& scaled = pade_;
+    scaled.resize(n * n);
+    pade_workspace_.apply(matrix_.data(), scaled.data(), t);
+    auto& output = next_;
+    aris::dynamic::s_mm(n, 1, n, scaled.data(), state.data(), output.data());
+    for (double value : output) {
+      if (!std::isfinite(value)) {
+        throw std::overflow_error("Non-finite Pade exponential action result");
+      }
+    }
+    std::copy(output.begin(), output.end(), res);
+    return;
+  }
+
+  {
+    SIRE_PROFILE_SCOPE("core/matrix_exp_multiply/taylor");
+    const int stepCount = static_cast<int>(steps);
+    const double traceFactor = std::exp(shift / steps);
+    const double stepTime = t / steps;
+    double matvecCount = 0;
+    constexpr double tolerance = 0.5 * std::numeric_limits<double>::epsilon();
+    auto& term = term_;
+    auto& next = next_;
+    for (int step = 0; step < stepCount; ++step) {
+      std::copy(state.begin(), state.end(), term.begin());
+      double previousNorm = 0.0;
+      for (double value : term) {
+        previousNorm = std::max(previousNorm, std::abs(value));
+      }
+      for (int k = 1; k <= degree; ++k) {
+        ++matvecCount;
+        const double factor = stepTime / k;
+        double termNorm = 0.0, sumNorm = 0.0;
+        // Dedicated row-major matvec: fuse scaling, accumulation and norm
+        // checks into the row loop. term stays unchanged until all rows have
+        // been evaluated, so coupled components use the same Taylor term.
+        for (sire::Size i = 0; i < n; ++i) {
+          const double* row = shifted_.data() + i * n;
+          double value = 0.0;
+          for (sire::Size j = 0; j < n; ++j) value += row[j] * term[j];
+          next[i] = value * factor;
+          state[i] += next[i];
+          if (!std::isfinite(next[i]) || !std::isfinite(state[i])) {
+            throw std::overflow_error("Non-finite Taylor exponential action state");
+          }
+          termNorm = std::max(termNorm, std::abs(next[i]));
+          sumNorm = std::max(sumNorm, std::abs(state[i]));
+        }
+        term.swap(next);
+        // Test two consecutive terms; the selected degree bounds the tail.
+        if (previousNorm + termNorm <= tolerance * sumNorm) break;
+        previousNorm = termNorm;
+      }
+      for (double& value : state) {
+        value *= traceFactor;
+        if (!std::isfinite(value)) {
+          throw std::overflow_error("Non-finite exponential action result");
+        }
+      }
+    }
+    std::copy(state.begin(), state.end(), res);
+    SIRE_PROFILE_PLOT("exp_action.pade_fallback", 0.0);
+    SIRE_PROFILE_PLOT("exp_action.matvecs", matvecCount);
+  }
+}
+
+auto matrix_exp_multiply(sire::Size n, const double* A, const double* v,
+                         double* res, double t) -> void {
+  MatrixExpMultiplyWorkspace workspace(n, A);
+  workspace.apply(v, res, t);
 }
 
 auto matrixVectorComposeBack(sire::Size n, const double* A, const double* b,

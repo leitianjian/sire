@@ -71,6 +71,8 @@ class SIRE_API PsVsSolverV5 : public ContactSolver {
       double suggest_dt) -> double;
 
  protected:
+  auto supportsSinglePointContactMode() const -> bool override { return true; }
+
   /// Solve the assembled 3D contact-force QP.  Kept virtual so alternative
   /// numerical methods can reuse the (rather involved) v5 simulation/event
   /// pipeline without duplicating it.

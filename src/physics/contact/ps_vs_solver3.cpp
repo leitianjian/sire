@@ -1,10 +1,14 @@
 #include "sire/physics/contact/ps_vs_solver3.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <fstream>
+#include <limits>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -577,10 +581,431 @@ auto cptFormulaIXdtComposeAbx0(sire::Size n, const double* Abx0, double t0,
     ixdt[i] -= temp[n * i + n - 1];  // result = eatc - eat0;
   }
 }
+namespace {
+// Dense Taylor output on a local segment. The baseline scan grid is retained:
+// uncertain signs use exponential action rather than skipping a candidate.
+struct PolynomialStats {
+  int prepares{0}, normSkips{0}, errorFailures{0}, degreeFailures{0};
+  int uncertainSigns{0}, arithmeticFailures{0}, retrySkips{0}, fixedSkips{0};
+};
+class ContactTimePolynomial {
+ public:
+  ContactTimePolynomial(sire::Size n, const double* matrix, PolynomialStats& stats)
+      : n_(n), matrix_(matrix), stats_(stats) {
+    for (sire::Size i = 0; i < n; ++i) {
+      double row = 0;
+      for (sire::Size j = 0; j < n; ++j) row += std::abs(matrix[i*n+j]);
+      norm_ = std::max(norm_, row);
+    }
+  }
+  void invalidate() { valid_ = false; }
+  bool tryScan(double start, double time, double maxHorizon,
+               const std::vector<double>& state, sire::Size contacts,
+               std::vector<double>& out) {
+    const double interval = time - start;
+    if (valid_ && time >= start_ && time - start_ <= horizon_) {
+      if (evaluate(time, contacts, out)) return true;
+      // Do not rebuild the same uncertain point. Exponential action decides it.
+      retryBelow_ = std::min(retryBelow_, interval);
+      invalidate();
+      return false;
+    }
+    invalidate();
+    if (interval >= retryBelow_ || stats_.prepares >= 16) {
+      ++stats_.retrySkips;
+      return false;
+    }
+    // Matrix is fixed for this solve. Reject impossible horizons before
+    // entering a preparation zone or allocating coefficients.
+    double horizon = maxHorizon;
+    if (!std::isfinite(norm_) || interval * norm_ > 16) {
+      ++stats_.normSkips;
+      return false;
+    }
+    if (norm_ > 0)
+      horizon = std::min(horizon, std::nextafter(16 / norm_, 0.0));
+    if (horizon < interval) { ++stats_.normSkips; return false; }
+    // Try intermediate lengths instead of jumping from a long segment to
+    // one sample. Bound failed work per scan AND across the whole solve.
+    for (int attempt = 0; attempt < 4 && stats_.prepares < 16; ++attempt) {
+      if (attempt == 3) horizon = interval;
+      if (prepare(start, horizon, state)) {
+        if (evaluate(time, contacts, out)) return true;
+        break;
+      }
+      if (horizon <= interval) break;
+      horizon = std::max(interval, horizon / 2);
+    }
+    // This is a performance heuristic, not a claim that a changed state
+    // cannot succeed. Larger later intervals take the reliable baseline;
+    // a shorter final interval can still retry if the work budget permits.
+    retryBelow_ = std::min(retryBelow_, interval);
+    invalidate();
+    return false;
+  }
+ private:
+  bool prepare(double start, double horizon, const std::vector<double>& state) {
+    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/polynomialPrepare");
+    ++stats_.prepares;
+    valid_ = false;
+    const double rho = horizon * norm_;
+    if (!(horizon > 0) || !std::isfinite(rho)) { ++stats_.arithmeticFailures; return false; }
+    // Large norm alone is not proof of difficult dynamics, but limits the
+    // usefulness of this inexpensive remainder estimate. Defer to baseline.
+    if (rho > 16) { ++stats_.normSkips; return false; }
+    coefficients_.resize((maxDegree + 2) * n_);
+    std::copy(state.begin(), state.end(), coefficients_.begin());
+    const double eps = std::numeric_limits<double>::epsilon();
+    const double gamma = 4 * (static_cast<double>(n_) + 2) * eps;
+    double previousNorm = 0, coefficientError = 0;
+    for (double value : state) previousNorm = std::max(previousNorm, std::abs(value));
+    const double budget = 64 * eps * std::max(1.0, previousNorm);
+    error_ = 0;
+    for (int k = 1; k <= maxDegree + 1; ++k) {
+      double termNorm = 0;
+      for (sire::Size i = 0; i < n_; ++i) {
+        double value = 0;
+        for (sire::Size j = 0; j < n_; ++j)
+          value += matrix_[i*n_+j] * coefficients_[(k-1)*n_+j];
+        value *= horizon / k;
+        if (!std::isfinite(value)) { ++stats_.arithmeticFailures; return false; }
+        coefficients_[k*n_+i] = value;
+        termNorm = std::max(termNorm, std::abs(value));
+      }
+      coefficientError = (rho / k) * coefficientError +
+                         gamma * (rho / k) * previousNorm;
+      const double ratio = rho / (k + 1);
+      // The k-th coefficient is the first omitted term. Subsequent terms
+      // are bounded by a geometric majorant of their factorial recurrence.
+      if (ratio < 1 && (termNorm + coefficientError) / (1-ratio) <= budget) {
+        degree_ = k - 1;
+        error_ += (termNorm + coefficientError) / (1-ratio);
+        start_ = start; horizon_ = horizon;
+        valid_ = std::isfinite(error_) && error_ <= budget;
+        if (!valid_) ++stats_.errorFailures;
+        return valid_;
+      }
+      error_ += coefficientError;
+      // This accumulated bound cannot decrease at later degrees.
+      if (!std::isfinite(error_) || error_ > budget) {
+        ++stats_.errorFailures;
+        return false;
+      }
+      previousNorm = termNorm;
+    }
+    ++stats_.degreeFailures;
+    return false;
+  }
+  bool evaluate(double time, sire::Size contacts, std::vector<double>& out) const {
+    if (!valid_ || time < start_ || time - start_ > horizon_) return false;
+    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/polynomialEvaluate");
+    const double u = (time - start_) / horizon_;
+    const double gamma = 4 * (degree_ + 1) * std::numeric_limits<double>::epsilon();
+    for (sire::Size i = 0; i < n_; ++i) {
+      double value = coefficients_[degree_*n_+i], magnitude = std::abs(value);
+      for (int k = degree_; k-- > 0;) {
+        value = value * u + coefficients_[k*n_+i];
+        magnitude = magnitude * u + std::abs(coefficients_[k*n_+i]);
+      }
+      out[i] = value;
+      if (!std::isfinite(value)) { ++stats_.arithmeticFailures; return false; }
+      // Include an inflated roundoff estimate, not just truncation error.
+      // Near-zero contacts always use the baseline sign calculation.
+      if (i < contacts && std::abs(value) <= error_ + gamma * magnitude) {
+        ++stats_.uncertainSigns;
+        return false;
+      }
+    }
+    return true;
+  }
+ private:
+  static constexpr int maxDegree = 32;
+  sire::Size n_;
+  const double* matrix_;
+  PolynomialStats& stats_;
+  double retryBelow_{std::numeric_limits<double>::infinity()};
+  double norm_{0}, start_{0}, horizon_{0}, error_{0};
+  int degree_{0};
+  bool valid_{false};
+  std::vector<double> coefficients_;
+};
+}  // namespace
+
 // clang-format off
-/// @brief 原始版本：每次求 x(t) 调用 cptFormulaXComposeAb（内部 matrix_exp_pade），
-/// 精度最高但最慢。保留用于对比测试。
+/// @brief 搜索本步最早分离时间；固定间隔扫描复用完整状态转移矩阵，
+/// 变间隔、末尾补齐和 Brent 求根局部推进，负穿深从初值复核。
 // clang-format on
+auto findSinglePointContactEndTime(sire::Size nContact, double suggestDt,
+                                   const double* A, const double* b,
+                                   const double* x0, const std::string& method) -> double {
+  SIRE_PROFILE_SCOPE("ps_vs/findSinglePointContactEndTime");
+  if (method != "exponential" && method != "polynomial")
+    throw std::invalid_argument("Unknown contact time method");
+  const bool usePolynomial = method == "polynomial";
+  if (!std::isfinite(suggestDt) || suggestDt <= 0) {
+    throw std::invalid_argument("Contact time requires a positive finite step");
+  }
+  if (nContact == 0) return -1;
+  const sire::Size n2 = 2 * nContact, n3 = n2 + 1;
+  std::vector<double> Ab(n3 * n3, 0), x01(n3), xt(n3);
+  core::screw::matrixVectorComposeBack(n2, A, b, Ab.data());
+  std::copy(x0, x0 + n2, x01.begin());
+  x01[n2] = 1;
+
+  // Eigenvalues determine only the sampling scale. Both direct evaluation
+  // and fixed-step propagation retain the full coupling and affine forcing.
+  double fastestRate = 0, fastestFrequency = 0;
+  {
+    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/spectrum");
+    Eigen::MatrixXd matrix = Eigen::Map<const MatrixXdRM>(A, n2, n2);
+    Eigen::EigenSolver<Eigen::MatrixXd> spectrum(matrix, false);
+    if (spectrum.info() != Eigen::Success) {
+      throw std::runtime_error("Cannot determine contact time sampling scale");
+    }
+    for (Eigen::Index i = 0; i < spectrum.eigenvalues().size(); ++i) {
+      const auto eigenvalue = spectrum.eigenvalues()[i];
+      fastestRate = std::max(fastestRate, std::abs(eigenvalue));
+      fastestFrequency = std::max(fastestFrequency, std::abs(eigenvalue.imag()));
+    }
+  }
+  double maxStep = suggestDt / 32;
+  if (fastestFrequency > 0) {
+    maxStep = std::min(maxStep, sire::PI / (16 * fastestFrequency));
+  }
+  double scanStep = maxStep;
+  if (fastestRate > 0) scanStep = std::min(scanStep, 1 / (32 * fastestRate));
+  const double timeTolerance =
+      std::max(32 * std::numeric_limits<double>::epsilon() * suggestDt,
+               std::min(1e-12, suggestDt * 1e-8));
+  int scanEvaluations = 0, rootEvaluations = 0, interpolationSteps = 0;
+  int bisectionSteps = 0, confirmations = 0;
+  int polynomialHits = 0, polynomialFallbacks = 0, polynomialSegments = 0;
+  PolynomialStats polynomialStats;
+  auto finish = [&](double result) {
+    if (usePolynomial) {
+      SIRE_PROFILE_PLOT("contact_time.poly_prepare_calls", static_cast<double>(polynomialStats.prepares));
+      SIRE_PROFILE_PLOT("contact_time.poly_norm_skips", static_cast<double>(polynomialStats.normSkips));
+      SIRE_PROFILE_PLOT("contact_time.poly_error_failures", static_cast<double>(polynomialStats.errorFailures));
+      SIRE_PROFILE_PLOT("contact_time.poly_degree_failures", static_cast<double>(polynomialStats.degreeFailures));
+      SIRE_PROFILE_PLOT("contact_time.poly_uncertain_signs", static_cast<double>(polynomialStats.uncertainSigns));
+      SIRE_PROFILE_PLOT("contact_time.poly_arithmetic_failures", static_cast<double>(polynomialStats.arithmeticFailures));
+      SIRE_PROFILE_PLOT("contact_time.poly_retry_skips", static_cast<double>(polynomialStats.retrySkips));
+      SIRE_PROFILE_PLOT("contact_time.poly_fixed_skips", static_cast<double>(polynomialStats.fixedSkips));
+    }
+    SIRE_PROFILE_PLOT("contact_time.polynomial_hits", static_cast<double>(polynomialHits));
+    SIRE_PROFILE_PLOT("contact_time.polynomial_fallbacks", static_cast<double>(polynomialFallbacks));
+    SIRE_PROFILE_PLOT("contact_time.polynomial_segments", static_cast<double>(polynomialSegments));
+    SIRE_PROFILE_PLOT("contact_time.n_contacts", static_cast<double>(nContact));
+    SIRE_PROFILE_PLOT("contact_time.suggest_dt", suggestDt);
+    SIRE_PROFILE_PLOT("contact_time.max_rate", fastestRate);
+    SIRE_PROFILE_PLOT("contact_time.max_frequency", fastestFrequency);
+    SIRE_PROFILE_PLOT("contact_time.max_scan_step", maxStep);
+    SIRE_PROFILE_PLOT("contact_time.scan_evaluations", static_cast<double>(scanEvaluations));
+    SIRE_PROFILE_PLOT("contact_time.root_evaluations", static_cast<double>(rootEvaluations));
+    SIRE_PROFILE_PLOT("contact_time.interpolation_steps", static_cast<double>(interpolationSteps));
+    SIRE_PROFILE_PLOT("contact_time.bisection_steps", static_cast<double>(bisectionSteps));
+    SIRE_PROFILE_PLOT("contact_time.confirmations", static_cast<double>(confirmations));
+    SIRE_PROFILE_PLOT("contact_time.separation_found", result > 0 ? 1.0 : 0.0);
+    return result;
+  };
+  core::screw::MatrixExpMultiplyWorkspace action(n3, Ab.data());
+  core::screw::MatrixExpPadeWorkspace fixedPade(n3);
+  // Polynomial data and all matrix workspaces are local to this solve.
+  std::unique_ptr<ContactTimePolynomial> polynomial;
+  if (usePolynomial) polynomial = std::make_unique<ContactTimePolynomial>(n3, Ab.data(), polynomialStats);
+  auto minimumDepth = [&](const std::vector<double>& state) {
+    return *std::min_element(state.begin(), state.begin() + nContact);
+  };
+  auto hasNegativeDepth = [&]() {
+    for (double value : xt) {
+      if (!std::isfinite(value)) {
+        throw std::runtime_error("Non-finite state while finding contact end time");
+      }
+    }
+    for (sire::Size i = 0; i < nContact; ++i) {
+      if (xt[i] < 0) return true;
+    }
+    return false;
+  };
+  auto anyNegativeDepth = [&](double time) {
+    ++confirmations;
+    {
+      SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/exponentialAction");
+      action.apply(x01.data(), xt.data(), time);
+    }
+    return hasNegativeDepth();
+  };
+
+  // Do not treat a new impact's initial zero depth as separation. Resolve
+  // fast damped transients, then grow the scan intervals to the frequency
+  // cap. Always include suggestDt, including for purely real eigenvalues.
+  {
+    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/scan");
+    // Local to this call: A, b and the initial state may change next step.
+    // Keep input/output vectors separate because s_mm is not in-place safe.
+    std::vector<double> scanState = x01;
+    std::vector<double> fixedTransition;
+    double lower = 0;
+    while (lower < suggestDt) {
+      ++scanEvaluations;
+      const double upper = std::min(suggestDt, lower + scanStep);
+      if (upper <= lower) {
+        throw std::runtime_error("Contact time scan cannot advance");
+      }
+      bool negativeDepth;
+      bool polynomialAccepted = false;
+      const bool fullFixedInterval = scanStep == maxStep && lower + scanStep <= suggestDt;
+      if (polynomial && fullFixedInterval && !fixedTransition.empty()) {
+        // Once paid for, the fixed transition is cheaper than preparing a
+        // replacement. The shortened final interval may still use polynomial.
+        ++polynomialStats.fixedSkips;
+        polynomial->invalidate();
+      } else if (polynomial) {
+        const int before = polynomialStats.prepares;
+        polynomialAccepted = polynomial->tryScan(
+            lower, upper, std::min(maxStep * 4, suggestDt - lower),
+            scanState, nContact, xt);
+        if (polynomialStats.prepares != before) ++polynomialSegments;
+        if (polynomialAccepted) ++polynomialHits;
+        else ++polynomialFallbacks;
+      }
+      // Keep the original sampling times. Only full maxStep intervals reuse
+      // exp(Ab*maxStep); other intervals use a local exponential action.
+      if (polynomialAccepted) {
+        negativeDepth = hasNegativeDepth();
+      } else if (fullFixedInterval) {
+        if (fixedTransition.empty()) {
+          SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/fixedStepExponential");
+          fixedTransition.resize(n3 * n3);
+          fixedPade.apply(Ab.data(), fixedTransition.data(), maxStep);
+        }
+        {
+          SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/fixedStepAdvance");
+          aris::dynamic::s_mm(n3, 1, n3, fixedTransition.data(), scanState.data(),
+                              xt.data());
+        }
+        negativeDepth = hasNegativeDepth();
+      } else {
+        {
+          SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/scanAction");
+          action.apply(scanState.data(), xt.data(), upper - lower);
+        }
+        negativeDepth = hasNegativeDepth();
+      }
+      // Confirm every candidate from x(0), including variable/final intervals.
+      // If rejected, xt holds the directly recomputed state and the swap below
+      // resets accumulated propagation error before continuing the scan.
+      if (negativeDepth) {
+        negativeDepth = anyNegativeDepth(upper);
+        if (polynomial) polynomial->invalidate();
+      }
+      if (negativeDepth) {
+        SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/brent");
+        double left = lower, right = upper;
+        std::vector<double> leftState = scanState;
+
+        // Brent-Dekker on min_i depth_i(t): its sign is exactly the previous
+        // any-negative predicate. a,b are the bracket endpoints with b the
+        // better residual; c,d track previous trials for progress safeguards.
+        // Keep a separate chronological bracket for forward-only propagation.
+        double a = left, b = right;
+        double fa = minimumDepth(leftState), fb = minimumDepth(xt);
+        if (std::abs(fa) < std::abs(fb)) {
+          std::swap(a, b);
+          std::swap(fa, fb);
+        }
+        double c = a, fc = fa, d = c;
+        bool lastWasBisection = true;
+        bool zeroProbeUsed = false;
+        for (int iteration = 0; iteration < 80 && right - left > timeTolerance;
+             ++iteration) {
+          double trial = left + (right - left) / 2;
+          bool bisect = true;
+          // A zero endpoint may be the exact crossing or a flat zero-depth
+          // contact. Probe towards the negative endpoint once; never accept
+          // zero itself as separation or repeatedly crawl across a plateau.
+          if (iteration < 32 && !zeroProbeUsed && (fa == 0.0 || fb == 0.0)) {
+            const double zeroTime = fa == 0.0 ? a : b;
+            trial = zeroTime + timeTolerance / 2;
+            bisect = !(trial > left && trial < right);
+            zeroProbeUsed = true;
+          }
+          // Zero depth is not a separation event: a newly touching or
+          // persistently zero-depth contact must not terminate the search.
+          // Reserve the last 48 iterations for bisection. Since the initial
+          // width <= suggestDt/32 and tol >= 32*eps*suggestDt, that is enough
+          // to reach the original width tolerance if interpolation stalls.
+          if (iteration < 32 && fa != 0.0 && fb != 0.0 && fa != fb) {
+            const double scale = std::max(std::abs(fa),
+                                          std::max(std::abs(fb), std::abs(fc)));
+            const double va = fa / scale, vb = fb / scale, vc = fc / scale;
+            double candidate;
+            if (va != vc && vb != vc && va != vb) {
+              // Inverse quadratic interpolation in coordinates relative to b.
+              candidate = b + (a - b) * vb * vc / ((va - vb) * (va - vc))
+                            + (c - b) * va * vb / ((vc - va) * (vc - vb));
+            } else {
+              candidate = b - (b - a) * vb / (vb - va);
+            }
+            const double guard = a + (b - a) / 4;
+            const double history = lastWasBisection ? std::abs(b - c)
+                                                    : std::abs(c - d);
+            if (std::isfinite(candidate) &&
+                candidate > std::min(guard, b) && candidate < std::max(guard, b) &&
+                history > timeTolerance && std::abs(candidate - b) < history / 2) {
+              // Avoid a rounded repeat of b while retaining a strict bracket.
+              trial = std::abs(candidate - b) < timeTolerance / 2
+                          ? b + std::copysign(timeTolerance / 2, a - b)
+                          : candidate;
+              bisect = !(trial > left && trial < right);
+            }
+          }
+          if (bisect) {
+            trial = left + (right - left) / 2;
+            ++bisectionSteps;
+          } else {
+            ++interpolationSteps;
+          }
+          ++rootEvaluations;
+          {
+            SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/rootAction");
+            action.apply(leftState.data(), xt.data(), trial - left);
+          }
+          const bool trialNegative = hasNegativeDepth();
+          const double ftrial = minimumDepth(xt);
+          if (trialNegative) {
+            right = trial;
+          } else {
+            left = trial;
+            leftState.swap(xt);
+          }
+          d = c;
+          c = b;
+          fc = fb;
+          if ((fa < 0.0) != trialNegative) {
+            b = trial;
+            fb = ftrial;
+          } else {
+            a = trial;
+            fa = ftrial;
+          }
+          if (std::abs(fa) < std::abs(fb)) {
+            std::swap(a, b);
+            std::swap(fa, fb);
+          }
+          lastWasBisection = bisect;
+        }
+        // The positive upper bracket avoids a zero step and reaches separation.
+        return finish(right);
+      }
+      scanState.swap(xt);
+      lower = upper;
+      scanStep = std::min(maxStep, scanStep * 1.5);
+    }
+  }
+  return finish(-1);
+}
+
 auto findMinRootOriginal(sire::Size nContact, double suggestDt, const double* A,
                          const double* b, const double* x0, double tolerance,
                          sire::Size maxIter) -> double {
@@ -1822,10 +2247,14 @@ auto PsVsSolver3::cptContactSolverResult(
     // TODO: 筛选接触点 — 调用 filterPairsAndPreprocessInfo +
     // modifyPenetrationDepth
     SIRE_PROFILE_SCOPE("ps_vs/filterPairsAndPreprocessInfo");
-    filterPairsAndPreprocessInfo(
-        *enginePtr, penetration_pairs, imp_->contactEnded, imp_->contactNotEnd,
-        T_C_vec, preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx);
-    modifyPenetrationDepth(*enginePtr, penetration_pairs, preservedPairsIdx);
+    if (singlePointContactMode()) {
+      prepareSinglePointContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
+    } else {
+      filterPairsAndPreprocessInfo(
+          *enginePtr, penetration_pairs, imp_->contactEnded, imp_->contactNotEnd,
+          T_C_vec, preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx);
+      modifyPenetrationDepth(*enginePtr, penetration_pairs, preservedPairsIdx);
+    }
   }
   sire::Size n{preservedPairsIdx.size()};
   SIRE_PROFILE_PLOT("ps_vs.n_contacts", static_cast<double>(n));
@@ -1863,7 +2292,7 @@ auto PsVsSolver3::cptContactSolverResult(
     DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
     simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
                                                     currentTime);
-    // simulator_ptr->model()->setTime(currentTime);
+    if (singlePointContactMode()) simulator_ptr->model()->setTime(currentTime);
     simulator_ptr->eventManager().addEvent(std::move(eventPtr));
     return;
   }
@@ -2017,7 +2446,7 @@ auto PsVsSolver3::cptContactSolverResult(
   //   modifiedContactCptInfo.push_back(contactCptInfo);
   // }
   // imp_->records["modifiedContactState"].push_back(modifiedContactCptInfo);
-  imp_->prevStiffScale = stiffScale;
+  // Initial conditions always come from the current model and collision data.
   // imp_->contactNotEnd.clear();
   // imp_->contactEnded.clear();
   // imp_->contactNotEndCondition.clear();
@@ -2038,15 +2467,16 @@ auto PsVsSolver3::cptContactSolverResult(
               accelExt.data(), invCpi.data(), A.data(), b.data());
   // 因为矩阵 A 经常无逆，所以使用其增广形式 [A b; 0 0] 作为状态转移矩阵，x0 =
   // [x0 1] 作为初始状态（求微分方程解的微分部分）
-  // double minTime =
-  //     findMinRootSchur(n, result.dt, A.data(), b.data(), x0.data(), 1e-10, 50);
-  double minTime = -1;
+  double minTime = singlePointContactMode()
+                       ? findSinglePointContactEndTime(
+                             n, result.dt, A.data(), b.data(), x0.data(), contactTimeMethod())
+                       : -1;
   DLOG(DEBUG) << " minTime: " << minTime << " b: " << b << " A: " << A
               << " x0: " << x0 << " stiffScale: " << stiffScale;
   imp_->records["currentTime"].push_back(modelPtr->time());
   imp_->records["minTime"].push_back(minTime);
   // 没有零点的情况下，取A中的最大值作为参考计算步长（修改为采用suggest_dt作为步长，不变result.dt）
-  if (minTime <= 0 || minTime < 1e-6) {
+  if (minTime <= 0) {
     minTime = result.dt;
   } else {
     // 判断使用哪个时间
@@ -2127,7 +2557,8 @@ auto PsVsSolver3::cptContactSolverResult(
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << result.dt;
-  if (nextCtrlSimSuggestDt - result.dt > 1e-6) {
+  if (singlePointContactMode() ? result.dt < nextCtrlSimSuggestDt
+                               : nextCtrlSimSuggestDt - result.dt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);

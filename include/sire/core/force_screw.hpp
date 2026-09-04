@@ -50,6 +50,38 @@ auto squareMatrixRemoveLines(sire::Size n, const double* squareMatrix,
                              const std::set<sire::Size>& rmIdx,
                              std::vector<double>& result) -> void;
 auto matrix_exp_pade(sire::Size n, const double* A, double* res) -> void;
+/// Reusable Pade(6) storage. Solves denominator * result = numerator with
+/// partial pivoting, then squares. Input/output may alias; not thread-safe.
+class SIRE_API MatrixExpPadeWorkspace {
+ public:
+  explicit MatrixExpPadeWorkspace(sire::Size n);
+  auto apply(const double* A, double* res, double t = 1.0) -> void;
+ private:
+  sire::Size n_;
+  std::vector<double> scaled_, power_, numerator_, denominator_, scratch_;
+};
+/// Prepared exponential action for a fixed row-major matrix. Owns a copy of
+/// A and reusable scratch buffers. apply() supports v==res; calls on the same
+/// workspace must be serial. Create one workspace per contact-time solve.
+class SIRE_API MatrixExpMultiplyWorkspace {
+ public:
+  MatrixExpMultiplyWorkspace(sire::Size n, const double* A);
+  auto apply(const double* v, double* res, double t = 1.0) -> void;
+
+ private:
+  sire::Size n_;
+  double shift_{0}, full_norm_{0}, shifted_norm_{0};
+  std::vector<double> matrix_, shifted_, state_, term_, next_, pade_;
+  MatrixExpPadeWorkspace pade_workspace_;
+};
+
+/// Compute res = exp(t*A)*v for a row-major n-by-n matrix. The scaled
+/// Taylor path forms no matrix exponential; costly cases use Padé.
+/// Uses double-precision norm bounds. v and res may alias; A is read-only.
+/// n==0 is a no-op. Throws for invalid input or non-finite arithmetic.
+auto SIRE_API matrix_exp_multiply(sire::Size n, const double* A,
+                                 const double* v, double* res,
+                                 double t = 1.0) -> void;
 auto matrixVectorComposeBack(sire::Size n, const double* A, const double* b, double* newA) -> void;
 }  // namespace sire::core::screw
 #endif

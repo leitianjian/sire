@@ -1,5 +1,7 @@
 // Auto-split from sire_bindings.cpp
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <codecvt>
 #include <fstream>
 #include <iostream>
@@ -140,6 +142,32 @@ void init_utils(py::module& m) {
     aris::dynamic::s_vs2va(vs.data(), pWorld.data(), va.data());
     return va;
   });
+  m.def("vs2bodyVa", [](const std::vector<double>& pq,
+                        const std::vector<double>& vs) {
+    if (pq.size() != 7 || vs.size() != 6)
+      throw std::invalid_argument("vs2bodyVa requires pq[7] and vs[6]");
+    for (double value : pq)
+      if (!std::isfinite(value)) throw std::invalid_argument("Non-finite body pose");
+    for (double value : vs)
+      if (!std::isfinite(value)) throw std::invalid_argument("Non-finite body velocity");
+    std::array<double, 7> pose;
+    std::copy(pq.begin(), pq.end(), pose.begin());
+    const double norm = std::hypot(std::hypot(pose[3], pose[4]),
+                                   std::hypot(pose[5], pose[6]));
+    if (!std::isfinite(norm) || norm <= std::numeric_limits<double>::epsilon())
+      throw std::invalid_argument("Invalid body quaternion norm");
+    for (int i = 3; i < 7; ++i) pose[i] /= norm;
+    double pm[16];
+    std::vector<double> bodyVa(6);
+    aris::dynamic::s_pq2pm(pose.data(), pm);
+    // Pure spatial coordinate transform, without subtracting body motion.
+    // At the body-frame origin p=0, the transformed twist's linear part
+    // is the origin velocity, so no separate vs2va conversion is needed.
+    aris::dynamic::s_inv_tv(pm, vs.data(), bodyVa.data());
+    return bodyVa;
+  }, py::arg("pq"), py::arg("vs"),
+     "World spatial velocity to body-origin [linear, angular] velocity, "
+     "expressed in body axes. pq=[px,py,pz,qx,qy,qz,qw]; vs=[uW,omegaW].");
   m.def("vs2vp", [](std::vector<double>& vs, std::vector<double>& p) {
     std::vector<double> vp(3);
     aris::dynamic::s_vs2vp(vs.data(), p.data(), vp.data());
@@ -406,6 +434,24 @@ void init_utils(py::module& m) {
       py::arg("v_target"), py::arg("b"), py::arg("h"),
       py::arg("max_iters") = 200, py::arg("max_err") = 1e-8,
       "Spectral-ADMM: Carpentier et al. Algorithm 1 in impulse coordinates");
+
+  m.def(
+      "cptContactForceShiftedSpectralAdmm",
+      [](int n, std::vector<double> fri_coef, std::vector<double> invM,
+         std::vector<double> v0, std::vector<double> v_target,
+         std::vector<double> b, double h, int max_iters, double max_err)
+          -> std::pair<std::vector<double>, double> {
+        std::vector<double> result(3 * n);
+        double error = sire::physics::contact::simple_admm::
+            cptContactForceShiftedSpectralAdmm(
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
+                h, result, static_cast<sire::Size>(max_iters), max_err);
+        return {result, error};
+      },
+      py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
+      py::arg("v_target"), py::arg("b"), py::arg("h"),
+      py::arg("max_iters") = 200, py::arg("max_err") = 1e-8,
+      "Shifted spectral ADMM: same iteration with g_N += v_target");
 
   // Backward-compatible Python name for existing scripts.
   m.def(

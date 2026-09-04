@@ -46,9 +46,11 @@ simulator.deltaT = 0.001
 simulator.ctrlT = 10
 simulator.setEventHandlerMap({0:12, 1:13, 2:14})
 physicsEngine = sim.physicsEngine()
-# Standard ADMM v6.  Set SIRE_SOLVER_TRACE_DIR before this line (or before
-# launching Python) to record one JSON file per active-contact solver call.
-contactSolver = physicsEngine.addADMMSolver()
+# Spectral ADMM with the DAE normal target shifted into the NCP.
+# The solver defaults to single_point (depth baseline + contact end time).
+contactSolver = physicsEngine.addShiftedSpectralADMMSolver()
+# Optional dense polynomial scan; omit for the exponential baseline.
+contactSolver.setContactTimeMethod("polynomial")
 physicsEngine.collisionDetectionFlag = True
 physicsEngine.contactSolverFlag = True
 contactSolver.setDefaultProp("{k:1.4e8,d:10000,cr:0.2}")

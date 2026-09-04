@@ -70,6 +70,16 @@ auto findMinRootBisection(sire::Size nContact, double suggestDt,
 auto findMinRootSchur(sire::Size nContact, double suggestDt, const double* A,
                       const double* b, const double* x0, double tolerance,
                       sire::Size maxIter) -> double;
+
+/// Earliest bracketed depth crossing in (0, suggestDt], or -1 if none.
+/// Uses the full augmented matrix exponential, including coupled contacts
+/// and constant external acceleration; also searches purely real modes.
+/// method="polynomial" enables local dense Taylor scanning with uncertain
+/// evaluations falling back to exponential action. Default is "exponential".
+SIRE_API auto findSinglePointContactEndTime(
+    sire::Size nContact, double suggestDt, const double* A, const double* b,
+    const double* x0, const std::string& method = "exponential") -> double;
+
 auto cptAvgContactFce(sire::Size nContact, const double* A, const double* b,
                       const double* x0, double t0, double tc,
                       const double* stiffness, const double* damping,
@@ -150,6 +160,9 @@ class SIRE_API PsVsSolver3 : public ContactSolver {
       std::vector<std::array<double, 16>>& T_C_vec,
       std::vector<common::PointPairContactInfo>& contact_info,
       double suggest_dt) -> double;
+
+ protected:
+  auto supportsSinglePointContactMode() const -> bool override { return true; }
 
  private:
   struct Imp;
