@@ -5,7 +5,12 @@ import meshcat.geometry as g
 import meshcat.transformations as tf
 from meshcat.animation import Animation
 from scipy.spatial.transform import Rotation as R
-from scipy.spatial.transform import RigidTransform as TF
+try:
+    from scipy.spatial.transform import RigidTransform as TF
+except ImportError:
+    # RigidTransform requires scipy>=1.16 (Python>=3.11). Only used by
+    # pe3132tfmatrix / s_pe_dot_pe, which the sim2sim pipeline does not call.
+    TF = None
 from PIL import Image
 from meshcat.geometry import TriangularMeshGeometry
 

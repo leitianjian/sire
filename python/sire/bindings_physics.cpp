@@ -408,7 +408,7 @@ void init_physics(py::module& m) {
            [](sire::physics::contact::contact_force::ContactPositionForceSolver&
                   self,
               const std::string& prop) {
-             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
            });  // 默认构造函数
 
   py::class_<sire::physics::contact::ps_vs_solver::PsVsSolver>(m, "PsVsSolver")
@@ -424,7 +424,7 @@ void init_physics(py::module& m) {
       .def("setDefaultProp",
            [](sire::physics::contact::ps_vs_solver::PsVsSolver& self,
               const std::string& prop) {
-             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
            });  // 默认构造函数
   py::class_<sire::physics::contact::ps_vs_solver2::PsVsSolver2>(m,
                                                                  "PsVsSolver2")
@@ -440,7 +440,7 @@ void init_physics(py::module& m) {
       .def("setDefaultProp",
            [](sire::physics::contact::ps_vs_solver2::PsVsSolver2& self,
               const std::string& prop) {
-             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
            });  // 默认构造函数
   py::class_<sire::physics::contact::ps_vs_solver3::PsVsSolver3,
              sire::physics::contact::ContactSolver>(m, "PsVsSolver3")
@@ -501,7 +501,7 @@ void init_physics(py::module& m) {
            [](sire::physics::contact::analytical_tangent_force::
                   AnalyticalTangentForceSolver& self,
               const std::string& prop) {
-             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
            });  // 默认构造函数
 
   py::class_<sire::physics::contact::analytical_implicit_friction::
@@ -530,6 +530,6 @@ void init_physics(py::module& m) {
            [](sire::physics::contact::analytical_implicit_friction::
                   AnalyticalImplicitFrictionSolver& self,
               const std::string& prop) {
-             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
            });  // 默认构造函数
 }

@@ -124,3 +124,15 @@ MUJOCO_LOG.txt
 *.tiff
 *.tif
 *.npy
+
+# Documentation media is versioned so README assets render on GitHub.
+!/docs/media/*.png
+!/docs/media/*.gif
+!/docs/media/*.webm
+
+# Local diagnostic note; intentionally never committed.
+/LOCAL_MEMORY_ISSUE.txt
+
+# Local toolchains and dependency installs.
+/.deps/
+/.rust/

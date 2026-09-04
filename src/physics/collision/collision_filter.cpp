@@ -151,7 +151,7 @@ auto CollisionFilter::loadMatConfig() -> void {
 }
 auto CollisionFilter::saveMatConfig() -> void {
   sire::Size size = imp_->filter_state_.size();
-  imp_->state_mat_.swap(aris::core::Matrix(1, size * size, 0.0));
+  imp_->state_mat_ = aris::core::Matrix(1, size * size, 0.0);
   for (Size i = 0; i < size; ++i) {
     imp_->state_mat_(0, i * size + i) = 1;
   }

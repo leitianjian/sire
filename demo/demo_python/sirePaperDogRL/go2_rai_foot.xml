@@ -10,7 +10,7 @@
                 <Marker name="ground_marker" active="true" pe="{0,0,0,-0,0,-0}"/>
             </MarkerPoolElement>
             <GeometryPoolElement __prop_name__="geometry_pool">
-              <!-- <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" /> -->
+              <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
             </GeometryPoolElement>
         </Part>
         <Part name="base" active="true" pe="{0,0,0.445,0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{6.921,0.146116152,0,-0.037138086,0.024679282969476,0.1013610871705,0.110084804201024,0,0.000784059271632,0}">

@@ -25,7 +25,7 @@ struct PenetrationAsPointPair {
     std::swap(p_WCa, p_WCb);
     nhat_AB_W = -nhat_AB_W;
   }
-  SIRE_DEFINE_TO_JSON_HEAD(PenetrationAsPointPair) {
+  SIRE_DEFINE_TO_JSON_IN_CLASS_HEAD {
     j["geomIdA"] = id_A;
     j["geomIdB"] = id_B;
     j["depth"] = depth;

@@ -9,6 +9,7 @@ auto Recorder::record(
   if (model.forwardDynamics()) {
     std::cout << "Model forward dynamics failed." << std::endl;
   }
+  if (!history_enabled_) return;
   auto& prtPool = model.partPool();
   sire::Size prtSize = prtPool.size();
   Record cr;
@@ -29,12 +30,22 @@ auto Recorder::record(
   dts.push_back(dt);
 }
 auto Recorder::addRecord(double time) -> void {
+  if (!history_enabled_) {
+    if (records.empty()) records.emplace_back();
+    records.front().timeIndex = time;
+    if (timeIndices.empty())
+      timeIndices.push_back(time);
+    else
+      timeIndices.front() = time;
+    return;
+  }
   Record cr;
   cr.timeIndex = time;
   records.push_back(std::move(cr));
   timeIndices.push_back(time);
 }
 auto Recorder::recordDt(double dt) -> void {
+  if (!history_enabled_) return;
   auto& cr = records.back();
   cr.dt = dt;
   dts.push_back(dt);
@@ -47,6 +58,7 @@ auto Recorder::recordModelState(aris::dynamic::Model& model) -> void {
     auto& motion = model.motionPool().at(i);
     motion.updA();
   }
+  if (!history_enabled_) return;
   auto& cr = records.back();
   auto& prtPool = model.partPool();
   sire::Size prtSize = prtPool.size();
@@ -81,27 +93,33 @@ auto Recorder::recordModelState(aris::dynamic::Model& model) -> void {
 }
 auto Recorder::recordContactInfo(
     const std::vector<sire::physics::common::PointPairContactInfo>&
-        contactInfos,
-    sire::Size n) -> void {
+          contactInfos,
+      sire::Size n) -> void {
+  if (!history_enabled_) return;
   auto& cr = records[records.size() - n];
   cr.contactInfos = contactInfos;
 }
 auto Recorder::recordPenetrationPairs(
     const std::vector<sire::physics::common::PenetrationAsPointPair>&
-        penetrationPairs) -> void {
+          penetrationPairs) -> void {
+  if (!history_enabled_) return;
   auto& cr = records.back();
   cr.penetrationPairs = penetrationPairs;
 }
 auto Recorder::recordContactPairResults(
     const std::vector<ContactPairResult>& results) -> void {
+  latest_contact_pair_results_ = results;
+  if (!history_enabled_) return;
   auto& cr = records.back();
   cr.contactPairResults = results;
 }
 auto Recorder::setInterestedDataSize(sire::Size size) -> void {
+  if (!history_enabled_) return;
   auto& cr = records.back();
   cr.interestedData.resize(size, 0);
 }
 auto Recorder::recordInterestedData(sire::Size idx, double data) -> void {
+  if (!history_enabled_) return;
   auto& cr = records.back();
   cr.interestedData[idx] = data;
 }

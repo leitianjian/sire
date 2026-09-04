@@ -1,6 +1,8 @@
 <mujoco model="go2_description">
 
-  <compiler angle="radian" meshdir="assets"/>
+  <!-- The shared GO2 meshes live with the Sire sim2sim assets.  Keep this
+       path relative to this MJCF so MuJoCo works from any current directory. -->
+  <compiler angle="radian" meshdir="../../../dogRL/assets"/>
 
 
   <statistic meansize="0.144785" extent="1.23314" center="0.025392 2.0634e-05 -0.245975"/>
