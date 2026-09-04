@@ -72,6 +72,16 @@ class Recorder : public aris::core::NamedObject {
           penetrationPairs) -> void;
   auto recordContactPairResults(
       const std::vector<ContactPairResult>& results) -> void;
+  auto setHistoryEnabled(bool enabled) -> void {
+    if (history_enabled_ == enabled) return;
+    history_enabled_ = enabled;
+    reset();
+  }
+  auto historyEnabled() const noexcept -> bool { return history_enabled_; }
+  auto latestContactPairResults() const noexcept
+      -> const std::vector<ContactPairResult>& {
+    return latest_contact_pair_results_;
+  }
   auto setInterestedDataSize(sire::Size size) -> void;
   auto recordInterestedData(sire::Size idx, double data) -> void;
   auto record(double time, double dt, aris::dynamic::Model& model,
@@ -82,11 +92,19 @@ class Recorder : public aris::core::NamedObject {
     timeIndices.clear();
     dts.clear();
     records.clear();
+    latest_contact_pair_results_.clear();
     recordSize = 0;
     timeDuration = 0;
   }
   Recorder() = default;
   virtual ~Recorder() = default;
+
+ private:
+  // Full model snapshots are needed only for playback/visualization.  RL
+  // workers can disable them and retain just the latest lightweight contact
+  // result, avoiding allocator growth across long multi-threaded runs.
+  bool history_enabled_{true};
+  std::vector<ContactPairResult> latest_contact_pair_results_;
 };
 }  // namespace sire::simulator
 #endif

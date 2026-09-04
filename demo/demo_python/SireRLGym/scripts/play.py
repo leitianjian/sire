@@ -319,13 +319,69 @@ def _print_play_config(env, args):
         )
 
 
+def _publish_sire_meshcat(env, args):
+    """Publish the completed env-0 rollout and keep MeshCat alive."""
+    import meshcat
+    import sire
+
+    resource_path = args.resource_path
+    if resource_path is None:
+        resource_path = ROOT_DIR / "dogRL"
+    resource_path = Path(resource_path).expanduser().resolve()
+    if not resource_path.is_dir():
+        raise FileNotFoundError(
+            f"MeshCat resource directory does not exist: {resource_path}"
+        )
+
+    loop = env.sire_sim_loops[0]
+    model = env.sire_models[0]
+    simulator = env.sire_simulators[0]
+    records = loop.recordsToJson()
+    frame_count = len(records.get("timeIndex", []))
+    if frame_count == 0:
+        raise RuntimeError("Sire recorder contains no frames for MeshCat")
+
+    visualizer = meshcat.Visualizer()
+    url = visualizer.url()
+    sire.robotInit(
+        model.nbody,
+        str(resource_path),
+        simulator.displayInitJson(),
+        visualizer,
+    )
+    sire.animateRobotByRecords(
+        model.nbody,
+        records,
+        int(args.meshcat_fps),
+        visualizer,
+    )
+    print(
+        f"meshcat_ready url={url} recorded_frames={frame_count} "
+        f"playback_fps={int(args.meshcat_fps)}",
+        flush=True,
+    )
+    print("MeshCat will stay alive until this play process is stopped.", flush=True)
+    try:
+        while True:
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        pass
+
+
 def parse_args():
-    parser = argparse.ArgumentParser(description="Deployment-oriented MuJoCo play script.")
+    parser = argparse.ArgumentParser(description="Deployment-oriented sim2sim play script.")
     parser.add_argument("--play-mode", choices=["classic", "through"], default=None)
     parser.add_argument("--task", type=str, default="go2")
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--steps", type=int, default=3000)
     parser.add_argument("--headless", action="store_true")
+    parser.add_argument(
+        "--meshcat",
+        action="store_true",
+        help="For the Sire engine, publish the rollout to MeshCat and keep it alive.",
+    )
+    parser.add_argument("--meshcat-fps", type=int, default=50)
+    parser.add_argument("--resource-path", type=Path, default=None)
     parser.add_argument("--no-realtime", action="store_true")
     parser.add_argument("--speed", type=float, default=1.0)
     parser.add_argument("--activation", type=str, default="elu")
@@ -525,13 +581,12 @@ def main():
                 if sleep_t > 0:
                     time.sleep(sleep_t)
 
-    if args.headless:
-        _run_loop()
-        return
-
     if args.headless or use_sire:
-        # Sire: headless only (no native viewer yet)
         _run_loop(viewer=None)
+        if args.meshcat:
+            if not use_sire:
+                raise ValueError("--meshcat currently requires --engine sire")
+            _publish_sire_meshcat(env, args)
         return
 
     import mujoco

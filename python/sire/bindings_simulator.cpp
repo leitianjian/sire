@@ -167,19 +167,75 @@ void init_simulator(py::module& m) {
       .def("recordsToJson", &sire::simulator::SimulationLoop::recordsToJson)
       .def("recordsContactCptInfo",
            &sire::simulator::SimulationLoop::recordsContactCptInfo)
+      // Build the initial-display json (geometry pool + part init poses) for
+      // the meshcat visualizer.  The runtime pipeline drives a SimulationLoop
+      // (via SireMiddleware), never the standalone Simulator, so the same
+      // helper has to live here — otherwise `simulator.displayInitJson()`
+      // raises AttributeError and visualization is silently skipped.
+      .def("displayInitJson",
+           [](sire::simulator::SimulationLoop& self) -> nlohmann::json {
+             nlohmann::json geo_pool;
+             nlohmann::json displayInitJson = nlohmann::json::object();
+             auto* model = self.model();
+             if (model == nullptr) {
+               throw std::runtime_error(
+                   "SimulationLoop has no model; call init() first");
+             }
+             // 取出 Part 下面的每一个 geometry
+             for (sire::Size i = 0; i < model->partPool().size(); ++i) {
+               nlohmann::json json;
+               aris::dynamic::Part& part = model->partPool().at(i);
+               std::array<double, 16> buffer;
+               for (sire::Size j = 0; j < part.geometryPool().size(); ++j) {
+                 dynamic_cast<sire::geometry::GeometryBase&>(
+                     part.geometryPool().at(j))
+                     .to_json(json);
+                 aris::dynamic::s_vc(
+                     16,
+                     const_cast<double*>(
+                         *dynamic_cast<sire::geometry::GeometryBase&>(
+                              part.geometryPool().at(j))
+                              .pm()),
+                     buffer.data());
+                 json["init_pm"] = buffer;
+                 geo_pool.push_back(json);
+               }
+             }
+             // 引擎侧（例如 height field 等）可见几何
+             auto* engine = self.physicsEnginePtr();
+             if (engine != nullptr) {
+               auto& gp = engine->geometryPool();
+               for (sire::Size i = 0; i < gp.size(); ++i) {
+                 if (gp[i].visible()) {
+                   std::array<double, 16> buffer;
+                   nlohmann::json json;
+                   gp.at(i).to_json(json);
+                   aris::dynamic::s_vc(16, const_cast<double*>(*gp.at(i).pm()),
+                                       buffer.data());
+                   json["init_pm"] = buffer;
+                   geo_pool.push_back(json);
+                 }
+               }
+             }
+             // 设置 part 相关初始化的信息
+             nlohmann::json part_init_config;
+             part_init_config.push_back(
+                 std::array<double, sire::kPosQuatSize>({0, 0, 0, 0, 0, 0, 1}));
+             for (sire::Size i = 1; i < model->partPool().size(); ++i) {
+               aris::dynamic::Part& part = model->partPool().at(i);
+               std::array<double, sire::kPosQuatSize> part_pq_buffer;
+               part.getPq(part_pq_buffer.data());
+               part_init_config.push_back(part_pq_buffer);
+             }
+             displayInitJson["geometry_pool"] = geo_pool;
+             displayInitJson["part_init_config"] = part_init_config;
+             return displayInitJson;
+           })
       .def("lastContactPairResults",
            [](sire::simulator::SimulationLoop& sl) -> py::list {
              py::list lst;
-             auto& recs = sl.recorder().records;
-             // The last record (back) is always the placeholder pushed by
-             // addRecord().  The second-to-last record is the actual step
-             // data.  Only check that one — never walk backwards, otherwise
-             // a no-contact step (where contactPairResults was cleared by
-             // the solver) would return stale data from an older step.
-             if (recs.size() < 1) return lst;
-             auto& cr = recs[recs.size() - 1];
-             if (cr.contactPairResults.empty()) return lst;
-             for (auto& r : cr.contactPairResults) {
+             const auto& latest = sl.recorder().latestContactPairResults();
+             for (const auto& r : latest) {
                lst.append(py::make_tuple(
                    r.geomIdA, r.geomIdB,
                    r.force_W[0], r.force_W[1], r.force_W[2],
@@ -191,12 +247,9 @@ void init_simulator(py::module& m) {
       .def("lastContactPairResultsWithPartIds",
            [](sire::simulator::SimulationLoop& sl) -> py::list {
              py::list lst;
-             auto& recs = sl.recorder().records;
-             if (recs.size() < 1) return lst;
-             auto& cr = recs[recs.size() - 1];
-             if (cr.contactPairResults.empty()) return lst;
+             const auto& latest = sl.recorder().latestContactPairResults();
              auto* engine = sl.physicsEnginePtr();
-             for (auto& r : cr.contactPairResults) {
+             for (const auto& r : latest) {
                sire::Size pa = 0, pb = 0;
                if (engine != nullptr) {
                  auto* geomA = engine->queryGeometryPoolById(r.geomIdA);
@@ -204,13 +257,6 @@ void init_simulator(py::module& m) {
                  pa = (geomA != nullptr) ? geomA->partId() : sire::Size(0);
                  pb = (geomB != nullptr) ? geomB->partId() : sire::Size(0);
                }
-               std::cout << "[Sire] lastContactPairResultsWithPartIds: geomIdA=" << r.geomIdA
-                         << " geomIdB=" << r.geomIdB
-                         << " partIdA=" << pa << " partIdB=" << pb
-                         << " force_W=[" << r.force_W[0] << ", " << r.force_W[1]
-                         << ", " << r.force_W[2] << "]"
-                         << " point_W=[" << r.point_W[0] << ", " << r.point_W[1]
-                         << ", " << r.point_W[2] << "]" << std::endl;
                lst.append(py::make_tuple(
                    pa, pb,
                    r.force_W[0], r.force_W[1], r.force_W[2],

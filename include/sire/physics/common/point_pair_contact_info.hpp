@@ -143,7 +143,7 @@ class PointPairContactInfo {
       std::copy(f_WC_vel, f_WC_vel + 3, f_WC_vel_);
   };
   ~PointPairContactInfo() {};
-  SIRE_DEFINE_TO_JSON_HEAD(PointPairContactInfo) {
+  SIRE_DEFINE_TO_JSON_IN_CLASS_HEAD {
     j["partId_A"] = partId_A_;
     j["partId_B"] = partId_B_;
     j["contactWrench"] = std::vector<double>(fs_WC_, fs_WC_ + 6);

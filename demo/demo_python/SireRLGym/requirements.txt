@@ -1,0 +1,11 @@
+numpy>=1.23
+PyYAML>=6.0
+torch>=2.0
+tensorboard>=2.10
+meshcat>=0.3
+cmake>=3.20
+pybind11>=2.10
+git+https://github.com/leggedrobotics/rsl_rl.git@2ad79cf0caa85b91721abfe358105f869a784121#egg=rsl_rl
+
+# Optional reference-engine validation:
+# mujoco>=3.0

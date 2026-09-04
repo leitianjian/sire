@@ -18,6 +18,7 @@ endif()
 # message(STATUS "Find Python at ${Python3_ROOT_DIR}")
 # find_package(Python COMPONENTS Development.Module REQUIRED)
 find_package(pybind11 REQUIRED)
+find_package(Threads REQUIRED)
 set(PYTHON_MODULE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python_modules")
 file(MAKE_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR})
 
@@ -33,6 +34,7 @@ pybind11_add_module(sire
   "bindings_model.cpp"
   "bindings_physics.cpp"
   "bindings_pointer_arrays.cpp"
+  "bindings_rl.cpp"
   "bindings_server.cpp"
   "bindings_simulator.cpp"
   "bindings_utils.cpp")
@@ -58,6 +60,7 @@ target_link_libraries(sire
     sire_sensor
     sire_physics
     sire_actuator
+    Threads::Threads
     ${aris_LIBRARIES}
     ${PUB_RELY_LINK_LIB} # 继承第三方依赖
     ${PRI_RELY_LINK_LIB}
@@ -67,9 +70,13 @@ target_link_libraries(sire
 set_target_properties(sire PROPERTIES
   OUTPUT_NAME "sire"
   PREFIX ""
-  SUFFIX ".pyd" # Windows 后缀
   LIBRARY_OUTPUT_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR}
 )
+if(WIN32)
+  set_target_properties(sire PROPERTIES SUFFIX ".pyd")
+else()
+  set_target_properties(sire PROPERTIES SUFFIX ".so")
+endif()
 
 # # 复制运行时依赖的 DLL 到输出目录（Windows 特有）
 # add_custom_command(TARGET sire_python POST_BUILD

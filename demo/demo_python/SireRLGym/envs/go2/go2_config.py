@@ -6,9 +6,13 @@ class GO2RoughCfg(LeggedRobotCfg):
         dt = 0.001  # match go2.xml deltaT
 
     class terrain(LeggedRobotCfg.terrain):
-        mesh_type = 'trimesh'
+        # Every Sire environment owns an independent simulator.  The default
+        # GO2 locomotion task trains on the base scene's flat ground; rough
+        # terrain belongs in a separate task/config instead of being silently
+        # enabled here.
+        mesh_type = 'plane'
         curriculum = False
-        measure_heights = True
+        measure_heights = False
         num_rows = 1
         num_cols = 1
         max_init_terrain_level = 0
@@ -63,7 +67,8 @@ class GO2RoughCfg(LeggedRobotCfg):
         stiffness = {'joint': 25.0}
         damping = {'joint': 0.6}
         action_scale = 0.25
-        decimation = 10
+        # 1 kHz physics / 20 = 50 Hz policy control (20 ms period).
+        decimation = 20
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/flat.xml'
@@ -71,6 +76,10 @@ class GO2RoughCfg(LeggedRobotCfg):
         foot_name = 'foot'
         penalize_contacts_on = ['thigh', 'calf']
         terminate_after_contacts_on = ['base']
+        # Sire can lose the final ground-contact sample after a severe fall.
+        # Reset before the base tunnels through the plane and reaches native
+        # numerical-safety bounds.
+        termination_height = 0.12
         self_collisions = 1
 
     class rewards(LeggedRobotCfg.rewards):
@@ -94,4 +103,8 @@ class GO2RoughCfgPPO(LeggedRobotCfgPPO):
 
     class runner(LeggedRobotCfgPPO.runner):
         run_name = ''
-        experiment_name = 'rough_go2'
+        experiment_name = 'flat_go2'
+        save_interval = 50
+        # Keep the terminal compact. TensorBoard stores all episode scalars
+        # when installed; the main iteration summary is always printed.
+        log_episode_keys = []

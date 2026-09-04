@@ -52,6 +52,7 @@ using namespace pybind11::literals;
 
 // Forward declarations
 void init_pointer_arrays(py::module& m);
+void init_rl(py::module& m);
 void init_utils(py::module& m);
 void init_server(py::module& m);
 void init_simulator(py::module& m);
@@ -74,6 +75,7 @@ PYBIND11_MODULE(sire, m) {
 
   init_utils(m);
   init_pointer_arrays(m);
+  init_rl(m);
   init_server(m);
   init_simulator(m);
   init_physics(m);

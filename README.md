@@ -1,117 +1,127 @@
-# SIRE 使用介绍
-## 编译流程
+<div align="center">
 
-### clone项目
-#### 1. clone本项目 
-``` 
-git clone https://github.com/leitianjian/sire.git 
-```
-#### 2. 下载更新子模块
-```
-cd ArisSim
-git submodule update --init --recursive
-```
-### 2. 使用vcpkg安装第三方库
-#### 2.1 首先安装assimp库，最好是使用vcpkg安装，vcpkg详细内容见以下地址:
-```
- https://github.com/microsoft/vcpkg 
-```
-使用vcpkg安装assimp的库：
-```
-.\vcpkg.exe install assimp:x64-windows
-```
-#### 2.2 手动安装hpp-fcl库
-- 首先clone hpp-fcl库
-```
-git clone https://github.com/humanoid-path-planner/hpp-fcl 
-```
-- 编译hpp-fcl，在 ``third-parties/hpp-fcl`` 路径下，使用vs打开
-在 项目-CMake设置中，设置CMAKE命令参数
-```
--DHPP_FCL_HAS_QHULL=True
--DBUILD_TESTING=False
--DBUILD_PYTHON_INTERFACE=False
-```
-- 使用vcpkg安装boost以及qhull 库
-```
-  .\vcpkg.exe install boost:x64-windows
-  .\vcpkg.exe install boost:x64-windows
-```
-- 生成 hpp-fcl 之后，默认安装位置在 `` ./out/install/x64-Debug``
+# Sire
 
-### 3 编译sire，安装sire
-#### 3.1 修改aris
-本项目对原来的aris库进行了一点改变，应该将aris进行merge
-首先，打开在aris文件夹下，打开 git bash，
-使用命令 
-``` 
-git remote add ltj_aris https://github.com/leitianjian/aris.git
-```
-如果这个命令报错，使用 ``git init`` 命令初始化即可
-之后使用
-```
-git remote -v
-```
-查看是否添加成功，出现版本号即为成功。
-其次，使用
-```
-git fetch ltj_aris sensor
-git merge ltj_aris/sensor
-```
-再重新安装aris即可，查看生成 aris 的文件夹名称，例如`` aris-2.3.4.221021 ``
+### 面向高刚度接触、机器人仿真与强化学习的开源多体动力学引擎
 
-#### 3.2 安装sire
-通过CMAKE命令参数，设置各个库的位置，aris库通常在C盘文件下,hpp-fcl在安装路径下进行寻找
-将新生成的 aris 库，添加在路径下
-例如：
-```
--DTARGET_ARIS_PATH=C:/aris/aris-2.3.4.221021 
--DTARGET_HPP_FCL_PATH = D:/third-parties/hpp-fcl/out/install/x64-Debug
-```
-安装sire，默认安装位置在 ``C:\sire `` 下
+[![C++17](https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white)](https://isocpp.org/)
+[![CMake](https://img.shields.io/badge/CMake-%E2%89%A5%203.18-064F8C?logo=cmake&logoColor=white)](https://cmake.org/)
+[![Python](https://img.shields.io/badge/Python-绑定与强化学习-3776AB?logo=python&logoColor=white)](python/)
+[![论文](https://img.shields.io/badge/IEEE%20RA--L-2026-B31B1B)](https://doi.org/10.1109/LRA.2026.3692328)
+[![许可证](https://img.shields.io/badge/许可证-MIT-2ea44f)](LICENSE.txt)
 
-## 使用方法
-- 代码文件需要的地方使用 `` #include <sire.hpp>``
-- CMakeLists.txt 需要使用 ``find_package()``指令进行查找，查找方法与aris一致
+[快速开始](#快速开始) · [核心能力](#核心能力) · [效果展示](#效果展示) · [强化学习](#强化学习) · [引用](#引用)
 
-示例：
-``` CMAKE
-# find Assimp
-set(TARGET_ASSIMP_PATH "" CACHE PATH "Assimp install path")
-if(EXISTS ${TARGET_ASSIMP_PATH})
-	message(STATUS "Directory to search Assimp at ${TARGET_ASSIMP_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${TARGET_ASSIMP_PATH})
-else()
-	message(WARNING "File/Directory at variable TARGET_ASSIMP_PATH not exists!")
-endif()
-find_package(assimp REQUIRED)
+</div>
 
-# find Hpp-fcl
-set(TARGET_HPP_FCL_PATH "" CACHE PATH "Hpp-fcl install path")
-if(EXISTS ${TARGET_HPP_FCL_PATH})
-	message(STATUS "Directory to search Assimp at ${TARGET_HPP_FCL_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${TARGET_HPP_FCL_PATH})
-else()
-	message(WARNING "File/Directory at variable TARGET_HPP_FCL_PATH not exists!")
-endif()
-find_package(hpp-fcl REQUIRED)
+## 项目简介
 
-set(SIRE_INSTALL_PATH C:/sire CACHE PATH "Sire install path") # 设置默认查找位置 C:\sire
-if(EXISTS ${SIRE_INSTALL_PATH})
-	message(STATUS "Directory to search sire at ${SIRE_INSTALL_PATH}")
-	list(APPEND CMAKE_PREFIX_PATH ${SIRE_INSTALL_PATH})
-else()
-	message(WARNING "File/Directory at variable SIRE_INSTALL_PATH not exists!")
-endif()
-find_package(sire REQUIRED)
+**Sire** 是一个面向机器人与多体系统研究的开源动力学仿真引擎。项目覆盖建模、运动学与动力学、几何碰撞、连续接触求解、数值积分、可视化及 Python 接口，并提供从批量强化学习训练到 Sire–MuJoCo sim2sim 验证的完整工作流。
 
-include_directories(${SIRE_INSTALL_PATH})
-include_directories(${hpp-fcl_INCLUDE_DIRS})
-include_directories(${assimp_INCLUDE_DIRS})
+Sire 的核心研究成果发表于 IEEE Robotics and Automation Letters：
 
-target_link_libraries(${PROJECT_NAME} ${sire_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} assimp::assimp)
-target_link_libraries(${PROJECT_NAME} ${hpp-fcl_LIBRARIES})
+> **A Convergent Continuous Contact Solver With Explicit Separation Time for High-Stiffness Contact**
+
+该方法通过解析描述接触穿透动力学并显式确定分离时间，为高刚度连续接触提供收敛求解；论文实验覆盖弹跳物体、初始穿透消除和四足机器人运动，并验证了最高至 \(10^{30}\,\mathrm{N/m}\) 刚度下的求解能力。详情见[论文页面](https://doi.org/10.1109/LRA.2026.3692328)。
+
+> Sire 当前主要面向科研、算法验证与机器人仿真开发。
+
+## 核心能力
+
+| 模块 | 能力 |
+| --- | --- |
+| 多体建模 | 刚体、关节、约束、执行器、传感器与控制器建模 |
+| 运动学与动力学 | 位姿、速度、雅可比、质量矩阵及系统动力学计算 |
+| 几何与碰撞 | 基于 COAL / hpp-fcl 的碰撞检测与接触几何查询 |
+| 连续接触求解 | 显式分离时间、高刚度接触、初始穿透处理与摩擦接触 |
+| 仿真执行 | 事件驱动的物理推进、碰撞与约束求解、状态记录及回放 |
+| Python 与可视化 | Python 绑定、MeshCat 可视化及可脚本化实验 |
+| 强化学习 | 原生 C++ 批量步进器、持久线程池、多环境 PPO 训练和 sim2sim 验证 |
+
+## 快速开始
+
+### 依赖
+
+- Linux 或 Windows，支持 C++17 的编译器，CMake ≥ 3.18
+- ARIS、Eigen3、COAL / hpp-fcl、Assimp、stduuid
+- Python 绑定与强化学习为可选功能
+
+### 编译
+
+```bash
+git clone --recursive https://github.com/nocodenopain/sire.git
+cd sire
+
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+  -DTARGET_ARIS_PATH=/path/to/aris/install \
+  -DTARGET_HPP_FCL_PATH=/path/to/hpp-fcl/install \
+  -DTARGET_STDUUID_PATH=/path/to/stduuid/install
+cmake --build build --parallel
 ```
 
+如需 Python 接口，在配置时加入 `-DBUILD_PYTHON=ON`；如需编译 C++ 示例，加入 `-DBUILD_DEMO=ON`。依赖路径请替换为本机安装位置。
 
+## 效果展示
+
+### GO2 强化学习控制
+
+<p align="center">
+  <a href="docs/media/go2-sire-demo.webm">
+    <img src="docs/media/go2-sire-demo.gif" alt="GO2 策略在 Sire 中运行的可视化演示" width="92%" />
+  </a>
+</p>
+
+<p align="center">
+  <sub>GO2 策略在 Sire 中的可视化运行效果。点击动图可查看完整 WebM 录屏。</sub>
+</p>
+
+### 论文实验
+
+<p align="center">
+  <img src="docs/media/paper-fig5-bouncing-box.gif" alt="论文 Fig. 5：弹跳盒高刚度多点接触实验" width="96%" />
+</p>
+
+<p align="center">
+  <sub><strong>Fig. 5 — 高刚度多点接触。</strong> 弹跳盒实验对比 Sire、MuJoCo 与 Drake 在接触刚度持续提高时的轨迹和接触表现。</sub>
+</p>
+
+<p align="center">
+  <img src="docs/media/paper-fig8-go2-sim2sim.gif" alt="论文 Fig. 8：GO2 高刚度 sim2sim 对比实验" width="96%" />
+</p>
+
+<p align="center">
+  <sub><strong>Fig. 8 — GO2 高刚度 sim2sim。</strong> 同一 Isaac Gym 策略分别部署到 MuJoCo 与 Sire；在相同的高刚度接触参数下，Sire 保持稳定运动。</sub>
+</p>
+
+<p align="center">
+  <a href="https://doi.org/10.1109/LRA.2026.3692328">论文全文</a> ·
+  <a href="demo/demo_paper/">实验数据与绘图</a> ·
+  <a href="demo/demo_python/">Python 与机器人示例</a>
+</p>
+
+## 强化学习
+
+Sire 通过 **pybind11** 提供 Python 接口，可作为 PPO 等强化学习算法的物理仿真后端。项目在此基础上实现了原生 C++ 批量步进和持久化多线程并行，使多个相互独立的环境能够在 CPU 上高效推进，减少了逐环境 Python 调用、线程重复创建和临时数据分配的开销，同时完整保留 Sire 原有的积分、碰撞检测、接触与约束求解能力，适合大规模并行 rollout 和机器人策略训练。
+
+当前仓库提供 GO2 平地训练、PPO 接入、批量仿真及 Sire–MuJoCo sim2sim 验证。安装、训练和策略导出方法见 [`SireRLGym 使用说明`](demo/demo_python/SireRLGym/README.md)。
+
+## 引用
+
+如果 Sire 或仓库中的论文实验对你的研究有帮助，请引用：
+
+```bibtex
+@article{lei2026convergent,
+  author  = {Tianjian Lei and Junpeng Chen and Qifei Li and Jian S. Dai and Yang Pan},
+  title   = {A Convergent Continuous Contact Solver With Explicit Separation Time for High-Stiffness Contact},
+  journal = {IEEE Robotics and Automation Letters},
+  year    = {2026},
+  volume  = {11},
+  number  = {7},
+  pages   = {8323--8330},
+  doi     = {10.1109/LRA.2026.3692328}
+}
+```
+
+## 许可证
+
+本项目基于 [MIT License](LICENSE.txt) 开源。

@@ -180,6 +180,10 @@ class LeggedRobotCfg(BaseConfig):
     class sim:
         dt = 0.005
         substeps = 1
+        # 0 selects min(os.cpu_count(), num_envs). The executor persists for
+        # the full environment lifetime and includes the calling thread.
+        sire_batch_threads = 0
+        sire_diagnostics = False
         gravity = [0.0, 0.0, -9.81]
         up_axis = 1
 
