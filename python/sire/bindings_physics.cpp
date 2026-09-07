@@ -493,7 +493,8 @@ void init_physics(py::module& m) {
       .def("setDefaultProp",
            [](sire::physics::contact::ps_vs_solver3::PsVsSolver3& self,
               const std::string& prop) {
-             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+             sire::core::PropMap material_prop(prop);
+             self.materialManager().setDefaultProp(material_prop);
            });
   py::class_<sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5,
              sire::physics::contact::ContactSolver>(
@@ -510,7 +511,8 @@ void init_physics(py::module& m) {
       .def("setDefaultProp",
            [](sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5& self,
               const std::string& prop) {
-             self.materialManager().setDefaultProp(sire::core::PropMap(prop));
+             sire::core::PropMap material_prop(prop);
+             self.materialManager().setDefaultProp(material_prop);
            });
   py::class_<sire::physics::contact::simple_admm::SimpleAdmmContactSolver,
              sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5>(
