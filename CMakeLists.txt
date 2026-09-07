@@ -73,9 +73,10 @@ find_pkg_path(stduuid stduuid)
 
 find_pkg_path(msgpack-cxx msgpack_cxx)
 
-# Clarabel doesn't export a CMake config, so we include it directly from the source tree
+# Clarabel doesn't export a CMake config. Reuse its existing Rust runtime for
+# normal C++ iterations; the helper falls back to a source build when missing.
 if(NOT TARGET libclarabel_c_shared)
-	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)
+	include(${CMAKE_SOURCE_DIR}/cmake_macros/clarabel_dependency.cmake)
 endif()
 
 include(GenerateExportHeader)
@@ -519,7 +520,7 @@ target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB} PRIVATE ${PRI_RELY_LI
 
 if(WIN32)
 	add_custom_command(TARGET sire_lib POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/third_party/clarabel/rust_wrapper/target/$<IF:$<CONFIG:Debug>,debug,release>/clarabel_c.dll $<TARGET_FILE_DIR:sire_lib>
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_PROPERTY:libclarabel_c_shared,SIRE_RUNTIME_FILE> $<TARGET_FILE_DIR:sire_lib>
 	)
 endif()
 

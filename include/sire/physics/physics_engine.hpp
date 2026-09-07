@@ -74,6 +74,30 @@ class SIRE_API PhysicsEngine {
   auto setCollisionDetectionFlag(bool flag) -> void;
   auto contactSolverFlag() const -> bool;
   auto setContactSolverFlag(bool flag) -> void;
+  /// Joint limits are independent of the selected contact solver. Supported
+  /// methods are "shifted_ncp", "projection", and "disabled".
+  auto setJointLimitMethod(const std::string& method) -> void;
+  auto jointLimitMethod() const -> std::string;
+  auto setJointLimitActivationMargin(double margin) -> void;
+  auto jointLimitActivationMargin() const -> double;
+  auto setJointLimitRecoveryFactor(double factor) -> void;
+  auto jointLimitRecoveryFactor() const -> double;
+  auto setJointLimitEmergencyTolerance(double tolerance) -> void;
+  auto jointLimitEmergencyTolerance() const -> double;
+  auto setJointLimitMaxForce(double force) -> void;
+  auto jointLimitMaxForce() const -> double;
+  auto setJointLimitMaxIterations(sire::Size iterations) -> void;
+  auto jointLimitMaxIterations() const -> sire::Size;
+  auto setJointLimitTolerance(double tolerance) -> void;
+  auto jointLimitTolerance() const -> double;
+  /// Diagnostics from the most recent joint-limit solve. These values are
+  /// retained even in non-Tracy builds so rare RL failures can report the
+  /// constraint state that preceded an integrator exception.
+  auto jointLimitLastActiveCount() const -> sire::Size;
+  auto jointLimitLastIterations() const -> sire::Size;
+  auto jointLimitLastResidual() const -> double;
+  auto jointLimitLastMaxReaction() const -> double;
+  auto jointLimitLastSaturatedCount() const -> sire::Size;
 
   // continuous collision detection
   // will insert some time value which should be processed.
@@ -112,6 +136,12 @@ class SIRE_API PhysicsEngine {
       const std::vector<common::PenetrationAsPointPair>& pairs,
       std::vector<std::array<double, 3>>& v_contact) -> void;
   auto fwdActuators() -> void;
+  /// Apply the configured joint-limit safety projection. This remains a hard
+  /// fallback for shifted_ncp and is the primary operation for projection.
+  auto enforceJointLimitSafety() -> bool;
+  /// Assemble and solve active scalar shifted NCP joint limits, then add their
+  /// reaction forces to the motion force pool. No-op for other methods.
+  auto applyJointLimitForces(double dt) -> void;
 
   // engine state getter
   inline auto numGeometries() -> sire::Size { return geometryPool().size(); }

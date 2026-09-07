@@ -116,8 +116,22 @@ void init_core(py::module& m) {
                     &sire::actuator::ActuatorSISO::setKd)
       .def_property("desiredValue", &sire::actuator::ActuatorSISO::desiredValue,
                     &sire::actuator::ActuatorSISO::setDesiredValue)
+      .def_property("minForce", &sire::actuator::ActuatorSISO::minForce,
+                    &sire::actuator::ActuatorSISO::setMinForce)
+      .def_property("maxForce", &sire::actuator::ActuatorSISO::maxForce,
+                    &sire::actuator::ActuatorSISO::setMaxForce)
+      .def_property_readonly("limitedDesiredValue",
+                             &sire::actuator::ActuatorSISO::limitedDesiredValue)
+      .def_property_readonly("appliedValue",
+                             &sire::actuator::ActuatorSISO::appliedValue)
+      .def_property("minPosition", &sire::actuator::ActuatorSISO::minPosition,
+                    &sire::actuator::ActuatorSISO::setMinPosition)
+      .def_property("maxPosition", &sire::actuator::ActuatorSISO::maxPosition,
+                    &sire::actuator::ActuatorSISO::setMaxPosition)
+      .def("enforcePositionLimits",
+           &sire::actuator::ActuatorSISO::enforcePositionLimits,
+           py::arg("tolerance") = 0.0)
       .def("forward", &sire::actuator::ActuatorSISO::forward)
-      .def("cptOutput", &sire::actuator::ActuatorSISO::cptOutput)
       .def_static("add2Model", &sire::actuator::ActuatorSISO::add2Model,
                   py::return_value_policy::reference);
 }

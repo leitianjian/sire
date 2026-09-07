@@ -10,7 +10,7 @@
                 <Marker name="ground_marker" active="true" pe="{0,0,0,-0,0,-0}"/>
             </MarkerPoolElement>
             <GeometryPoolElement __prop_name__="geometry_pool">
-              <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
+              <BoxGeometry id="0" part_id="0" is_dynamic="false" side="{200, 200, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
             </GeometryPoolElement>
         </Part>
         <Part name="base" active="true" pe="{0,0,0.445,0,0,-0}" vel="{0,0,0,0,0,0}" acc="{0,0,0,0,0,0}" inertia="{6.921,0.146116152,0,-0.037138086,0.024679282969476,0.1013610871705,0.110084804201024,0,0.000784059271632,0}">
@@ -213,18 +213,18 @@
         </Part>
     </PartPoolElement>
     <MotionPoolElement __prop_name__="motion_pool">
-        <Actuator name="actuator_0" active="true" prt_m="FL_hip" prt_n="base" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_1" active="true" prt_m="FL_thigh" prt_n="FL_hip" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_2" active="true" prt_m="FL_calf" prt_n="FL_thigh" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_3" active="true" prt_m="FR_hip" prt_n="base" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_4" active="true" prt_m="FR_thigh" prt_n="FR_hip" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_5" active="true" prt_m="FR_calf" prt_n="FR_thigh" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_6" active="true" prt_m="RL_hip" prt_n="base" mak_i="joint_6_i" mak_j="joint_6_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_7" active="true" prt_m="RL_thigh" prt_n="RL_hip" mak_i="joint_7_i" mak_j="joint_7_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_8" active="true" prt_m="RL_calf" prt_n="RL_thigh" mak_i="joint_8_i" mak_j="joint_8_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_9" active="true" prt_m="RR_hip" prt_n="base" mak_i="joint_9_i" mak_j="joint_9_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_10" active="true" prt_m="RR_thigh" prt_n="RR_hip" mak_i="joint_10_i" mak_j="joint_10_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
-        <Actuator name="actuator_11" active="true" prt_m="RR_calf" prt_n="RR_thigh" mak_i="joint_11_i" mak_j="joint_11_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" kp="50" kd="2"/>
+        <Actuator name="actuator_0" active="true" prt_m="FL_hip" prt_n="base" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-1.0472" max_position="1.0472"/>
+        <Actuator name="actuator_1" active="true" prt_m="FL_thigh" prt_n="FL_hip" mak_i="joint_1_i" mak_j="joint_1_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-1.5708" max_position="3.4907"/>
+        <Actuator name="actuator_2" active="true" prt_m="FL_calf" prt_n="FL_thigh" mak_i="joint_2_i" mak_j="joint_2_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-35.55" max_force="35.55" min_position="-2.7227" max_position="0.83776"/>
+        <Actuator name="actuator_3" active="true" prt_m="FR_hip" prt_n="base" mak_i="joint_3_i" mak_j="joint_3_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-1.0472" max_position="1.0472"/>
+        <Actuator name="actuator_4" active="true" prt_m="FR_thigh" prt_n="FR_hip" mak_i="joint_4_i" mak_j="joint_4_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-1.5708" max_position="3.4907"/>
+        <Actuator name="actuator_5" active="true" prt_m="FR_calf" prt_n="FR_thigh" mak_i="joint_5_i" mak_j="joint_5_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-35.55" max_force="35.55" min_position="-2.7227" max_position="0.83776"/>
+        <Actuator name="actuator_6" active="true" prt_m="RL_hip" prt_n="base" mak_i="joint_6_i" mak_j="joint_6_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-1.0472" max_position="1.0472"/>
+        <Actuator name="actuator_7" active="true" prt_m="RL_thigh" prt_n="RL_hip" mak_i="joint_7_i" mak_j="joint_7_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-0.5236" max_position="4.5379"/>
+        <Actuator name="actuator_8" active="true" prt_m="RL_calf" prt_n="RL_thigh" mak_i="joint_8_i" mak_j="joint_8_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-35.55" max_force="35.55" min_position="-2.7227" max_position="0.83776"/>
+        <Actuator name="actuator_9" active="true" prt_m="RR_hip" prt_n="base" mak_i="joint_9_i" mak_j="joint_9_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-1.0472" max_position="1.0472"/>
+        <Actuator name="actuator_10" active="true" prt_m="RR_thigh" prt_n="RR_hip" mak_i="joint_10_i" mak_j="joint_10_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-23.7" max_force="23.7" min_position="-0.5236" max_position="4.5379"/>
+        <Actuator name="actuator_11" active="true" prt_m="RR_calf" prt_n="RR_thigh" mak_i="joint_11_i" mak_j="joint_11_j" cf="{0}" mp="{0}" mv="{0}" ma="{0}" component="5" pitch="0" rotate_range="0" mp_offset="0" mp_factor="1" frc_coe="{0,0,0}" min_force="-35.55" max_force="35.55" min_position="-2.7227" max_position="0.83776"/>
     </MotionPoolElement>
     <JointPoolElement __prop_name__="joint_pool">
         <RevoluteJoint name="FL_hip_joint" active="true" prt_m="FL_hip" prt_n="base" mak_i="joint_0_i" mak_j="joint_0_j" cf="{0,0,0,0,0}"/>
@@ -267,9 +267,9 @@
     </EventManager>
     <ZeroPosition __prop_name__="controller"/>
 </SimulationLoop>
-<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true">
+<PhysicsEngine __prop_name__="physics_engine" enable_collision_detection="true" enable_contact_solver="true" joint_limit_method="shifted_ncp" joint_limit_activation_margin="0.0001" joint_limit_recovery_factor="0.5" joint_limit_emergency_tolerance="0.0001" joint_limit_max_force="500" joint_limit_max_iterations="30" joint_limit_tolerance="1e-8">
     <CollisionDetection __prop_name__="collision_detection"/>
-    <ShiftedSpectralAdmmContactSolver __prop_name__="contact_solver" contact_model_mode="single_point" contact_time_method="polynomial" default_k="200000000" default_cr="0.2">
+    <ShiftedSpectralAdmmContactSolver __prop_name__="contact_solver" contact_model_mode="single_point" contact_time_method="exponential" default_k="200000000" default_cr="0.2">
         <MaterialManager __prop_name__="material_manager" default_prop="{k:140000000,d:1000,cr:1}">
             <MaterialPairPropPool __prop_name__="material_pair_prop_pool">
                 <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:5e4,cr:0.3,cof:0.6,threshold_velocity:0.3}"/>
@@ -277,7 +277,7 @@
         </MaterialManager>
     </ShiftedSpectralAdmmContactSolver>
     <GeometryPoolObject __prop_name__="dynamic_geometry_pool">
-        <BoxCollisionGeometry visible="true" id="0" part_id="0" is_dynamic="false" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{20, 20, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
+        <BoxCollisionGeometry visible="true" id="0" part_id="0" is_dynamic="false" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{200, 200, 0.2}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.1,0,0,0,1}" />
         <BoxCollisionGeometry visible="false" id="5" part_id="1" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{0.38,0.12,0.12}" pm="{1,0,0,0,0,1,0,0,0,0,1,-0.02,0,0,0,1}" />
         <CylinderCollisionGeometry visible="false" id="6" part_id="2" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" radius="0.046" length="0.06" pm="{1,0,0,0,0,0,-1,0.05,0,1,0,0,0,0,0,1}" />
         <BoxCollisionGeometry visible="false" id="7" part_id="3" is_dynamic="true" material="m1" contact_prop="{k:2.8e8,d:2000}" side="{0.12,0.035,0.04}" pm="{0,0,1,0,0,1,0,0,-1,0,0,-0.10,0,0,0,1}" />

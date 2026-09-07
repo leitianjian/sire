@@ -2,6 +2,7 @@
 
 #include <aris/core/serialization.hpp>
 #include <aris/dynamic/model.hpp>
+#include <cmath>
 #include <sstream>
 
 #include "sire/core/constants.hpp"
@@ -9,6 +10,33 @@
 #include "sire/integrator/integrator_base.hpp"
 
 namespace sire::simulator {
+namespace {
+constexpr double kCatastrophicTwistLimit = 1.0e4;
+constexpr double kCatastrophicTwistIncrementLimit = 1.0e4;
+
+auto checkedIntegratedVelocity(double velocity, double acceleration, double dt,
+                               sire::Size part, sire::Size component)
+    -> double {
+  const double increment = dt * acceleration;
+  const double integrated = velocity + increment;
+  if (!std::isfinite(velocity) || !std::isfinite(acceleration) ||
+      !std::isfinite(increment) || !std::isfinite(integrated) ||
+      std::abs(velocity) > kCatastrophicTwistLimit ||
+      std::abs(increment) > kCatastrophicTwistIncrementLimit ||
+      std::abs(integrated) > kCatastrophicTwistLimit) {
+    std::ostringstream message;
+    message << "[Sire] Integrator: catastrophic state in part " << part
+            << " component " << component << " dt=" << dt
+            << " velocity=" << velocity
+            << " acceleration=" << acceleration
+            << " velocity_increment=" << increment
+            << " integrated_velocity=" << integrated;
+    throw std::runtime_error(message.str());
+  }
+  return integrated;
+}
+}  // namespace
+
 SemiImplicitEulerIntegrator::SemiImplicitEulerIntegrator()
     : IntegratorBase() {};
 auto SemiImplicitEulerIntegrator::updPs(double dt) -> bool {
@@ -37,7 +65,7 @@ auto SemiImplicitEulerIntegrator::updPs(double dt) -> bool {
     // aris::dynamic::dsp(1, 6, as);
     double temp_pm[16]{0}, pm_result[16]{0};
     for (sire::Size j = 0; j < kTwistSize; ++j) {
-      vs_buffer[j] += dt * as[j];
+      vs_buffer[j] = checkedIntegratedVelocity(vs_buffer[j], as[j], dt, i, j);
       ps_buffer[j] = dt * vs_buffer[j];
     }
     // MuJoCo-style NaN guard: if integration produced invalid velocity or
@@ -108,7 +136,7 @@ auto SemiImplicitEulerIntegrator::updVs(double dt) -> bool {
     part.getVs(vs_buffer);
     // aris::dynamic::dsp(1, 6, as_buffer);
     for (sire::Size j = 0; j < kTwistSize; ++j) {
-      vs_buffer[j] += dt * as[j];
+      vs_buffer[j] = checkedIntegratedVelocity(vs_buffer[j], as[j], dt, i, j);
     }
     part.setVs(vs_buffer);
   }
@@ -161,7 +189,7 @@ auto SemiImplicitEulerIntegrator::doStep(double dt) -> bool {
     // aris::dynamic::dsp(1, 6, as_buffer);
     double temp_pm[16]{0}, pm_result[16]{0};
     for (sire::Size j = 0; j < kTwistSize; ++j) {
-      vs_buffer[j] += dt * as[j];
+      vs_buffer[j] = checkedIntegratedVelocity(vs_buffer[j], as[j], dt, i, j);
       ps_buffer[j] = dt * vs_buffer[j];
     }
     aris::dynamic::s_ps2pm(ps_buffer, temp_pm);

@@ -43,49 +43,10 @@ def getBodyQuat(model, i):
     return np.array(model.link(i).getPq()[3:])
 
 
-def rotateWorldToBody(quaternion, vector):
-    """Rotate a world-frame vector into the body frame.
-
-    Sire/Aris stores quaternions scalar-last as ``[qx, qy, qz, qw]``.
-    The quaternion describes the body's orientation in the world, so its
-    transpose (inverse rotation) is required for policy observations.
-    """
-    quaternion = np.asarray(quaternion, dtype=np.float64)
-    vector = np.asarray(vector, dtype=np.float64)
-    norm = np.linalg.norm(quaternion)
-    if norm <= np.finfo(np.float64).eps:
-        raise ValueError("body quaternion has zero norm")
-
-    qx, qy, qz, qw = quaternion / norm
-    rotation = np.array([
-        [1.0 - 2.0 * (qy * qy + qz * qz),
-         2.0 * (qx * qy - qz * qw),
-         2.0 * (qx * qz + qy * qw)],
-        [2.0 * (qx * qy + qz * qw),
-         1.0 - 2.0 * (qx * qx + qz * qz),
-         2.0 * (qy * qz - qx * qw)],
-        [2.0 * (qx * qz - qy * qw),
-         2.0 * (qy * qz + qx * qw),
-         1.0 - 2.0 * (qx * qx + qy * qy)],
-    ])
-    return rotation.T @ vector
-
-
 def getBodyVa(model, i):
+    """Body-origin [linear, angular] velocity expressed in body axes."""
     link = model.link(i)
-    pq = np.asarray(link.getPq(), dtype=np.float64)
-    world_va = np.asarray(
-        sire.vs2va(link.getVs(), pq[:3].tolist()), dtype=np.float64
-    )
-
-    # vs2va changes the velocity reference point, but leaves both vector
-    # components expressed in the world frame. The policy was trained with
-    # base-frame linear and angular velocity, so rotate both components.
-    quaternion = pq[3:]
-    return np.concatenate([
-        rotateWorldToBody(quaternion, world_va[:3]),
-        rotateWorldToBody(quaternion, world_va[3:]),
-    ])
+    return np.asarray(sire.vs2bodyVa(link.getPq(), link.getVs()), dtype=np.float64)
 
 def assignTau(model, tau):
     for i in range(len(tau)):

@@ -5,7 +5,6 @@ import os
 import re
 import statistics
 import time
-import gc
 from collections import deque
 from pathlib import Path
 
@@ -41,6 +40,7 @@ from rsl_rl.algorithms import PPO
 from rsl_rl.modules import ActorCritic
 
 from SireRLGym.runners.infinite_scheduler import InfiniteLevelScheduler
+from SireRLGym.utils.memory_probe import write_memory_sample
 from SireRLGym.utils.helpers import class_to_dict
 from SireRLGym.utils.joint_order import JointOrderAdapter
 
@@ -69,12 +69,20 @@ class OnPolicyRunner:
         self.num_steps_per_env = self.cfg['num_steps_per_env']
         self.save_interval = self.cfg['save_interval']
         self.debug_reward = bool(self.cfg.get('debug_reward', False))
+        self.log_interval = int(self.cfg.get('log_interval', 10))
+        self.memory_interval = int(self.cfg.get('memory_interval', 0))
+        if self.log_interval < 0 or self.memory_interval < 0:
+            raise ValueError('log_interval and memory_interval must be nonnegative')
+        self.memory_path = os.path.join(log_dir or '.', 'memory.jsonl')
         self.log_episode_keys = self.cfg.get('log_episode_keys')
         self.infinite_mode = bool(self.cfg.get('infinite_mode', False))
         self.infinite_scheduler = (
             InfiniteLevelScheduler(self.env, self.cfg, log_dir=log_dir) if self.infinite_mode else None
         )
         self.visualize_interval = self.cfg.get('visualize_interval', None)
+        if self.visualize_interval is not None and self.visualize_interval <= 0:
+            raise ValueError('visualize_interval must be positive')
+        self.env.setSireHistoryRecording(False)
         self.visualize_resource_path = self.cfg.get('visualize_resource_path', None)
         self.vis_dir = os.path.join(log_dir, 'vis') if log_dir else None
         if self.vis_dir:
@@ -163,6 +171,12 @@ class OnPolicyRunner:
         total_iterations = None if self.infinite_mode else (self.current_learning_iteration + num_learning_iterations)
         while self.infinite_mode or it < total_iterations:
             it += 1
+            record_rollout = (self.visualize_interval is not None
+                              and it % self.visualize_interval == 0)
+            self.env.setSireHistoryRecording(record_rollout)
+            sample_memory = self.memory_interval > 0 and it % self.memory_interval == 0
+            if sample_memory:
+                write_memory_sample(self.memory_path, it, 'before_rollout')
             start = time.time()
 
             with torch.inference_mode():
@@ -195,6 +209,8 @@ class OnPolicyRunner:
                 start = stop
                 self.alg.compute_returns(critic_obs)
 
+            if sample_memory:
+                write_memory_sample(self.memory_path, it, 'after_rollout')
             update_out = self.alg.update()
             if isinstance(update_out, tuple):
                 mean_value_loss = update_out[0]
@@ -209,19 +225,22 @@ class OnPolicyRunner:
                 mean_sym_loss = None
             stop = time.time()
             learn_time = stop - start
+            if sample_memory:
+                write_memory_sample(self.memory_path, it, 'after_update')
 
             if self.log_dir is not None:
                 self.log(locals())
             if it % self.save_interval == 0:
                 self.save(os.path.join(self.log_dir, f'model_{it}.pt'), iteration=it)
-            if self.visualize_interval is not None and it % self.visualize_interval == 0:
+            if record_rollout:
                 self._save_recording(it)
             # A PPO rollout boundary is not an episode boundary.  Preserve all
             # simulator/model/timer state and clear only recorder storage.
-            self.env.resetSireRecorders()
-            # Force GC to release pybind11-held C++ wrappers (motionPool, partPool, etc.)
-            if it % 5 == 0:
-                gc.collect()
+            if record_rollout:
+                self.env.resetSireRecorders()
+                self.env.setSireHistoryRecording(False)
+            if sample_memory:
+                write_memory_sample(self.memory_path, it, 'after_recorder_clear')
             stop_training = False
             transitioned_level = False
             if self.infinite_scheduler is not None:
@@ -247,6 +266,8 @@ class OnPolicyRunner:
     def log(self, locs, width=80, pad=35):
         self.tot_timesteps += self.num_steps_per_env * self.env.num_envs
         self.tot_time += locs['collection_time'] + locs['learn_time']
+        if self.log_interval == 0 or locs['it'] % self.log_interval != 0:
+            return
         iteration_time = locs['collection_time'] + locs['learn_time']
         fps = int(self.num_steps_per_env * self.env.num_envs / (locs['collection_time'] + locs['learn_time']))
 

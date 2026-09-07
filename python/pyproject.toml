@@ -1,6 +1,6 @@
 # 必须包含
 [build-system]
-requires = ["setuptools", "wheel", "cmake", "python-dotenv"]
+requires = ["setuptools>=64", "wheel", "cmake", "packaging", "tomli; python_version < '3.11'"]
 build-backend = "setuptools.build_meta"
 
 # 推荐包含
@@ -27,5 +27,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Natural Language :: Chinese",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]

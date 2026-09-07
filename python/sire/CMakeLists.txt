@@ -51,6 +51,7 @@ target_include_directories(sire
 # 链接库
 target_link_libraries(sire
   PRIVATE
+    sire_profiler
     sire_core
     sire_log
     sire_server
@@ -72,11 +73,7 @@ set_target_properties(sire PROPERTIES
   PREFIX ""
   LIBRARY_OUTPUT_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR}
 )
-if(WIN32)
-  set_target_properties(sire PROPERTIES SUFFIX ".pyd")
-else()
-  set_target_properties(sire PROPERTIES SUFFIX ".so")
-endif()
+# Keep pybind11's Python ABI suffix (e.g. .cp313-win_amd64.pyd).
 
 # # 复制运行时依赖的 DLL 到输出目录（Windows 特有）
 # add_custom_command(TARGET sire_python POST_BUILD
@@ -88,26 +85,14 @@ endif()
 # 安装 Python 模块
 install(TARGETS sire
   CONFIGURATIONS Release
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/release"
+  DESTINATION "python/release"
+  COMPONENT PythonRuntime
 )
 
 install(TARGETS sire
   CONFIGURATIONS Debug
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/debug"
+  DESTINATION "python/debug"
+  COMPONENT PythonRuntime
 )
 
-# # 安装依赖 DLL（可选）
-install(FILES
-  $<TARGET_FILE:sire_lib>
-  CONFIGURATIONS Debug
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/debug"
-)
-
-# # 安装依赖 DLL（可选）
-install(FILES
-  $<TARGET_FILE:sire_lib>
-  CONFIGURATIONS Release
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/release"
-)
-
-INSTALL_DLL(DESTINATION ${CMAKE_INSTALL_PREFIX}/python/${CMAKE_BUILD_TYPE_LOWER})
+INSTALL_DLL(DESTINATION python/${CMAKE_BUILD_TYPE_LOWER} COMPONENT PythonRuntime)

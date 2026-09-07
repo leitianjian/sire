@@ -106,12 +106,30 @@ class SIRE_API ActuatorSISO : public ActuatorTemplate<1, 1> {
     return &ret;
   }
   auto virtual forward() -> void;
-  auto virtual cptOutput(double input) -> double;
   auto virtual fcePtr() -> aris::dynamic::SingleComponentForce* override {
     return dynamic_cast<aris::dynamic::SingleComponentForce*>(this->fcePtr_);
   };
+  /// Requested generalized force/torque. Position and velocity controllers
+  /// must convert their targets to force before writing this value.
   auto setDesiredValue(double dv) -> void;
   auto desiredValue() -> double;
+  /// Motor-force limits. They are applied immediately before the force is
+  /// handed to the dynamics solver. Defaults are unbounded for compatibility.
+  auto setMinForce(double value) -> void;
+  auto minForce() -> double;
+  auto setMaxForce(double value) -> void;
+  auto maxForce() -> double;
+  auto limitedDesiredValue() -> double;
+  auto appliedValue() -> double;
+  /// Hard joint-position guard used before every dynamics solve. Crossing a
+  /// bound projects the coordinate to the bound and removes outward velocity.
+  auto setMinPosition(double value) -> void;
+  auto minPosition() -> double;
+  auto setMaxPosition(double value) -> void;
+  auto maxPosition() -> double;
+  auto enforcePositionLimits(double tolerance = 0.0) -> bool;
+  /// Legacy XML compatibility only. PD control belongs to the controller;
+  /// these values are never used by forward().
   auto setKp(double kp) -> void;
   auto kp() -> double;
   auto setKd(double kd) -> void;

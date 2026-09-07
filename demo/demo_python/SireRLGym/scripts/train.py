@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -61,6 +62,14 @@ def parse_args():
         help='Train with the base scene plane instead of per-env rough heightfields.',
     )
     p.add_argument('--debug_reward', action='store_true')
+    p.add_argument('--log_interval', type=int, default=10,
+                   help='Write/print training statistics every N iterations; 0 disables.')
+    p.add_argument('--memory_interval', type=int, default=0,
+                   help='Sample process memory every N iterations to memory.jsonl; 0 disables.')
+    p.add_argument('--solver_trace', action='store_true',
+                   help='Allow SIRE_SOLVER_TRACE_DIR output (disabled during training by default).')
+    p.add_argument('--allow_profile', action='store_true',
+                   help='Allow training with a Tracy-instrumented Sire build.')
     p.add_argument('--resume', nargs='?', const='auto', default=None, help='Resume from latest checkpoint, or provide a checkpoint path.')
     p.add_argument('--head', type=_str2bool, nargs='?', const=True, default=False, help='Enable live MuJoCo viewer during training.')
     p.add_argument('--infinite_mode', action='store_true', help='Run threshold training with no iteration cap and global level progression.')
@@ -228,6 +237,16 @@ def main():
 
     set_seed(train_cfg.seed)
 
+    if args.log_interval < 0 or args.memory_interval < 0:
+        raise ValueError('log_interval and memory_interval must be nonnegative')
+    if not args.solver_trace:
+        os.environ.pop('SIRE_SOLVER_TRACE_DIR', None)
+    import sire
+    if sire.tracyEnabled and not args.allow_profile:
+        raise RuntimeError(
+            'Training requires SIRE_ENABLE_TRACY=OFF. Rebuild/install Sire with '
+            'profiling disabled, or pass --allow_profile for diagnostic runs.')
+    env_cfg.sim.sire_diagnostics = False
     env = make_env_from_cfg(args.task, env_cfg, headless=not args.head)
     scene_tag = _infer_scene_tag(env_cfg)
     log_root = str(args.log_dir) if args.log_dir else 'logs'
@@ -246,6 +265,8 @@ def main():
     )
     train_cfg_dict = class_to_dict(train_cfg)
     train_cfg_dict['runner']['debug_reward'] = bool(args.debug_reward)
+    train_cfg_dict['runner']['log_interval'] = args.log_interval
+    train_cfg_dict['runner']['memory_interval'] = args.memory_interval
     if args.visualize_interval is not None:
         train_cfg_dict['runner']['visualize_interval'] = args.visualize_interval
     if args.visualize_resource_path is not None:

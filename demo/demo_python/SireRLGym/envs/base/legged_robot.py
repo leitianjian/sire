@@ -123,7 +123,7 @@ class LeggedRobot(VecEnv):
 
         self._reset_dofs(env_ids)
         self._reset_root_states(env_ids)
-        self._resample_commands(env_ids)
+        self._resample_commands(env_ids, initialize=True)
 
         ep_len = self.episode_length_buf[env_ids].float().clamp(min=1.0)
         ep_duration = (ep_len * self.dt).clamp(min=self.dt)
@@ -266,28 +266,62 @@ class LeggedRobot(VecEnv):
     def _post_physics_step_callback(self):
         env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt) == 0).nonzero(as_tuple=False).flatten()
         self._resample_commands(env_ids)
-
-        if self.cfg.commands.heading_command:
-            forward = quat_apply(self.base_quat, self.forward_vec)
-            heading = torch.atan2(forward[:, 1], forward[:, 0])
-            self.commands[:, 2] = torch.clip(0.5 * wrap_to_pi(self.commands[:, 3] - heading), -1.0, 1.0)
+        self._update_smoothed_commands()
 
         if self.cfg.terrain.measure_heights:
             self.measured_heights = self._get_heights()
         if self.cfg.domain_rand.push_robots and (self.common_step_counter % int(self.cfg.domain_rand.push_interval) == 0):
             self._push_robots()
 
-    def _resample_commands(self, env_ids):
+    def _current_heading(self, env_ids=None):
+        quaternions = self.base_quat if env_ids is None else self.base_quat[env_ids]
+        forward = quat_apply(
+            quaternions,
+            self.forward_vec if env_ids is None else self.forward_vec[env_ids],
+        )
+        return torch.atan2(forward[:, 1], forward[:, 0])
+
+    def _desired_velocity_commands(self, env_ids=None):
+        targets = self.command_targets if env_ids is None else self.command_targets[env_ids]
+        desired = targets[:, :3].clone()
+        if self.cfg.commands.heading_command:
+            desired[:, 2] = torch.clip(
+                0.5 * wrap_to_pi(targets[:, 3] - self._current_heading(env_ids)),
+                -1.0,
+                1.0,
+            )
+        return desired
+
+    def _update_smoothed_commands(self):
+        desired = self._desired_velocity_commands()
+        if not self.cfg.commands.smooth_commands:
+            self.commands[:, :3] = desired
+        else:
+            max_delta = torch.tensor(
+                [
+                    self.cfg.commands.lin_vel_slew_rate * self.dt,
+                    self.cfg.commands.lin_vel_slew_rate * self.dt,
+                    self.cfg.commands.ang_vel_yaw_slew_rate * self.dt,
+                ],
+                dtype=self.commands.dtype,
+                device=self.device,
+            )
+            delta = torch.clamp(desired - self.commands[:, :3], -max_delta, max_delta)
+            self.commands[:, :3] += delta
+        if self.cfg.commands.heading_command:
+            self.commands[:, 3] = self.command_targets[:, 3]
+
+    def _resample_commands(self, env_ids, initialize=False):
         if len(env_ids) == 0:
             return
-        self.commands[env_ids, 0] = torch_rand_float(self.command_ranges['lin_vel_x'][0], self.command_ranges['lin_vel_x'][1], (len(env_ids), 1), device=self.device).squeeze(1)
-        self.commands[env_ids, 1] = torch_rand_float(self.command_ranges['lin_vel_y'][0], self.command_ranges['lin_vel_y'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        self.command_targets[env_ids, 0] = torch_rand_float(self.command_ranges['lin_vel_x'][0], self.command_ranges['lin_vel_x'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        self.command_targets[env_ids, 1] = torch_rand_float(self.command_ranges['lin_vel_y'][0], self.command_ranges['lin_vel_y'][1], (len(env_ids), 1), device=self.device).squeeze(1)
         if self.cfg.commands.heading_command:
-            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges['heading'][0], self.command_ranges['heading'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+            self.command_targets[env_ids, 3] = torch_rand_float(self.command_ranges['heading'][0], self.command_ranges['heading'][1], (len(env_ids), 1), device=self.device).squeeze(1)
         else:
-            self.commands[env_ids, 2] = torch_rand_float(self.command_ranges['ang_vel_yaw'][0], self.command_ranges['ang_vel_yaw'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+            self.command_targets[env_ids, 2] = torch_rand_float(self.command_ranges['ang_vel_yaw'][0], self.command_ranges['ang_vel_yaw'][1], (len(env_ids), 1), device=self.device).squeeze(1)
 
-        self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
+        self.command_targets[env_ids, :2] *= (torch.norm(self.command_targets[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
 
         prob_zero = float(getattr(self.cfg.commands, 'prob_zero_command', 0.0))
         prob_neg = float(getattr(self.cfg.commands, 'prob_negative_command', 0.0))
@@ -297,21 +331,25 @@ class LeggedRobot(VecEnv):
             neg_mask = (draws >= prob_zero) & (draws < prob_zero + prob_neg)
             if zero_mask.any():
                 zero_ids = env_ids[zero_mask]
-                self.commands[zero_ids, :2] = 0.0
-                self.commands[zero_ids, 2] = 0.0
+                self.command_targets[zero_ids, :3] = 0.0
                 if self.cfg.commands.heading_command:
-                    self.commands[zero_ids, 3] = 0.0
+                    self.command_targets[zero_ids, 3] = self._current_heading(zero_ids)
             if neg_mask.any():
                 neg_ids = env_ids[neg_mask]
                 neg_range = getattr(self.cfg.commands, 'negative_lin_vel_x_range', [-0.3, -0.1])
                 count = int(neg_mask.sum().item())
-                self.commands[neg_ids, 0] = torch_rand_float(
+                self.command_targets[neg_ids, 0] = torch_rand_float(
                     float(neg_range[0]), float(neg_range[1]),
                     (count, 1), device=self.device,
                 ).squeeze(1)
-                self.commands[neg_ids, 1] = 0.0
+                self.command_targets[neg_ids, 1] = 0.0
                 if self.cfg.commands.heading_command:
-                    self.commands[neg_ids, 3] = 0.0
+                    self.command_targets[neg_ids, 3] = self._current_heading(neg_ids)
+
+        if initialize:
+            self.commands[env_ids, :3] = self._desired_velocity_commands(env_ids)
+            if self.cfg.commands.heading_command:
+                self.commands[env_ids, 3] = self.command_targets[env_ids, 3]
 
     def _compute_torques(self, actions):
         actions_scaled = actions * self.cfg.control.action_scale
@@ -438,6 +476,7 @@ class LeggedRobot(VecEnv):
         self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
 
         self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float, device=self.device)
+        self.command_targets = torch.zeros_like(self.commands)
         self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel], device=self.device)
         self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float, device=self.device)
         self.last_contacts = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device)
@@ -649,6 +688,13 @@ class LeggedRobot(VecEnv):
     def _parse_cfg(self, cfg):
         sim_dt = cfg.sim.dt if self.sim_params is None else self.sim_params.dt
         self.dt = self.cfg.control.decimation * sim_dt
+        soft_dof_pos_limit = float(self.cfg.rewards.soft_dof_pos_limit)
+        if not 0.0 <= soft_dof_pos_limit <= 1.0:
+            raise ValueError("soft_dof_pos_limit must be in [0, 1]")
+        for name in ("lin_vel_slew_rate", "ang_vel_yaw_slew_rate"):
+            value = float(getattr(self.cfg.commands, name))
+            if not np.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be finite and positive")
         self.obs_scales = self.cfg.normalization.obs_scales
         self.reward_scales = class_to_dict(self.cfg.rewards.scales)
         self.command_ranges = class_to_dict(self.cfg.commands.ranges)
@@ -747,6 +793,10 @@ class LeggedRobot(VecEnv):
     def _reward_action_rate(self):
         return torch.sum(torch.square(self.last_actions - self.actions), dim=1)
 
+    def _reward_action_magnitude(self):
+        """Penalize sustained large policy outputs, including constant saturation."""
+        return torch.sum(torch.square(self.actions), dim=1)
+
     def _reward_collision(self):
         if self.penalised_contact_indices.numel() == 0:
             return torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
@@ -759,9 +809,19 @@ class LeggedRobot(VecEnv):
         return self.reset_buf * (~self.time_out_buf)
 
     def _reward_dof_pos_limits(self):
-        out_of_limits = -(self.dof_pos - self.dof_pos_limits[:, 0]).clip(max=0.0)
-        out_of_limits += (self.dof_pos - self.dof_pos_limits[:, 1]).clip(min=0.0)
-        return torch.sum(out_of_limits, dim=1)
+        lower = self.dof_pos_limits[:, 0]
+        upper = self.dof_pos_limits[:, 1]
+        midpoint = 0.5 * (lower + upper)
+        soft_half_range = (
+            0.5
+            * (upper - lower)
+            * float(self.cfg.rewards.soft_dof_pos_limit)
+        )
+        soft_lower = midpoint - soft_half_range
+        soft_upper = midpoint + soft_half_range
+        below = (soft_lower - self.dof_pos).clip(min=0.0)
+        above = (self.dof_pos - soft_upper).clip(min=0.0)
+        return torch.sum(below + above, dim=1)
 
     def _reward_dof_vel_limits(self):
         return torch.sum(

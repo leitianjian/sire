@@ -68,6 +68,10 @@ class LeggedRobotCfg(BaseConfig):
         num_commands = 4
         resampling_time = 10.0
         heading_command = True
+        smooth_commands = True
+        # Maximum change of the command presented to the policy per second.
+        lin_vel_slew_rate = 4.0
+        ang_vel_yaw_slew_rate = 8.0
 
         class ranges:
             lin_vel_x = [-1.0, 1.0]
@@ -139,6 +143,7 @@ class LeggedRobotCfg(BaseConfig):
             collision = -1.0
             feet_stumble = -0.0
             action_rate = -0.01
+            action_magnitude = -0.0
             stand_still = -0.0
 
         only_positive_rewards = False
@@ -184,6 +189,13 @@ class LeggedRobotCfg(BaseConfig):
         # the full environment lifetime and includes the calling thread.
         sire_batch_threads = 0
         sire_diagnostics = False
+        # Isolate rare native numerical failures. A lifetime threshold scales
+        # poorly with long runs and many environments, so zero disables it.
+        # The sliding fraction is recoveries per environment control step.
+        sire_max_recoveries_per_step = 8
+        sire_max_total_recoveries = 0
+        sire_recovery_window_steps = 1000
+        sire_max_recovery_fraction = 1e-4
         gravity = [0.0, 0.0, -9.81]
         up_axis = 1
 

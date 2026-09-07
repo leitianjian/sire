@@ -51,5 +51,9 @@ try:
   for name in dir(sire):
     if not name.startswith('_'):
       setattr(sys.modules[__name__], name, getattr(sire, name))
-except ImportError:
-  warnings.warn("C++ extension not available")
+except ImportError as error:
+  raise ImportError(
+      f"Sire native extension could not be loaded by {sys.executable}. "
+      "Build it with the same project venv using python/build_native.py. "
+      f"Original error: {error}"
+  ) from error

@@ -70,6 +70,12 @@ class GO2RoughCfg(LeggedRobotCfg):
         # 1 kHz physics / 20 = 50 Hz policy control (20 ms period).
         decimation = 20
 
+    class normalization(LeggedRobotCfg.normalization):
+        # With action_scale=0.25 this limits the PD position-target offset to
+        # +/-1 rad. The former +/-100 guard allowed a saturated policy to ask
+        # for targets tens of radians beyond the physical joint range.
+        clip_actions = 4.0
+
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/flat.xml'
         name = 'go2'
@@ -90,6 +96,9 @@ class GO2RoughCfg(LeggedRobotCfg):
             torques = -0.0001
             dof_pos_limits = -10.0
             action_rate = -0.01
+            # Penalize a constant saturated command, which action_rate alone
+            # cannot see once two consecutive actions are equal.
+            action_magnitude = -0.001
             orientation = -5.0
             base_height = -10.0
             dof_vel = -5.0e-4

@@ -60,10 +60,6 @@ auto cptInitialCondition(
     double* realDepthX0, double* v0) -> double;
 }  // namespace sire::physics::contact::ps_vs_solver3
 
-// TODO: temp debug logging
-#undef DLOG
-#define DLOG(level) LOG(INFO)
-
 namespace sire::physics::contact::ps_vs_solver_v5 {
 
 using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
@@ -523,7 +519,10 @@ auto PsVsSolverV5::cptContactSolverResult(
 
   if (n == 0) {
     auto eventPtr = createNextEvent();
-    simulator_ptr->recorder().recordModelState(*modelPtr);
+    if (simulator_ptr->recorder().historyEnabled()) {
+      // updPs below computes dynamics itself; this extra solve is for history.
+      simulator_ptr->recorder().recordModelState(*modelPtr);
+    }
     simulator_ptr->recorder().recordContactPairResults({});
     double dt = result.dt;
     simulator_ptr->recorder().recordDt(dt);
@@ -683,7 +682,10 @@ auto PsVsSolverV5::cptContactSolverResult(
     aris::dynamic::s_va(6, fs, fs_B); force_B.setFce(fs_B);
   }
 
-  simulator_ptr->recorder().recordModelState(*modelPtr);
+  if (simulator_ptr->recorder().historyEnabled()) {
+    // updPs below computes dynamics itself; this extra solve is for history.
+    simulator_ptr->recorder().recordModelState(*modelPtr);
+  }
   simulator_ptr->recorder().recordPenetrationPairs(penetration_pairs);
   simulator_ptr->recorder().recordContactPairResults(pairResults);
   simulator_ptr->recorder().recordDt(minTime);

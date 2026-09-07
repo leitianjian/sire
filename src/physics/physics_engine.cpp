@@ -1,8 +1,11 @@
 #include "sire/physics/physics_engine.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <map>
 #include <memory>
+#include <stdexcept>
 #include <unordered_map>
 
 #include <aris/core/reflection.hpp>
@@ -22,6 +25,7 @@
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 #include "sire/physics/common/point_pair_contact_info.hpp"
 #include "sire/physics/contact/contact_solver_result.hpp"
+#include "sire/simulator/simulation_loop.hpp"
 // #include "sire/physics/contact/stiffness_damping_contact_solver.hpp"
 #include "sire/physics/contact/avg_force_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
@@ -53,6 +57,18 @@ struct PhysicsEngine::Imp {
   bool collision_detection_flag_{false};
   // Contact solver enabled options
   bool contact_solver_flag_{false};
+  std::string joint_limit_method_{"shifted_ncp"};
+  double joint_limit_activation_margin_{1e-4};
+  double joint_limit_recovery_factor_{0.5};
+  double joint_limit_emergency_tolerance_{1e-4};
+  double joint_limit_max_force_{1e6};
+  sire::Size joint_limit_max_iterations_{30};
+  double joint_limit_tolerance_{1e-8};
+  sire::Size joint_limit_last_active_count_{0};
+  sire::Size joint_limit_last_iterations_{0};
+  double joint_limit_last_residual_{0.0};
+  double joint_limit_last_max_reaction_{0.0};
+  sire::Size joint_limit_last_saturated_count_{0};
 
   // Self management data.
   std::unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
@@ -200,6 +216,91 @@ auto PhysicsEngine::contactSolverFlag() const -> bool {
 }
 auto PhysicsEngine::setContactSolverFlag(bool flag) -> void {
   imp_->contact_solver_flag_ = flag;
+}
+auto PhysicsEngine::setJointLimitMethod(const std::string& method) -> void {
+  if (method != "shifted_ncp" && method != "projection" &&
+      method != "disabled") {
+    throw std::invalid_argument(
+        "joint_limit_method must be shifted_ncp, projection, or disabled");
+  }
+  imp_->joint_limit_method_ = method;
+}
+auto PhysicsEngine::jointLimitMethod() const -> std::string {
+  return imp_->joint_limit_method_;
+}
+auto PhysicsEngine::setJointLimitActivationMargin(double margin) -> void {
+  if (!std::isfinite(margin) || margin < 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_activation_margin must be finite and nonnegative");
+  }
+  imp_->joint_limit_activation_margin_ = margin;
+}
+auto PhysicsEngine::jointLimitActivationMargin() const -> double {
+  return imp_->joint_limit_activation_margin_;
+}
+auto PhysicsEngine::setJointLimitRecoveryFactor(double factor) -> void {
+  if (!std::isfinite(factor) || factor <= 0.0 || factor > 1.0) {
+    throw std::invalid_argument(
+        "joint_limit_recovery_factor must be in (0, 1]");
+  }
+  imp_->joint_limit_recovery_factor_ = factor;
+}
+auto PhysicsEngine::jointLimitRecoveryFactor() const -> double {
+  return imp_->joint_limit_recovery_factor_;
+}
+auto PhysicsEngine::setJointLimitEmergencyTolerance(double tolerance) -> void {
+  if (!std::isfinite(tolerance) || tolerance < 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_emergency_tolerance must be finite and nonnegative");
+  }
+  imp_->joint_limit_emergency_tolerance_ = tolerance;
+}
+auto PhysicsEngine::jointLimitEmergencyTolerance() const -> double {
+  return imp_->joint_limit_emergency_tolerance_;
+}
+auto PhysicsEngine::setJointLimitMaxForce(double force) -> void {
+  if (!std::isfinite(force) || force <= 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_max_force must be finite and positive");
+  }
+  imp_->joint_limit_max_force_ = force;
+}
+auto PhysicsEngine::jointLimitMaxForce() const -> double {
+  return imp_->joint_limit_max_force_;
+}
+auto PhysicsEngine::setJointLimitMaxIterations(sire::Size iterations) -> void {
+  if (iterations == 0) {
+    throw std::invalid_argument("joint_limit_max_iterations must be positive");
+  }
+  imp_->joint_limit_max_iterations_ = iterations;
+}
+auto PhysicsEngine::jointLimitMaxIterations() const -> sire::Size {
+  return imp_->joint_limit_max_iterations_;
+}
+auto PhysicsEngine::setJointLimitTolerance(double tolerance) -> void {
+  if (!std::isfinite(tolerance) || tolerance <= 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_tolerance must be finite and positive");
+  }
+  imp_->joint_limit_tolerance_ = tolerance;
+}
+auto PhysicsEngine::jointLimitTolerance() const -> double {
+  return imp_->joint_limit_tolerance_;
+}
+auto PhysicsEngine::jointLimitLastActiveCount() const -> sire::Size {
+  return imp_->joint_limit_last_active_count_;
+}
+auto PhysicsEngine::jointLimitLastIterations() const -> sire::Size {
+  return imp_->joint_limit_last_iterations_;
+}
+auto PhysicsEngine::jointLimitLastResidual() const -> double {
+  return imp_->joint_limit_last_residual_;
+}
+auto PhysicsEngine::jointLimitLastMaxReaction() const -> double {
+  return imp_->joint_limit_last_max_reaction_;
+}
+auto PhysicsEngine::jointLimitLastSaturatedCount() const -> sire::Size {
+  return imp_->joint_limit_last_saturated_count_;
 }
 auto PhysicsEngine::resetCollisionFilter(collision::CollisionFilter* filter)
     -> void {
@@ -518,6 +619,7 @@ auto PhysicsEngine::cptContactInfo(
   contact::ContactSolverResult solver_result;
   solver_result.dt = suggestTime;
 
+  applyJointLimitForces(suggestTime);
   {
     SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
     imp_->contact_solver_->cptContactSolverResult(
@@ -567,6 +669,7 @@ auto PhysicsEngine::cptContactInfo(
   solver_result.dt = suggestTime;
   std::vector<std::array<double, 16>> T_C_vec;
 
+  applyJointLimitForces(suggestTime);
   {
     SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
     imp_->contact_solver_->cptContactSolverResult(
@@ -613,6 +716,7 @@ auto PhysicsEngine::integrateByContactInfo(
   contact::ContactSolverResult solver_result;
   solver_result.dt = suggestTime;
   std::vector<std::array<double, 16>> T_C_vec;
+  applyJointLimitForces(suggestTime);
   imp_->contact_solver_->cptContactSolverResult(
       imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
 }
@@ -724,15 +828,243 @@ auto PhysicsEngine::cptGlbForceByContactInfo(
   }
   return true;
 }
+auto PhysicsEngine::enforceJointLimitSafety() -> bool {
+  auto& model = *imp_->model_ptr_;
+  auto& motionPool = model.motionPool();
+  if (imp_->joint_limit_method_ == "disabled") return false;
+
+  const double tolerance = imp_->joint_limit_method_ == "projection"
+                               ? 0.0
+                               : imp_->joint_limit_emergency_tolerance_;
+  bool projected_joint_state = false;
+  for (sire::Size i{0}; i < motionPool.size(); ++i) {
+    auto& motion = motionPool[i];
+    if (!motion.active()) continue;
+    if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion);
+        actuator != nullptr) {
+      projected_joint_state |= actuator->enforcePositionLimits(tolerance);
+    }
+  }
+  if (projected_joint_state) {
+    model.forwardKinematics();
+    model.forwardKinematicsVel();
+  }
+  return projected_joint_state;
+}
+
+auto PhysicsEngine::applyJointLimitForces(double dt) -> void {
+  SIRE_PROFILE_SCOPE("physics/jointLimitNcp");
+  imp_->joint_limit_last_active_count_ = 0;
+  imp_->joint_limit_last_iterations_ = 0;
+  imp_->joint_limit_last_residual_ = 0.0;
+  imp_->joint_limit_last_max_reaction_ = 0.0;
+  imp_->joint_limit_last_saturated_count_ = 0;
+  if (imp_->joint_limit_method_ != "shifted_ncp" || !(dt > 0.0) ||
+      !std::isfinite(dt)) {
+    return;
+  }
+
+  struct ActiveLimit {
+    aris::dynamic::Motion* motion;
+    aris::dynamic::SingleComponentForce* force;
+    double sign;
+    double distance;
+    double base_force;
+  };
+
+  auto& model = *imp_->model_ptr_;
+  std::vector<ActiveLimit> active_limits;
+  active_limits.reserve(model.motionPool().size());
+  const double margin = imp_->joint_limit_activation_margin_;
+  for (auto& motion : model.motionPool()) {
+    if (!motion.active()) continue;
+    auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion);
+    if (actuator == nullptr || actuator->fcePtr() == nullptr) continue;
+
+    const double position = motion.mp();
+    const double velocity = motion.mv();
+    if (!std::isfinite(position) || !std::isfinite(velocity)) {
+      throw std::runtime_error("joint state contains NaN or Inf");
+    }
+    const double predicted_position = position + dt * velocity;
+    if (std::isfinite(actuator->minPosition()) &&
+        (position <= actuator->minPosition() + margin ||
+         predicted_position <= actuator->minPosition() + margin)) {
+      active_limits.push_back({&motion, actuator->fcePtr(), 1.0,
+                               position - actuator->minPosition(),
+                               actuator->fcePtr()->fce()});
+    }
+    if (std::isfinite(actuator->maxPosition()) &&
+        (position >= actuator->maxPosition() - margin ||
+         predicted_position >= actuator->maxPosition() - margin)) {
+      active_limits.push_back({&motion, actuator->fcePtr(), -1.0,
+                               actuator->maxPosition() - position,
+                               actuator->fcePtr()->fce()});
+    }
+  }
+  if (active_limits.empty()) return;
+
+  aris::dynamic::ForwardDynamicSolver* dynamics = nullptr;
+  for (auto& solver : model.solverPool()) {
+    if (auto* candidate =
+            dynamic_cast<aris::dynamic::ForwardDynamicSolver*>(&solver);
+        candidate != nullptr) {
+      dynamics = candidate;
+      break;
+    }
+  }
+  if (dynamics == nullptr) {
+    throw std::runtime_error(
+        "shifted_ncp joint limits require a ForwardDynamicSolver");
+  }
+
+  // Contact reactions from the previous event must not enter the free-motion
+  // acceleration used by the joint-limit NCP. The RAII object restores every
+  // force's active flag on exit.
+  FceActiveStateRecorder active_state(&model);
+  activateContactForce(false);
+
+  const auto refresh_motion_acceleration = [&]() {
+    if (dynamics->dynAccAndFce() != 0) {
+      throw std::runtime_error(
+          "forward dynamics failed while assembling joint limits");
+    }
+    for (auto& motion : model.motionPool()) motion.updA();
+  };
+
+  refresh_motion_acceleration();
+  const sire::Size count = active_limits.size();
+  std::vector<double> free_acceleration(count, 0.0);
+  std::vector<double> free_velocity(count, 0.0);
+  for (sire::Size i = 0; i < count; ++i) {
+    free_acceleration[i] = active_limits[i].motion->ma();
+    free_velocity[i] =
+        active_limits[i].sign *
+        (active_limits[i].motion->mv() + dt * free_acceleration[i]);
+  }
+
+  // Build W = J M^-1 J^T with signed unit generalized-force probes. This is
+  // independent of the selected contact solver and only runs near a limit.
+  std::vector<double> inverse_mass(count * count, 0.0);
+  for (sire::Size column = 0; column < count; ++column) {
+    auto& limit = active_limits[column];
+    limit.force->setFce(limit.base_force + limit.sign);
+    refresh_motion_acceleration();
+    for (sire::Size row = 0; row < count; ++row) {
+      inverse_mass[row * count + column] =
+          active_limits[row].sign *
+          (active_limits[row].motion->ma() - free_acceleration[row]);
+    }
+    limit.force->setFce(limit.base_force);
+  }
+
+  // Numerical probes can introduce slight asymmetry. Symmetrizing preserves
+  // the positive-semidefinite Delassus structure expected by the NCP.
+  for (sire::Size row = 0; row < count; ++row) {
+    for (sire::Size column = row + 1; column < count; ++column) {
+      const double symmetric =
+          0.5 * (inverse_mass[row * count + column] +
+                 inverse_mass[column * count + row]);
+      inverse_mass[row * count + column] = symmetric;
+      inverse_mass[column * count + row] = symmetric;
+    }
+  }
+
+  std::vector<double> reaction(count, 0.0);
+  std::vector<double> offset(count, 0.0);
+  // Recovery is a physical-time correction.  An event-refined substep can be
+  // orders of magnitude shorter than the nominal physics step; asking for the
+  // same fraction of position error to be removed in that tiny interval would
+  // create target velocities and forces proportional to 1/dt.  Keep boundary
+  // prediction tied to the actual interval, but recover an already violated
+  // limit over at least one nominal physics step.
+  const double nominal_dt =
+      imp_->simulation_loop_ptr_ == nullptr
+          ? dt
+          : imp_->simulation_loop_ptr_->deltaT();
+  const double recovery_horizon =
+      std::isfinite(nominal_dt) && nominal_dt > 0.0
+          ? std::max(dt, nominal_dt)
+          : dt;
+  for (sire::Size i = 0; i < count; ++i) {
+    const double distance = active_limits[i].distance;
+    // Inside the valid interval, allow motion up to the boundary. Once
+    // outside, recover over the nominal-step horizon defined above.
+    const double target_velocity =
+        distance >= 0.0
+            ? -distance / dt
+            : -imp_->joint_limit_recovery_factor_ * distance /
+                  recovery_horizon;
+    offset[i] = free_velocity[i] - target_velocity;
+  }
+
+  double inverse_mass_scale = 0.0;
+  for (sire::Size i = 0; i < count; ++i) {
+    inverse_mass_scale = std::max(
+        inverse_mass_scale, std::abs(inverse_mass[i * count + i]));
+  }
+  // Regularize W before multiplying by dt.  A fixed floor on dt*W changes the
+  // NCP as an event substep shrinks; this floor follows dt and only protects a
+  // numerically zero/negative diagonal.
+  const double inverse_mass_regularization =
+      64 * std::numeric_limits<double>::epsilon() *
+      std::max(1.0, inverse_mass_scale);
+  double residual = std::numeric_limits<double>::infinity();
+  sire::Size iterations = 0;
+  for (sire::Size iteration = 0;
+       iteration < imp_->joint_limit_max_iterations_; ++iteration) {
+    iterations = iteration + 1;
+    residual = 0.0;
+    for (sire::Size row = 0; row < count; ++row) {
+      double velocity_error = offset[row];
+      for (sire::Size column = 0; column < count; ++column) {
+        velocity_error +=
+            dt * inverse_mass[row * count + column] * reaction[column];
+      }
+      const double diagonal =
+          dt * std::max(inverse_mass[row * count + row],
+                        inverse_mass_regularization);
+      const double old_reaction = reaction[row];
+      reaction[row] = std::clamp(old_reaction - velocity_error / diagonal,
+                                 0.0, imp_->joint_limit_max_force_);
+      residual = std::max(residual,
+                          std::abs(reaction[row] - old_reaction) * diagonal);
+    }
+    if (residual <= imp_->joint_limit_tolerance_) break;
+  }
+
+  // Add mechanical stop reactions after the motor force has been clamped.
+  // Limit reactions are intentionally not restricted by motor effort limits.
+  double max_reaction = 0.0;
+  sire::Size saturated_reactions = 0;
+  for (sire::Size i = 0; i < count; ++i) {
+    auto& limit = active_limits[i];
+    limit.force->setFce(limit.force->fce() + limit.sign * reaction[i]);
+    max_reaction = std::max(max_reaction, reaction[i]);
+    if (reaction[i] >= imp_->joint_limit_max_force_) ++saturated_reactions;
+  }
+  imp_->joint_limit_last_active_count_ = count;
+  imp_->joint_limit_last_iterations_ = iterations;
+  imp_->joint_limit_last_residual_ = residual;
+  imp_->joint_limit_last_max_reaction_ = max_reaction;
+  imp_->joint_limit_last_saturated_count_ = saturated_reactions;
+  SIRE_PROFILE_PLOT("joint_limit.active", static_cast<double>(count));
+  SIRE_PROFILE_PLOT("joint_limit.iterations", static_cast<double>(iterations));
+  SIRE_PROFILE_PLOT("joint_limit.residual", residual);
+  SIRE_PROFILE_PLOT("joint_limit.max_reaction", max_reaction);
+  SIRE_PROFILE_PLOT("joint_limit.saturated",
+                    static_cast<double>(saturated_reactions));
+}
+
 auto PhysicsEngine::fwdActuators() -> void {
   auto& model = *imp_->model_ptr_;
+  enforceJointLimitSafety();
   auto& motionPool = model.motionPool();
   for (sire::Size i{0}; i < motionPool.size(); ++i) {
     auto& motion = motionPool[i];
     if (!motion.active()) continue;
     if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion);
         actuator != nullptr) {
-      // std::cout << i << " ";
       actuator->forward();
     }
   }
@@ -758,6 +1090,24 @@ ARIS_REGISTRATION {
             &PhysicsEngine::collisionDetectionFlag)
       .prop("enable_contact_solver", &PhysicsEngine::setContactSolverFlag,
             &PhysicsEngine::contactSolverFlag)
+      .prop("joint_limit_method", &PhysicsEngine::setJointLimitMethod,
+            &PhysicsEngine::jointLimitMethod)
+      .prop("joint_limit_activation_margin",
+            &PhysicsEngine::setJointLimitActivationMargin,
+            &PhysicsEngine::jointLimitActivationMargin)
+      .prop("joint_limit_recovery_factor",
+            &PhysicsEngine::setJointLimitRecoveryFactor,
+            &PhysicsEngine::jointLimitRecoveryFactor)
+      .prop("joint_limit_emergency_tolerance",
+            &PhysicsEngine::setJointLimitEmergencyTolerance,
+            &PhysicsEngine::jointLimitEmergencyTolerance)
+      .prop("joint_limit_max_force", &PhysicsEngine::setJointLimitMaxForce,
+            &PhysicsEngine::jointLimitMaxForce)
+      .prop("joint_limit_max_iterations",
+            &PhysicsEngine::setJointLimitMaxIterations,
+            &PhysicsEngine::jointLimitMaxIterations)
+      .prop("joint_limit_tolerance", &PhysicsEngine::setJointLimitTolerance,
+            &PhysicsEngine::jointLimitTolerance)
       .prop("collision_detection", &PhysicsEngine::resetCollisionDetection,
             CollisionDetectionFunc(&PhysicsEngine::collisionDetection))
       .prop("contact_solver", &PhysicsEngine::resetContactSolver,

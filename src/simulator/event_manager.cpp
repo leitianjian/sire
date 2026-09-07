@@ -1,5 +1,6 @@
 #include "sire/simulator/event_manager.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <list>
 #include <map>
@@ -22,6 +23,15 @@
 #include "log/easyloggingConfig.hpp"
 
 namespace sire::simulator {
+namespace {
+auto coincidentEventTolerance(double simulation_dt, double control_dt)
+    -> double {
+  // Preserve the existing 1 us small-remainder guard at the usual 1 ms
+  // physics step, while preventing that absolute value from swallowing one or
+  // more events when a caller configures a sub-microsecond nominal step.
+  return std::min(1e-6, 1e-3 * std::min(simulation_dt, control_dt));
+}
+}  // namespace
 struct EventManager::Imp {
   SimulationLoop* simulationLoopPtr_;
   // prevCtrlTime <= prevIntTime_
@@ -148,7 +158,9 @@ auto EventManager::cptNextCtrlSimSuggestDt() -> double {
   DLOG(DEBUG) << "next ctrl time " << nextCtrlTime << " next sim time "
               << nextSimTime;
   if (nextCtrlTime < nextSimTime ||
-      aris::dynamic::s_is_equal(nextCtrlTime, nextSimTime, 1e-6)) {
+      aris::dynamic::s_is_equal(
+          nextCtrlTime, nextSimTime,
+          coincidentEventTolerance(simDt, ctrlDt))) {
     nextCtrlSimSuggestDt =
         nextCtrlTime - imp_->simulationLoopPtr_->timer().simTime();
     imp_->nextEventId_ = 2;

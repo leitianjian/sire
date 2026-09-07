@@ -90,6 +90,43 @@ void init_physics(py::module& m) {
       .def_property("contactSolverFlag",
                     &sire::physics::PhysicsEngine::contactSolverFlag,
                     &sire::physics::PhysicsEngine::setContactSolverFlag)
+      .def_property("jointLimitMethod",
+                    &sire::physics::PhysicsEngine::jointLimitMethod,
+                    &sire::physics::PhysicsEngine::setJointLimitMethod)
+      .def_property("jointLimitActivationMargin",
+                    &sire::physics::PhysicsEngine::jointLimitActivationMargin,
+                    &sire::physics::PhysicsEngine::setJointLimitActivationMargin)
+      .def_property("jointLimitRecoveryFactor",
+                    &sire::physics::PhysicsEngine::jointLimitRecoveryFactor,
+                    &sire::physics::PhysicsEngine::setJointLimitRecoveryFactor)
+      .def_property(
+          "jointLimitEmergencyTolerance",
+          &sire::physics::PhysicsEngine::jointLimitEmergencyTolerance,
+          &sire::physics::PhysicsEngine::setJointLimitEmergencyTolerance)
+      .def_property("jointLimitMaxForce",
+                    &sire::physics::PhysicsEngine::jointLimitMaxForce,
+                    &sire::physics::PhysicsEngine::setJointLimitMaxForce)
+      .def_property("jointLimitMaxIterations",
+                    &sire::physics::PhysicsEngine::jointLimitMaxIterations,
+                    &sire::physics::PhysicsEngine::setJointLimitMaxIterations)
+      .def_property("jointLimitTolerance",
+                    &sire::physics::PhysicsEngine::jointLimitTolerance,
+                    &sire::physics::PhysicsEngine::setJointLimitTolerance)
+      .def_property_readonly(
+          "jointLimitLastActiveCount",
+          &sire::physics::PhysicsEngine::jointLimitLastActiveCount)
+      .def_property_readonly(
+          "jointLimitLastIterations",
+          &sire::physics::PhysicsEngine::jointLimitLastIterations)
+      .def_property_readonly(
+          "jointLimitLastResidual",
+          &sire::physics::PhysicsEngine::jointLimitLastResidual)
+      .def_property_readonly(
+          "jointLimitLastMaxReaction",
+          &sire::physics::PhysicsEngine::jointLimitLastMaxReaction)
+      .def_property_readonly(
+          "jointLimitLastSaturatedCount",
+          &sire::physics::PhysicsEngine::jointLimitLastSaturatedCount)
       .def_property("geometryPool", &sire::physics::PhysicsEngine::geometryPool,
                     &sire::physics::PhysicsEngine::resetGeometryPool)
       .def("numGeometries", &sire::physics::PhysicsEngine::numGeometries)

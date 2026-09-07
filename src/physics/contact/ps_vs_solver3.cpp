@@ -774,9 +774,15 @@ auto findSinglePointContactEndTime(sire::Size nContact, double suggestDt,
   }
   double scanStep = maxStep;
   if (fastestRate > 0) scanStep = std::min(scanStep, 1 / (32 * fastestRate));
-  const double timeTolerance =
-      std::max(32 * std::numeric_limits<double>::epsilon() * suggestDt,
-               std::min(1e-12, suggestDt * 1e-8));
+  // Resolve a fixed fraction of the current search horizon, with an absolute
+  // 10 ns cap for ordinary simulation steps.  Using a fixed ultra-small
+  // tolerance makes event-refined steps do just as much root work even when
+  // their entire horizon is only 1e-7 s.  The machine floor is expressed at
+  // the scale of the global simulation clock, where the returned dt is added.
+  const double timeTolerance = std::max(
+      64 * std::numeric_limits<double>::epsilon() *
+          std::max(1.0, std::abs(suggestDt)),
+      std::min(1e-8, suggestDt * 1e-4));
   int scanEvaluations = 0, rootEvaluations = 0, interpolationSteps = 0;
   int bisectionSteps = 0, confirmations = 0;
   int polynomialHits = 0, polynomialFallbacks = 0, polynomialSegments = 0;
@@ -800,6 +806,7 @@ auto findSinglePointContactEndTime(sire::Size nContact, double suggestDt,
     SIRE_PROFILE_PLOT("contact_time.max_rate", fastestRate);
     SIRE_PROFILE_PLOT("contact_time.max_frequency", fastestFrequency);
     SIRE_PROFILE_PLOT("contact_time.max_scan_step", maxStep);
+    SIRE_PROFILE_PLOT("contact_time.time_tolerance", timeTolerance);
     SIRE_PROFILE_PLOT("contact_time.scan_evaluations", static_cast<double>(scanEvaluations));
     SIRE_PROFILE_PLOT("contact_time.root_evaluations", static_cast<double>(rootEvaluations));
     SIRE_PROFILE_PLOT("contact_time.interpolation_steps", static_cast<double>(interpolationSteps));
@@ -2473,8 +2480,15 @@ auto PsVsSolver3::cptContactSolverResult(
                        : -1;
   DLOG(DEBUG) << " minTime: " << minTime << " b: " << b << " A: " << A
               << " x0: " << x0 << " stiffScale: " << stiffScale;
-  imp_->records["currentTime"].push_back(modelPtr->time());
-  imp_->records["minTime"].push_back(minTime);
+  // Solver diagnostics must not accumulate for the lifetime of an RL job.
+  auto* debug_loop = enginePtr->simLoopPtr();
+  if (debug_loop != nullptr && debug_loop->recorder().historyEnabled()) {
+    auto& times = imp_->records["currentTime"];
+    if (times.size() < 4096) {
+      times.push_back(modelPtr->time());
+      imp_->records["minTime"].push_back(minTime);
+    }
+  }
   // 没有零点的情况下，取A中的最大值作为参考计算步长（修改为采用suggest_dt作为步长，不变result.dt）
   if (minTime <= 0) {
     minTime = result.dt;
@@ -3394,7 +3408,12 @@ auto cptContactForceWithTargetState4(
     // 衰减松弛因子
     alpha_val = alpha_min + gamma * (alpha_val - alpha_min);
 
-    error = max_change;
+    // Contact force grows roughly as 1/h when the same velocity correction is
+    // requested over a shorter interval.  Use a relative force update so a
+    // refined event step does not make the fixed absolute tolerance
+    // artificially harder to reach.
+    const double force_scale = std::max(1.0, f.cwiseAbs().maxCoeff());
+    error = max_change / force_scale;
     SIRE_PROFILE_PLOT("ps_vs.v4.outer_iter", static_cast<double>(outer_used));
     SIRE_PROFILE_PLOT("ps_vs.v4.error", error);
 

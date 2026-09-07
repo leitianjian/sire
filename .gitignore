@@ -132,6 +132,7 @@ MUJOCO_LOG.txt
 
 # Local diagnostic note; intentionally never committed.
 /LOCAL_MEMORY_ISSUE.txt
+/python/src/sire/native/_runtime/
 
 # Local toolchains and dependency installs.
 /.deps/
