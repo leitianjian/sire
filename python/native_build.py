@@ -69,6 +69,14 @@ def build_plan(config, profile=None):
     base = Path(config.get('build_dir') or REPO_ROOT / 'build' / 'python') / tag
     stage = Path(config.get('install_dir') or REPO_ROOT / 'build' / 'python-install') / tag
     runtime = PYTHON_ROOT / 'src' / 'sire' / 'native' / '_runtime' / runtime_tag()
+    def dependency_prefix(value):
+        if not value:
+            return ''
+        path = Path(value)
+        # Windows dependency installs are split into Debug/Release folders.
+        # Unix installations use a single prefix such as /usr or /usr/local.
+        return str(path / mode) if os.name == 'nt' else str(path)
+
     defines = {
         'BUILD_PYTHON': True, 'BUILD_DEMO': bool(config['build_demo']),
         'BUILD_TEST': bool(config['build_test']), 'SIRE_ENABLE_TRACY': profile == 'profile',
@@ -76,8 +84,8 @@ def build_plan(config, profile=None):
             bool(config['sire_clarabel_force_source_build']),
         'CMAKE_BUILD_TYPE': mode, 'PYTHON_EXECUTABLE': sys.executable,
         'TARGET_ARIS_PATH': config.get('aris_path', ''),
-        'TARGET_HPP_FCL_PATH': str(Path(config.get('fcl_path', '')) / mode),
-        'TARGET_STDUUID_PATH': str(Path(config.get('uuid_path', '')) / mode),
+        'TARGET_HPP_FCL_PATH': dependency_prefix(config.get('fcl_path', '')),
+        'TARGET_STDUUID_PATH': dependency_prefix(config.get('uuid_path', '')),
     }
     if config.get('toolchain_path'):
         defines['CMAKE_TOOLCHAIN_FILE'] = config['toolchain_path']
@@ -157,6 +165,10 @@ def build_native(profile=None, jobs=None, dry_run=False):
     from cmake_py import _create_build_env
     from cmake_py.cmake import CMake
     env = _create_build_env()
+    # pip does not necessarily activate the venv before invoking build_ext.
+    # Make its cmake/ninja executables discoverable on every platform.
+    executable_dir = str(Path(sys.executable).resolve().parent)
+    env['PATH'] = executable_dir + os.pathsep + env.get('PATH', os.environ.get('PATH', ''))
     env['USE_NINJA'] = '1'
     env['CMAKE_GENERATOR'] = 'Ninja'
     env['CMAKE_BUILD_TYPE'] = plan['mode']
