@@ -1215,6 +1215,70 @@ class LeggedRobotSire(VecEnv):
             f"Sire environment failed: {type(error).__name__}: {error}\n{state}"
         )
 
+    def _apply_sire_domain_randomization(self, sim, model):
+        """Apply fixed per-environment dynamics randomization before init()."""
+        rand_cfg = self.cfg.domain_rand
+
+        nominal_friction = float(getattr(rand_cfg, "sire_nominal_friction", 0.6))
+        friction = nominal_friction
+        if getattr(rand_cfg, "randomize_friction", False):
+            low, high = map(float, rand_cfg.friction_range)
+            if low <= 0.0 or high < low:
+                raise ValueError(f"Invalid friction_range: {rand_cfg.friction_range}")
+            friction = float(np.random.uniform(low, high))
+
+        material_pair = getattr(rand_cfg, "sire_material_pair", ["m1", "m1"])
+        if len(material_pair) != 2:
+            raise ValueError("domain_rand.sire_material_pair must contain two names")
+        material_prop = (
+            "{"
+            f"k:{float(getattr(rand_cfg, 'sire_contact_k', 2.0e8)):.17g},"
+            f"d:{float(getattr(rand_cfg, 'sire_contact_d', 5.0e4)):.17g},"
+            f"cr:{float(getattr(rand_cfg, 'sire_contact_cr', 0.3)):.17g},"
+            f"cof:{friction:.17g},"
+            "threshold_velocity:"
+            f"{float(getattr(rand_cfg, 'sire_threshold_velocity', 0.3)):.17g}"
+            "}"
+        )
+        sim.physicsEngine().contactSolver().addMaterialPair(
+            str(material_pair[0]), str(material_pair[1]), material_prop
+        )
+
+        base_part = model.link(1)
+        base_iv = np.asarray(base_part.prtIv, dtype=np.float64).copy()
+        nominal_mass = float(base_iv[0])
+        mass_offset = 0.0
+        if getattr(rand_cfg, "randomize_base_mass", False):
+            low, high = map(float, rand_cfg.added_mass_range)
+            if high < low:
+                raise ValueError(
+                    f"Invalid added_mass_range: {rand_cfg.added_mass_range}"
+                )
+            mass_offset = float(np.random.uniform(low, high))
+            randomized_mass = nominal_mass + mass_offset
+            if randomized_mass <= 0.0:
+                raise ValueError(
+                    "Randomized base mass must be positive: "
+                    f"nominal={nominal_mass}, offset={mass_offset}"
+                )
+            # Aris stores first moments and inertia about the part origin.
+            # Preserve the original COM and inertia about the COM while changing
+            # mass, matching a rigid-body API whose mass is randomized separately.
+            com = base_iv[1:4] / nominal_mass
+            mass_delta = randomized_mass - nominal_mass
+            cx, cy, cz = com
+            base_iv[0] = randomized_mass
+            base_iv[1:4] = randomized_mass * com
+            base_iv[4] += mass_delta * (cy * cy + cz * cz)
+            base_iv[5] += mass_delta * (cx * cx + cz * cz)
+            base_iv[6] += mass_delta * (cx * cx + cy * cy)
+            base_iv[7] -= mass_delta * cx * cy
+            base_iv[8] -= mass_delta * cx * cz
+            base_iv[9] -= mass_delta * cy * cz
+            base_part.prtIv = base_iv.tolist()
+
+        return friction, mass_offset, nominal_mass
+
     # ------------------------------------------------------------------
     #  Sire environment construction
     # ------------------------------------------------------------------
@@ -1238,6 +1302,9 @@ class LeggedRobotSire(VecEnv):
         self._sire_dt_actual = {}  # per-env actual dt (pybind11 objects can't store arbitrary attrs)
         # TODO [5]: store physics engine per env
         self.sire_physics = []
+        friction_coeffs = []
+        base_mass_offsets = []
+        nominal_base_masses = []
         # TODO [6]: build geometry→part mapping per env for ground contact
         self._sire_geom_to_part = []
         self._sire_part_name_to_idx = {}
@@ -1271,6 +1338,12 @@ class LeggedRobotSire(VecEnv):
             sloop.deltaT = float(self.cfg.sim.dt)
             sloop.ctrlT = float(self.cfg.sim.dt) * self.cfg.control.decimation
 
+            friction, mass_offset, nominal_mass = (
+                self._apply_sire_domain_randomization(sim, model)
+            )
+            friction_coeffs.append(friction)
+            base_mass_offsets.append(mass_offset)
+            nominal_base_masses.append(nominal_mass)
             sim.init()
 
             # TODO [5][6]: populate per-env physics engine and geometry→part map
@@ -1288,6 +1361,25 @@ class LeggedRobotSire(VecEnv):
                 if g is not None:
                     gmap[int(g.id)] = int(g.prtId)
             self._sire_geom_to_part.append(gmap)
+
+        self.friction_coeffs = torch.tensor(
+            friction_coeffs, dtype=torch.float32, device=self.device
+        ).unsqueeze(1)
+        self.base_mass_offsets = torch.tensor(
+            base_mass_offsets, dtype=torch.float32, device=self.device
+        ).unsqueeze(1)
+        self.nominal_base_masses = torch.tensor(
+            nominal_base_masses, dtype=torch.float32, device=self.device
+        ).unsqueeze(1)
+        if getattr(self.cfg.sim, "sire_diagnostics", False):
+            print(
+                "[Sire domain randomization] "
+                f"friction=[{self.friction_coeffs.min().item():.3f}, "
+                f"{self.friction_coeffs.max().item():.3f}], "
+                f"base_mass_offset=[{self.base_mass_offsets.min().item():.3f}, "
+                f"{self.base_mass_offsets.max().item():.3f}]",
+                flush=True,
+            )
 
         # --- post Sire model creation: build Sire-native mappings ----------
         self.num_dof = self.num_actions

@@ -58,6 +58,13 @@ class GO2RoughCfg(LeggedRobotCfg):
         friction_range = [0.2, 2.5]
         randomize_base_mass = True
         added_mass_range = [-0.5, 1.5]
+        # Sire material metadata needed to rebuild the per-environment pair
+        # while changing only friction.
+        sire_material_pair = ['m1', 'm1']
+        sire_contact_k = 2.0e8
+        sire_contact_d = 5.0e4
+        sire_contact_cr = 0.3
+        sire_threshold_velocity = 0.3
         push_robots = False
         push_interval_s = 5
         max_push_vel_xy = 0.5

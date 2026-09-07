@@ -1,6 +1,7 @@
 // Auto-split from sire_bindings.cpp
 #include <array>
 #include <codecvt>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <locale>
@@ -583,6 +584,21 @@ void init_model(py::module& m) {
               throw std::runtime_error("Input array 'pq' size must be 7!");
             }
             self.setPq(pq.data());
+          })
+      .def_property(
+          "prtIv",
+          [](const aris::dynamic::Part& self) {
+            const auto& iv = self.prtIv();
+            return std::vector<double>(iv, iv + 10);
+          },
+          [](aris::dynamic::Part& self, const std::vector<double>& iv) {
+            if (iv.size() != 10) {
+              throw std::runtime_error("Input array 'prtIv' size must be 10!");
+            }
+            if (!std::isfinite(iv[0]) || iv[0] <= 0.0) {
+              throw std::runtime_error("Part mass prtIv[0] must be finite and positive!");
+            }
+            self.setPrtIv(iv.data());
           })
       .def("getAs",
            [](const aris::dynamic::Part& self) {
