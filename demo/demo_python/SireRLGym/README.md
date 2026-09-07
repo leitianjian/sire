@@ -59,6 +59,20 @@ Checkpoints and TensorBoard events are written below `logs/flat_go2/expN/`.
 Use `--resume auto` to resume the newest run, or pass a checkpoint path to
 `--resume`.
 
+Plot a completed run from its TensorBoard event, memory samples, and copied
+console log:
+
+```bash
+PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
+  demo/demo_python/SireRLGym/scripts/plot_training.py \
+  logs/flat_go2/expN
+```
+
+The script writes an overview figure, reward breakdown, scalar CSV, and JSON
+summary to `logs/flat_go2/expN/plots/`. Raw samples remain visible behind a
+three-sample EMA. Saved checkpoints and recovered physics failures are marked
+on the plots when their files are available in the run directory.
+
 ## 4. Regression and throughput checks
 
 ```bash

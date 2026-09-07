@@ -147,16 +147,59 @@ def _apply_fixed_start_state_mujoco(env):
 
 
 def _apply_fixed_start_state_sire(env):
-    """Sire version: use env.reset_idx() to set initial state."""
+    """Set the Sire rollout to the nominal pose with zero velocity."""
+    import sire
+
     env_ids = torch.arange(env.num_envs, device=env.device)
     env.reset_idx(env_ids)
+
+    env.dof_pos[:] = env.default_dof_pos
+    env.dof_vel.zero_()
+    env.root_states[:] = env.base_init_state
+    env.root_states[:, 7:13] = 0.0
+    env.actions.zero_()
+    env.last_actions.zero_()
+    env.last_dof_vel.zero_()
+    env.last_root_vel.zero_()
+
+    for eid in env_ids.tolist():
+        model = env.sire_models[eid]
+        mps = [0.0] * env._num_motions
+        for dof_idx, motion_idx in enumerate(env._motion_idx):
+            mps[int(motion_idx)] = float(env.default_dof_pos[0, dof_idx])
+        sire.setMotionMps(model, mps)
+        sire.setMotionMvs(model, [0.0] * env._num_motions)
+
+        physical_pq = env.base_init_state[:7].clone()
+        physical_pq[:3] += env._physics_origins[eid]
+        position = physical_pq[:3].cpu().tolist()
+        model.link(1).pq = physical_pq.cpu().tolist()
+        model.link(1).vs = sire.vp2vs(position, [0.0, 0.0, 0.0], [0.0, 0.0, 0.0])
+        model.forwardKinematics()
+        model.forwardKinematicsVel()
+
+    env._refresh_sim_tensors_sire()
+    env.base_quat[:] = env.root_states[:, 3:7]
+    env.base_lin_vel[:] = quat_rotate_inverse(env.base_quat, env.root_states[:, 7:10])
+    env.base_ang_vel[:] = quat_rotate_inverse(env.base_quat, env.root_states[:, 10:13])
+    env.projected_gravity[:] = quat_rotate_inverse(env.base_quat, env.gravity_vec)
+    if env.cfg.terrain.measure_heights:
+        env.measured_heights = env._get_heights()
+    env.episode_length_buf.zero_()
+    env.reset_buf.zero_()
+    env.time_out_buf.zero_()
     env.compute_observations()
 
 
 def _configure_commands(env, args):
-    env.commands[:, 0] = float(args.cmd_vx)
-    env.commands[:, 1] = float(args.cmd_vy)
-    env.commands[:, 2] = float(args.cmd_yaw)
+    command = torch.tensor(
+        [float(args.cmd_vx), float(args.cmd_vy), float(args.cmd_yaw)],
+        dtype=env.commands.dtype,
+        device=env.device,
+    )
+    env.commands[:, :3] = command
+    if hasattr(env, "command_targets"):
+        env.command_targets[:, :3] = command
     if env.commands.shape[1] > 3:
         if args.command_mode == "heading":
             if args.target_x is not None and args.target_y is not None:
@@ -168,8 +211,12 @@ def _configure_commands(env, args):
             heading_error = wrap_to_pi(target_heading - _current_heading(env))
             env.commands[:, 2] = torch.clamp(args.heading_kp * heading_error, -1.0, 1.0)
             env.commands[:, 3] = target_heading
+            if hasattr(env, "command_targets"):
+                env.command_targets[:, 3] = target_heading
         else:
             env.commands[:, 3] = _current_heading(env)
+            if hasattr(env, "command_targets"):
+                env.command_targets[:, 3] = env.commands[:, 3]
 
 
 def _should_use_idle_zero_actions(env, args) -> bool:
@@ -502,8 +549,15 @@ def main():
             env.enable_forced_terrain_level(int(forced_level))
     if use_sire:
         _apply_fixed_start_state_sire(env)
+        if args.meshcat:
+            # Record only the policy rollout. The old per-environment recording
+            # API was removed when SireRLBatchStepper became the active path.
+            env.setSireHistoryRecording(True)
+            env.resetSireRecorders()
     else:
         _apply_fixed_start_state_mujoco(env)
+    _configure_commands(env, args)
+    env.compute_observations()
     _print_play_config(env, args)
 
     actor, skipped = _load_deployment_actor(args.checkpoint, activation=args.activation)
