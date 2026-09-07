@@ -57,6 +57,7 @@ build/
 .reasonix/
 scripts/SireRLGym/logs/*
 **/logs/
+**/log/
 *.pt
 
 # for clion
