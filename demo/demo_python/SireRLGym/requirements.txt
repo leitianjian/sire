@@ -2,6 +2,7 @@ numpy>=1.23
 PyYAML>=6.0
 torch>=2.0
 tensorboard>=2.10
+matplotlib>=3.7
 meshcat>=0.3
 cmake>=3.20
 pybind11>=2.10
