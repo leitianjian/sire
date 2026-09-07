@@ -169,8 +169,14 @@ def build_native(profile=None, jobs=None, dry_run=False):
     # Make its cmake/ninja executables discoverable on every platform.
     executable_dir = str(Path(sys.executable).resolve().parent)
     env['PATH'] = executable_dir + os.pathsep + env.get('PATH', os.environ.get('PATH', ''))
-    env['USE_NINJA'] = '1'
-    env['CMAKE_GENERATOR'] = 'Ninja'
+    if os.name == 'nt':
+        env['USE_NINJA'] = '1'
+        env['CMAKE_GENERATOR'] = 'Ninja'
+    else:
+        # Unix Makefiles are available with the system toolchain and match the
+        # conventional single-config install layout used by Linux packages.
+        env.pop('USE_NINJA', None)
+        env['CMAKE_GENERATOR'] = 'Unix Makefiles'
     env['CMAKE_BUILD_TYPE'] = plan['mode']
     for key in ('http_proxy', 'https_proxy'):
         if config.get('cmake_' + key):
