@@ -175,7 +175,9 @@ def build_native(profile=None, jobs=None, dry_run=False):
     else:
         # Unix Makefiles are available with the system toolchain and match the
         # conventional single-config install layout used by Linux packages.
-        env.pop('USE_NINJA', None)
+        # cmake_py treats a missing USE_NINJA as enabled, so disable it
+        # explicitly instead of removing the variable.
+        env['USE_NINJA'] = '0'
         env['CMAKE_GENERATOR'] = 'Unix Makefiles'
     env['CMAKE_BUILD_TYPE'] = plan['mode']
     for key in ('http_proxy', 'https_proxy'):
