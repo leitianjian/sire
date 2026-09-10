@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+import torch
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -39,6 +41,35 @@ def _parse_float_list(value):
     return values or None
 
 
+def _resolve_rl_device(value: str) -> torch.device:
+    requested = str(value).strip().lower()
+    if requested == 'auto':
+        requested = 'cuda' if torch.cuda.is_available() else 'cpu'
+    try:
+        device = torch.device(requested)
+    except (RuntimeError, ValueError) as error:
+        raise ValueError(
+            f"Invalid --rl_device {value!r}; use auto, cpu, cuda, or cuda:<index>."
+        ) from error
+    if device.type not in {'cpu', 'cuda'}:
+        raise ValueError(
+            f"Unsupported --rl_device {value!r}; Sire RL supports CPU or CUDA PPO."
+        )
+    if device.type == 'cuda':
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                f"--rl_device {value!r} requested CUDA, but torch.cuda.is_available() is false."
+            )
+        index = torch.cuda.current_device() if device.index is None else device.index
+        if index < 0 or index >= torch.cuda.device_count():
+            raise ValueError(
+                f"CUDA device index {index} is out of range; "
+                f"available device count is {torch.cuda.device_count()}."
+            )
+        device = torch.device('cuda', index)
+    return device
+
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--task', type=str, default='go2')
@@ -56,6 +87,10 @@ def parse_args():
         help='Checkpoint interval in PPO iterations.',
     )
     p.add_argument('--seed', type=int, default=None)
+    p.add_argument(
+        '--rl_device', type=str, default='auto',
+        help='PPO policy/storage device: auto, cpu, cuda, or cuda:<index>.',
+    )
     p.add_argument(
         '--flat_terrain',
         action='store_true',
@@ -135,6 +170,7 @@ def _infer_scene_tag(env_cfg):
 
 def main():
     args = parse_args()
+    rl_device = _resolve_rl_device(args.rl_device)
     env_cfg = make_env_cfg(args.task)
     train_cfg = make_train_cfg(args.task)
 
@@ -259,6 +295,7 @@ def main():
         f"max_iterations={'inf' if getattr(train_cfg.runner, 'infinite_mode', False) else train_cfg.runner.max_iterations} "
         f"save_interval={train_cfg.runner.save_interval} "
         f"visualize_interval={args.visualize_interval} "
+        f"rl_device={rl_device} "
         f"seed={train_cfg.seed} "
         f"log_dir={log_dir}",
         flush=True,
@@ -272,7 +309,7 @@ def main():
     if args.visualize_resource_path is not None:
         train_cfg_dict['runner']['visualize_resource_path'] = args.visualize_resource_path
     train_cfg_dict['runner']['log_root'] = log_root
-    runner = OnPolicyRunner(env, train_cfg_dict, log_dir=log_dir, device='cpu')
+    runner = OnPolicyRunner(env, train_cfg_dict, log_dir=log_dir, device=rl_device)
     if resume_path is not None:
         checkpoint = runner.load(resume_path)
         print(f"train_resume path={resume_path} iter={runner.current_learning_iteration} log_dir={log_dir}", flush=True)

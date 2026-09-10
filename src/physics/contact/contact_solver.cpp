@@ -1,5 +1,6 @@
 #include "sire/physics/contact/contact_solver.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <unordered_set>
@@ -49,6 +50,13 @@ auto ContactSolver::prepareSinglePointContacts(
     std::vector<common::PenetrationAsPointPair>& pairs,
     std::vector<std::array<double, 16>>& frames,
     std::vector<sire::Size>& preserved) -> void {
+  // A newly detected contact may already be noticeably inside the surface
+  // when the outer simulation step is large. Previously the whole detected
+  // depth became the baseline, so the contact model started at exactly zero
+  // compression and did not try to recover any of that penetration. Retain a
+  // small, bounded amount for the contact dynamics to resolve. Shallower new
+  // contacts keep their complete physical depth.
+  constexpr double kNewContactRetainedDepth = 1e-4;
   // These IDs identify geometries, even though ContactPairManager uses the
   // PartId alias. Several geometries on one rigid body remain separate pairs.
   using Key = core::SortedPair<sire::PartId>;
@@ -72,8 +80,11 @@ auto ContactSolver::prepareSinglePointContacts(
     }
   }
   for (auto& pair : pairs) {
-    auto entry = records.emplace(Key(pair.id_A, pair.id_B),
-                                 core::ContactPairValue(pair.depth, false));
+    const double newContactBaseline =
+        std::max(0.0, pair.depth - kNewContactRetainedDepth);
+    auto entry = records.emplace(
+        Key(pair.id_A, pair.id_B),
+        core::ContactPairValue(newContactBaseline, false));
     auto& initialDepth = entry.first->second.init_penetration_depth_;
     pair.modifiedDepth = pair.depth - initialDepth;
     // Preserve set6 semantics: a negative corrected depth is filtered this

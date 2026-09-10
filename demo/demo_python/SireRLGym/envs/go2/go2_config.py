@@ -33,7 +33,7 @@ class GO2RoughCfg(LeggedRobotCfg):
 
     class init_state(LeggedRobotCfg.init_state):
         pos = [0.0, 0.0, 0.34]  # 0.5× rand → -1.4cm (slight), 1.0× → +7.7cm
-        init_yaw_range = [-3.1415926, 3.1415926]
+        init_yaw_range = [0.0, 0.0]
         default_joint_angles = {
             'FL_hip_joint': 0.1,
             'FR_hip_joint': -0.1,
@@ -49,14 +49,18 @@ class GO2RoughCfg(LeggedRobotCfg):
             'RR_calf_joint': -1.5,
         }
 
+    class commands(LeggedRobotCfg.commands):
+        smooth_commands = False
+
     class env(LeggedRobotCfg.env):
         num_observations = 45
         num_privileged_obs = 235
 
     class domain_rand(LeggedRobotCfg.domain_rand):
-        randomize_friction = True
+        randomize_friction = False
         friction_range = [0.2, 2.5]
-        randomize_base_mass = True
+        sire_nominal_friction = 0.4
+        randomize_base_mass = False
         added_mass_range = [-0.5, 1.5]
         # Sire material metadata needed to rebuild the per-environment pair
         # while changing only friction.
@@ -69,6 +73,9 @@ class GO2RoughCfg(LeggedRobotCfg):
         push_interval_s = 5
         max_push_vel_xy = 0.5
 
+    class noise(LeggedRobotCfg.noise):
+        add_noise = False
+
     class control(LeggedRobotCfg.control):
         control_type = 'P'
         stiffness = {'joint': 25.0}
@@ -78,10 +85,9 @@ class GO2RoughCfg(LeggedRobotCfg):
         decimation = 20
 
     class normalization(LeggedRobotCfg.normalization):
-        # With action_scale=0.25 this limits the PD position-target offset to
-        # +/-1 rad. The former +/-100 guard allowed a saturated policy to ask
-        # for targets tens of radians beyond the physical joint range.
-        clip_actions = 4.0
+        # Match the original Unitree-style configuration. This is effectively
+        # a numerical guard because ordinary policy outputs are much smaller.
+        clip_actions = 100.0
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/flat.xml'
@@ -89,18 +95,14 @@ class GO2RoughCfg(LeggedRobotCfg):
         foot_name = 'foot'
         penalize_contacts_on = ['thigh', 'calf']
         terminate_after_contacts_on = ['base']
-        # Sire can lose the final ground-contact sample after a severe fall.
-        # Reset before the base tunnels through the plane and reaches native
-        # numerical-safety bounds.
-        termination_height = 0.12
         self_collisions = 1
 
     class rewards(LeggedRobotCfg.rewards):
         soft_dof_pos_limit = 0.9
-        base_height_target = 0.34
+        base_height_target = 0.25
 
         class scales(LeggedRobotCfg.rewards.scales):
-            torques = -0.0001
+            torques = -0.0002
             dof_pos_limits = -10.0
             action_rate = -0.01
             # Penalize a constant saturated command, which action_rate alone
@@ -120,6 +122,7 @@ class GO2RoughCfgPPO(LeggedRobotCfgPPO):
     class runner(LeggedRobotCfgPPO.runner):
         run_name = ''
         experiment_name = 'flat_go2'
+        max_iterations = 1000
         save_interval = 50
         # Keep the terminal compact. TensorBoard stores all episode scalars
         # when installed; the main iteration summary is always printed.

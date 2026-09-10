@@ -73,7 +73,34 @@ summary to `logs/flat_go2/expN/plots/`. Raw samples remain visible behind a
 three-sample EMA. Saved checkpoints and recovered physics failures are marked
 on the plots when their files are available in the run directory.
 
-## 4. Regression and throughput checks
+## 4. Compare a checkpoint across physics time steps
+
+Keep the policy period at 20 ms and replay the same checkpoint, initial state,
+and commands with 1 ms and 5 ms physics steps:
+
+```bash
+PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
+  demo/demo_python/SireRLGym/scripts/compare_sim_dt.py \
+  --checkpoint logs/flat_go2/expN/model_1000.pt \
+  --sim-dts 0.001,0.005 --control-dt 0.02 --steps 500
+```
+
+The evaluator disables observation noise, pushes, terrain curriculum, and
+domain randomization. It writes `summary.csv`, `trajectory.csv`, `report.json`,
+and one plot per command below `logs/sim_dt_compare/<timestamp>/`. The summary
+reports survival time, termination reason, velocity tracking error, physics
+recoveries, contact-force percentiles and peaks, joint-speed percentiles and
+peaks, and torque peaks. The contact-force plot uses a symmetric logarithmic
+scale so isolated large-step spikes do not hide the ordinary contact forces. The JSON
+report also measures state and action divergence from the first `sim_dt` over
+the requested comparison window.
+
+For a short focused run, add `--native-history` to write every internal contact
+event, substep duration, penetration pair, and contact force. This file grows
+quickly, so it is intended for reproducing a known spike rather than routine
+long evaluations.
+
+## 5. Regression and throughput checks
 
 ```bash
 PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
@@ -88,7 +115,7 @@ The regression compares native batch stepping with the retained legacy path,
 checks per-environment reset/timeout behavior, and verifies that native errors
 include the failing environment and its state.
 
-## 5. sim2sim playback
+## 6. sim2sim playback
 
 Export a checkpoint to TorchScript, then run the standalone Sire simulator:
 

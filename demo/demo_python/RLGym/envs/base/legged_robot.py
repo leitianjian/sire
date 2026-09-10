@@ -49,7 +49,7 @@ class LeggedRobot(VecEnv):
             self.torques = self._compute_torques(self.actions).view(self.torques.shape)
             for i in range(self.num_envs):
                 self.datas[i].ctrl[self.actuator_ids_np] = self.torques[i].cpu().numpy()
-                mujoco.mj_step(self.model, self.datas[i])
+                mujoco.mj_step(self.models[i], self.datas[i])
 
         self.post_physics_step()
 
@@ -69,7 +69,9 @@ class LeggedRobot(VecEnv):
 
         self.base_quat[:] = self.root_states[:, 3:7]
         self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
-        self.base_ang_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
+        # MuJoCo free-joint angular qvel is already body-local, matching the
+        # policy observation and the real robot's IMU gyro convention.
+        self.base_ang_vel[:] = self.root_states[:, 10:13]
         self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
 
         self._post_physics_step_callback()
@@ -80,6 +82,8 @@ class LeggedRobot(VecEnv):
         self.compute_reward()
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)
+        if self.cfg.domain_rand.push_robots:
+            self._push_robots()
         self.compute_observations()
 
         self.last_actions[:] = self.actions[:]
@@ -138,6 +142,12 @@ class LeggedRobot(VecEnv):
     def check_termination(self):
         base_contacts = torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1.0
         self.reset_buf = torch.any(base_contacts, dim=1)
+        # Match unitree_rl_gym's Go2 termination envelope.  base_quat is
+        # scalar-first [w, x, y, z] in this MuJoCo environment.
+        w, x, y, z = self.base_quat.unbind(dim=1)
+        roll = torch.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+        pitch = torch.asin(torch.clamp(2.0 * (w * y - z * x), -1.0, 1.0))
+        self.reset_buf |= (torch.abs(pitch) > 1.0) | (torch.abs(roll) > 0.8)
         self.time_out_buf = self.episode_length_buf > self.max_episode_length
         self.reset_buf |= self.time_out_buf
         self._update_task_termination()
@@ -159,6 +169,7 @@ class LeggedRobot(VecEnv):
         ep_duration = (ep_len * self.dt).clamp(min=self.dt)
 
         self.last_actions[env_ids] = 0.0
+        self.actions[env_ids] = 0.0
         self.last_dof_vel[env_ids] = 0.0
         self.feet_air_time[env_ids] = 0.0
         self.episode_length_buf[env_ids] = 0
@@ -220,6 +231,8 @@ class LeggedRobot(VecEnv):
             ),
             dim=-1,
         )
+        # Match SireRLGym's asymmetric critic input while keeping base linear
+        # velocity out of the deployable 45-dimensional actor observation.
         full_obs = torch.cat(
             (
                 self.base_lin_vel * self.obs_scales.lin_vel,
@@ -250,7 +263,11 @@ class LeggedRobot(VecEnv):
             self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
 
         if self.privileged_obs_buf is not None:
-            self.privileged_obs_buf[:] = full_obs[:, :self.num_privileged_obs]
+            # SireRLGym reserves 235 critic inputs even when the flat-terrain
+            # configuration supplies fewer values; keep the unused tail zero.
+            self.privileged_obs_buf.zero_()
+            n = min(full_obs.shape[1], self.num_privileged_obs)
+            self.privileged_obs_buf[:, :n] = full_obs[:, :n]
 
     def create_sim(self):
         self.up_axis_idx = 2
@@ -293,8 +310,6 @@ class LeggedRobot(VecEnv):
 
         if self.cfg.terrain.measure_heights:
             self.measured_heights = self._get_heights()
-        if self.cfg.domain_rand.push_robots and (self.common_step_counter % int(self.cfg.domain_rand.push_interval) == 0):
-            self._push_robots()
 
     def _resample_commands(self, env_ids):
         if len(env_ids) == 0:
@@ -353,7 +368,7 @@ class LeggedRobot(VecEnv):
             d = self.datas[eid]
             d.qpos[self.qpos_adr_np] = self.dof_pos[eid].cpu().numpy()
             d.qvel[self.qvel_adr_np] = 0.0
-            mujoco.mj_forward(self.model, d)
+            mujoco.mj_forward(self.models[eid], d)
 
     def _reset_root_states(self, env_ids):
         if self.custom_origins:
@@ -390,12 +405,19 @@ class LeggedRobot(VecEnv):
             d.qpos[self.root_qpos_adr_np : self.root_qpos_adr_np + 3] = root[:3].cpu().numpy()
             d.qpos[self.root_qpos_adr_np + 3 : self.root_qpos_adr_np + 7] = root[3:7].cpu().numpy()
             d.qvel[self.root_qvel_adr_np : self.root_qvel_adr_np + 6] = root[7:13].cpu().numpy()
-            mujoco.mj_forward(self.model, d)
+            mujoco.mj_forward(self.models[eid], d)
 
     def _push_robots(self):
+        env_ids = (
+            self.episode_length_buf % int(self.cfg.domain_rand.push_interval) == 0
+        ).nonzero(as_tuple=False).flatten()
+        if len(env_ids) == 0:
+            return
         max_vel = self.cfg.domain_rand.max_push_vel_xy
-        self.root_states[:, 7:9] = torch_rand_float(-max_vel, max_vel, (self.num_envs, 2), device=self.device)
-        for i in range(self.num_envs):
+        self.root_states[env_ids, 7:9] = torch_rand_float(
+            -max_vel, max_vel, (len(env_ids), 2), device=self.device
+        )
+        for i in env_ids.tolist():
             self.datas[i].qvel[self.root_qvel_adr_np : self.root_qvel_adr_np + 2] = self.root_states[i, 7:9].cpu().numpy()
 
     def _update_terrain_curriculum(self, env_ids):
@@ -464,7 +486,7 @@ class LeggedRobot(VecEnv):
         self.episode_foot_contact_sums = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.float, device=self.device)
 
         self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
-        self.base_ang_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 10:13])
+        self.base_ang_vel = self.root_states[:, 10:13].clone()
         self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
 
         if self.cfg.terrain.measure_heights:
@@ -541,7 +563,14 @@ class LeggedRobot(VecEnv):
         base_model = mujoco.MjModel.from_xml_path(str(self.generated_model_path))
         base_model.opt.timestep = float(self.cfg.sim.dt)
         self.model = base_model
-        self.models: List[mujoco.MjModel] = [self.model for _ in range(self.num_envs)]
+        # MuJoCo parameters live on MjModel rather than MjData.  Independent
+        # models are therefore required to reproduce unitree_rl_gym's
+        # per-environment friction and base-mass randomization.
+        self.models: List[mujoco.MjModel] = [self.model]
+        for _ in range(1, self.num_envs):
+            env_model = mujoco.MjModel.from_xml_path(str(self.generated_model_path))
+            env_model.opt.timestep = float(self.cfg.sim.dt)
+            self.models.append(env_model)
         self.num_dof = self.num_actions
         self.num_dofs = self.num_actions
         self.num_bodies = base_model.nbody
@@ -634,19 +663,30 @@ class LeggedRobot(VecEnv):
         self._flat_world_plane_only = self._detect_flat_world_plane_only(base_model)
 
         if self.cfg.domain_rand.randomize_friction:
-            fr = np.random.uniform(self.cfg.domain_rand.friction_range[0], self.cfg.domain_rand.friction_range[1])
-            self.model.geom_friction[:, 0] = fr
+            friction_range = self.cfg.domain_rand.friction_range
+            num_buckets = 64
+            bucket_ids = torch.randint(0, num_buckets, (self.num_envs,))
+            buckets = torch_rand_float(
+                friction_range[0], friction_range[1], (num_buckets,), device='cpu'
+            )
+            friction_coeffs = buckets[bucket_ids].cpu().numpy()
+            for env_id, model in enumerate(self.models):
+                model.geom_friction[:, 0] = float(friction_coeffs[env_id])
 
         if self.cfg.domain_rand.randomize_base_mass:
-            delta = np.random.uniform(self.cfg.domain_rand.added_mass_range[0], self.cfg.domain_rand.added_mass_range[1])
-            self.model.body_mass[self.base_body_id_np] = max(0.1, self.base_body_mass + delta)
+            mass_range = self.cfg.domain_rand.added_mass_range
+            for model in self.models:
+                delta = np.random.uniform(mass_range[0], mass_range[1])
+                model.body_mass[self.base_body_id_np] = max(
+                    0.1, self.base_body_mass + delta
+                )
 
         self._get_env_origins()
         base_init_state_list = self.cfg.init_state.pos + [self.cfg.init_state.rot[3], self.cfg.init_state.rot[0], self.cfg.init_state.rot[1], self.cfg.init_state.rot[2]] + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
         self.base_init_state = torch.tensor(base_init_state_list, device=self.device, dtype=torch.float)
 
-        for _ in range(self.num_envs):
-            self.datas.append(mujoco.MjData(self.model))
+        for model in self.models:
+            self.datas.append(mujoco.MjData(model))
 
     def _detect_flat_world_plane_only(self, model):
         world_geom_ids = np.where(model.geom_bodyid == self.world_body_id_np)[0]
@@ -745,13 +785,14 @@ class LeggedRobot(VecEnv):
         geomid = np.zeros(1, dtype=np.int32)
 
         for out_i, env_id in enumerate(env_ids_tensor.tolist()):
+            model = self.models[env_id]
             data = self.datas[env_id]
             points_np = world_points[out_i].cpu().numpy()
             ray_origin_z = float(max(self.root_states[env_id, 2].item() + self._ray_height_margin, 5.0))
             for point_i in range(self.num_height_points):
                 ray_origin = np.array([points_np[point_i, 0], points_np[point_i, 1], ray_origin_z], dtype=np.float64)
                 dist = mujoco.mj_ray(
-                    self.model,
+                    model,
                     data,
                     ray_origin,
                     self._ray_down_vec,
@@ -789,6 +830,10 @@ class LeggedRobot(VecEnv):
 
     def _reward_action_rate(self):
         return torch.sum(torch.square(self.last_actions - self.actions), dim=1)
+
+    def _reward_action_magnitude(self):
+        """Penalize sustained large policy outputs, including constant saturation."""
+        return torch.sum(torch.square(self.actions), dim=1)
 
     def _reward_collision(self):
         if self.penalised_contact_indices.numel() == 0:
@@ -904,6 +949,7 @@ class LeggedRobot(VecEnv):
         cf_buf = np.zeros(6, dtype=np.float64)
 
         for i in range(self.num_envs):
+            model = self.models[i]
             d = self.datas[i]
             qpos = d.qpos
             qvel = d.qvel
@@ -918,9 +964,9 @@ class LeggedRobot(VecEnv):
 
             for c in range(d.ncon):
                 con = d.contact[c]
-                b1 = self.model.geom_bodyid[con.geom1]
-                b2 = self.model.geom_bodyid[con.geom2]
-                mujoco.mj_contactForce(self.model, d, c, cf_buf)
+                b1 = model.geom_bodyid[con.geom1]
+                b2 = model.geom_bodyid[con.geom2]
+                mujoco.mj_contactForce(model, d, c, cf_buf)
                 frame = con.frame.reshape(3, 3)
                 force_world = frame @ cf_buf[:3]
                 f_world = torch.tensor(force_world, dtype=torch.float, device=self.device)

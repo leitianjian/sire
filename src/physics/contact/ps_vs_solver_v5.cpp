@@ -25,20 +25,22 @@
 #include <aris/dynamic/model_solver.hpp>
 #include <aris/server/control_server.hpp>
 
-#include "log/easyloggingConfig.hpp"
 #include "sire/core/constants.hpp"
+#include "sire/core/force_screw.hpp"
 #include "sire/core/material_manager.hpp"
 #include "sire/core/profiler.hpp"
-#include "sire/core/force_screw.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
 #include "sire/physics/physics_engine.hpp"
 #include "sire/simulator/simulation_loop.hpp"
 
+#include "log/easyloggingConfig.hpp"
+
 // Reuse preprocessing functions from v3
 #include "sire/physics/contact/ps_vs_solver3.hpp"
 
-// Forward-declare v3 internals defined in ps_vs_solver3.cpp but missing from header:
+// Forward-declare v3 internals defined in ps_vs_solver3.cpp but missing from
+// header:
 namespace sire::physics::contact::ps_vs_solver3 {
 auto preprocessContactInfo(
     sire::physics::PhysicsEngine& engine,
@@ -135,11 +137,10 @@ auto computeDeSaxceOriginal(const Eigen::VectorXd& sigma, int nc,
 // ============================================================================
 
 auto cptContactForceWithTargetState5(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters,
-    double max_err) -> double {
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
   SIRE_PROFILE_FUNCTION();
 
   const int nc = static_cast<int>(n);
@@ -170,7 +171,8 @@ auto cptContactForceWithTargetState5(
     if (v_pos(i) <= 0.0) {
       double a_pos_i = v_pos(i);
       v_pos(i) = 0.0;
-      // DLOG(DEBUG) << "v5 c" << i << " opening, a_pos=" << a_pos_i << " → force=0";
+      // DLOG(DEBUG) << "v5 c" << i << " opening, a_pos=" << a_pos_i << " →
+      // force=0";
     }
   }
 
@@ -237,8 +239,8 @@ auto cptContactForceWithTargetState5(
         Eigen::MatrixXd KKT(kkt_dim, kkt_dim);
         KKT.setZero();
         KKT.topLeftCorner(dim3, dim3) =
-            H +
-            (eta_v5 + rho + 1e-6) * Eigen::MatrixXd::Identity(dim3, dim3);  // v5 fallback
+            H + (eta_v5 + rho + 1e-6) *
+                    Eigen::MatrixXd::Identity(dim3, dim3);  // v5 fallback
         KKT.topRightCorner(dim3, nc) = H_N.transpose();
         KKT.bottomLeftCorner(nc, dim3) = H_N;
 
@@ -259,8 +261,7 @@ auto cptContactForceWithTargetState5(
 
       double prim_resid = (f - y).lpNorm<Eigen::Infinity>();
       double dual_resid =
-          (eta_v5 * (f - f_old) + rho * (y - y_old))
-              .lpNorm<Eigen::Infinity>();
+          (eta_v5 * (f - f_old) + rho * (y - y_old)).lpNorm<Eigen::Infinity>();
 
       if (prim_resid < max_err && dual_resid < max_err) break;  // v5
 
@@ -286,8 +287,7 @@ auto cptContactForceWithTargetState5(
     }
 
     sigma = g + H * f;
-    Eigen::VectorXd s_new =
-        computeDeSaxceCorrection(sigma, nc, fri_coef);
+    Eigen::VectorXd s_new = computeDeSaxceCorrection(sigma, nc, fri_coef);
     error = (s_new - s).lpNorm<Eigen::Infinity>();
     s = s_new;
 
@@ -300,8 +300,8 @@ auto cptContactForceWithTargetState5(
   fce = y;
   for (int i = 0; i < nc; ++i) {
     if (contactFce[3 * i + 2] <= 0.0)
-      contactFce[3 * i + 0] = contactFce[3 * i + 1] =
-          contactFce[3 * i + 2] = 0.0;
+      contactFce[3 * i + 0] = contactFce[3 * i + 1] = contactFce[3 * i + 2] =
+          0.0;
   }
 
   SIRE_PROFILE_PLOT("ps_vs_v5.iters", static_cast<double>(total_iters));
@@ -353,13 +353,14 @@ struct PsVsSolverV5::Imp {
     const std::filesystem::path root(trace_root);
     std::filesystem::create_directories(root, ec);
     if (ec) {
-      LOG(ERROR) << "solver trace: cannot create root directory " << root.string()
-                 << ": " << ec.message();
+      LOG(ERROR) << "solver trace: cannot create root directory "
+                 << root.string() << ": " << ec.message();
       return;
     }
 
     trace_dir_ = root / session_name.str();
-    for (std::size_t suffix = 1; std::filesystem::exists(trace_dir_); ++suffix) {
+    for (std::size_t suffix = 1; std::filesystem::exists(trace_dir_);
+         ++suffix) {
       trace_dir_ = root / (session_name.str() + "_" + std::to_string(suffix));
     }
     std::filesystem::create_directory(trace_dir_, ec);
@@ -378,13 +379,15 @@ struct PsVsSolverV5::Imp {
     LOG(INFO) << "solver trace enabled: " << trace_dir_.string();
   }
 
-  auto recordSolverFrame(
-      double sim_time, sire::Size n, const std::vector<double>& fri_coef,
-      const std::vector<double>& invM, const std::vector<double>& v0,
-      const std::vector<double>& v_target, const std::vector<double>& b,
-      double h, const std::vector<double>& result, double solver_error,
-      sire::Size solver_max_iters, double solver_max_error,
-      const char* solver_type) -> void {
+  auto recordSolverFrame(double sim_time, sire::Size n,
+                         const std::vector<double>& fri_coef,
+                         const std::vector<double>& invM,
+                         const std::vector<double>& v0,
+                         const std::vector<double>& v_target,
+                         const std::vector<double>& b, double h,
+                         const std::vector<double>& result, double solver_error,
+                         sire::Size solver_max_iters, double solver_max_error,
+                         const char* solver_type) -> void {
     if (trace_dir_.empty()) return;
 
     std::lock_guard<std::mutex> lock(trace_mutex_);
@@ -431,9 +434,8 @@ struct PsVsSolverV5::Imp {
       LOG(ERROR) << "solver trace: cannot publish " << final_path.string()
                  << ": " << ec.message();
     } else {
-      DLOG(DEBUG) << "solver trace frame=" << frame
-                  << " sim_time=" << sim_time << " file="
-                  << final_path.string();
+      DLOG(DEBUG) << "solver trace frame=" << frame << " sim_time=" << sim_time
+                  << " file=" << final_path.string();
     }
   }
 };
@@ -458,24 +460,20 @@ auto PsVsSolverV5::defaultStiffness() noexcept -> double {
 auto PsVsSolverV5::setDefaultCr(double cr) noexcept -> void {
   imp_->default_cr_ = cr;
 }
-auto PsVsSolverV5::defaultCr() noexcept -> double {
-  return imp_->default_cr_;
-}
+auto PsVsSolverV5::defaultCr() noexcept -> double { return imp_->default_cr_; }
 auto PsVsSolverV5::setDefaultVelocityThreshold(double tv) noexcept -> void {
   imp_->default_tv_ = tv;
 }
 auto PsVsSolverV5::defaultVelocityThreshold() noexcept -> double {
   return imp_->default_tv_;
 }
-auto PsVsSolverV5::debugByRecords() -> nlohmann::json {
-  return imp_->records;
-}
+auto PsVsSolverV5::debugByRecords() -> nlohmann::json { return imp_->records; }
 
 auto PsVsSolverV5::cptContactSolverResult(
     const aris::dynamic::Model* current_state,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    std::vector<std::array<double, 16>>& T_C_vec,
-    ContactSolverResult& result) -> void {
+    std::vector<std::array<double, 16>>& T_C_vec, ContactSolverResult& result)
+    -> void {
   SIRE_PROFILE_FUNCTION();
   double suggest_dt = result.dt;
   auto enginePtr = physicsEnginePtr();
@@ -489,14 +487,15 @@ auto PsVsSolverV5::cptContactSolverResult(
   double nextCtrlSimSuggestDt = result.dt;
 
   // ---- Filter contact pairs ----
-  std::vector<sire::Size> preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx;
+  std::vector<sire::Size> preservedPairsIdx, pairsNeedModifiedIdx,
+      targetConditionIdx;
   if (singlePointContactMode()) {
     prepareSinglePointContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
   } else {
     std::vector<common::PenetrationAsPointPair> contactEnded, contactNotEnd;
-    filterPairsAndPreprocessInfo(*enginePtr, penetration_pairs,
-        contactEnded, contactNotEnd, T_C_vec, preservedPairsIdx,
-        pairsNeedModifiedIdx, targetConditionIdx);
+    filterPairsAndPreprocessInfo(*enginePtr, penetration_pairs, contactEnded,
+                                 contactNotEnd, T_C_vec, preservedPairsIdx,
+                                 pairsNeedModifiedIdx, targetConditionIdx);
     modifyPenetrationDepth(*enginePtr, penetration_pairs, preservedPairsIdx);
   }
   n = preservedPairsIdx.size();
@@ -506,11 +505,10 @@ auto PsVsSolverV5::cptContactSolverResult(
   auto simulator_ptr = enginePtr->simLoopPtr();
   auto createNextEvent = [&]() {
     const bool contactEndsEarly = singlePointContactMode()
-                                     ? result.dt < nextCtrlSimSuggestDt
-                                     : nextCtrlSimSuggestDt - result.dt > 1e-6;
-    const core::EventId id = contactEndsEarly
-                                ? 1
-                                : simulator_ptr->eventManager().nextEventId();
+                                      ? result.dt < nextCtrlSimSuggestDt
+                                      : nextCtrlSimSuggestDt - result.dt > 1e-6;
+    const core::EventId id =
+        contactEndsEarly ? 1 : simulator_ptr->eventManager().nextEventId();
     auto event = simulator_ptr->eventManager().createEventById(id);
     event->eventProp().addProp("isCtrl", (id == 2) ? 1.0 : 0.0);
     event->eventProp().addProp("dt", result.dt);
@@ -518,6 +516,7 @@ auto PsVsSolverV5::cptContactSolverResult(
   };
 
   if (n == 0) {
+    clearContactSolverState();
     auto eventPtr = createNextEvent();
     if (simulator_ptr->recorder().historyEnabled()) {
       // updPs below computes dynamics itself; this extra solve is for history.
@@ -529,14 +528,16 @@ auto PsVsSolverV5::cptContactSolverResult(
     simulator_ptr->integratorPoolPtr()->at(0).updPs(dt);
     double currentTime = simulator_ptr->timer().updateSimTime(dt);
     if (singlePointContactMode()) simulator_ptr->model()->setTime(currentTime);
-    simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(), currentTime);
+    simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
+                                                    currentTime);
     simulator_ptr->eventManager().addEvent(std::move(eventPtr));
     return;
   }
 
   // ---- Geometry & part IDs ----
   std::vector<geometry::CollidableGeometry*> geomPtr(2 * n, nullptr);
-  preprocessContactInfo(*enginePtr, penetration_pairs, preservedPairsIdx, geomPtr.data());
+  preprocessContactInfo(*enginePtr, penetration_pairs, preservedPairsIdx,
+                        geomPtr.data());
   std::vector<int> prtIdVec(2 * n);
   for (sire::Size i = 0; i < 2 * n; ++i) {
     prtIdVec[i] = static_cast<int>(geomPtr[i]->partId());
@@ -545,11 +546,12 @@ auto PsVsSolverV5::cptContactSolverResult(
   // ---- Initial conditions & stiffness ----
   std::vector<double> stiffness(n), damping(n), fri_coef(n);
   std::vector<double> x0(2 * n), realDepthX0(2 * n), v0(3 * n);
-  double stiffScale = cptInitialCondition(*enginePtr, *imp_->material_manager_,
-      penetration_pairs, T_C_vec, preservedPairsIdx, geomPtr,
-      stiffness.data(), damping.data(), fri_coef.data(), x0.data(),
-      realDepthX0.data(), v0.data());
-  DLOG(DEBUG) << "v5 stiffScale=" << stiffScale << " x0=" << std::vector<double>(x0.begin(), x0.end())
+  double stiffScale = cptInitialCondition(
+      *enginePtr, *imp_->material_manager_, penetration_pairs, T_C_vec,
+      preservedPairsIdx, geomPtr, stiffness.data(), damping.data(),
+      fri_coef.data(), x0.data(), realDepthX0.data(), v0.data());
+  DLOG(DEBUG) << "v5 stiffScale=" << stiffScale
+              << " x0=" << std::vector<double>(x0.begin(), x0.end())
               << " v0=" << std::vector<double>(v0.begin(), v0.end());
 
   // ---- Inverse inertia and free acceleration (same interface as V3) ----
@@ -560,10 +562,10 @@ auto PsVsSolverV5::cptContactSolverResult(
     for (sire::Size i = 0; i < n; ++i) {
       const auto pairIndex = preservedPairsIdx[i];
       std::copy(T_C_vec[pairIndex].begin(), T_C_vec[pairIndex].end(),
-                  contactFrames.begin() + 16 * i);
+                contactFrames.begin() + 16 * i);
       std::copy(penetration_pairs[pairIndex].p_WC.begin(),
-                  penetration_pairs[pairIndex].p_WC.end(),
-                  contactPoints.begin() + 3 * i);
+                penetration_pairs[pairIndex].p_WC.end(),
+                contactPoints.begin() + 3 * i);
     }
     auto& dynamics = dynamic_cast<aris::dynamic::ForwardDynamicSolver&>(
         modelPtr->solverPool()[3]);
@@ -590,7 +592,8 @@ auto PsVsSolverV5::cptContactSolverResult(
   std::vector<double> accelExt2(3 * n);
   for (sire::Size i = 0; i < n; ++i)
     for (sire::Size k = 0; k < 3; ++k)
-      accelExt2[3 * i + k] = allAccelExt[6 * i + k] - allAccelExt[6 * i + k + 3];
+      accelExt2[3 * i + k] =
+          allAccelExt[6 * i + k] - allAccelExt[6 * i + k + 3];
 
   // ---- DAE coefficients ----
   // Extract 2n×2n shrinked invCpi (normal/z components only) from allInvCpi
@@ -610,43 +613,55 @@ auto PsVsSolverV5::cptContactSolverResult(
     normalAccelExt[2 * i] = allAccelExt[6 * i + 2];
     normalAccelExt[2 * i + 1] = allAccelExt[6 * i + 5];
   }
-  cptDAECoeff(*enginePtr, static_cast<sire::Size>(n), stiffness.data(),
-              damping.data(), stiffScale,
-              singlePointContactMode() ? normalAccelExt.data() : accelExt2.data(),
-              invCpi_dae.data(),
-              A_mat.data(), b_vec.data());
+  cptDAECoeff(
+      *enginePtr, static_cast<sire::Size>(n), stiffness.data(), damping.data(),
+      stiffScale,
+      singlePointContactMode() ? normalAccelExt.data() : accelExt2.data(),
+      invCpi_dae.data(), A_mat.data(), b_vec.data());
 
-  const double contactEndTime = singlePointContactMode()
-      ? findSinglePointContactEndTime(n, suggest_dt, A_mat.data(),
-                                      b_vec.data(), x0.data(), contactTimeMethod())
-      : -1;
-  const double minTime = contactEndTime > 0
-                             ? std::min(contactEndTime, suggest_dt)
-                             : suggest_dt;
+  const double contactEndTime =
+      singlePointContactMode() ? findSinglePointContactEndTime(
+                                     n, suggest_dt, A_mat.data(), b_vec.data(),
+                                     x0.data(), contactTimeMethod())
+                               : -1;
+  const double minTime =
+      contactEndTime > 0 ? std::min(contactEndTime, suggest_dt) : suggest_dt;
   result.dt = minTime;
   auto eventPtr = createNextEvent();
 
   // ---- DAE target velocity ----
   sire::Size n2 = 2 * n;
   std::vector<double> x1t(n2 + 2), Ab_mat((n2 + 1) * (n2 + 1), 0), x01(n2 + 1);
-  sire::core::screw::matrixVectorComposeBack(n2, A_mat.data(), b_vec.data(), Ab_mat.data());
+  sire::core::screw::matrixVectorComposeBack(n2, A_mat.data(), b_vec.data(),
+                                             Ab_mat.data());
   std::copy(x0.data(), x0.data() + n2, x01.data());
   x01[n2] = 1;
-  cptFormulaXComposeAb(static_cast<int>(n2 + 1), Ab_mat.data(), minTime, x01.data(), x1t.data());
+  cptFormulaXComposeAb(static_cast<int>(n2 + 1), Ab_mat.data(), minTime,
+                       x01.data(), x1t.data());
 
   std::vector<double> vTargetVel(n);
   for (sire::Size i = 0; i < n; ++i) vTargetVel[i] = x1t[n + i];
 
   // ---- Contact-force QP solver ----
-  std::vector<double> contactFce(3 * n);
-  double error = solveContactForceQP(n, fri_coef, invM2, v0, vTargetVel,
-                                     accelExt2, minTime, contactFce, 200,
-                                     1e-8);
+  std::vector<double> contactFce(3 * n, 0.0);
+  prepareContactForceInitialGuess(penetration_pairs, T_C_vec, preservedPairsIdx,
+                                  minTime, contactFce);
+  const sire::Size solver_max_iterations = contactSolverMaxIterations();
+  double error =
+      solveContactForceQP(n, fri_coef, invM2, v0, vTargetVel, accelExt2,
+                          minTime, contactFce, solver_max_iterations, 1e-8);
+  if (std::isfinite(error)) {
+    commitContactForceSolution(penetration_pairs, T_C_vec, preservedPairsIdx,
+                               minTime, contactFce);
+  } else {
+    clearContactSolverState();
+  }
   imp_->recordSolverFrame(simulator_ptr->timer().simTime(), n, fri_coef, invM2,
                           v0, vTargetVel, accelExt2, minTime, contactFce, error,
-                          200, 1e-8, typeid(*this).name());
+                          solver_max_iterations, 1e-8, typeid(*this).name());
   DLOG(DEBUG) << "v5 error=" << error << " minTime=" << minTime
-              << " vTargetVel=" << std::vector<double>(vTargetVel.begin(), vTargetVel.end());
+              << " vTargetVel="
+              << std::vector<double>(vTargetVel.begin(), vTargetVel.end());
 
   // ---- Apply forces to model (v3 full pipeline tail) ----
   enginePtr->resetPartContactForce();
@@ -659,16 +674,20 @@ auto PsVsSolverV5::cptContactSolverResult(
     sire::simulator::ContactPairResult r;
     r.geomIdA = geomPtr[2 * i]->geometryId();
     r.geomIdB = geomPtr[2 * i + 1]->geometryId();
-    double f_Bc_C[3]{contactFce[3 * i], contactFce[3 * i + 1], contactFce[3 * i + 2]};
+    double f_Bc_C[3]{contactFce[3 * i], contactFce[3 * i + 1],
+                     contactFce[3 * i + 2]};
     double fs[6];
     core::screw::s_fpm2fs(f_Bc_C, T_C_vec[preservedPairsIdx[i]].data(), fs);
-    r.force_W[0] = fs[0]; r.force_W[1] = fs[1]; r.force_W[2] = fs[2];
+    r.force_W[0] = fs[0];
+    r.force_W[1] = fs[1];
+    r.force_W[2] = fs[2];
     r.point_W[0] = penetration_pairs[preservedPairsIdx[i]].p_WC[0];
     r.point_W[1] = penetration_pairs[preservedPairsIdx[i]].p_WC[1];
     r.point_W[2] = penetration_pairs[preservedPairsIdx[i]].p_WC[2];
     pairResults.push_back(r);
 
-    DLOG(DEBUG) << "v5 c" << i << ": f_Bc_C=[" << f_Bc_C[0] << ", " << f_Bc_C[1] << ", " << f_Bc_C[2] << "]";
+    DLOG(DEBUG) << "v5 c" << i << ": f_Bc_C=[" << f_Bc_C[0] << ", " << f_Bc_C[1]
+                << ", " << f_Bc_C[2] << "]";
 
     aris::dynamic::GeneralForce& force_A =
         dynamic_cast<aris::dynamic::GeneralForce&>(
@@ -676,10 +695,14 @@ auto PsVsSolverV5::cptContactSolverResult(
     aris::dynamic::GeneralForce& force_B =
         dynamic_cast<aris::dynamic::GeneralForce&>(
             force_pool.at(geomPtr[2 * i + 1]->partId() + contact_force_offset));
-    double fs_A[6]{0}; aris::dynamic::s_vc(6, force_A.fce(), fs_A);
-    aris::dynamic::s_vs(6, fs, fs_A); force_A.setFce(fs_A);
-    double fs_B[6]{0}; aris::dynamic::s_vc(6, force_B.fce(), fs_B);
-    aris::dynamic::s_va(6, fs, fs_B); force_B.setFce(fs_B);
+    double fs_A[6]{0};
+    aris::dynamic::s_vc(6, force_A.fce(), fs_A);
+    aris::dynamic::s_vs(6, fs, fs_A);
+    force_A.setFce(fs_A);
+    double fs_B[6]{0};
+    aris::dynamic::s_vc(6, force_B.fce(), fs_B);
+    aris::dynamic::s_va(6, fs, fs_B);
+    force_B.setFce(fs_B);
   }
 
   if (simulator_ptr->recorder().historyEnabled()) {
@@ -691,7 +714,8 @@ auto PsVsSolverV5::cptContactSolverResult(
   simulator_ptr->recorder().recordDt(minTime);
   simulator_ptr->integratorPoolPtr()->at(0).updPs(minTime);
   double currentTime = simulator_ptr->timer().updateSimTime(minTime);
-  simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(), currentTime);
+  simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
+                                                  currentTime);
   simulator_ptr->model()->setTime(currentTime);
   simulator_ptr->eventManager().addEvent(std::move(eventPtr));
 
@@ -702,8 +726,8 @@ auto PsVsSolverV5::cptContactForces(
     aris::dynamic::Model& model, sire::physics::PhysicsEngine& engine,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec,
-    std::vector<common::PointPairContactInfo>& contact_info,
-    double suggest_dt) -> double {
+    std::vector<common::PointPairContactInfo>& contact_info, double suggest_dt)
+    -> double {
   // Deprecated: logic moved to cptContactSolverResult
   ContactSolverResult result{suggest_dt};
   cptContactSolverResult(nullptr, penetration_pairs, T_C_vec, result);
@@ -711,15 +735,25 @@ auto PsVsSolverV5::cptContactForces(
 }
 
 auto PsVsSolverV5::solveContactForceQP(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters,
-    double max_err) -> double {
-  return cptContactForceWithTargetState6(
-      n, fri_coef, invM_3n, v0, v_target, b, h, contactFce, max_iters,
-      max_err);
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
+  return cptContactForceWithTargetState6(n, fri_coef, invM_3n, v0, v_target, b,
+                                         h, contactFce, max_iters, max_err);
 }
+
+auto PsVsSolverV5::prepareContactForceInitialGuess(
+    const std::vector<common::PenetrationAsPointPair>&,
+    const std::vector<std::array<double, 16>>&, const std::vector<sire::Size>&,
+    double, std::vector<double>&) -> void {}
+
+auto PsVsSolverV5::commitContactForceSolution(
+    const std::vector<common::PenetrationAsPointPair>&,
+    const std::vector<std::array<double, 16>>&, const std::vector<sire::Size>&,
+    double, const std::vector<double>&) -> void {}
+
+auto PsVsSolverV5::clearContactSolverState() -> void {}
 
 ARIS_REGISTRATION {
   typedef sire::physics::collision::CollisionFilter& (
@@ -731,7 +765,8 @@ ARIS_REGISTRATION {
             MaterialManagerFunc(&PsVsSolverV5::materialManager))
       .prop("default_k", &PsVsSolverV5::setDefaultStiffness,
             &PsVsSolverV5::defaultStiffness)
-      .prop("default_cr", &PsVsSolverV5::setDefaultCr, &PsVsSolverV5::defaultCr);
+      .prop("default_cr", &PsVsSolverV5::setDefaultCr,
+            &PsVsSolverV5::defaultCr);
 }
 
 // ============================================================================
@@ -739,11 +774,10 @@ ARIS_REGISTRATION {
 //   求解 NCP: Kμ ∋ λ ⊥ (G+R)·λ + g + Γ((G+R)·λ+g) ∈ Kμ*
 // ============================================================================
 auto cptContactForceWithTargetState6(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters,
-    double max_err) -> double {
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
   SIRE_PROFILE_FUNCTION();
 
   const int nc = static_cast<int>(n);
@@ -778,7 +812,8 @@ auto cptContactForceWithTargetState6(
   int total_iters = 0;
 
   // Pre-build H_aug (will be rebuilt when rho changes)
-  Eigen::MatrixXd H_aug = H + (eta + rho) * Eigen::MatrixXd::Identity(dim3, dim3);
+  Eigen::MatrixXd H_aug =
+      H + (eta + rho) * Eigen::MatrixXd::Identity(dim3, dim3);
   Eigen::LDLT<Eigen::MatrixXd> ldlt(H_aug);
   bool ldlt_ok = (ldlt.info() == Eigen::Success);
 
@@ -796,8 +831,8 @@ auto cptContactForceWithTargetState6(
         f = ldlt.solve(rhs);  // Eq (37): f = M⁻¹·(-g-s+ηf⁻+ρy+z)
       } else {
         // Regularized fallback
-        Eigen::MatrixXd H_reg = H + (eta + rho + 1e-6) *
-                                     Eigen::MatrixXd::Identity(dim3, dim3);
+        Eigen::MatrixXd H_reg =
+            H + (eta + rho + 1e-6) * Eigen::MatrixXd::Identity(dim3, dim3);
         f = H_reg.ldlt().solve(rhs);
       }
 
@@ -844,7 +879,8 @@ auto cptContactForceWithTargetState6(
   fce = y;
   for (int i = 0; i < nc; ++i) {
     if (contactFce[3 * i + 2] < 0)  // safety clamp
-      contactFce[3 * i + 0] = contactFce[3 * i + 1] = contactFce[3 * i + 2] = 0.0;
+      contactFce[3 * i + 0] = contactFce[3 * i + 1] = contactFce[3 * i + 2] =
+          0.0;
   }
 
   SIRE_PROFILE_PLOT("ps_vs_v6.iters", static_cast<double>(total_iters));
@@ -859,11 +895,10 @@ auto cptContactForceWithTargetState6(
 //   参考: Davis & Yin (2017), Salim, Condat et al. (2020 JOTA)
 // ============================================================================
 auto cptContactForceWithTargetState7(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters,
-    double max_err) -> double {
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
   SIRE_PROFILE_FUNCTION();
 
   const int nc = static_cast<int>(n);
@@ -886,8 +921,8 @@ auto cptContactForceWithTargetState7(
   // a_target, a_pos
   Eigen::VectorXd a_target(nc);
   for (int i = 0; i < nc; ++i) {
-    double dv = v_tgt_vec(i) + v0_vec(3*i+2);
-    a_target(i) = dv - h * b_vec(3*i+2);
+    double dv = v_tgt_vec(i) + v0_vec(3 * i + 2);
+    a_target(i) = dv - h * b_vec(3 * i + 2);
   }
   Eigen::VectorXd a_pos = -a_target;
 
@@ -895,14 +930,15 @@ auto cptContactForceWithTargetState7(
   for (int i = 0; i < nc; ++i) {
     if (a_pos(i) <= 0.0) {
       a_pos(i) = 0.0;
-      // DLOG(DEBUG) << "v7 c" << i << " opening, a_pos=" << a_pos(i) << " force=0";
+      // DLOG(DEBUG) << "v7 c" << i << " opening, a_pos=" << a_pos(i) << "
+      // force=0";
     }
   }
 
   // H_N: normal rows (nc × dim3)
   Eigen::MatrixXd H_N(nc, dim3);
   H_N.setZero();
-  for (int i = 0; i < nc; ++i) H_N.row(i) = H_mat.row(3*i+2);
+  for (int i = 0; i < nc; ++i) H_N.row(i) = H_mat.row(3 * i + 2);
 
   // Precompute Schur complement S = H_N·H_Nᵀ (nc × nc) for equality projection
   Eigen::MatrixXd S = H_N * H_N.transpose();
@@ -910,13 +946,13 @@ auto cptContactForceWithTargetState7(
   bool s_ok = (ldlt_S.info() == Eigen::Success);
 
   // DYS step size
-  double L = H_mat.norm();  // Lipschitz constant of ∇F
+  double L = H_mat.norm();                 // Lipschitz constant of ∇F
   double gamma = 2.0 / std::max(L, 1e-6);  // optimal DYS step
 
   // State
   Eigen::VectorXd x = Eigen::VectorXd::Zero(dim3);  // reflected variable
-  Eigen::VectorXd s = Eigen::VectorXd::Zero(dim3);   // Γ estimate
-  Eigen::VectorXd sigma = g;                         // σ = H_mat·z + g
+  Eigen::VectorXd s = Eigen::VectorXd::Zero(dim3);  // Γ estimate
+  Eigen::VectorXd sigma = g;                        // σ = H_mat·z + g
 
   double error = -1.0;
   int total_iters = 0;
@@ -978,7 +1014,8 @@ auto cptContactForceWithTargetState7(
   fce = z_final;
   for (int i = 0; i < nc; ++i) {
     if (contactFce[3 * i + 2] < 0)
-      contactFce[3 * i + 0] = contactFce[3 * i + 1] = contactFce[3 * i + 2] = 0.0;
+      contactFce[3 * i + 0] = contactFce[3 * i + 1] = contactFce[3 * i + 2] =
+          0.0;
   }
 
   SIRE_PROFILE_PLOT("ps_vs_v7.iters", static_cast<double>(total_iters));
@@ -994,11 +1031,10 @@ auto cptContactForceWithTargetState7(
 //    Ref: Salim, Condat et al. (2020 JOTA), Primal-Dual Davis-Yin.
 // ============================================================================
 auto cptContactForceWithTargetState8(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters,
-    double max_err) -> double {
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
   SIRE_PROFILE_FUNCTION();
 
   const int nc = static_cast<int>(n);
@@ -1021,18 +1057,20 @@ auto cptContactForceWithTargetState8(
   // a_target, a_pos, opening check (same as v7)
   Eigen::VectorXd a_target(nc);
   for (int i = 0; i < nc; ++i) {
-    double dv = v_tgt_vec(i) + v0_vec(3*i+2);
-    a_target(i) = dv - h * b_vec(3*i+2);
+    double dv = v_tgt_vec(i) + v0_vec(3 * i + 2);
+    a_target(i) = dv - h * b_vec(3 * i + 2);
   }
   Eigen::VectorXd a_pos = -a_target;
   for (int i = 0; i < nc; ++i) {
-    if (a_pos(i) <= 0.0) { a_pos(i) = 0.0; }
+    if (a_pos(i) <= 0.0) {
+      a_pos(i) = 0.0;
+    }
   }
 
   // H_N and Schur for equality projection
   Eigen::MatrixXd H_N(nc, dim3);
   H_N.setZero();
-  for (int i = 0; i < nc; ++i) H_N.row(i) = H_mat.row(3*i+2);
+  for (int i = 0; i < nc; ++i) H_N.row(i) = H_mat.row(3 * i + 2);
   Eigen::MatrixXd S = H_N * H_N.transpose();
   Eigen::LDLT<Eigen::MatrixXd> ldlt_S(S);
   bool s_ok = (ldlt_S.info() == Eigen::Success);
@@ -1042,7 +1080,8 @@ auto cptContactForceWithTargetState8(
   double gamma = 1.0 / std::max(L, 1e-6);
 
   // LDLT for exact F prox: M_F = H + I/γ
-  Eigen::MatrixXd M_F = H_mat + (1.0/gamma) * Eigen::MatrixXd::Identity(dim3, dim3);
+  Eigen::MatrixXd M_F =
+      H_mat + (1.0 / gamma) * Eigen::MatrixXd::Identity(dim3, dim3);
   Eigen::LDLT<Eigen::MatrixXd> ldlt_F(M_F);
   bool f_ok = (ldlt_F.info() == Eigen::Success);
 
@@ -1110,7 +1149,8 @@ auto cptContactForceWithTargetState8(
   fce = z_final;
   for (int i = 0; i < nc; ++i) {
     if (contactFce[3 * i + 2] < 0)
-      contactFce[3 * i + 0] = contactFce[3 * i + 1] = contactFce[3 * i + 2] = 0.0;
+      contactFce[3 * i + 0] = contactFce[3 * i + 1] = contactFce[3 * i + 2] =
+          0.0;
   }
 
   SIRE_PROFILE_PLOT("ps_vs_v8.iters", static_cast<double>(total_iters));

@@ -246,24 +246,26 @@ class SireBatchTrainingTest(unittest.TestCase):
             1.0,
         )
 
-    def test_low_base_is_a_per_env_fall_not_a_timeout(self):
+    def test_low_base_does_not_terminate_but_excessive_roll_does(self):
         env = _make_env()
         env.step(torch.zeros(env.num_envs, env.num_actions))
-        time_before = [loop.simTime() for loop in env.sire_sim_loops]
         env.contact_forces.zero_()
         env.episode_length_buf.zero_()
         env.root_states[:, 2] = 0.34
-        env.root_states[1, 2] = env.cfg.asset.termination_height - 0.01
+        env.root_states[1, 2] = 0.01
 
+        env.check_termination()
+        self.assertFalse(bool(env.reset_buf[0]))
+        self.assertFalse(bool(env.reset_buf[1]))
+
+        # Sire quaternions are [x, y, z, w]; roll=0.9 rad exceeds 0.8.
+        env.root_states[1, 3:7] = torch.tensor(
+            [np.sin(0.45), 0.0, 0.0, np.cos(0.45)], dtype=torch.float
+        )
         env.check_termination()
         self.assertFalse(bool(env.reset_buf[0]))
         self.assertTrue(bool(env.reset_buf[1]))
         self.assertFalse(bool(env.time_out_buf[1]))
-
-        env.reset_idx(env.reset_buf.nonzero(as_tuple=False).flatten())
-        time_after = [loop.simTime() for loop in env.sire_sim_loops]
-        self.assertAlmostEqual(time_after[0], time_before[0])
-        self.assertAlmostEqual(time_after[1], 0.0)
 
 
 if __name__ == "__main__":

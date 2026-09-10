@@ -275,14 +275,34 @@ class OnPolicyRunner:
         ep_string = ""
         filtered_ep_string = ""
         if locs.get('ep_infos'):
-            for key in locs['ep_infos'][0]:
-                infotensor = torch.tensor([], device=self.device)
+            # Episode dictionaries can contain event-specific metrics.  For
+            # example, physics_failure_count is only present in a step that
+            # recovered an unstable environment.  Preserve the encounter
+            # order while collecting every key, then aggregate only records
+            # that actually contain that key.
+            episode_keys = dict.fromkeys(
+                key
+                for ep_info in locs['ep_infos']
+                for key in ep_info
+            )
+            for key in episode_keys:
+                info_values = []
                 for ep_info in locs['ep_infos']:
-                    if not isinstance(ep_info[key], torch.Tensor):
-                        ep_info[key] = torch.tensor([ep_info[key]], device=self.device, dtype=torch.float)
-                    if len(ep_info[key].shape) == 0:
-                        ep_info[key] = ep_info[key].unsqueeze(0)
-                    infotensor = torch.cat((infotensor, ep_info[key].to(self.device)))
+                    if key not in ep_info:
+                        continue
+                    info_value = ep_info[key]
+                    if not isinstance(info_value, torch.Tensor):
+                        info_value = torch.tensor(
+                            [info_value], device=self.device, dtype=torch.float
+                        )
+                    else:
+                        info_value = info_value.to(self.device)
+                        if info_value.ndim == 0:
+                            info_value = info_value.unsqueeze(0)
+                    info_values.append(info_value)
+                if not info_values:
+                    continue
+                infotensor = torch.cat(info_values)
                 value = torch.mean(infotensor).item()
                 self.writer.add_scalar('Episode/' + key, value, locs['it'])
                 line = f"{f'Mean episode {key}:':>{pad}} {value:.4f}\n"

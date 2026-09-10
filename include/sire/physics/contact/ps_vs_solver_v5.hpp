@@ -59,11 +59,11 @@ class SIRE_API PsVsSolverV5 : public ContactSolver {
   virtual auto cptContactSolverResult(
       const aris::dynamic::Model* current_state,
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-      std::vector<std::array<double, 16>>& T_C_vec,
-      ContactSolverResult& result) -> void override;
+      std::vector<std::array<double, 16>>& T_C_vec, ContactSolverResult& result)
+      -> void override;
 
   /// Compute contact forces only — no integration, no time update, no events.
- auto cptContactForces(
+  auto cptContactForces(
       aris::dynamic::Model& model, sire::physics::PhysicsEngine& engine,
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       std::vector<std::array<double, 16>>& T_C_vec,
@@ -77,11 +77,27 @@ class SIRE_API PsVsSolverV5 : public ContactSolver {
   /// numerical methods can reuse the (rather involved) v5 simulation/event
   /// pipeline without duplicating it.
   virtual auto solveContactForceQP(
-      sire::Size n, std::vector<double>& fri_coef,
-      std::vector<double>& invM_3n, std::vector<double>& v0,
-      std::vector<double>& v_target, std::vector<double>& b, double h,
-      std::vector<double>& contactFce, sire::Size max_iters,
-      double max_err) -> double;
+      sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+      std::vector<double>& v0, std::vector<double>& v_target,
+      std::vector<double>& b, double h, std::vector<double>& contactFce,
+      sire::Size max_iters, double max_err) -> double;
+
+  /// Hooks for solvers that carry contact-space iterates across simulation
+  /// steps.  The default implementation is deliberately stateless.
+  virtual auto prepareContactForceInitialGuess(
+      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      const std::vector<std::array<double, 16>>& contact_frames,
+      const std::vector<sire::Size>& preserved_pair_indices, double h,
+      std::vector<double>& contact_force) -> void;
+  virtual auto commitContactForceSolution(
+      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      const std::vector<std::array<double, 16>>& contact_frames,
+      const std::vector<sire::Size>& preserved_pair_indices, double h,
+      const std::vector<double>& contact_force) -> void;
+  virtual auto clearContactSolverState() -> void;
+  virtual auto contactSolverMaxIterations() const noexcept -> sire::Size {
+    return 200;
+  }
 
  private:
   struct Imp;
@@ -90,35 +106,31 @@ class SIRE_API PsVsSolverV5 : public ContactSolver {
 
 /// @brief Standalone ADMM contact force computation (same interface as v4).
 auto cptContactForceWithTargetState5(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters = 30,
-    double max_err = 1e-8) -> double;
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 30, double max_err = 1e-8) -> double;
 
 /// @brief Nested ADMM solver (v6): frozen De Saxce inner solves, no DAE target.
 auto cptContactForceWithTargetState6(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters = 30,
-    double max_err = 1e-8) -> double;
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 30, double max_err = 1e-8) -> double;
 
 /// @brief Davis-Yin three-operator splitting (v7): no augmented Lagrangian.
 auto cptContactForceWithTargetState7(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters = 30,
-    double max_err = 1e-8) -> double;
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 30, double max_err = 1e-8) -> double;
 
 /// @brief PDDY — DYS with exact F prox, linear convergence.
 auto cptContactForceWithTargetState8(
-    sire::Size n, std::vector<double>& fri_coef,
-    std::vector<double>& invM_3n, std::vector<double>& v0,
-    std::vector<double>& v_target, std::vector<double>& b, double h,
-    std::vector<double>& contactFce, sire::Size max_iters = 30,
-    double max_err = 1e-8) -> double;
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 30, double max_err = 1e-8) -> double;
 
 }  // namespace sire::physics::contact::ps_vs_solver_v5
 

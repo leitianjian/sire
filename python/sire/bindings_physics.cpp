@@ -52,9 +52,9 @@ using namespace pybind11::literals;
 
 // Forward declarations from split binding files
 
+#include <pybind11/complex.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/complex.h>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -66,9 +66,10 @@ void init_physics(py::module& m) {
                     &sire::physics::contact::ContactSolver::setContactModelMode)
       .def("setContactModelMode",
            &sire::physics::contact::ContactSolver::setContactModelMode)
-      .def_property("contact_time_method",
-                    &sire::physics::contact::ContactSolver::contactTimeMethod,
-                    &sire::physics::contact::ContactSolver::setContactTimeMethod)
+      .def_property(
+          "contact_time_method",
+          &sire::physics::contact::ContactSolver::contactTimeMethod,
+          &sire::physics::contact::ContactSolver::setContactTimeMethod)
       .def("setContactTimeMethod",
            &sire::physics::contact::ContactSolver::setContactTimeMethod);
   py::class_<sire::physics::collision::CollisionFilter>(m, "CollisionFilter")
@@ -93,9 +94,10 @@ void init_physics(py::module& m) {
       .def_property("jointLimitMethod",
                     &sire::physics::PhysicsEngine::jointLimitMethod,
                     &sire::physics::PhysicsEngine::setJointLimitMethod)
-      .def_property("jointLimitActivationMargin",
-                    &sire::physics::PhysicsEngine::jointLimitActivationMargin,
-                    &sire::physics::PhysicsEngine::setJointLimitActivationMargin)
+      .def_property(
+          "jointLimitActivationMargin",
+          &sire::physics::PhysicsEngine::jointLimitActivationMargin,
+          &sire::physics::PhysicsEngine::setJointLimitActivationMargin)
       .def_property("jointLimitRecoveryFactor",
                     &sire::physics::PhysicsEngine::jointLimitRecoveryFactor,
                     &sire::physics::PhysicsEngine::setJointLimitRecoveryFactor)
@@ -291,7 +293,8 @@ void init_physics(py::module& m) {
               -> sire::physics::contact::ps_vs_solver3::PsVsSolver3& {
             self.resetContactSolver(
                 new sire::physics::contact::ps_vs_solver3::PsVsSolver3);
-            return dynamic_cast<sire::physics::contact::ps_vs_solver3::PsVsSolver3&>(
+            return dynamic_cast<
+                sire::physics::contact::ps_vs_solver3::PsVsSolver3&>(
                 self.contactSolver());
           },
           py::return_value_policy::reference_internal)
@@ -325,12 +328,11 @@ void init_physics(py::module& m) {
       .def(
           "addSpectralADMMSolver",
           [](sire::physics::PhysicsEngine& self)
-              -> sire::physics::contact::simple_admm::
-                  SimpleAdmmContactSolver& {
+              -> sire::physics::contact::simple_admm::SimpleAdmmContactSolver& {
             self.resetContactSolver(new sire::physics::contact::simple_admm::
                                         SimpleAdmmContactSolver);
-            return dynamic_cast<sire::physics::contact::simple_admm::
-                                    SimpleAdmmContactSolver&>(
+            return dynamic_cast<
+                sire::physics::contact::simple_admm::SimpleAdmmContactSolver&>(
                 self.contactSolver());
           },
           py::return_value_policy::reference_internal,
@@ -340,23 +342,23 @@ void init_physics(py::module& m) {
           [](sire::physics::PhysicsEngine& self)
               -> sire::physics::contact::simple_admm::
                   ShiftedSpectralAdmmContactSolver& {
-            self.resetContactSolver(new sire::physics::contact::simple_admm::
-                                        ShiftedSpectralAdmmContactSolver);
-            return dynamic_cast<sire::physics::contact::simple_admm::
-                                    ShiftedSpectralAdmmContactSolver&>(
-                self.contactSolver());
-          },
+                    self.resetContactSolver(
+                        new sire::physics::contact::simple_admm::
+                            ShiftedSpectralAdmmContactSolver);
+                    return dynamic_cast<sire::physics::contact::simple_admm::
+                                            ShiftedSpectralAdmmContactSolver&>(
+                        self.contactSolver());
+                  },
           py::return_value_policy::reference_internal,
           "Install target-shifted spectral ADMM; defaults to single_point")
       .def(
           "addSimpleADMMSolver",
           [](sire::physics::PhysicsEngine& self)
-              -> sire::physics::contact::simple_admm::
-                  SimpleAdmmContactSolver& {
+              -> sire::physics::contact::simple_admm::SimpleAdmmContactSolver& {
             self.resetContactSolver(new sire::physics::contact::simple_admm::
                                         SimpleAdmmContactSolver);
-            return dynamic_cast<sire::physics::contact::simple_admm::
-                                    SimpleAdmmContactSolver&>(
+            return dynamic_cast<
+                sire::physics::contact::simple_admm::SimpleAdmmContactSolver&>(
                 self.contactSolver());
           },
           py::return_value_policy::reference_internal,
@@ -408,26 +410,28 @@ void init_physics(py::module& m) {
             self.collisionFilter().setStateMat(
                 std::any_cast<const aris::core::Matrix&>(mat));
           })
-      .def("addCollisionFilter", [](sire::physics::PhysicsEngine& self,
-                                    std::vector<double>& filterVec) {
-        self.collisionFilter().setStateMat(
-            aris::core::Matrix(1, filterVec.size(), filterVec.data()));
-      })
-      // ---- MuJoCo-style mj_geom2body: geometry ID → part ID ----
-      .def("geomIdToPartId",
+      .def("addCollisionFilter",
            [](sire::physics::PhysicsEngine& self,
-              sire::Size geomId) -> sire::Size {
-             auto* geom = self.queryGeometryPoolById(geomId);
-             if (geom == nullptr) {
-               throw std::runtime_error(
-                   "Geometry ID " + std::to_string(geomId) +
-                   " not found in physics engine geometry pool");
-             }
-             return geom->partId();
-           },
-           py::arg("geom_id"),
-           "Map a geometry ID to the part (link/body) ID that owns it.  "
-           "Analogous to MuJoCo's mj_geom2body.");
+              std::vector<double>& filterVec) {
+             self.collisionFilter().setStateMat(
+                 aris::core::Matrix(1, filterVec.size(), filterVec.data()));
+           })
+      // ---- MuJoCo-style mj_geom2body: geometry ID → part ID ----
+      .def(
+          "geomIdToPartId",
+          [](sire::physics::PhysicsEngine& self,
+             sire::Size geomId) -> sire::Size {
+            auto* geom = self.queryGeometryPoolById(geomId);
+            if (geom == nullptr) {
+              throw std::runtime_error(
+                  "Geometry ID " + std::to_string(geomId) +
+                  " not found in physics engine geometry pool");
+            }
+            return geom->partId();
+          },
+          py::arg("geom_id"),
+          "Map a geometry ID to the part (link/body) ID that owns it.  "
+          "Analogous to MuJoCo's mj_geom2body.");
 
   py::class_<sire::physics::contact::contact_force::ContactPositionForceSolver>(
       m, "ContactPositionForceSolver")
@@ -445,7 +449,10 @@ void init_physics(py::module& m) {
            [](sire::physics::contact::contact_force::ContactPositionForceSolver&
                   self,
               const std::string& prop) {
-             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
+             {
+               sire::core::PropMap pm_(prop);
+               self.materialManager().setDefaultProp(pm_);
+             }
            });  // 默认构造函数
 
   py::class_<sire::physics::contact::ps_vs_solver::PsVsSolver>(m, "PsVsSolver")
@@ -461,7 +468,10 @@ void init_physics(py::module& m) {
       .def("setDefaultProp",
            [](sire::physics::contact::ps_vs_solver::PsVsSolver& self,
               const std::string& prop) {
-             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
+             {
+               sire::core::PropMap pm_(prop);
+               self.materialManager().setDefaultProp(pm_);
+             }
            });  // 默认构造函数
   py::class_<sire::physics::contact::ps_vs_solver2::PsVsSolver2>(m,
                                                                  "PsVsSolver2")
@@ -477,7 +487,10 @@ void init_physics(py::module& m) {
       .def("setDefaultProp",
            [](sire::physics::contact::ps_vs_solver2::PsVsSolver2& self,
               const std::string& prop) {
-             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
+             {
+               sire::core::PropMap pm_(prop);
+               self.materialManager().setDefaultProp(pm_);
+             }
            });  // 默认构造函数
   py::class_<sire::physics::contact::ps_vs_solver3::PsVsSolver3,
              sire::physics::contact::ContactSolver>(m, "PsVsSolver3")
@@ -497,8 +510,7 @@ void init_physics(py::module& m) {
              self.materialManager().setDefaultProp(material_prop);
            });
   py::class_<sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5,
-             sire::physics::contact::ContactSolver>(
-      m, "ADMMSolver")
+             sire::physics::contact::ContactSolver>(m, "ADMMSolver")
       .def(py::init<>())
       .def("addMaterialPair",
            [](sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5& self,
@@ -517,10 +529,16 @@ void init_physics(py::module& m) {
   py::class_<sire::physics::contact::simple_admm::SimpleAdmmContactSolver,
              sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5>(
       m, "SpectralADMMSolver")
-      .def(py::init<>());
+      .def(py::init<>())
+      .def_property("warmStartEnabled",
+                    &sire::physics::contact::simple_admm::
+                        SimpleAdmmContactSolver::warmStartEnabled,
+                    &sire::physics::contact::simple_admm::
+                        SimpleAdmmContactSolver::setWarmStartEnabled);
   m.attr("SimpleADMMSolver") = m.attr("SpectralADMMSolver");
-  py::class_<sire::physics::contact::simple_admm::ShiftedSpectralAdmmContactSolver,
-             sire::physics::contact::simple_admm::SimpleAdmmContactSolver>(
+  py::class_<
+      sire::physics::contact::simple_admm::ShiftedSpectralAdmmContactSolver,
+      sire::physics::contact::simple_admm::SimpleAdmmContactSolver>(
       m, "ShiftedSpectralADMMSolver")
       .def(py::init<>());
   py::class_<sire::physics::contact::analytical_tangent_force::
@@ -540,7 +558,10 @@ void init_physics(py::module& m) {
            [](sire::physics::contact::analytical_tangent_force::
                   AnalyticalTangentForceSolver& self,
               const std::string& prop) {
-             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
+             {
+               sire::core::PropMap pm_(prop);
+               self.materialManager().setDefaultProp(pm_);
+             }
            });  // 默认构造函数
 
   py::class_<sire::physics::contact::analytical_implicit_friction::
@@ -569,6 +590,9 @@ void init_physics(py::module& m) {
            [](sire::physics::contact::analytical_implicit_friction::
                   AnalyticalImplicitFrictionSolver& self,
               const std::string& prop) {
-             { sire::core::PropMap pm_(prop); self.materialManager().setDefaultProp(pm_); }
+             {
+               sire::core::PropMap pm_(prop);
+               self.materialManager().setDefaultProp(pm_);
+             }
            });  // 默认构造函数
 }

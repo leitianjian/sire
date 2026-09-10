@@ -4,10 +4,11 @@
        path relative to this MJCF so MuJoCo works from any current directory. -->
   <compiler angle="radian" meshdir="../../../dogRL/assets"/>
 
+  <!-- Unitree's current Go2 MuJoCo reference settings. -->
+  <option cone="elliptic" impratio="100"/>
 
   <statistic meansize="0.144785" extent="1.23314" center="0.025392 2.0634e-05 -0.245975"/>
   <default>
-    <joint damping="0.001" armature="0.01" frictionloss="0.1"/>
     <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
     </default>
@@ -84,7 +85,8 @@
         <body name="FL_foot">
         <inertial pos="0 0 0" mass="1e-6" diaginertia="1e-9 1e-9 1e-9"/>
         <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" density="0"/>
-        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"/>
+        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"
+              priority="1" condim="6" friction="0.4 0.02 0.01"/>
         </body>
         </body>
         </body>
@@ -112,7 +114,8 @@
         <body name="FR_foot">
         <inertial pos="0 0 0" mass="1e-6" diaginertia="1e-9 1e-9 1e-9"/>
         <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" density="0"/>
-        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"/>
+        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"
+              priority="1" condim="6" friction="0.4 0.02 0.01"/>
         </body>
         </body>
         </body>
@@ -140,7 +143,8 @@
         <body name="RL_foot">
         <inertial pos="0 0 0" mass="1e-6" diaginertia="1e-9 1e-9 1e-9"/>
         <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" density="0"/>
-        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"/>
+        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"
+              priority="1" condim="6" friction="0.4 0.02 0.01"/>
         </body>
         </body>
         </body>
@@ -171,7 +175,8 @@
         <body name="RR_foot">
         <inertial pos="0 0 0" mass="1e-6" diaginertia="1e-9 1e-9 1e-9"/>
         <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black" density="0"/>
-        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"/>
+        <geom size="0.022" pos="-0.002 0 -0.213" rgba="1 1 1 1" density="0"
+              priority="1" condim="6" friction="0.4 0.02 0.01"/>
         </body>
         </body>
         </body>

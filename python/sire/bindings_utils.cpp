@@ -37,16 +37,17 @@
 #include "sire/physics/collision/collision_filter.hpp"
 #include "sire/physics/contact/analytical_implicit_friction_solver.hpp"
 #include "sire/physics/contact/contact_position_force_solver.hpp"
+#include "sire/physics/contact/exact_coulomb_contact_solver.hpp"
+#include "sire/physics/contact/newton_pipg_contact_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver2.hpp"
 #include "sire/physics/contact/ps_vs_solver3.hpp"
 #include "sire/physics/contact/ps_vs_solver_v5.hpp"
 #include "sire/physics/contact/simple_admm_contact_solver.hpp"
-#include "sire/physics/contact/newton_pipg_contact_solver.hpp"
-#include "sire/physics/contact/exact_coulomb_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 
-// Forward-declare solver functions (v3/v4 defined in ps_vs_solver3.cpp, not in header):
+// Forward-declare solver functions (v3/v4 defined in ps_vs_solver3.cpp, not in
+// header):
 namespace sire::physics::contact::ps_vs_solver3 {
 auto cptContactForceWithTargetState3(
     sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
@@ -72,9 +73,9 @@ using namespace pybind11::literals;
 
 // Forward declarations from split binding files
 
+#include <pybind11/complex.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/complex.h>
 
 namespace py = pybind11;
 using namespace pybind11::literals;
@@ -142,32 +143,37 @@ void init_utils(py::module& m) {
     aris::dynamic::s_vs2va(vs.data(), pWorld.data(), va.data());
     return va;
   });
-  m.def("vs2bodyVa", [](const std::vector<double>& pq,
-                        const std::vector<double>& vs) {
-    if (pq.size() != 7 || vs.size() != 6)
-      throw std::invalid_argument("vs2bodyVa requires pq[7] and vs[6]");
-    for (double value : pq)
-      if (!std::isfinite(value)) throw std::invalid_argument("Non-finite body pose");
-    for (double value : vs)
-      if (!std::isfinite(value)) throw std::invalid_argument("Non-finite body velocity");
-    std::array<double, 7> pose;
-    std::copy(pq.begin(), pq.end(), pose.begin());
-    const double norm = std::hypot(std::hypot(pose[3], pose[4]),
-                                   std::hypot(pose[5], pose[6]));
-    if (!std::isfinite(norm) || norm <= std::numeric_limits<double>::epsilon())
-      throw std::invalid_argument("Invalid body quaternion norm");
-    for (int i = 3; i < 7; ++i) pose[i] /= norm;
-    double pm[16];
-    std::vector<double> bodyVa(6);
-    aris::dynamic::s_pq2pm(pose.data(), pm);
-    // Pure spatial coordinate transform, without subtracting body motion.
-    // At the body-frame origin p=0, the transformed twist's linear part
-    // is the origin velocity, so no separate vs2va conversion is needed.
-    aris::dynamic::s_inv_tv(pm, vs.data(), bodyVa.data());
-    return bodyVa;
-  }, py::arg("pq"), py::arg("vs"),
-     "World spatial velocity to body-origin [linear, angular] velocity, "
-     "expressed in body axes. pq=[px,py,pz,qx,qy,qz,qw]; vs=[uW,omegaW].");
+  m.def(
+      "vs2bodyVa",
+      [](const std::vector<double>& pq, const std::vector<double>& vs) {
+        if (pq.size() != 7 || vs.size() != 6)
+          throw std::invalid_argument("vs2bodyVa requires pq[7] and vs[6]");
+        for (double value : pq)
+          if (!std::isfinite(value))
+            throw std::invalid_argument("Non-finite body pose");
+        for (double value : vs)
+          if (!std::isfinite(value))
+            throw std::invalid_argument("Non-finite body velocity");
+        std::array<double, 7> pose;
+        std::copy(pq.begin(), pq.end(), pose.begin());
+        const double norm = std::hypot(std::hypot(pose[3], pose[4]),
+                                       std::hypot(pose[5], pose[6]));
+        if (!std::isfinite(norm) ||
+            norm <= std::numeric_limits<double>::epsilon())
+          throw std::invalid_argument("Invalid body quaternion norm");
+        for (int i = 3; i < 7; ++i) pose[i] /= norm;
+        double pm[16];
+        std::vector<double> bodyVa(6);
+        aris::dynamic::s_pq2pm(pose.data(), pm);
+        // Pure spatial coordinate transform, without subtracting body motion.
+        // At the body-frame origin p=0, the transformed twist's linear part
+        // is the origin velocity, so no separate vs2va conversion is needed.
+        aris::dynamic::s_inv_tv(pm, vs.data(), bodyVa.data());
+        return bodyVa;
+      },
+      py::arg("pq"), py::arg("vs"),
+      "World spatial velocity to body-origin [linear, angular] velocity, "
+      "expressed in body axes. pq=[px,py,pz,qx,qy,qz,qw]; vs=[uW,omegaW].");
   m.def("vs2vp", [](std::vector<double>& vs, std::vector<double>& p) {
     std::vector<double> vp(3);
     aris::dynamic::s_vs2vp(vs.data(), p.data(), vp.data());
@@ -184,7 +190,7 @@ void init_utils(py::module& m) {
   m.def("vp2vs", [](std::vector<double>& pp, std::vector<double>& vp,
                     std::vector<double>& w) {
     std::vector<double> vs(6);
-    std::copy(w.begin(), w.end(), vs.begin() + 3);   // vs[3:6] = ω
+    std::copy(w.begin(), w.end(), vs.begin() + 3);  // vs[3:6] = ω
     aris::dynamic::s_vp2vs(pp.data(), vp.data(), vs.data());
     return vs;
   });
@@ -280,7 +286,8 @@ void init_utils(py::module& m) {
           }
         }
       },
-      "Write desired torque/position values to all actuators in motionPool order.",
+      "Write desired torque/position values to all actuators in motionPool "
+      "order.",
       py::arg("model"), py::arg("values"));
   m.def(
       "setMotionMps",
@@ -291,8 +298,8 @@ void init_utils(py::module& m) {
           pool[i].setMp(mps[i]);
         }
       },
-      "Write all motion positions (rad) in motionPool order.",
-      py::arg("model"), py::arg("mps"));
+      "Write all motion positions (rad) in motionPool order.", py::arg("model"),
+      py::arg("mps"));
   m.def(
       "setMotionMvs",
       [](aris::dynamic::Model& model, const std::vector<double>& mvs) {
@@ -326,13 +333,14 @@ void init_utils(py::module& m) {
     }
   });
 
-  // ── Contact force solver functions (v2 Clarabel, v3 fixed-point, v4 SOR, v5 ADMM) ──
+  // ── Contact force solver functions (v2 Clarabel, v3 fixed-point, v4 SOR, v5
+  // ADMM) ──
   m.def(
       "cptContactForceWithTargetState2",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::ps_vs_solver3::
             cptContactForceWithTargetState2(
@@ -349,8 +357,8 @@ void init_utils(py::module& m) {
       "cptContactForceWithTargetState3",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::ps_vs_solver3::
             cptContactForceWithTargetState3(
@@ -367,8 +375,8 @@ void init_utils(py::module& m) {
       "cptContactForceWithTargetState4",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::ps_vs_solver3::
             cptContactForceWithTargetState4(
@@ -385,8 +393,8 @@ void init_utils(py::module& m) {
       "cptContactForceWithTargetState5",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::ps_vs_solver_v5::
             cptContactForceWithTargetState5(
@@ -403,8 +411,8 @@ void init_utils(py::module& m) {
       "cptContactForceWithTargetState6",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::ps_vs_solver_v5::
             cptContactForceWithTargetState6(
@@ -421,36 +429,36 @@ void init_utils(py::module& m) {
       "cptContactForceSpectralAdmm",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::simple_admm::
-            cptContactForceSpectralAdmm(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+        double error =
+            sire::physics::contact::simple_admm::cptContactForceSpectralAdmm(
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return {result, error};
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
       py::arg("v_target"), py::arg("b"), py::arg("h"),
-      py::arg("max_iters") = 200, py::arg("max_err") = 1e-8,
+      py::arg("max_iters") = 1000, py::arg("max_err") = 1e-8,
       "Spectral-ADMM: Carpentier et al. Algorithm 1 in impulse coordinates");
 
   m.def(
       "cptContactForceShiftedSpectralAdmm",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::simple_admm::
             cptContactForceShiftedSpectralAdmm(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return {result, error};
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
       py::arg("v_target"), py::arg("b"), py::arg("h"),
-      py::arg("max_iters") = 200, py::arg("max_err") = 1e-8,
+      py::arg("max_iters") = 1000, py::arg("max_err") = 1e-8,
       "Shifted spectral ADMM: same iteration with g_N += v_target");
 
   // Backward-compatible Python name for existing scripts.
@@ -458,26 +466,26 @@ void init_utils(py::module& m) {
       "cptContactForceSimpleAdmm",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::simple_admm::
-            cptContactForceSpectralAdmm(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+        double error =
+            sire::physics::contact::simple_admm::cptContactForceSpectralAdmm(
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return {result, error};
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
       py::arg("v_target"), py::arg("b"), py::arg("h"),
-      py::arg("max_iters") = 200, py::arg("max_err") = 1e-8,
+      py::arg("max_iters") = 1000, py::arg("max_err") = 1e-8,
       "Deprecated alias of cptContactForceSpectralAdmm");
 
   m.def(
       "cptContactForceWithTargetState7",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::ps_vs_solver_v5::
             cptContactForceWithTargetState7(
@@ -490,11 +498,12 @@ void init_utils(py::module& m) {
       py::arg("max_iters") = 30, py::arg("max_err") = 1e-8,
       "v7: Davis-Yin three-operator splitting");
 
-  m.def("cptContactForceWithTargetState8",
+  m.def(
+      "cptContactForceWithTargetState8",
       [](int n, std::vector<double> fri_coef, std::vector<double> invM,
          std::vector<double> v0, std::vector<double> v_target,
-         std::vector<double> b, double h, int max_iters, double max_err)
-          -> std::pair<std::vector<double>, double> {
+         std::vector<double> b, double h, int max_iters,
+         double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
         double error = sire::physics::contact::ps_vs_solver_v5::
             cptContactForceWithTargetState8(
@@ -513,10 +522,10 @@ void init_utils(py::module& m) {
          std::vector<double> v0, std::vector<double> v_target,
          std::vector<double> b, double h, int max_iters, double max_err) {
         std::vector<double> result(3 * n);
-        const double error = sire::physics::contact::newton_pipg::
-            cptContactForceNewtonPipg(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+        const double error =
+            sire::physics::contact::newton_pipg::cptContactForceNewtonPipg(
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return std::make_pair(result, error);
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
@@ -530,10 +539,10 @@ void init_utils(py::module& m) {
          std::vector<double> v0, std::vector<double> v_target,
          std::vector<double> b, double h, int max_iters, double max_err) {
         std::vector<double> result(3 * n);
-        const double error = sire::physics::contact::exact_coulomb::
-            cptContactForceExactCoulomb(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+        const double error =
+            sire::physics::contact::exact_coulomb::cptContactForceExactCoulomb(
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return std::make_pair(result, error);
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
@@ -549,8 +558,8 @@ void init_utils(py::module& m) {
         std::vector<double> result(3 * n);
         const double error = sire::physics::contact::exact_coulomb::
             cptContactForceSingleLoopFbfSsn(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return std::make_pair(result, error);
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
@@ -566,8 +575,8 @@ void init_utils(py::module& m) {
         std::vector<double> result(3 * n);
         const double error = sire::physics::contact::exact_coulomb::
             cptContactForceExplicitFbfGatedSsn(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return std::make_pair(result, error);
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
@@ -583,14 +592,15 @@ void init_utils(py::module& m) {
         std::vector<double> result(3 * n);
         const double error = sire::physics::contact::exact_coulomb::
             cptContactForceModePredictorSsn(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return std::make_pair(result, error);
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
       py::arg("v_target"), py::arg("b"), py::arg("h"),
       py::arg("max_iters") = 200, py::arg("max_err") = 1e-8,
-      "Block projected mode predictor, mode-gated mixed SSN and rare FBF rescue");
+      "Block projected mode predictor, mode-gated mixed SSN and rare FBF "
+      "rescue");
 
   m.def(
       "cptContactForceModePredictorSsnDetailed",
@@ -602,8 +612,8 @@ void init_utils(py::module& m) {
          int repair_sweeps, int maximum_fbf_rescues) {
         using namespace sire::physics::contact::exact_coulomb;
         ModePredictorSsnOptions options;
-        options.maximum_predictor_sweeps = static_cast<sire::Size>(
-            std::max(1, maximum_predictor_sweeps));
+        options.maximum_predictor_sweeps =
+            static_cast<sire::Size>(std::max(1, maximum_predictor_sweeps));
         options.stable_mode_sweeps =
             static_cast<sire::Size>(std::max(1, stable_mode_sweeps));
         options.newton_gate_residual = newton_gate_residual;
@@ -625,21 +635,18 @@ void init_utils(py::module& m) {
         stats["predictor_sweeps"] = statistics.predictor_sweeps;
         stats["predictor_backtracks"] = statistics.predictor_backtracks;
         stats["mode_changes"] = statistics.mode_changes;
-        stats["uncertain_mode_sweeps"] =
-            statistics.uncertain_mode_sweeps;
+        stats["uncertain_mode_sweeps"] = statistics.uncertain_mode_sweeps;
         stats["newton_attempts"] = statistics.newton_attempts;
         stats["newton_accepted"] = statistics.newton_accepted;
         stats["newton_rejected"] = statistics.newton_rejected;
         stats["fbf_rescues"] = statistics.fbf_rescues;
         stats["fbf_backtracks"] = statistics.fbf_backtracks;
-        stats["full_hybrid_fallbacks"] =
-            statistics.full_hybrid_fallbacks;
+        stats["full_hybrid_fallbacks"] = statistics.full_hybrid_fallbacks;
         stats["initial_residual"] = statistics.initial_residual;
         stats["residual_before_first_newton"] =
             statistics.residual_before_first_newton;
         stats["final_residual"] = statistics.final_residual;
-        stats["first_newton_accepted"] =
-            statistics.first_newton_accepted;
+        stats["first_newton_accepted"] = statistics.first_newton_accepted;
         stats["converged"] = statistics.converged;
         return py::make_tuple(result, error, stats);
       },
@@ -647,10 +654,8 @@ void init_utils(py::module& m) {
       py::arg("v_target"), py::arg("b"), py::arg("h"),
       py::arg("max_iters") = 200, py::arg("max_err") = 1e-8,
       py::arg("maximum_predictor_sweeps") = 8,
-      py::arg("stable_mode_sweeps") = 2,
-      py::arg("newton_gate_residual") = 5e-2,
-      py::arg("forced_newton_residual") = 1e-3,
-      py::arg("repair_sweeps") = 2,
+      py::arg("stable_mode_sweeps") = 2, py::arg("newton_gate_residual") = 5e-2,
+      py::arg("forced_newton_residual") = 1e-3, py::arg("repair_sweeps") = 2,
       py::arg("maximum_fbf_rescues") = 3,
       "Detailed block mode-predictor/SSN/FBF-rescue experiment");
 
@@ -662,8 +667,8 @@ void init_utils(py::module& m) {
         std::vector<double> result(3 * n);
         const double error = sire::physics::contact::exact_coulomb::
             cptContactForceExactCoulombFbf(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return std::make_pair(result, error);
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
@@ -679,8 +684,8 @@ void init_utils(py::module& m) {
         std::vector<double> result(3 * n);
         const double error = sire::physics::contact::exact_coulomb::
             cptContactForceExactCoulombSemismoothNewton(
-                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b,
-                h, result, static_cast<sire::Size>(max_iters), max_err);
+                static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
+                result, static_cast<sire::Size>(max_iters), max_err);
         return std::make_pair(result, error);
       },
       py::arg("n"), py::arg("fri_coef"), py::arg("invM"), py::arg("v0"),
@@ -707,8 +712,8 @@ void init_utils(py::module& m) {
           throw std::invalid_argument(
               "mode must be one of: fbf, newton, hybrid");
         }
-        options.newton_start_iteration = static_cast<sire::Size>(
-            std::max(0, newton_start_iteration));
+        options.newton_start_iteration =
+            static_cast<sire::Size>(std::max(0, newton_start_iteration));
         options.newton_switch_residual = newton_switch_residual;
         options.collect_history = collect_history;
 
@@ -749,5 +754,6 @@ void init_utils(py::module& m) {
       py::arg("collect_history") = false,
       "Detailed FBF/Newton/hybrid exact-Coulomb experiment entry point");
 
-  // ── PointerArray<T> bindings (must register before classes that expose them) ──
+  // ── PointerArray<T> bindings (must register before classes that expose them)
+  // ──
 }

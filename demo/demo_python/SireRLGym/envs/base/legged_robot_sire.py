@@ -104,9 +104,15 @@ class LeggedRobotSire(VecEnv):
     def stepSireBatch(self, actions):
         """Batched Sire step: one Python call, persistent native worker threads."""
         clip_actions = self.cfg.normalization.clip_actions
-        self.actions = torch.clip(actions, -clip_actions, clip_actions).to(
-            self.device
-        ).contiguous()
+        # The policy/storage may live on CUDA, while the native Sire batch
+        # stepper and all environment state remain on CPU.  This transfer is
+        # also the synchronization point before exposing the tensor to NumPy.
+        self.actions = (
+            torch.clip(actions, -clip_actions, clip_actions)
+            .detach()
+            .to(device='cpu', dtype=torch.float32)
+            .contiguous()
+        )
         outputs = self._sire_batch_stepper.step(self.actions.numpy())
         recovered_env_ids = np.asarray(
             self._sire_batch_stepper.recoveredEnvIds, dtype=np.int64
@@ -387,18 +393,21 @@ class LeggedRobotSire(VecEnv):
         # Simulator, so the ordinary reset path below can randomize it safely.
         if hasattr(self, "_sire_physics_failure_buf"):
             self.reset_buf |= self._sire_physics_failure_buf
-        # A low base is an ordinary fall, not a numerical exception.  This is
-        # evaluated per environment and complements contact-based termination
-        # when the last plane-contact sample disappears after tunnelling.
-        termination_height = float(
-            getattr(self.cfg.asset, "termination_height", -float("inf"))
+        # Match RLGym/MuJoCo's Go2 attitude envelope. Sire root-state
+        # quaternions are vector-first [x, y, z, w].
+        x, y, z, w = self.base_quat.unbind(dim=1)
+        roll = torch.atan2(
+            2.0 * (w * x + y * z),
+            1.0 - 2.0 * (x * x + y * y),
         )
-        self.base_height_fall_buf = self.root_states[:, 2] < termination_height
-        self.reset_buf |= self.base_height_fall_buf
+        pitch = torch.asin(
+            torch.clamp(2.0 * (w * y - z * x), -1.0, 1.0)
+        )
+        self.reset_buf |= (torch.abs(pitch) > 1.0) | (torch.abs(roll) > 0.8)
         # Leaving the finite terrain is a truncation (timeout), not a fall or
         # a native physics failure. This keeps PPO bootstrapping semantics
         # correct and resets only the affected independent environment.
-        self.time_out_buf = self.episode_length_buf >= self.max_episode_length
+        self.time_out_buf = self.episode_length_buf > self.max_episode_length
         self.time_out_buf |= self._terrain_out_of_bounds()
         self.reset_buf |= self.time_out_buf
         self._update_task_termination()
@@ -429,6 +438,50 @@ class LeggedRobotSire(VecEnv):
                     f"  base_z={self.root_states[eid, 2].item():.3f}",
                     flush=True,
                 )
+
+    def _capture_terminal_state_for_evaluation(self):
+        """Keep pre-reset terminal state when an evaluation explicitly asks for it."""
+        if not getattr(self, "capture_terminal_state", False):
+            return
+        self.last_terminal_snapshot = None
+        env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        if env_ids.numel() == 0:
+            return
+        termination_contacts = torch.any(
+            torch.norm(
+                self.contact_forces[
+                    env_ids[:, None], self.termination_contact_indices[None, :], :
+                ],
+                dim=-1,
+            )
+            > 1.0,
+            dim=1,
+        )
+        self.last_terminal_snapshot = {
+            "env_ids": env_ids.detach().cpu().clone(),
+            "root_states": self.root_states[env_ids].detach().cpu().clone(),
+            "dof_pos": self.dof_pos[env_ids].detach().cpu().clone(),
+            "dof_vel": self.dof_vel[env_ids].detach().cpu().clone(),
+            "actions": self.actions[env_ids].detach().cpu().clone(),
+            "torques": self.torques[env_ids].detach().cpu().clone(),
+            "contact_forces": self.contact_forces[env_ids].detach().cpu().clone(),
+            "feet_pos_world": self.feet_pos_world[env_ids].detach().cpu().clone(),
+            "body_ground_contact": self.body_ground_contact[env_ids]
+            .detach()
+            .cpu()
+            .clone(),
+            "foot_ground_contact": self.foot_ground_contact[env_ids]
+            .detach()
+            .cpu()
+            .clone(),
+            "episode_length": self.episode_length_buf[env_ids].detach().cpu().clone(),
+            "physics_failure": self._sire_physics_failure_buf[env_ids]
+            .detach()
+            .cpu()
+            .clone(),
+            "timeout": self.time_out_buf[env_ids].detach().cpu().clone(),
+            "termination_contact": termination_contacts.detach().cpu().clone(),
+        }
 
     def reset_idx(self, env_ids):
         if len(env_ids) == 0:
@@ -1476,19 +1529,19 @@ class LeggedRobotSire(VecEnv):
         # ranges serialized in the Sire XML. The native batch stepper writes
         # them into every cloned actuator so both paths share the same guards.
         _GO2_JOINT_LIMITS = {
-            # hip: ±1.0472 rad (60°), thigh: [-1.5708, 3.4907], calf: [-2.7227, 0.83776]
+            # hip: ±1.0472 rad (60°), thigh: [-1.5708, 3.4907], calf: [-2.7227, -0.83776]
             "FL_hip_joint":   [-1.0472, 1.0472, 23.7],
             "FL_thigh_joint": [-1.5708, 3.4907, 23.7],
-            "FL_calf_joint":  [-2.7227, 0.83776, 35.55],
+            "FL_calf_joint":  [-2.7227, -0.83776, 35.55],
             "FR_hip_joint":   [-1.0472, 1.0472, 23.7],
             "FR_thigh_joint": [-1.5708, 3.4907, 23.7],
-            "FR_calf_joint":  [-2.7227, 0.83776, 35.55],
+            "FR_calf_joint":  [-2.7227, -0.83776, 35.55],
             "RL_hip_joint":   [-1.0472, 1.0472, 23.7],
             "RL_thigh_joint": [-0.5236, 4.5379, 23.7],
-            "RL_calf_joint":  [-2.7227, 0.83776, 35.55],
+            "RL_calf_joint":  [-2.7227, -0.83776, 35.55],
             "RR_hip_joint":   [-1.0472, 1.0472, 23.7],
             "RR_thigh_joint": [-0.5236, 4.5379, 23.7],
-            "RR_calf_joint":  [-2.7227, 0.83776, 35.55],
+            "RR_calf_joint":  [-2.7227, -0.83776, 35.55],
         }
         limits_list = []
         torque_list = []
@@ -1985,6 +2038,7 @@ class LeggedRobotSire(VecEnv):
         self._update_episode_diagnostics()
         self._post_physics_step_tasks()
         self.check_termination()
+        self._capture_terminal_state_for_evaluation()
         self.compute_reward()
         env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
         self.reset_idx(env_ids)

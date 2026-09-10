@@ -108,6 +108,11 @@ class LeggedRobot(VecEnv):
     def check_termination(self):
         base_contacts = torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1.0
         self.reset_buf = torch.any(base_contacts, dim=1)
+        # MuJoCo free-joint quaternions are scalar-first [w, x, y, z].
+        w, x, y, z = self.base_quat.unbind(dim=1)
+        roll = torch.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+        pitch = torch.asin(torch.clamp(2.0 * (w * y - z * x), -1.0, 1.0))
+        self.reset_buf |= (torch.abs(pitch) > 1.0) | (torch.abs(roll) > 0.8)
         self.time_out_buf = self.episode_length_buf > self.max_episode_length
         self.reset_buf |= self.time_out_buf
         self._update_task_termination()
