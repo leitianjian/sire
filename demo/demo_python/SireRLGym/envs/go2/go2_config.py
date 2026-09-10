@@ -3,7 +3,7 @@ from SireRLGym.envs.base.legged_robot_config import LeggedRobotCfg, LeggedRobotC
 
 class GO2RoughCfg(LeggedRobotCfg):
     class sim(LeggedRobotCfg.sim):
-        dt = 0.001  # match go2.xml deltaT
+        dt = 0.001  # 1 kHz physics step
 
     class terrain(LeggedRobotCfg.terrain):
         # Every Sire environment owns an independent simulator.  The default
