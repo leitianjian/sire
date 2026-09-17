@@ -529,6 +529,8 @@ class LeggedRobotSire(VecEnv):
         self.actions[env_ids] = 0.0
         self.last_dof_vel[env_ids] = 0.0
         self.feet_air_time[env_ids] = 0.0
+        self.last_contacts[env_ids] = False
+        self.last_slip_contacts[env_ids] = False
         self.contact_forces[env_ids] = 0.0
         self.body_ground_contact[env_ids] = False
         self.foot_ground_contact[env_ids] = False
@@ -1090,6 +1092,7 @@ class LeggedRobotSire(VecEnv):
         self.last_contacts = torch.zeros(
             self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device
         )
+        self.last_slip_contacts = torch.zeros_like(self.last_contacts)
         self.last_feet_pos_world = torch.zeros(
             self.num_envs,
             len(self.feet_indices),
@@ -1882,22 +1885,9 @@ class LeggedRobotSire(VecEnv):
         return self.reset_buf * (~self.time_out_buf)
 
     def _reward_dof_pos_limits(self):
-        # soft_dof_pos_limit scales each joint's half-range around its midpoint.
-        # At 0.9, the penalty starts after 90% of the center-to-hard-limit
-        # distance, i.e. in the final 10% near either mechanical stop.
-        lower = self.dof_pos_limits[:, 0]
-        upper = self.dof_pos_limits[:, 1]
-        midpoint = 0.5 * (lower + upper)
-        soft_half_range = (
-            0.5
-            * (upper - lower)
-            * float(self.cfg.rewards.soft_dof_pos_limit)
-        )
-        soft_lower = midpoint - soft_half_range
-        soft_upper = midpoint + soft_half_range
-        below = (soft_lower - self.dof_pos).clip(min=0.0)
-        above = (self.dof_pos - soft_upper).clip(min=0.0)
-        return torch.sum(below + above, dim=1)
+        out_of_limits = -(self.dof_pos - self.dof_pos_limits[:, 0]).clip(max=0.0)
+        out_of_limits += (self.dof_pos - self.dof_pos_limits[:, 1]).clip(min=0.0)
+        return torch.sum(out_of_limits, dim=1)
 
     def _reward_dof_vel_limits(self):
         return torch.sum(
@@ -1930,13 +1920,34 @@ class LeggedRobotSire(VecEnv):
     def _reward_feet_air_time(self):
         contact = self.foot_ground_contact
         contact_filt = torch.logical_or(contact, self.last_contacts)
-        self.last_contacts = contact
         first_contact = (self.feet_air_time > 0.0) * contact_filt
         self.feet_air_time += self.dt
-        rew_air_time = torch.sum((self.feet_air_time - 0.5) * first_contact, dim=1)
+        rewarded_air_time = torch.clamp(
+            self.feet_air_time - self.cfg.rewards.feet_air_time_threshold,
+            min=0.0,
+            max=self.cfg.rewards.feet_air_time_reward_cap,
+        )
+        rew_air_time = torch.sum(rewarded_air_time * first_contact, dim=1)
         rew_air_time *= torch.norm(self.commands[:, :2], dim=1) > 0.1
         self.feet_air_time *= ~contact_filt
+        self.last_contacts = contact.clone()
+        self._last_feet_air_time_reward = rew_air_time.detach()
         return rew_air_time
+
+    def _reward_feet_slip(self):
+        """Penalize horizontal foot motion only during persistent contact."""
+        contact = self.foot_ground_contact
+        stable_contact = torch.logical_and(contact, self.last_slip_contacts)
+        foot_velocity_xy = (
+            self.feet_pos_world[:, :, :2] - self.last_feet_pos_world[:, :, :2]
+        ) / self.dt
+        speed_sq = torch.sum(torch.square(foot_velocity_xy), dim=2)
+        speed_sq = torch.clamp(
+            speed_sq, max=self.cfg.rewards.feet_slip_speed_sq_cap
+        )
+        reward = torch.sum(speed_sq * stable_contact.float(), dim=1)
+        self.last_slip_contacts = contact.clone()
+        return reward
 
     def _reward_stumble(self):
         """惩罚足端侧向打滑——水平接触力 > 5×垂向力时判定为stumble。"""
@@ -1948,15 +1959,18 @@ class LeggedRobotSire(VecEnv):
 
     def _reward_stand_still(self):
         return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (
-            torch.norm(self.commands[:, :2], dim=1) < 0.1
+            torch.norm(self.commands[:, :3], dim=1) < 0.1
         )
+
+    def _reward_default_pos(self):
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
 
     def _reward_hip_pos(self):
         if self.hip_indices.numel() == 0:
             return torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         hip_pos = self.dof_pos[:, self.hip_indices]
         hip_default = self.default_dof_pos[:, self.hip_indices]
-        return torch.sum(torch.square(hip_pos - hip_default), dim=1)
+        return torch.sum(torch.abs(hip_pos - hip_default), dim=1)
 
     def _update_episode_diagnostics(self):
         if self.feet_indices.numel() > 0:
@@ -2073,7 +2087,7 @@ class LeggedRobotSire(VecEnv):
             r_orient = self._reward_orientation().mean().item()
             r_height = self._reward_base_height().mean().item()
             r_torque = self._reward_torques().mean().item()
-            r_air = self._reward_feet_air_time().mean().item()
+            r_air = self._last_feet_air_time_reward.mean().item()
             r_collision = self._reward_collision().mean().item()
             r_lin_vel_z_raw = self._reward_lin_vel_z().mean().item()
             r_dof_vel_raw = self._reward_dof_vel().mean().item()

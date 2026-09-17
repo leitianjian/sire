@@ -28,7 +28,7 @@ class GO2RoughCfg(LeggedRobotCfg):
         spawn_offset_y = 5.0
 
     class init_state(LeggedRobotCfg.init_state):
-        pos = [0.0, 0.0, 0.34]
+        pos = [0.0, 0.0, 0.42]
         init_yaw_range = [0.0, 0.0]
         default_joint_angles = {
             'FL_hip_joint': 0.1,
@@ -44,6 +44,10 @@ class GO2RoughCfg(LeggedRobotCfg):
             'RL_calf_joint': -1.5,
             'RR_calf_joint': -1.5,
         }
+
+    class commands(LeggedRobotCfg.commands):
+        resampling_time = 5.0
+        heading_command = False
 
     class env(LeggedRobotCfg.env):
         # Keep the policy deployable on the real Go2: base linear velocity is
@@ -67,14 +71,15 @@ class GO2RoughCfg(LeggedRobotCfg):
 
     class control(LeggedRobotCfg.control):
         control_type = 'P'
-        stiffness = {'joint': 25.0}
-        damping = {'joint': 0.6}
+        stiffness = {'joint': 20.0}
+        damping = {'joint': 0.5}
         action_scale = 0.25
         # Use a 1 kHz physics loop and keep the policy/control loop at 50 Hz.
         decimation = 20
 
     class sim(LeggedRobotCfg.sim):
         dt = 0.001
+        mujoco_batch_threads = 16
 
     class asset(LeggedRobotCfg.asset):
         file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/flat.xml'
@@ -85,20 +90,26 @@ class GO2RoughCfg(LeggedRobotCfg):
         self_collisions = 1
 
     class rewards(LeggedRobotCfg.rewards):
-        soft_dof_pos_limit = 0.9
-        base_height_target = 0.25
+        soft_dof_pos_limit = 1.0
+        base_height_target = 0.29
         only_positive_rewards = False
+        feet_air_time_threshold = 0.08
+        feet_air_time_reward_cap = 0.20
+        feet_slip_speed_sq_cap = 1.0
 
         class scales(LeggedRobotCfg.rewards.scales):
-            torques = -0.0002
+            feet_air_time = 3.0
+            torques = -0.0001
             dof_pos_limits = -10.0
             action_rate = -0.01
             action_magnitude = -0.001
             orientation = -5.0
-            base_height = -10.0
-            dof_vel = -5.0e-4
-            stand_still = -0.05
-            hip_pos = -0.4
+            base_height = -5.0
+            dof_vel = 0.0
+            stand_still = -1.0
+            default_pos = -0.1
+            hip_pos = -0.2
+            feet_slip = -0.2
 
 
 class GO2RoughCfgPPO(LeggedRobotCfgPPO):

@@ -180,16 +180,19 @@ def _deployment_step(env, actions: torch.Tensor):
     clip_actions = env.cfg.normalization.clip_actions
     env.actions = torch.clip(actions, -clip_actions, clip_actions).to(env.device)
 
-    for _ in range(env.cfg.control.decimation):
-        env.torques = env._compute_torques(env.actions).view(env.torques.shape)
-        for i in range(env.num_envs):
-            env.datas[i].ctrl[env.actuator_ids_np] = env.torques[i].cpu().numpy()
-            mujoco.mj_step(env.model, env.datas[i])
+    # Match training exactly: actions define joint-position targets once per
+    # policy step, while MuJoCo's affine actuator recomputes PD force from the
+    # latest q/qvel inside every 1 ms physics substep.
+    applied_torques = env._mujoco_batch_stepper.step(
+        env.actions.detach().cpu().numpy()
+    )
+    env.torques = torch.from_numpy(applied_torques)
 
     env._refresh_sim_tensors()
     env.base_quat[:] = env.root_states[:, 3:7]
     env.base_lin_vel[:] = quat_rotate_inverse(env.base_quat, env.root_states[:, 7:10])
-    env.base_ang_vel[:] = quat_rotate_inverse(env.base_quat, env.root_states[:, 10:13])
+    # MuJoCo free-joint angular velocity is already expressed in the body frame.
+    env.base_ang_vel[:] = env.root_states[:, 10:13]
     env.projected_gravity[:] = quat_rotate_inverse(env.base_quat, env.gravity_vec)
     if env.cfg.terrain.measure_heights:
         env.measured_heights = env._get_heights()
