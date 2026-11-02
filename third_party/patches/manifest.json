@@ -11,7 +11,10 @@
         "after_sha256": "0ea218e9becfcffe697e7b137ec882094d675100c29d218547043dd38f5de15b"
       }
     ],
-    "source_hash_normalization": "CRLF to LF; patch checksum remains byte-exact"
+    "source_hash_normalization": "CRLF to LF; patch checksum remains byte-exact",
+    "patched_commit": "25b37bbaaeb9543a339fbf58dd9afb7c5248a008",
+    "repository": "https://github.com/leitianjian/aris.git",
+    "branch": "sire-contact-solver"
   },
   {
     "path": "third_party/hpp-fcl",
@@ -30,6 +33,9 @@
         "after_sha256": "6b1e684bbeab74b44fea1ae12b9ddcd75d0f58fb3687d9244f0559dd8334706f"
       }
     ],
-    "source_hash_normalization": "CRLF to LF; patch checksum remains byte-exact"
+    "source_hash_normalization": "CRLF to LF; patch checksum remains byte-exact",
+    "patched_commit": "6f1194fe417dfae8143dc1d5d0737a5b8508f3be",
+    "repository": "https://github.com/leitianjian/hpp-fcl.git",
+    "branch": "devel"
   }
 ]

@@ -17,7 +17,7 @@ $paper = 'D:/code/sire/demo/demo_paper2/paper_current'
 ```
 
 On another machine, substitute the checkout and virtual-environment paths.
-See [dependency patches](../../../docs/contact_implementation.md) before building,
+See [pinned dependency revisions](../../../docs/contact_implementation.md) before building,
 and [the native build workflow](../../../python/BUILDING.md).
 The GitHub release contains code and configurations only; plotting requires
 restoring the corresponding research inputs from the local archive.

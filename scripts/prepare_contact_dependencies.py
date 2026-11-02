@@ -1,4 +1,4 @@
-"""Check/apply the versioned dependency patches without resetting local changes."""
+"""Verify published dependencies; retain patch support for their historical bases."""
 from pathlib import Path
 import argparse
 import hashlib
@@ -22,8 +22,9 @@ def main():
     for row in rows:
         sub = ROOT / row['path']
         head = subprocess.check_output(['git','-C',str(sub),'rev-parse','HEAD'],text=True).strip()
-        if head != row['base_commit']:
-            raise RuntimeError(f"{row['path']}: expected {row['base_commit']}, got {head}")
+        published = row.get('patched_commit')
+        if head not in (row['base_commit'], published):
+            raise RuntimeError(f"{row['path']}: expected published {published} or legacy base {row['base_commit']}, got {head}")
         patch = ROOT / row['patch']
         if digest(patch, normalize=False) != row['patch_sha256']:
             raise RuntimeError(f'Patch checksum differs: {patch}')
@@ -32,8 +33,12 @@ def main():
             value = digest(sub / f['path'])
             states.append('patched' if value == f['after_sha256'] else
                           'pristine' if value == f['before_sha256'] else 'modified')
-        if set(states) == {'patched'}:
-            print(f"{row['path']}: patch already present")
+        if head == published:
+            if set(states) != {'patched'}:
+                raise RuntimeError(f"{row['path']}: published revision has unrecognized source edits")
+            print(f"{row['path']}: published revision and source checksums verified")
+        elif set(states) == {'patched'}:
+            print(f"{row['path']}: historical base with patch already present")
         elif set(states) == {'pristine'}:
             subprocess.run(['git','-C',str(sub),'apply','--check',str(patch)],check=True)
             pending.append((sub,patch))

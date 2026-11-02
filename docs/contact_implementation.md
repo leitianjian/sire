@@ -19,36 +19,40 @@ the paper's one-representative-point-per-geometry-pair experiment mode. Their
 geometry generators and tests are included because the current engine builds
 them. Do not substitute these modes into the archived paper configuration.
 
-## Dependency patches (required before building this revision)
+## Published dependency revisions
 
-The Sire checkout depends on two changes that are not in the pinned upstream
-submodule commits. They are distributed as patches instead of publishing
-unreviewed changes to another repository:
+The contact fixes are committed to the corresponding forks, and Sire pins
+those exact revisions through its submodules:
 
-| Dependency | Pinned base | Patch |
+| Dependency | Repository / branch | Pinned revision |
 | --- | --- | --- |
-| ARIS | `df71a39310a3b505459ff218f71fecbe92f5b6ce` | `third_party/patches/aris.patch` |
-| COAL/hpp-fcl | `797131dd2f7553130b16aacda921a6b466fee606` | `third_party/patches/hpp-fcl.patch` |
+| ARIS | [leitianjian/aris](https://github.com/leitianjian/aris), `sire-contact-solver` | `25b37bbaaeb9543a339fbf58dd9afb7c5248a008` |
+| COAL/hpp-fcl | [leitianjian/hpp-fcl](https://github.com/leitianjian/hpp-fcl), `devel` | `6f1194fe417dfae8143dc1d5d0737a5b8508f3be` |
 
-The ARIS patch fixes subsystem-local body indexing and clears reused contact
-inertia/acceleration arrays before assembly. The COAL patch adds an opt-in
-HeightField contact-patch query and distinct-witness insertion. It changes the
-request structure, so rebuild COAL and Sire together; do not mix old DLLs with
-the patched headers.
+ARIS fixes subsystem-local body indexing and clears reused contact
+inertia/acceleration arrays before assembly. COAL adds an opt-in HeightField
+contact-patch query and distinct surface-witness insertion. The latter changes
+the request structure, so rebuild COAL and Sire together; do not mix old DLLs
+with the updated headers.
 
 From the repository root, using the project's Python:
 
 ```powershell
+git submodule sync --recursive
 git submodule update --init --recursive
-& ./.venv/Scripts/python.exe scripts/prepare_contact_dependencies.py --apply
+& ./.venv/Scripts/python.exe scripts/prepare_contact_dependencies.py
 ```
 
-The script checks submodule commits and per-file SHA256, accepts an already
-patched checkout, and refuses mixed or unknown edits. It does not reset files,
-fetch code, or build/install a library. Rebuild/install ARIS and COAL into your
-configured dependency prefixes after applying the patches, then follow
-[`python/BUILDING.md`](../python/BUILDING.md) for Sire. Dependency source changes
-remain visible as dirty submodules after applying the reproducible patches.
+A fresh clone needs no manual patch application. The checker verifies the
+pinned commits and per-file SHA256. Rebuild/install ARIS and COAL into your
+configured dependency prefixes, then follow
+[`python/BUILDING.md`](../python/BUILDING.md) for Sire.
+
+The files in `third_party/patches/` record the changes from the historical
+bases for traceability. The checker's optional `--apply` remains available
+only for those exact older bases; it is unnecessary at the current pinned
+revisions. The checker does not reset files, fetch code, or build/install a
+library, and refuses unknown commits or source edits.
 
 ## Paper entry point and validation
 
