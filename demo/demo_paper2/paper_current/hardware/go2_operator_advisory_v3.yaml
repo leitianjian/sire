@@ -1,0 +1,13 @@
+protocol_id: go2_operator_advisory_v3
+# Used only to label command direction. Does not alter joystick or filter logs.
+command_deadband: 0.05
+maximum_counted_gap_s: 0.10
+# Advisory accumulated pure-direction seconds, across any number of short runs.
+reminder_total_s: 3.0
+long_segment_s: 2.0
+print_interval_s: 2.0
+orders:
+  1: [stand, forward, left, ccw, backward, right, cw]
+  2: [stand, backward, right, cw, forward, left, ccw]
+  3: [stand, cw, right, backward, ccw, left, forward]
+  4: [stand, ccw, left, forward, cw, right, backward]

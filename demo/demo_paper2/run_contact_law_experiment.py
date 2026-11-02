@@ -1,11 +1,12 @@
-"""Experiment 1: single-point oblique impact and shifted-contact validation.
+"""Experiment 1: velocity-shifted Coulomb contact validation.
 
 The experiment deliberately separates two questions:
 
-1. Full trajectories compare the event-targeted (shifted) contact law with an
-   otherwise identical unshifted spectral-ADMM ablation.
-2. Recorded contact systems are replayed through unshifted spectral ADMM,
-   shifted spectral ADMM, and the high-accuracy Exact-Coulomb reference.
+1. Oblique-impact trajectories compare the shifted law with an otherwise
+   identical unshifted De Saxce spectral-ADMM ablation.
+2. Step and slip sweeps test explicit separation and maximum dissipation.
+3. A one-contact load sweep tests static friction and smooth-law creep.
+4. Frozen systems are replayed through the production and reference solvers.
 
 Run this script with the Sire virtual environment; see README.md for examples.
 """
@@ -25,6 +26,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 
 import sire
@@ -33,6 +35,40 @@ import sire
 REPO_ROOT = Path(__file__).resolve().parents[2]
 COMPARE_SOLVERS = REPO_ROOT / "scripts" / "tools" / "compare_solvers.py"
 DEFAULT_OUTPUT_ROOT = Path(__file__).resolve().parent / "results"
+
+try:
+    from audit_panel_alignment import require_matplotlib_panel_alignment
+except ImportError:
+    require_matplotlib_panel_alignment = None
+
+
+COLORS = {
+    "shifted": "#0072B2",
+    "zero_target": "#D55E00",
+    "reference": "#202020",
+    "smooth": "#7A7A7A",
+    "stress": "#CC79A7",
+}
+
+mpl.rcParams.update(
+    {
+        "font.family": "Times New Roman",
+        "font.serif": ["Times New Roman", "Times", "STIXGeneral", "DejaVu Serif"],
+        "mathtext.fontset": "stix",
+        "font.size": 8.0,
+        "axes.labelsize": 8.0,
+        "axes.titlesize": 8.2,
+        "xtick.labelsize": 7.5,
+        "ytick.labelsize": 7.5,
+        "legend.fontsize": 7.4,
+        "axes.spines.right": False,
+        "axes.spines.top": False,
+        "axes.linewidth": 0.8,
+        "legend.frameon": False,
+        "pdf.fonttype": 42,
+        "svg.fonttype": "none",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -87,6 +123,31 @@ def make_cases(preset: str) -> list[Case]:
             )
             for value in (1.25e-4, 2.5e-4, 5.0e-4, 1.0e-3, 2.0e-3)
         ]
+    if preset == "paper":
+        nominal = replace(
+            nominal,
+            tangential_speed=0.5,
+            friction=0.1,
+        )
+        cases = [nominal]
+        cases.extend(
+            replace(
+                nominal,
+                name=f"step_{value * 1.0e6:.0f}us",
+                nominal_dt=value,
+            )
+            for value in (1.25e-4, 2.5e-4, 5.0e-4, 2.0e-3)
+        )
+        cases.extend(
+            replace(
+                nominal,
+                name=f"slip_{value:.3f}",
+                tangential_speed=float(value),
+            )
+            for value in np.linspace(0.0, 0.8, 17)
+            if not math.isclose(float(value), nominal.tangential_speed)
+        )
+        return cases
 
     cases: list[Case] = [nominal]
     for value in (0.2, 0.5, 1.0):
@@ -116,7 +177,12 @@ def latest_trajectory(trace_root: Path) -> Path | None:
     return trajectories[-1] if trajectories else None
 
 
-def build_simulation(case: Case, variant: str, trace_root: Path):
+def build_simulation(
+    case: Case,
+    variant: str,
+    trace_root: Path,
+    initial_penetration_policy: str = "eliminate",
+):
     trace_root.mkdir(parents=True, exist_ok=True)
     os.environ["SIRE_SOLVER_TRACE_DIR"] = str(trace_root)
 
@@ -141,6 +207,10 @@ def build_simulation(case: Case, variant: str, trace_root: Path):
         solver.setContactModelMode("single_point")
     else:
         raise ValueError(f"unknown variant: {variant}")
+
+    # Use the same contact-onset state in both variants so the trajectory
+    # ablation isolates only the normal velocity shift.
+    solver.setInitialPenetrationPolicy(initial_penetration_policy)
 
     solver.setContactTimeMethod("exponential")
     solver.warmStartEnabled = True
@@ -372,45 +442,61 @@ def analytical_separation(
     """
     # First find the positive-to-nonpositive force crossing on unloading.
     natural_period = 2.0 * math.pi * math.sqrt(case.mass / case.stiffness)
-    horizon = max(0.1, 10.0 * natural_period)
-    samples = np.linspace(1.0e-10, horizon, 5000)
-    previous_t = float(samples[0])
-    previous_state = affine_kelvin_voigt_state(
-        previous_t,
-        case.mass,
-        case.stiffness,
-        case.damping,
-        depth0,
-        depth_rate0,
-    )
-    previous_force = float(
-        case.stiffness * previous_state[0] + case.damping * previous_state[1]
-    )
-    seen_positive = previous_force > 0.0
+    # The old fixed 0.1-s/5000 scan has a 20-us spacing and can miss the
+    # first force/separation root when k is very large.  Use a stiffness-aware
+    # bracket grid, while retaining a generous horizon for damped cases.
+    horizon = max(10.0 * natural_period, 100.0 * math.sqrt(case.mass / case.stiffness))
+    if case.damping <= 1.0e-14:
+        omega = math.sqrt(case.stiffness / case.mass)
+        # d(t) = d0 cos(omega*t) + (d_dot0/omega) sin(omega*t).
+        # The first positive unloading zero is the first positive root after
+        # the initial compression branch.
+        phase = math.atan2(-depth0, depth_rate0 / max(omega, 1.0e-30))
+        while phase <= 0.0:
+            phase += math.pi
+        horizon = max(2.0 * phase / omega, 4.0 * math.pi / omega)
     bracket: tuple[float, float] | None = None
-    for current_t in samples[1:]:
-        current_state = affine_kelvin_voigt_state(
-            float(current_t),
+    if case.damping <= 1.0e-14:
+        root = phase / omega
+        bracket = (max(1.0e-15, 0.5 * root), 1.5 * root)
+    else:
+        samples = np.linspace(1.0e-12, horizon, 20001)
+        previous_t = float(samples[0])
+        previous_state = affine_kelvin_voigt_state(
+            previous_t,
             case.mass,
             case.stiffness,
             case.damping,
             depth0,
             depth_rate0,
         )
-        current_force = float(
-            case.stiffness * current_state[0] + case.damping * current_state[1]
+        previous_force = float(
+            case.stiffness * previous_state[0] + case.damping * previous_state[1]
         )
-        seen_positive = seen_positive or current_force > 0.0
-        if (
-            seen_positive
-            and previous_force > 0.0
-            and current_force <= 0.0
-            and current_state[1] < 0.0
-        ):
-            bracket = (previous_t, float(current_t))
-            break
-        previous_t = float(current_t)
-        previous_force = current_force
+        seen_positive = previous_force > 0.0
+        for current_t in samples[1:]:
+            current_state = affine_kelvin_voigt_state(
+                float(current_t),
+                case.mass,
+                case.stiffness,
+                case.damping,
+                depth0,
+                depth_rate0,
+            )
+            current_force = float(
+                case.stiffness * current_state[0] + case.damping * current_state[1]
+            )
+            seen_positive = seen_positive or current_force > 0.0
+            if (
+                seen_positive
+                and previous_force > 0.0
+                and current_force <= 0.0
+                and current_state[1] < 0.0
+            ):
+                bracket = (previous_t, float(current_t))
+                break
+            previous_t = float(current_t)
+            previous_force = current_force
     if bracket is None:
         return (math.nan,) * 5
 
@@ -565,6 +651,469 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
         writer.writerows(rows)
 
 
+def run_static_friction_sweep(
+    output_dir: Path,
+    *,
+    mass: float = 1.0,
+    friction: float = 0.1,
+    step: float = 1.0e-3,
+    gravity: float = 9.81,
+    smooth_velocity: float = 1.0e-4,
+) -> list[dict[str, Any]]:
+    """Solve a locked-orientation, single-contact tangential load sweep.
+
+    The contact-space operator is that of a point mass with horizontal and
+    vertical translation.  It is equivalent to a body whose orientation and
+    out-of-plane motion are constrained, without introducing a multipoint box
+    contact or sphere rolling into the static-friction measurement.
+    """
+    inverse_mass = (-np.eye(3, dtype=float) / mass).ravel().tolist()
+    normal_load = mass * gravity
+    friction_limit = friction * normal_load
+    rows: list[dict[str, Any]] = []
+    for load_ratio in np.linspace(0.0, 1.5, 61):
+        applied_force = float(load_ratio * friction_limit)
+        free_velocity = [step * applied_force / mass, 0.0, -step * gravity]
+        common = (
+            1,
+            [friction],
+            inverse_mass,
+            free_velocity,
+            [0.0],
+            [0.0, 0.0, 0.0],
+            step,
+            200,
+        )
+        shifted_raw, shifted_error = sire.cptContactForceShiftedSpectralAdmm(
+            *common, 1.0e-8
+        )
+        reference_raw, reference_error = sire.cptContactForceExactCoulomb(
+            *common, 1.0e-10
+        )
+        shifted_force = np.asarray(shifted_raw, dtype=float)
+        reference_force = np.asarray(reference_raw, dtype=float)
+        contact_operator = step * np.eye(3, dtype=float) / mass
+        shifted_velocity = contact_operator @ shifted_force + np.asarray(
+            free_velocity, dtype=float
+        )
+        reference_velocity = contact_operator @ reference_force + np.asarray(
+            free_velocity, dtype=float
+        )
+
+        # Previous smooth law: |f_T|/limit = min(|v_T|/v_s, 1).
+        compliance = step / mass
+        regularized_gain = friction_limit / smooth_velocity
+        smooth_speed_linear = (
+            compliance * applied_force
+            / (1.0 + compliance * regularized_gain)
+        )
+        if smooth_speed_linear <= smooth_velocity:
+            smooth_speed = smooth_speed_linear
+            smooth_force = regularized_gain * smooth_speed
+        else:
+            smooth_force = friction_limit
+            smooth_speed = compliance * (applied_force - smooth_force)
+
+        rows.append(
+            {
+                "load_ratio": float(load_ratio),
+                "applied_force_N": applied_force,
+                "friction_limit_N": friction_limit,
+                "shifted_tangent_force_N": abs(float(shifted_force[0])),
+                "reference_tangent_force_N": abs(float(reference_force[0])),
+                "smooth_tangent_force_N": smooth_force,
+                "shifted_tangent_speed_m_per_s": abs(float(shifted_velocity[0])),
+                "reference_tangent_speed_m_per_s": abs(float(reference_velocity[0])),
+                "smooth_tangent_speed_m_per_s": abs(float(smooth_speed)),
+                "shifted_normal_force_N": float(shifted_force[2]),
+                "reference_normal_force_N": float(reference_force[2]),
+                "shifted_solver_error": float(shifted_error),
+                "reference_solver_error": float(reference_error),
+                "smooth_velocity_m_per_s": smooth_velocity,
+            }
+        )
+    write_csv(output_dir / "static_friction_sweep.csv", rows)
+    return rows
+
+
+def add_panel_label(axis: Any, label: str) -> None:
+    axis.annotate(
+        label,
+        xy=(0.0, 1.0),
+        xycoords="axes fraction",
+        xytext=(-18, 8),
+        textcoords="offset points",
+        fontsize=9.0,
+        fontweight="bold",
+        ha="left",
+        va="bottom",
+        annotation_clip=False,
+    )
+
+
+def save_publication_figure(
+    figure: Any,
+    base_path: Path,
+    *,
+    exclude_axes: list[Any] | None = None,
+) -> None:
+    base_path.parent.mkdir(parents=True, exist_ok=True)
+    figure.canvas.draw()
+    if require_matplotlib_panel_alignment is None:
+        print(
+            "warning: audit_panel_alignment is unavailable; "
+            "figure exported without a formal alignment manifest",
+            file=sys.stderr,
+        )
+    else:
+        require_matplotlib_panel_alignment(
+            figure,
+            json_out=str(base_path.with_suffix(".alignment-layout.json")),
+            overlay_svg=str(base_path.with_suffix(".alignment-overlay.svg")),
+            tolerance_pt=1.5,
+            gutter_tolerance_pt=1.5,
+            require_panel_labels=True,
+            exclude_axes=exclude_axes or [],
+            strict=True,
+        )
+    figure.savefig(base_path.with_suffix(".pdf"), bbox_inches="tight")
+    figure.savefig(base_path.with_suffix(".svg"), bbox_inches="tight")
+    figure.savefig(base_path.with_suffix(".png"), dpi=300, bbox_inches="tight")
+    figure.savefig(base_path.with_suffix(".tiff"), dpi=600, bbox_inches="tight")
+
+
+def plot_paper_figure(
+    output_dir: Path,
+    trajectories: dict[tuple[str, str], list[dict[str, Any]]],
+    summaries: list[dict[str, Any]],
+    static_rows: list[dict[str, Any]],
+) -> Path:
+    """Create the four-panel contact-law evidence figure used by the paper."""
+    figure, axes = plt.subplots(
+        2,
+        2,
+        figsize=(7.15, 5.15),
+        constrained_layout=True,
+    )
+    axis_a, axis_b, axis_c, axis_d = axes.ravel()
+
+    shifted = trajectories[("nominal", "shifted")]
+    unshifted = trajectories[("nominal", "unshifted")]
+    episode = first_contact_episode(shifted)
+    if episode is None:
+        raise RuntimeError("nominal shifted trajectory contains no contact")
+    start, end = episode
+    contact_start = float(shifted[start]["time"])
+    contact_end = float(shifted[end]["time"] + shifted[end]["dt"])
+    upper = contact_start + 0.014
+    panel_a_rows: list[dict[str, Any]] = []
+    for label, rows, color, style in (
+        ("Shifted", shifted, COLORS["shifted"], "-"),
+        ("Unshifted De Saxce NCP", unshifted, COLORS["zero_target"], "--"),
+    ):
+        selected = [
+            row
+            for row in rows
+            if contact_start - 2.0e-3 <= float(row["time"]) <= upper
+        ]
+        relative_time = np.asarray(
+            [(float(row["time"]) - contact_start) * 1.0e3 for row in selected]
+        )
+        normal_velocity = np.asarray([float(row["vz"]) for row in selected])
+        axis_a.plot(
+            relative_time,
+            normal_velocity,
+            style,
+            color=color,
+            linewidth=1.35,
+            label=label,
+        )
+        for time_value, velocity_value in zip(relative_time, normal_velocity):
+            panel_a_rows.append(
+                {
+                    "method": label,
+                    "time_from_contact_ms": float(time_value),
+                    "normal_velocity_m_per_s": float(velocity_value),
+                }
+            )
+    targets = [
+        row
+        for row in shifted
+        if contact_start <= float(row["time"]) <= contact_end
+        and math.isfinite(float(row["solver_target_vn"]))
+    ]
+    if targets:
+        axis_a.plot(
+            [(float(row["time"]) - contact_start) * 1.0e3 for row in targets],
+            [float(row["solver_target_vn"]) for row in targets],
+            ":",
+            color=COLORS["reference"],
+            linewidth=1.0,
+            label=r"Trajectory target $\bar v_N$",
+        )
+    axis_a.axhline(0.0, color="#B0B0B0", linewidth=0.7)
+    axis_a.set_xlabel("Time from first contact [ms]")
+    axis_a.set_ylabel(r"Normal velocity $v_N$ [m/s]")
+    axis_a.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.01),
+        ncol=3,
+        borderaxespad=0.0,
+        handlelength=2.2,
+        columnspacing=1.0,
+    )
+    write_csv(output_dir / "paper_figure" / "panel_a_trajectory.csv", panel_a_rows)
+
+    convergence = sorted(
+        (
+            row
+            for row in summaries
+            if row.get("variant") == "shifted"
+            and (row.get("case") == "nominal" or str(row.get("case", "")).startswith("step_"))
+            and row.get("separation_found")
+        ),
+        key=lambda row: float(row["nominal_dt"]),
+    )
+    if len(convergence) < 3:
+        raise RuntimeError("paper preset did not produce the step sweep")
+    eta = np.asarray(
+        [
+            float(row["nominal_dt"])
+            * math.sqrt(float(row["stiffness"]) / float(row["mass"]))
+            for row in convergence
+        ]
+    )
+    time_error = 100.0 * np.asarray(
+        [float(row["contact_time_relative_error"]) for row in convergence]
+    )
+    velocity_error = 100.0 * np.asarray(
+        [
+            float(row["terminal_velocity_abs_error"])
+            / max(float(row["normal_speed"]), 1.0e-15)
+            for row in convergence
+        ]
+    )
+    under_resolved = np.asarray(
+        [int(row["contact_intervals"]) < 8 for row in convergence], dtype=bool
+    )
+    resolved = ~under_resolved
+    # Keep the under-resolved stress point visible, but do not connect it to
+    # the resolved branch. The nonmonotone endpoint error is a sampling effect,
+    # not a convergence trend to be interpolated by the line.
+    axis_b.loglog(
+        eta[resolved],
+        time_error[resolved],
+        "o-",
+        color=COLORS["shifted"],
+        markersize=3.5,
+        linewidth=1.2,
+        label=r"Separation time $e_t$",
+    )
+    axis_b.loglog(
+        eta[resolved],
+        velocity_error[resolved],
+        "s-",
+        color=COLORS["zero_target"],
+        markersize=3.2,
+        linewidth=1.2,
+        label=r"Terminal velocity $e_v$",
+    )
+    if np.any(under_resolved):
+        axis_b.scatter(
+            eta[under_resolved],
+            time_error[under_resolved],
+            facecolors="none",
+            edgecolors=COLORS["stress"],
+            s=36,
+            linewidths=1.0,
+            label="Under-resolved",
+            zorder=4,
+        )
+        axis_b.scatter(
+            eta[under_resolved],
+            velocity_error[under_resolved],
+            facecolors="none",
+            edgecolors=COLORS["stress"],
+            s=36,
+            linewidths=1.0,
+            zorder=4,
+        )
+    axis_b.set_xlabel(r"Normalized step $\Delta t\sqrt{k/m}$")
+    axis_b.set_ylabel("Relative error [%]")
+    axis_b.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.01),
+        ncol=2,
+        borderaxespad=0.0,
+        handlelength=2.0,
+        columnspacing=1.0,
+    )
+    write_csv(
+        output_dir / "paper_figure" / "panel_b_convergence.csv",
+        [
+            {
+                "case": row["case"],
+                "normalized_step": float(x),
+                "separation_time_error_percent": float(et),
+                "terminal_velocity_error_percent": float(ev),
+                "contact_intervals": int(row["contact_intervals"]),
+            }
+            for row, x, et, ev in zip(convergence, eta, time_error, velocity_error)
+        ],
+    )
+
+    slip = sorted(
+        (
+            row
+            for row in summaries
+            if row.get("variant") == "shifted"
+            and (row.get("case") == "nominal" or str(row.get("case", "")).startswith("slip_"))
+            and row.get("separation_found")
+            and float(row.get("normal_impulse", 0.0)) > 0.0
+        ),
+        key=lambda row: float(row["tangential_speed"]),
+    )
+    slip_x = np.asarray(
+        [
+            (2.0 * float(row["mass"]) / 7.0)
+            * abs(float(row["tangential_speed"]))
+            / (float(row["friction"]) * float(row["normal_impulse"]))
+            for row in slip
+        ]
+    )
+    slip_y = np.asarray(
+        [
+            float(row["tangent_impulse_magnitude"])
+            / (float(row["friction"]) * float(row["normal_impulse"]))
+            for row in slip
+        ]
+    )
+    theory_x = np.linspace(0.0, max(1.6, float(np.max(slip_x)) * 1.03), 300)
+    axis_c.plot(
+        theory_x,
+        np.minimum(theory_x, 1.0),
+        color=COLORS["reference"],
+        linewidth=1.2,
+        label="Maximum dissipation",
+    )
+    axis_c.scatter(
+        slip_x,
+        slip_y,
+        color=COLORS["shifted"],
+        edgecolor="white",
+        linewidth=0.35,
+        s=18,
+        label="Shifted ADMM",
+        zorder=3,
+    )
+    axis_c.set_xlabel(r"Incident demand $m_T|v_T^-|/(\mu J_N)$")
+    axis_c.set_ylabel(r"Tangential impulse $|J_T|/(\mu J_N)$")
+    axis_c.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.01),
+        ncol=2,
+        borderaxespad=0.0,
+        handlelength=2.2,
+        columnspacing=1.0,
+    )
+    write_csv(
+        output_dir / "paper_figure" / "panel_c_impulse.csv",
+        [
+            {
+                "case": row["case"],
+                "normalized_incident_demand": float(x),
+                "normalized_tangential_impulse": float(y),
+                "normal_impulse_Ns": float(row["normal_impulse"]),
+                "tangential_impulse_Ns": float(row["tangent_impulse_magnitude"]),
+            }
+            for row, x, y in zip(slip, slip_x, slip_y)
+        ],
+    )
+
+    load_ratio = np.asarray([float(row["load_ratio"]) for row in static_rows])
+    friction_limit = np.asarray(
+        [float(row["friction_limit_N"]) for row in static_rows]
+    )
+    shifted_force_ratio = np.asarray(
+        [float(row["shifted_tangent_force_N"]) for row in static_rows]
+    ) / friction_limit
+    reference_force_ratio = np.asarray(
+        [float(row["reference_tangent_force_N"]) for row in static_rows]
+    ) / friction_limit
+    smooth_force_ratio = np.asarray(
+        [float(row["smooth_tangent_force_N"]) for row in static_rows]
+    ) / friction_limit
+    velocity_scale = float(static_rows[0]["smooth_velocity_m_per_s"])
+    shifted_speed_ratio = np.asarray(
+        [float(row["shifted_tangent_speed_m_per_s"]) for row in static_rows]
+    ) / velocity_scale
+    smooth_speed_ratio = np.asarray(
+        [float(row["smooth_tangent_speed_m_per_s"]) for row in static_rows]
+    ) / velocity_scale
+    axis_d.plot(
+        load_ratio,
+        reference_force_ratio,
+        color=COLORS["reference"],
+        linewidth=1.2,
+        label="Coulomb reference",
+    )
+    axis_d.scatter(
+        load_ratio[::3],
+        shifted_force_ratio[::3],
+        color=COLORS["shifted"],
+        edgecolor="white",
+        linewidth=0.3,
+        s=15,
+        label="Shifted ADMM",
+        zorder=3,
+    )
+    axis_d.plot(
+        load_ratio,
+        smooth_force_ratio,
+        ":",
+        color=COLORS["smooth"],
+        linewidth=1.3,
+        label="Smooth law",
+    )
+    speed_axis = axis_d.twinx()
+    speed_axis.spines["right"].set_visible(True)
+    speed_axis.plot(
+        load_ratio,
+        shifted_speed_ratio,
+        "--",
+        color=COLORS["shifted"],
+        linewidth=0.9,
+        alpha=0.75,
+    )
+    speed_axis.plot(
+        load_ratio,
+        smooth_speed_ratio,
+        "--",
+        color=COLORS["smooth"],
+        linewidth=0.9,
+        alpha=0.9,
+    )
+    axis_d.set_xlabel(r"Applied load $F_{\rm ext}/(\mu mg)$")
+    axis_d.set_ylabel(r"Opposing force $|f_T|/(\mu f_N)$")
+    speed_axis.set_ylabel(r"Slip speed $|v_T|/v_s$")
+    axis_d.legend(
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.01),
+        ncol=3,
+        borderaxespad=0.0,
+        handlelength=2.0,
+        columnspacing=0.9,
+    )
+
+    for label, axis in zip("abcd", (axis_a, axis_b, axis_c, axis_d)):
+        add_panel_label(axis, label)
+
+    base_path = output_dir / "paper_figure" / "contact_law_validation"
+    save_publication_figure(figure, base_path, exclude_axes=[speed_axis])
+    plt.close(figure)
+    return base_path
+
+
 def plot_case(
     output_path: Path,
     case: Case,
@@ -600,7 +1149,7 @@ def plot_case(
     for axis in axes:
         axis.grid(True, alpha=0.25)
     figure.tight_layout()
-    figure.savefig(output_path, dpi=180)
+    figure.savefig(output_path, dpi=300)
     plt.close(figure)
 
 
@@ -639,7 +1188,7 @@ def plot_first_contact(
         axis.grid(True, alpha=0.25)
         axis.set_xlim(lower, upper)
     figure.tight_layout()
-    figure.savefig(output_path, dpi=180)
+    figure.savefig(output_path, dpi=300)
     plt.close(figure)
 
 
@@ -749,7 +1298,7 @@ def plot_aggregate(output_dir: Path, summaries: list[dict[str, Any]]) -> None:
             note += "\nall right-censored"
         axes[2].text(index, fractions[index] + 0.025, note, ha="center", va="bottom")
     figure.tight_layout()
-    figure.savefig(output_dir / "aggregate_contact_law.png", dpi=180)
+    figure.savefig(output_dir / "aggregate_contact_law.png", dpi=300)
     plt.close(figure)
 
 
@@ -841,14 +1390,16 @@ def plot_timestep_convergence(
         axis.grid(True, which="both", alpha=0.25)
         axis.legend()
     figure.tight_layout()
-    figure.savefig(output_dir / "timestep_convergence.png", dpi=180)
+    figure.savefig(output_dir / "timestep_convergence.png", dpi=300)
     plt.close(figure)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--preset", choices=("smoke", "full", "convergence"), default="smoke"
+        "--preset",
+        choices=("smoke", "full", "convergence", "paper"),
+        default="smoke",
     )
     parser.add_argument(
         "--output-dir",
@@ -871,6 +1422,11 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help="optional cap for each case's offline trace replay",
     )
+    parser.add_argument(
+        "--replay-all",
+        action="store_true",
+        help="replay every case; the paper preset otherwise replays nominal only",
+    )
     return parser.parse_args()
 
 
@@ -887,29 +1443,45 @@ def main() -> int:
         json.dump([{**asdict(case), "damping": case.damping} for case in cases], stream, indent=2)
 
     summaries: list[dict[str, Any]] = []
+    all_trajectories: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for sequence, case in enumerate(cases, start=1):
         print(f"[{sequence}/{len(cases)}] {case.name}")
         trajectories: dict[str, list[dict[str, Any]]] = {}
         shifted_trace: Path | None = None
-        for variant in ("shifted", "unshifted"):
+        variants = (
+            ("shifted", "unshifted")
+            if args.preset != "paper" or case.name == "nominal"
+            else ("shifted",)
+        )
+        for variant in variants:
             print(f"  running {variant}")
             rows, summary, trace_dir = run_case(case, variant, output_dir)
             trajectories[variant] = rows
+            all_trajectories[(case.name, variant)] = rows
             summaries.append(summary)
             if variant == "shifted":
                 shifted_trace = trace_dir
-        plot_case(
-            output_dir / "runs" / case.name / "trajectory_comparison.png",
-            case,
-            trajectories["shifted"],
-            trajectories["unshifted"],
+        if "unshifted" in trajectories:
+            plot_case(
+                output_dir / "runs" / case.name / "trajectory_comparison.png",
+                case,
+                trajectories["shifted"],
+                trajectories["unshifted"],
+            )
+            plot_first_contact(
+                output_dir / "runs" / case.name / "first_contact_comparison.png",
+                trajectories["shifted"],
+                trajectories["unshifted"],
+            )
+        should_replay = (
+            not args.skip_replay
+            and (
+                args.replay_all
+                or args.preset != "paper"
+                or case.name == "nominal"
+            )
         )
-        plot_first_contact(
-            output_dir / "runs" / case.name / "first_contact_comparison.png",
-            trajectories["shifted"],
-            trajectories["unshifted"],
-        )
-        if not args.skip_replay:
+        if should_replay:
             if shifted_trace is None:
                 print("  warning: shifted run produced no solver trace", file=sys.stderr)
             else:
@@ -925,6 +1497,15 @@ def main() -> int:
     plot_aggregate(output_dir, summaries)
     if args.preset == "convergence":
         plot_timestep_convergence(output_dir, summaries)
+    if args.preset == "paper":
+        static_rows = run_static_friction_sweep(output_dir)
+        figure_base = plot_paper_figure(
+            output_dir,
+            all_trajectories,
+            summaries,
+            static_rows,
+        )
+        print(f"paper figure: {figure_base}.pdf")
     print(f"results: {output_dir}")
     return 0
 

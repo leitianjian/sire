@@ -1,0 +1,51 @@
+protocol_id: go2_paper_protocol_v1
+command_convention: normalized_body_frame_x_y_yaw
+
+# Paper protocol: every moving segment applies matched positive and negative
+# commands with a zero-command pause. With max_cmd=[1,1,1], the command values
+# are numerically equal to m/s, m/s, and rad/s. operator_deadman remains the
+# boundary guard because SportModeState is not validated during low-level mode.
+segments:
+  paper_stand_08:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: stand, duration_s: 8.0, command: [0.0, 0.0, 0.0]}
+
+  paper_fore_aft_050:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: forward_ramp, duration_s: 0.75, command_to: [0.50, 0.0, 0.0]}
+      - {name: forward_hold, duration_s: 1.0, command: [0.50, 0.0, 0.0]}
+      - {name: forward_stop, duration_s: 0.75, command_to: [0.0, 0.0, 0.0]}
+      - {name: direction_pause, duration_s: 1.0, command: [0.0, 0.0, 0.0]}
+      - {name: backward_ramp, duration_s: 0.75, command_to: [-0.50, 0.0, 0.0]}
+      - {name: backward_hold, duration_s: 1.0, command: [-0.50, 0.0, 0.0]}
+      - {name: backward_stop, duration_s: 0.75, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+
+  paper_lateral_pair_030:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: left_ramp, duration_s: 0.75, command_to: [0.0, 0.30, 0.0]}
+      - {name: left_hold, duration_s: 1.0, command: [0.0, 0.30, 0.0]}
+      - {name: left_stop, duration_s: 0.75, command_to: [0.0, 0.0, 0.0]}
+      - {name: direction_pause, duration_s: 1.0, command: [0.0, 0.0, 0.0]}
+      - {name: right_ramp, duration_s: 0.75, command_to: [0.0, -0.30, 0.0]}
+      - {name: right_hold, duration_s: 1.0, command: [0.0, -0.30, 0.0]}
+      - {name: right_stop, duration_s: 0.75, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+
+  paper_yaw_pair_050:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ccw_ramp, duration_s: 0.75, command_to: [0.0, 0.0, 0.50]}
+      - {name: ccw_hold, duration_s: 1.0, command: [0.0, 0.0, 0.50]}
+      - {name: ccw_stop, duration_s: 0.75, command_to: [0.0, 0.0, 0.0]}
+      - {name: direction_pause, duration_s: 1.0, command: [0.0, 0.0, 0.0]}
+      - {name: cw_ramp, duration_s: 0.75, command_to: [0.0, 0.0, -0.50]}
+      - {name: cw_hold, duration_s: 1.0, command: [0.0, 0.0, -0.50]}
+      - {name: cw_stop, duration_s: 0.75, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}

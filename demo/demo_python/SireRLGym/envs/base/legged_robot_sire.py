@@ -1344,7 +1344,10 @@ class LeggedRobotSire(VecEnv):
         """
 
         # Use sirePaperDogRL model by default, fallback to resources/
-        model_path = str(ROOT_DIR / "sirePaperDogRL" / "go2_rai_foot.xml")
+        requested_model = getattr(self.cfg.sim, "sire_model_file", None)
+        model_path = str(requested_model or ROOT_DIR / "sirePaperDogRL" / "go2_rai_foot.xml")
+        if requested_model and not Path(model_path).is_file():
+            raise FileNotFoundError(f"Configured Sire model not found: {model_path}")
         if not Path(model_path).exists():
             model_path = str(ROOT_DIR / "resources" / "go2SRCF.xml")
         if not Path(model_path).exists():

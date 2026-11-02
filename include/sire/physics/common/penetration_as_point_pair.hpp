@@ -1,6 +1,7 @@
 #ifndef SIRE_PENETRATION_AS_POINT_PAIR_HPP_
 #define SIRE_PENETRATION_AS_POINT_PAIR_HPP_
 #include <algorithm>
+#include <cstdint>
 
 #include <coal/data_types.h>
 
@@ -34,6 +35,8 @@ struct PenetrationAsPointPair {
     j["p_WCa"] = p_WCa;
     j["p_WCb"] = p_WCb;
     j["nhat_AB_W"] = nhat_AB_W;
+    j["contactId"] = contact_id;
+    j["patchId"] = patch_id;
   }
   bool compareById(const PenetrationAsPointPair& other) const {
     return (id_A == other.id_A && id_B == other.id_B) ||
@@ -59,6 +62,9 @@ struct PenetrationAsPointPair {
   double depth{-1.0};
 
   double modifiedDepth{-1.0};
+  /// Stable identifiers supplied by a persistent contact manifold, if any.
+  std::uint64_t contact_id{0};
+  std::uint64_t patch_id{0};
 };
 
 }  // namespace sire::physics::common

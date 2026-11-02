@@ -1,0 +1,35 @@
+[
+  {
+    "path": "third_party/aris",
+    "base_commit": "df71a39310a3b505459ff218f71fecbe92f5b6ce",
+    "patch": "third_party/patches/aris.patch",
+    "patch_sha256": "bf0a2ee0f428621f6b18ddb36e8ca9f6b1dea96968cb9acab44aa4275a5a9b2b",
+    "files": [
+      {
+        "path": "src/dynamic/model_solver.cpp",
+        "before_sha256": "a2931c99b82a2d01f4f354f7a27a17f8259726dc3cb4ae721c857532e52e5810",
+        "after_sha256": "0ea218e9becfcffe697e7b137ec882094d675100c29d218547043dd38f5de15b"
+      }
+    ],
+    "source_hash_normalization": "CRLF to LF; patch checksum remains byte-exact"
+  },
+  {
+    "path": "third_party/hpp-fcl",
+    "base_commit": "797131dd2f7553130b16aacda921a6b466fee606",
+    "patch": "third_party/patches/hpp-fcl.patch",
+    "patch_sha256": "af9cff5764d4c231f597f9ef18f7dd7ba5a6029fa8efe35973e31ff3964dd0d7",
+    "files": [
+      {
+        "path": "include/coal/collision_data.h",
+        "before_sha256": "0ae1464ff26e2c2eb3f2e3ae5c83f2f7e2389657c5c4176ef2e1464fc589e214",
+        "after_sha256": "c5ee947ab68bc5c92c9b8a6e8f87020f9d7c04b73a322a6f6201a0096ee8acdb"
+      },
+      {
+        "path": "include/coal/internal/traversal_node_hfield_shape.h",
+        "before_sha256": "f91a8ee6b5a5725d8767be68887a2de70687c6743982c75ed70b51870d08853c",
+        "after_sha256": "6b1e684bbeab74b44fea1ae12b9ddcd75d0f58fb3687d9244f0559dd8334706f"
+      }
+    ],
+    "source_hash_normalization": "CRLF to LF; patch checksum remains byte-exact"
+  }
+]

@@ -1,0 +1,387 @@
+[
+  {
+    "path": ".gitignore",
+    "sha256": "876f5c0d6eddab5d3cfc155a7a445ce7db028fa2ce16522e9411b5e8cfbf3529",
+    "bytes": 1592
+  },
+  {
+    "path": "data/training/seed_1/flat_go2/exp1/config.yaml",
+    "sha256": "935b0a5d669a5f462e483badfd2da5dc23e33f7246bfed9c98843ca2df0f02fd",
+    "bytes": 6792
+  },
+  {
+    "path": "data/training/seed_2/flat_go2/exp1/config.yaml",
+    "sha256": "e1e4c090d1402c5187ccdc766a283ca20ca44f99544147bf785a8b22ef416070",
+    "bytes": 6792
+  },
+  {
+    "path": "data/training/seed_3/flat_go2/exp1/config.yaml",
+    "sha256": "222577f260bdf58495fc3438433025afbf907c812f3c80dceb8d1517b8215d01",
+    "bytes": 6792
+  },
+  {
+    "path": "data/training/seed_4/flat_go2/exp1/config.yaml",
+    "sha256": "6d8d9dcfff99d1660fa053fb0e5fb3548a7fbb00d212a613226ba71addfba888",
+    "bytes": 6792
+  },
+  {
+    "path": "data/training_velocity_regularized/seed_2/flat_go2/exp1/config.yaml",
+    "sha256": "6b892f805d90d03de7cbff7cacb8f0c3a25212516fb47c5e18e17a63f3fcc599",
+    "bytes": 6843
+  },
+  {
+    "path": "FIGURE_STYLE.md",
+    "sha256": "2c3b6bb62cd920afc78e365e2c5e28bed26e197b86cfdd849ded90fd77d1705c",
+    "bytes": 5613
+  },
+  {
+    "path": "hardware/analyze_policy_trial.py",
+    "sha256": "b69197b88d1bdc7b9bf39c0b6a87898eb2811334e379a94a78c0a9d0953bad22",
+    "bytes": 3304
+  },
+  {
+    "path": "hardware/audit_go2_telemetry.py",
+    "sha256": "a8d9b4f4b47c355ec8b7bcec8c89aa51510c46132eb7d7a1794f5955ebc7d931",
+    "bytes": 5219
+  },
+  {
+    "path": "hardware/audit_training_deploy_config.py",
+    "sha256": "f1589e670b868f09193fb9a4e27dc5fdb5b12888470dff84cab5f7eed0f1d327",
+    "bytes": 3680
+  },
+  {
+    "path": "hardware/capture_go2_lowstate.py",
+    "sha256": "dee9baf06543da08edbeda31a8a06648efd73671b6c3d2efb722a4945d4330d9",
+    "bytes": 2839
+  },
+  {
+    "path": "hardware/compare_go2_contact_models.py",
+    "sha256": "101c2aeb41dda5b222bd74e8c6af0adc7552c146a1ceb01bf21ef2f058a38f71",
+    "bytes": 10774
+  },
+  {
+    "path": "hardware/deploy_go2.py",
+    "sha256": "0fd5817e266fd5099ff04e63f3754016081dd1adddbe7364751a1ae5208f5798",
+    "bytes": 11032
+  },
+  {
+    "path": "hardware/deploy_go2_operator_collection.py",
+    "sha256": "ac7078eae77a8cecf8f2733cfd509ef80d44cadf81a125a12c10f0f1e2e2c94a",
+    "bytes": 22683
+  },
+  {
+    "path": "hardware/deploy_go2_paper.py",
+    "sha256": "1ddc944116453c7593baafc324fe38b5c5b0b826916dc7a39bde81a6dd788edb",
+    "bytes": 19999
+  },
+  {
+    "path": "hardware/deploy_go2_paper_session.py",
+    "sha256": "d6e5e50146b941a0188b412c35e461a45168a9e63be0dc5ce6e5eed7f51ff77f",
+    "bytes": 32891
+  },
+  {
+    "path": "hardware/deploy_go2_segmented.py",
+    "sha256": "240fde29edc54d8a2c5ec5c1ea3ed0979d952d27ebf0f9e605b1d382b8205c07",
+    "bytes": 46494
+  },
+  {
+    "path": "hardware/deploy_sire_1200.yaml",
+    "sha256": "4c3b98284409745a09298a828451352b8e5b958e45f6b90189897ed70dc98a5e",
+    "bytes": 772
+  },
+  {
+    "path": "hardware/estimate_go2_kinematics.py",
+    "sha256": "ad0b5f767556599559ff2a7040d43eb600ded16347afc367e2190ac1fce93c48",
+    "bytes": 22081
+  },
+  {
+    "path": "hardware/export_policy_jit.py",
+    "sha256": "5c252974d029ea0f8b4b84b521dd08072b8aaeb460041dae6d10e6ebb0575037",
+    "bytes": 6732
+  },
+  {
+    "path": "hardware/extract_operator_coverage.py",
+    "sha256": "4191221e92c16f8aef8f2ff5ab598fa90ecf0bcf01cad06b28589ab39ec7f80a",
+    "bytes": 4939
+  },
+  {
+    "path": "hardware/go2_flat_segmented_v1.yaml",
+    "sha256": "7de1cfae659b7c90406cdd3c01e17612dffa1c052cf8798b638161f291b3f7b7",
+    "bytes": 3026
+  },
+  {
+    "path": "hardware/go2_operator_advisory_v3.yaml",
+    "sha256": "04440971a87c2b5bc82b59e13bddeb34b4cde2acc2d0cb40486eaaae6108ec66",
+    "bytes": 537
+  },
+  {
+    "path": "hardware/go2_operator_coverage_v1.yaml",
+    "sha256": "dee87fe364ce37d0375d4d7d5251f16a1c22438b92c7e51e93e7d36a32596966",
+    "bytes": 1782
+  },
+  {
+    "path": "hardware/go2_operator_coverage_v2.yaml",
+    "sha256": "e1ec5309a35f9dda8dd981228d9039ffd44dde93776fa0d9a96a1ce74585e1fe",
+    "bytes": 1831
+  },
+  {
+    "path": "hardware/go2_paper_protocol_v1.yaml",
+    "sha256": "52cea31c92821315a3e5ce1e353f44cbeb355064eb3a6c7b758b2ad338782032",
+    "bytes": 2716
+  },
+  {
+    "path": "hardware/go2_paper_protocol_v2.yaml",
+    "sha256": "8b9ac443d7fcc5edfcd4ca83b6e3c5a72e754959abaebe0e8f5af57dd2bafae1",
+    "bytes": 2269
+  },
+  {
+    "path": "hardware/go2_paper_protocol_v3.yaml",
+    "sha256": "61849f184869a5589097444d5b3993565fc2f2ae4b7031adb895597df59ffc75",
+    "bytes": 2225
+  },
+  {
+    "path": "hardware/operator_motion_summary.py",
+    "sha256": "506feab3d21bd9d508e95d32a0856cbfb21d08d1b21b59ebe43515de4e14fafb",
+    "bytes": 4155
+  },
+  {
+    "path": "hardware/OPERATOR_V3_README.md",
+    "sha256": "e0be64752cd441fb0743b85a81534b5876d9690db7e9d67ae5a6136df9bef1d9",
+    "bytes": 1671
+  },
+  {
+    "path": "hardware/probe_go2_telemetry.py",
+    "sha256": "4f8b0bf64828208b6896638b2892321c68fbf165edce77b50256c709ea2a70f8",
+    "bytes": 9590
+  },
+  {
+    "path": "hardware/README.md",
+    "sha256": "e9e91f63216c123cb47d4c672038a72bcfe971f4a85c006793ed18fa5e3ac306",
+    "bytes": 19763
+  },
+  {
+    "path": "hardware/run_operator_collection.sh",
+    "sha256": "2d4a6a71bb4e8084c99b52920096b5abcf7f633aa2516583f1476afadfe72ad6",
+    "bytes": 1571
+  },
+  {
+    "path": "hardware/run_original_seed2_contact_test.py",
+    "sha256": "1466121066532573d413a3aadca3f8ec5562be084b36f2a1409f225d4f2fc5f1",
+    "bytes": 7052
+  },
+  {
+    "path": "hardware/run_paper_seed_session.sh",
+    "sha256": "438cfbf928d2f7a43aad527f1f5bda64382802ea3973943e1ef8fa179877f6e3",
+    "bytes": 1504
+  },
+  {
+    "path": "hardware/run_paper_trial.sh",
+    "sha256": "a39280cc53467407b4cd49f8f9116e9a5c09c54dd37356e6fd036a264a8812f2",
+    "bytes": 1813
+  },
+  {
+    "path": "hardware/run_smooth_seed2_comparison.py",
+    "sha256": "fc49e498ff6140ca9455e73002c1a2dcdfa6d5ab54a6cf8404b283153f43db58",
+    "bytes": 1429
+  },
+  {
+    "path": "README.md",
+    "sha256": "6720ddb415b08d30a06c1b7947e233ec1afa4cb7635c6112b80014e705013061",
+    "bytes": 7277
+  },
+  {
+    "path": "requirements-analysis.txt",
+    "sha256": "70b7f196432dbedcafd6d01924c761967cda8d49e0ab54b18a0fef8aa62115b0",
+    "bytes": 53
+  },
+  {
+    "path": "requirements-plot.txt",
+    "sha256": "b0e8179d014c18e8279132e3f7326581cb5a812442a46091c3c101e2eec9ae9c",
+    "bytes": 133
+  },
+  {
+    "path": "run.py",
+    "sha256": "c16f9e71be98c01e856d97056f604fa74cabcf9dc297c13aa8cf43818f70fb2e",
+    "bytes": 9671
+  },
+  {
+    "path": "scripts/analyze_hardware_normal_motion.py",
+    "sha256": "c358db93c2d30d5409a554004c41d489333f7cae48a42021fef9f4a6b639a116",
+    "bytes": 11009
+  },
+  {
+    "path": "scripts/analyze_impact_dissipation.py",
+    "sha256": "4c9256dd9fcc41fdc22b500af6698784482caaf5cafe7412ac0b5d19a3c28aea",
+    "bytes": 10071
+  },
+  {
+    "path": "scripts/analyze_multiseed_hardware.py",
+    "sha256": "38c496f18efe8e8ec910954c98b129835c7a7155d3a1a6fd28d0611ccc36b5d7",
+    "bytes": 8102
+  },
+  {
+    "path": "scripts/analyze_multiseed_training.py",
+    "sha256": "6b4cf2c29617e4eec5fd542dcbf8514ecc21851e4f9f81c2af20e919a92e2889",
+    "bytes": 16726
+  },
+  {
+    "path": "scripts/analyze_training_comparison.py",
+    "sha256": "b7b4135d709fff240319ff6cff8fc6f9c764762e0b55660670dd8224aae766a7",
+    "bytes": 12953
+  },
+  {
+    "path": "scripts/audit_impact_experiments.py",
+    "sha256": "4831ada48b7a9bef9137ed24af675df2a3df34929d82517172ef0779eb6f9a66",
+    "bytes": 12735
+  },
+  {
+    "path": "scripts/audit_incline_experiments.py",
+    "sha256": "9cf8ce71ba3f3d99b98df895dc73fddbe2f46263e880b1ec3d5d424153b85928",
+    "bytes": 5115
+  },
+  {
+    "path": "scripts/audit_policy_artifacts.py",
+    "sha256": "3566b686b32279a7123f0b9752677f7dd2f51767dc85f862a75ba122bb1d3ad3",
+    "bytes": 2228
+  },
+  {
+    "path": "scripts/audit_recorded_evidence.py",
+    "sha256": "d8da4ff057625b613be8a8b7beb8cbfe274b8cd70143cde605319c655ec3111b",
+    "bytes": 11203
+  },
+  {
+    "path": "scripts/build_seed2_prefall_table.py",
+    "sha256": "05838dba25efd8d4a86ccff4cb8abe5a9f83ced5889643a1a025b6f9d53c3e02",
+    "bytes": 4737
+  },
+  {
+    "path": "scripts/compare_contact_impulse.py",
+    "sha256": "7ecae7ab7f6e15777f8605c7f90200f8d5cff4636e6c02c8582e7928fb5103a5",
+    "bytes": 7001
+  },
+  {
+    "path": "scripts/compare_go2_contact_models.py",
+    "sha256": "101c2aeb41dda5b222bd74e8c6af0adc7552c146a1ceb01bf21ef2f058a38f71",
+    "bytes": 10774
+  },
+  {
+    "path": "scripts/crop_scene_pdf.py",
+    "sha256": "df489180626517361a7c39b571500ad83e9e047a7e7588a640fa9164e789b154",
+    "bytes": 2958
+  },
+  {
+    "path": "scripts/extract_training_scalars.py",
+    "sha256": "dd8fac2ae216209c6e65913cd589799183b14a718ebba06d14385b279dc7c847",
+    "bytes": 2413
+  },
+  {
+    "path": "scripts/plot_box_sliding_combined_paper_figure.py",
+    "sha256": "3979fe3baa6cbfc7088aba484c7c7c386d858bc1dc544656f1916e590d34451f",
+    "bytes": 11627
+  },
+  {
+    "path": "scripts/plot_contact_law_four_panel.py",
+    "sha256": "4ecad5645e3d360bdfe0ba58fee92bd8e19978a2a07fccb4216b134d2ed2c2c9",
+    "bytes": 7403
+  },
+  {
+    "path": "scripts/plot_contact_law_three_panel.py",
+    "sha256": "d3e50e0456f42c60531e9afb5f9d845cc12717ae7b936c63c6d87d8b8855d679",
+    "bytes": 7802
+  },
+  {
+    "path": "scripts/plot_contact_law_two_panel.py",
+    "sha256": "6668aca7d5e658cc62c15a41fcef3f65f26a2df42441395456ece1479930a099",
+    "bytes": 6983
+  },
+  {
+    "path": "scripts/plot_contact_setup.py",
+    "sha256": "8b7d566a27dc168208330f5691ecb58f0422c42fca567ed41560d9aaae73b900",
+    "bytes": 5687
+  },
+  {
+    "path": "scripts/plot_high_stiffness_regression.py",
+    "sha256": "0b0386db4885c268eaf82c23f1e54fac578d55ecacb228194bb6ef20e616cedb",
+    "bytes": 6093
+  },
+  {
+    "path": "scripts/plot_motion_montage.py",
+    "sha256": "55f371ac125b3e2b6b9b574a657d7cc65af4c94a32ec1f5f55b264f58a34a6c7",
+    "bytes": 3260
+  },
+  {
+    "path": "scripts/plot_new_contact_results.py",
+    "sha256": "91c7273c4b67f3f8440d6606d073e16a69f4063a93aa11208f24d69d7358c315",
+    "bytes": 1467
+  },
+  {
+    "path": "scripts/plot_oblique_bounce_diagnostic.py",
+    "sha256": "24c1aeb20f5aa0de64642ba0aee931ecd5aa072bfbdd8d979ddc872e000a44a9",
+    "bytes": 5742
+  },
+  {
+    "path": "scripts/plot_ppo_reward_seeds.py",
+    "sha256": "a1750d368859be22249e93b6cb0770938d1833c2c3bc8e73397604091c2af261",
+    "bytes": 12690
+  },
+  {
+    "path": "scripts/plot_release_height_regression.py",
+    "sha256": "dd008ebe2d3dd975ce7b9f68d98eefdb3f3f12ea53ce1551fc0e362576550802",
+    "bytes": 4696
+  },
+  {
+    "path": "scripts/plot_seed2_velocity_response.py",
+    "sha256": "11efefe87133bf743e8a5b1b6a4ad8b5af1fb07b848c9aed6f023d603f3b13cb",
+    "bytes": 4954
+  },
+  {
+    "path": "scripts/reanalyze_seed2_prefall.py",
+    "sha256": "681f340031c604271b21db1ea499ae295cd64acbb5e028218664b76a30fd4065",
+    "bytes": 15455
+  },
+  {
+    "path": "scripts/refine_contact_impulse.py",
+    "sha256": "a6f8f525ec2c51cdbb1d22ee33efcfd063f8af301b6351a1e68624d3b63b5705",
+    "bytes": 4694
+  },
+  {
+    "path": "scripts/run_normal_stiffness_regression.py",
+    "sha256": "7e6ff2176f1463e78b8a029c18269a867c6fb83ce09f76f3d5e05f276b43c2ad",
+    "bytes": 10058
+  },
+  {
+    "path": "scripts/train_frozen_policy.py",
+    "sha256": "dc0f732e7a9701b3a3f950b3023973a5ff312684d2a6969ab4190fbe8555341d",
+    "bytes": 4338
+  },
+  {
+    "path": "simulation/run_box_sliding_experiment.py",
+    "sha256": "8cc149e0d680d6cef65f623ed1447c96a1cafdcc8db13e79dc7153aa57b01546",
+    "bytes": 24542
+  },
+  {
+    "path": "simulation/run_contact_law_experiment.py",
+    "sha256": "a4b75d3fb36170b6940d9159902a9f1cf29d03c3a1210b7757a7585444085b17",
+    "bytes": 55804
+  },
+  {
+    "path": "simulation/run_high_stiffness_regression.py",
+    "sha256": "57975ac1d4cdbccc928855ede323ac83e207959109539f943ab107d97fdaec88",
+    "bytes": 16165
+  },
+  {
+    "path": "sources/smooth_training/demo/demo_python/sirePaperDogRL/go2_rai_foot.xml",
+    "sha256": "3990908fe1b046fed0b40bafb4dd5600cdb61a991571344684eb280a5a1e96ec",
+    "bytes": 40070
+  },
+  {
+    "path": "sources/smooth_training/logs/smooth_linear_shared_flow_seed2/flat_go2/exp1/config.yaml",
+    "sha256": "6b892f805d90d03de7cbff7cacb8f0c3a25212516fb47c5e18e17a63f3fcc599",
+    "bytes": 6843
+  },
+  {
+    "path": "tools/compare_solvers.py",
+    "sha256": "94d5712c642d650a7f3c959b4811c5db10a74fc70709ed89601bb0d220e2429d",
+    "bytes": 29111
+  }
+]

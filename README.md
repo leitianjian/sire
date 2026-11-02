@@ -26,6 +26,15 @@ Sire 的核心研究成果发表于 IEEE Robotics and Automation Letters：
 
 > Sire 当前主要面向科研、算法验证与机器人仿真开发。
 
+
+### Trajectory-referenced frictional contact experiments
+
+The maintained scripts and configurations for the frictional extension
+are in [`demo/demo_paper2/paper_current`](demo/demo_paper2/paper_current/README.md).
+See [contact implementation and dependency patches](docs/contact_implementation.md)
+before rebuilding this revision. Research data, figures, full training/hardware logs and policy weights
+remain local archives; they are not part of a Git clone.
+
 ## 核心能力
 
 | 模块 | 能力 |

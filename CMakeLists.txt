@@ -27,6 +27,12 @@ if(WIN32)
 	add_definitions(${CMAKE_CXX_FLAGS})
 endif(WIN32)
 
+# Source files contain UTF-8 comments. MSVC's locale-dependent default can
+# otherwise consume a trailing multibyte byte as a line continuation.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 include(cmake_macros/base.cmake)
 
 # ---------------------- profiling hooks ---------------------------
@@ -231,6 +237,7 @@ target_sources(sire_physics
 		"src/physics/contact/ps_vs_solver3.cpp"
 		"src/physics/contact/ps_vs_solver_v5.cpp"
 		"src/physics/contact/simple_admm_contact_solver.cpp"
+		"src/physics/contact/smooth_linear_contact_solver.cpp"
 		"src/physics/contact/newton_pipg_contact_solver.cpp"
 		"src/physics/contact/exact_coulomb_contact_solver.cpp"
 		"src/physics/collision/collision_detection.cpp"
@@ -239,6 +246,8 @@ target_sources(sire_physics
 		"src/physics/collision/collided_objects_callback.cpp"
 		"src/physics/collision/penetration_as_point_pair_callback.cpp"
 		"src/physics/collision/height_field_contact_callback.cpp"
+		"src/physics/collision/height_field_contact_generator.cpp"
+		"src/physics/collision/height_field_prism_contact_generator.cpp"
 		"src/physics/common/point_pair_contact_info.cpp"
 		"src/physics/common/motion_force.cpp"
 		"src/physics/physics_engine.cpp"
@@ -274,6 +283,7 @@ target_sources(sire_physics
 		"include/sire/physics/collision/collided_objects_callback.hpp"
 		"include/sire/physics/collision/penetration_as_point_pair_callback.hpp"
 		"include/sire/physics/collision/height_field_contact_callback.hpp"
+		"include/sire/physics/collision/height_field_contact_generator.hpp"
 		"include/sire/physics/common/penetration_as_point_pair.hpp"
 		"include/sire/physics/common/point_pair_contact_info.hpp"
 		"include/sire/physics/common/motion_force.hpp"

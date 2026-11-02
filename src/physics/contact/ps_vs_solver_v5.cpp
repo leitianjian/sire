@@ -491,6 +491,8 @@ auto PsVsSolverV5::cptContactSolverResult(
       targetConditionIdx;
   if (singlePointContactMode()) {
     prepareSinglePointContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
+  } else if (patchContactMode()) {
+    preparePatchContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
   } else {
     std::vector<common::PenetrationAsPointPair> contactEnded, contactNotEnd;
     filterPairsAndPreprocessInfo(*enginePtr, penetration_pairs, contactEnded,
@@ -504,7 +506,7 @@ auto PsVsSolverV5::cptContactSolverResult(
   // Select the next event only AFTER the actual contact step is known.
   auto simulator_ptr = enginePtr->simLoopPtr();
   auto createNextEvent = [&]() {
-    const bool contactEndsEarly = singlePointContactMode()
+    const bool contactEndsEarly = (singlePointContactMode() || patchContactMode())
                                       ? result.dt < nextCtrlSimSuggestDt
                                       : nextCtrlSimSuggestDt - result.dt > 1e-6;
     const core::EventId id =
@@ -527,7 +529,8 @@ auto PsVsSolverV5::cptContactSolverResult(
     simulator_ptr->recorder().recordDt(dt);
     simulator_ptr->integratorPoolPtr()->at(0).updPs(dt);
     double currentTime = simulator_ptr->timer().updateSimTime(dt);
-    if (singlePointContactMode()) simulator_ptr->model()->setTime(currentTime);
+    if (singlePointContactMode() || patchContactMode())
+      simulator_ptr->model()->setTime(currentTime);
     simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
                                                     currentTime);
     simulator_ptr->eventManager().addEvent(std::move(eventPtr));
@@ -616,11 +619,14 @@ auto PsVsSolverV5::cptContactSolverResult(
   cptDAECoeff(
       *enginePtr, static_cast<sire::Size>(n), stiffness.data(), damping.data(),
       stiffScale,
-      singlePointContactMode() ? normalAccelExt.data() : accelExt2.data(),
+      (singlePointContactMode() || patchContactMode())
+           ? normalAccelExt.data()
+           : accelExt2.data(),
       invCpi_dae.data(), A_mat.data(), b_vec.data());
 
   const double contactEndTime =
-      singlePointContactMode() ? findSinglePointContactEndTime(
+      (singlePointContactMode() || patchContactMode())
+          ? findSinglePointContactEndTime(
                                      n, suggest_dt, A_mat.data(), b_vec.data(),
                                      x0.data(), contactTimeMethod())
                                : -1;

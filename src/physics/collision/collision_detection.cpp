@@ -48,6 +48,8 @@ struct CollisionDetection::Imp {
   std::unordered_map<GeometryId, geometry::CollidableGeometry*>*
       anchored_objects_map_ptr_{nullptr};
   CollisionFilter* collision_filter_ptr_{nullptr};
+  physics::PhysicsEngine* engine_ptr_{nullptr};
+  HeightFieldContactManifold height_field_manifold_;
 
   Imp() : geometry_pool_ptr_(nullptr), collision_filter_ptr_(nullptr) {}
 };
@@ -153,10 +155,12 @@ auto CollisionDetection::updateAnchoredGeometriesMananger() -> void {
 }
 auto CollisionDetection::clearDynamicGeometries() -> bool {
   imp_->dynamic_tree_.clear();
+  imp_->height_field_manifold_.clear();
   return true;
 }
 auto CollisionDetection::clearAnchoredGeometries() -> bool {
   imp_->anchored_tree_.clear();
+  imp_->height_field_manifold_.clear();
   return true;
 }
 auto CollisionDetection::hasCollisions() -> bool {
@@ -176,15 +180,29 @@ auto CollisionDetection::computePointPairPenetration(
 }
 auto CollisionDetection::computeHeightFieldPenetration(
     std::vector<common::PenetrationAsPointPair>& contacts) -> bool {
-  HeightFieldContactCallback callback(imp_->collision_filter_ptr_, &contacts);
+  const bool patch_mode = imp_->engine_ptr_ &&
+                          imp_->engine_ptr_->contactSolver().patchContactMode();
+  if (!patch_mode) imp_->height_field_manifold_.clear();
+  if (patch_mode) imp_->height_field_manifold_.beginQuery();
+  HeightFieldContactCallback callback(imp_->collision_filter_ptr_, &contacts,
+                                       patch_mode ? &imp_->height_field_manifold_
+                                                  : nullptr,
+                                       patch_mode,
+                                       patch_mode && imp_->engine_ptr_->contactSolver()
+                                           .contactModelMode() == "height_field_prism",
+                                       patch_mode ? imp_->engine_ptr_->contactSolver()
+                                           .heightFieldPrismMaxContacts() : 50);
   imp_->dynamic_tree_.collide(&callback);
   imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
+  if (patch_mode) imp_->height_field_manifold_.endQuery();
   return true;
 }
 auto CollisionDetection::numDynamicGeometries() -> sire::Size {
   return imp_->dynamic_tree_.size();
 }
 auto CollisionDetection::init(physics::PhysicsEngine* engine_ptr) -> void {
+  imp_->engine_ptr_ = engine_ptr;
+  imp_->height_field_manifold_.clear();
   imp_->dynamic_objects_map_ptr_ = &engine_ptr->dynamicObjectsMap();
   imp_->anchored_objects_map_ptr_ = &engine_ptr->anchoredObjectsMap();
   imp_->collision_filter_ptr_ = &engine_ptr->collisionFilter();

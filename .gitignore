@@ -138,3 +138,33 @@ MUJOCO_LOG.txt
 # Local toolchains and dependency installs.
 /.deps/
 /.rust/
+
+# Local build tools, caches, credentials and large generated artifacts.
+/.ruff_cache/
+/.pytest_cache/
+/.mypy_cache/
+/artifacts/
+/figures/
+/AGENTS.md
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.ckpt
+*.onnx
+*.pth
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.tiff
+*.pdf
+*.csv.gz
+*.json.gz
+*.bak
+*.orig
+*.rej
+*.ipynb_checkpoints/
