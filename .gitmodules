@@ -1,9 +1,11 @@
 [submodule "third_party/aris"]
 	path = third_party/aris
 	url = https://github.com/leitianjian/aris.git
+	branch = sire-contact-solver
 [submodule "third_party/hpp-fcl"]
 	path = third_party/hpp-fcl
-	url = https://github.com/humanoid-path-planner/hpp-fcl.git
+	url = https://github.com/leitianjian/hpp-fcl.git
+	branch = devel
 [submodule "third_party/stduuid"]
 	path = third_party/stduuid
 	url = https://github.com/mariusbancila/stduuid.git

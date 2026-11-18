@@ -1,0 +1,8 @@
+
+# Paper input inventories hash exact bytes across Windows/Linux checkouts.
+demo/demo_paper2/paper_current/** -text -whitespace
+# Dependency patches have their own SHA256 manifest.
+third_party/patches/** -text
+
+# Patch context and archived data retain original whitespace.
+third_party/patches/*.patch -whitespace

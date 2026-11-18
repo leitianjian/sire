@@ -80,6 +80,41 @@ class OnPolicyRunner:
             lines.append(f"{label:>{pad}} " + " | ".join(chunk) + "\n")
         return ''.join(lines)
 
+    @staticmethod
+    def _infer_legacy_tot_time(checkpoint_path, stored_iter):
+        """Recover elapsed training time from an old checkpoint's event file."""
+        try:
+            from tensorboard.backend.event_processing.event_accumulator import EventAccumulator
+
+            perf = {'Perf/collection time': {}, 'Perf/learning_time': {}}
+            for event_path in Path(checkpoint_path).parent.glob('events.out.tfevents.*'):
+                accumulator = EventAccumulator(
+                    str(event_path), size_guidance={'scalars': 0}
+                )
+                accumulator.Reload()
+                available = set(accumulator.Tags().get('scalars', []))
+                for tag in perf:
+                    if tag not in available:
+                        continue
+                    for event in accumulator.Scalars(tag):
+                        if event.step < stored_iter:
+                            perf[tag][event.step] = float(event.value)
+            common_steps = set(perf['Perf/collection time']) & set(
+                perf['Perf/learning_time']
+            )
+            if common_steps:
+                return sum(
+                    perf['Perf/collection time'][step]
+                    + perf['Perf/learning_time'][step]
+                    for step in common_steps
+                )
+        except Exception as error:
+            print(
+                f"train_resume_time_recovery_failed error={type(error).__name__}: {error}",
+                flush=True,
+            )
+        return 0.0
+
     def load(self, path):
         checkpoint = torch.load(path, map_location=self.device)
         self.alg.actor_critic.load_state_dict(checkpoint['model_state_dict'])
@@ -92,6 +127,21 @@ class OnPolicyRunner:
             if match:
                 stored_iter = int(match.group(1))
         self.current_learning_iteration = stored_iter
+        self.tot_timesteps = int(
+            checkpoint.get(
+                'tot_timesteps',
+                stored_iter * self.num_steps_per_env * self.env.num_envs,
+            )
+        )
+        if 'tot_time' in checkpoint:
+            self.tot_time = float(checkpoint['tot_time'])
+        else:
+            self.tot_time = self._infer_legacy_tot_time(path, stored_iter)
+            print(
+                f"train_resume_legacy_progress iter={stored_iter} "
+                f"tot_timesteps={self.tot_timesteps} tot_time={self.tot_time:.2f}",
+                flush=True,
+            )
         return checkpoint
 
     def learn(self, num_learning_iterations, init_at_random_ep_len=False):
@@ -118,9 +168,11 @@ class OnPolicyRunner:
         cur_reward_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
         cur_episode_length = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
 
+        resume_tot_time = self.tot_time
         it = self.current_learning_iteration
         total_iterations = None if self.infinite_mode else (self.current_learning_iteration + num_learning_iterations)
         while self.infinite_mode or it < total_iterations:
+            it += 1
             start = time.time()
 
             with torch.inference_mode():
@@ -185,7 +237,6 @@ class OnPolicyRunner:
                 privileged_obs = self.env.get_privileged_observations()
                 critic_obs = privileged_obs if privileged_obs is not None else obs
                 obs, critic_obs = obs.to(self.device), critic_obs.to(self.device)
-            it += 1
             if stop_training:
                 break
 
@@ -236,7 +287,7 @@ class OnPolicyRunner:
             for k, v in self.env.reward_debug_info.items():
                 self.writer.add_scalar(f'RewardDebug/{k}', float(v), locs['it'])
 
-        total_label = 'inf' if self.infinite_mode else str(self.current_learning_iteration + locs['num_learning_iterations'])
+        total_label = 'inf' if self.infinite_mode else str(locs['total_iterations'])
         title = f" \033[1m Learning iteration {locs['it']}/{total_label} \033[0m "
         if len(locs['rewbuffer']) > 0:
             log_string = (
@@ -301,9 +352,13 @@ class OnPolicyRunner:
                     f"best_rel_x={summary['mean_best_rel_x']:.3f}\n"
                 )
         else:
-            eta = self.tot_time / (locs['it'] + 1) * (locs['num_learning_iterations'] - locs['it'])
+            completed = max(1, locs['it'] - self.current_learning_iteration)
+            remaining = max(0, int(locs['total_iterations']) - locs['it'])
+            recent_time = max(0.0, self.tot_time - locs['resume_tot_time'])
+            seconds_per_iteration = recent_time / completed
+            eta = seconds_per_iteration * remaining
             log_string += f"{'ETA:':>{pad}} {eta:.1f}s\n"
-        print(log_string)
+        print(log_string, flush=True)
 
     def save(self, path, iteration=None):
         if iteration is None:
@@ -313,6 +368,8 @@ class OnPolicyRunner:
                 'model_state_dict': self.alg.actor_critic.state_dict(),
                 'optimizer_state_dict': self.alg.optimizer.state_dict(),
                 'iter': int(iteration),
+                'tot_timesteps': int(self.tot_timesteps),
+                'tot_time': float(self.tot_time),
             },
             path,
         )

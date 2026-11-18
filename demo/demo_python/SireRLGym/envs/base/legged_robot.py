@@ -814,19 +814,9 @@ class LeggedRobot(VecEnv):
         return self.reset_buf * (~self.time_out_buf)
 
     def _reward_dof_pos_limits(self):
-        lower = self.dof_pos_limits[:, 0]
-        upper = self.dof_pos_limits[:, 1]
-        midpoint = 0.5 * (lower + upper)
-        soft_half_range = (
-            0.5
-            * (upper - lower)
-            * float(self.cfg.rewards.soft_dof_pos_limit)
-        )
-        soft_lower = midpoint - soft_half_range
-        soft_upper = midpoint + soft_half_range
-        below = (soft_lower - self.dof_pos).clip(min=0.0)
-        above = (self.dof_pos - soft_upper).clip(min=0.0)
-        return torch.sum(below + above, dim=1)
+        out_of_limits = -(self.dof_pos - self.dof_pos_limits[:, 0]).clip(max=0.0)
+        out_of_limits += (self.dof_pos - self.dof_pos_limits[:, 1]).clip(min=0.0)
+        return torch.sum(out_of_limits, dim=1)
 
     def _reward_dof_vel_limits(self):
         return torch.sum(
@@ -867,14 +857,17 @@ class LeggedRobot(VecEnv):
         )
 
     def _reward_stand_still(self):
-        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
+
+    def _reward_default_pos(self):
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
 
     def _reward_hip_pos(self):
         if self.hip_indices.numel() == 0:
             return torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         hip_pos = self.dof_pos[:, self.hip_indices]
         hip_default = self.default_dof_pos[:, self.hip_indices]
-        return torch.sum(torch.square(hip_pos - hip_default), dim=1)
+        return torch.sum(torch.abs(hip_pos - hip_default), dim=1)
 
     def _update_episode_diagnostics(self):
         if self.feet_indices.numel() > 0:

@@ -14,6 +14,7 @@ import re
 from SireRLGym.envs import GO2RoughCfg, GO2RoughCfgPPO, GO2ThresholdCfg, GO2ThresholdCfgPPO
 from SireRLGym.envs.base.legged_robot_sire import LeggedRobotSire
 from SireRLGym import ROOT_DIR
+from SireRLGym.envs.go2.go2_smooth_linear import GO2SmoothLinearCfg, LeggedRobotSmoothLinear
 
 
 @dataclass
@@ -24,6 +25,7 @@ class TaskSpec:
 
 
 _TASKS = {
+    'go2_smooth_linear': TaskSpec(env_class=LeggedRobotSmoothLinear, env_cfg_class=GO2SmoothLinearCfg, train_cfg_class=GO2RoughCfgPPO),
     'go2': TaskSpec(env_class=LeggedRobotSire, env_cfg_class=GO2RoughCfg, train_cfg_class=GO2RoughCfgPPO),
     'go2_threshold': TaskSpec(env_class=LeggedRobotSire, env_cfg_class=GO2ThresholdCfg, train_cfg_class=GO2ThresholdCfgPPO),
 }

@@ -2256,6 +2256,8 @@ auto PsVsSolver3::cptContactSolverResult(
     SIRE_PROFILE_SCOPE("ps_vs/filterPairsAndPreprocessInfo");
     if (singlePointContactMode()) {
       prepareSinglePointContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
+    } else if (patchContactMode()) {
+      preparePatchContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
     } else {
       filterPairsAndPreprocessInfo(
           *enginePtr, penetration_pairs, imp_->contactEnded, imp_->contactNotEnd,
@@ -2299,7 +2301,8 @@ auto PsVsSolver3::cptContactSolverResult(
     DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
     simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
                                                     currentTime);
-    if (singlePointContactMode()) simulator_ptr->model()->setTime(currentTime);
+    if (singlePointContactMode() || patchContactMode())
+      simulator_ptr->model()->setTime(currentTime);
     simulator_ptr->eventManager().addEvent(std::move(eventPtr));
     return;
   }
@@ -2474,7 +2477,7 @@ auto PsVsSolver3::cptContactSolverResult(
               accelExt.data(), invCpi.data(), A.data(), b.data());
   // 因为矩阵 A 经常无逆，所以使用其增广形式 [A b; 0 0] 作为状态转移矩阵，x0 =
   // [x0 1] 作为初始状态（求微分方程解的微分部分）
-  double minTime = singlePointContactMode()
+  double minTime = (singlePointContactMode() || patchContactMode())
                        ? findSinglePointContactEndTime(
                              n, result.dt, A.data(), b.data(), x0.data(), contactTimeMethod())
                        : -1;
@@ -2571,8 +2574,9 @@ auto PsVsSolver3::cptContactSolverResult(
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << result.dt;
-  if (singlePointContactMode() ? result.dt < nextCtrlSimSuggestDt
-                               : nextCtrlSimSuggestDt - result.dt > 1e-6) {
+  if ((singlePointContactMode() || patchContactMode())
+          ? result.dt < nextCtrlSimSuggestDt
+          : nextCtrlSimSuggestDt - result.dt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);

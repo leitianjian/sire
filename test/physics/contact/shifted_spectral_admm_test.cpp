@@ -1,4 +1,5 @@
 #include <cmath>
+#include <stdexcept>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -32,11 +33,180 @@ class WarmStartHarness : public SimpleAdmmContactSolver {
   using SimpleAdmmContactSolver::solveContactForceQP;
 };
 
+class PatchWarmStartHarness : public ShiftedSpectralAdmmContactSolver {
+ public:
+  using ShiftedSpectralAdmmContactSolver::commitContactForceSolution;
+  using ShiftedSpectralAdmmContactSolver::prepareContactForceInitialGuess;
+  using ShiftedSpectralAdmmContactSolver::solveContactForceQP;
+  using ShiftedSpectralAdmmContactSolver::updatePatchInitialDepths;
+};
+
+auto patchPair(std::uint64_t contact_id, double depth)
+    -> sire::physics::common::PenetrationAsPointPair {
+  sire::physics::common::PenetrationAsPointPair pair;
+  pair.contact_id = contact_id;
+  pair.patch_id = 17;
+  pair.depth = depth;
+  return pair;
+}
+
+TEST(ShiftedSpectralAdmm, PatchHasIndependentNormalsAndCentroidFriction) {
+  PatchWarmStartHarness solver;
+  solver.setContactModelMode("height_field_patch");
+  std::vector<sire::physics::common::PenetrationAsPointPair> pairs(2);
+  for (int i = 0; i < 2; ++i) {
+    pairs[i].id_A = 1;
+    pairs[i].id_B = 2;
+    pairs[i].contact_id = i + 1;
+    pairs[i].patch_id = 7;
+    pairs[i].p_WC = {0.1 * i, 0, 0};
+  }
+  const std::array<double, 16> identity{1, 0, 0, 0, 0, 1, 0, 0,
+                                        0, 0, 1, 0, 0, 0, 0, 1};
+  std::vector<std::array<double, 16>> frames(2, identity);
+  std::vector<sire::Size> indices{0, 1};
+  std::vector<double> force(6, 0), friction{0.5, 0.5},
+      inverse_mass(36, 0), velocity{1, 0, -1, 1, 0, -1},
+      target{0, 0}, external(6, 0);
+  for (int i = 0; i < 6; ++i) inverse_mass[6 * i + i] = -1;
+  solver.prepareContactForceInitialGuess(pairs, frames, indices, 0.01, force);
+  const double error = solver.solveContactForceQP(
+      2, friction, inverse_mass, velocity, target, external, 0.01, force,
+      2000, 1e-9);
+  EXPECT_TRUE(std::isfinite(error));
+  EXPECT_GT(force[2], 0);
+  EXPECT_GT(force[5], 0);
+  EXPECT_NEAR(force[0], force[3], 1e-9);
+  EXPECT_NEAR(force[1], force[4], 1e-9);
+  EXPECT_LE(std::hypot(force[0] + force[3], force[1] + force[4]),
+            friction[0] * (force[2] + force[5]) + 1e-8);
+
+  // Equal tangential forces at supports x=0 and x=0.1 have zero moment about
+  // the patch centroid x=0.05.
+  const double tangent_moment_about_centroid =
+      (-0.05) * force[1] + 0.05 * force[4];
+  EXPECT_NEAR(tangent_moment_about_centroid, 0.0, 1e-10);
+
+  // Reordering support metadata must not change the centroid distribution.
+  std::swap(pairs[0], pairs[1]);
+  solver.prepareContactForceInitialGuess(pairs, frames, indices, 0.01, force);
+  solver.solveContactForceQP(2, friction, inverse_mass, velocity, target,
+                             external, 0.01, force, 2000, 1e-9);
+  EXPECT_NEAR(force[0], force[3], 1e-9);
+  EXPECT_NEAR(force[1], force[4], 1e-9);
+  EXPECT_GT(std::hypot(force[0] + force[3], force[1] + force[4]), 1e-6);
+}
+
+TEST(ShiftedSpectralAdmm, PrismModeUsesPatchDepthsAndSharedFrictionPipeline) {
+  PatchWarmStartHarness solver;
+  solver.setContactModelMode("height_field_prism");
+  EXPECT_EQ(solver.heightFieldPrismMaxContacts(), 50);
+  solver.setHeightFieldPrismMaxContacts(4096);
+  EXPECT_EQ(solver.heightFieldPrismMaxContacts(), 4096);
+  EXPECT_THROW(solver.setHeightFieldPrismMaxContacts(0), std::invalid_argument);
+  EXPECT_THROW(solver.setHeightFieldPrismMaxContacts(-1), std::invalid_argument);
+  solver.setInitialPenetrationPolicy("eliminate");
+  EXPECT_TRUE(solver.patchContactMode());
+  EXPECT_FALSE(solver.singlePointContactMode());
+  auto pairs = std::vector<sire::physics::common::PenetrationAsPointPair>{
+      patchPair(31, 0.001), patchPair(32, 0.002)};
+  solver.updatePatchInitialDepths(pairs);
+  EXPECT_NEAR(pairs[0].modifiedDepth, 0, 1e-12);
+  EXPECT_NEAR(pairs[1].modifiedDepth, 0, 1e-12);
+  pairs[0].depth += 0.0001;
+  pairs[1].depth += 0.0002;
+  solver.updatePatchInitialDepths(pairs);
+  EXPECT_NEAR(pairs[0].modifiedDepth, 0.0001, 1e-12);
+  EXPECT_NEAR(pairs[1].modifiedDepth, 0.0002, 1e-12);
+}
+
+TEST(ShiftedSpectralAdmm, ZeroFrictionPatchHasNoTangentialForce) {
+  PatchWarmStartHarness solver;
+  solver.setContactModelMode("height_field_patch");
+  std::vector<sire::physics::common::PenetrationAsPointPair> pairs(2);
+  for (int i = 0; i < 2; ++i) {
+    pairs[i].contact_id = i + 1;
+    pairs[i].patch_id = 9;
+    pairs[i].p_WC = {0.1 * i, 0, 0};
+  }
+  const std::array<double, 16> identity{1, 0, 0, 0, 0, 1, 0, 0,
+                                        0, 0, 1, 0, 0, 0, 0, 1};
+  std::vector<std::array<double, 16>> frames(2, identity);
+  std::vector<sire::Size> indices{0, 1};
+  std::vector<double> force(6, 0), friction{0, 0}, inverse_mass(36, 0),
+      velocity{3, -2, -1, 3, -2, -1}, target{0, 0}, external(6, 0);
+  for (int i = 0; i < 6; ++i) inverse_mass[6 * i + i] = -1;
+  solver.prepareContactForceInitialGuess(pairs, frames, indices, 0.01, force);
+  ASSERT_LE(solver.solveContactForceQP(
+                2, friction, inverse_mass, velocity, target, external, 0.01,
+                force, 2000, 1e-9),
+            1e-9);
+  EXPECT_NEAR(force[0], 0, 1e-10);
+  EXPECT_NEAR(force[1], 0, 1e-10);
+  EXPECT_NEAR(force[3], 0, 1e-10);
+  EXPECT_NEAR(force[4], 0, 1e-10);
+  EXPECT_GT(force[2] + force[5], 0);
+}
+
 TEST(ShiftedSpectralAdmm, DefaultsToSinglePointWithoutChangingBaselineDefault) {
   ShiftedSpectralAdmmContactSolver shifted;
   SimpleAdmmContactSolver baseline;
   EXPECT_EQ(shifted.contactModelMode(), "single_point");
+  EXPECT_EQ(shifted.initialPenetrationPolicy(), "eliminate");
   EXPECT_EQ(baseline.contactModelMode(), "height_field");
+  EXPECT_EQ(baseline.initialPenetrationPolicy(), "retain_bounded");
+
+  baseline.setContactModelMode("height_field_patch");
+  EXPECT_TRUE(baseline.patchContactMode());
+  sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5 v5;
+  EXPECT_THROW(v5.setContactModelMode("height_field_patch"),
+               std::invalid_argument);
+
+  baseline.setInitialPenetrationPolicy("eliminate");
+  EXPECT_EQ(baseline.initialPenetrationPolicy(), "eliminate");
+  EXPECT_THROW(baseline.setInitialPenetrationPolicy("invalid"),
+               std::invalid_argument);
+}
+
+TEST(ShiftedSpectralAdmm, PatchEliminatesInitialDepthPerPersistentContact) {
+  PatchWarmStartHarness solver;
+  solver.setContactModelMode("height_field_patch");
+  ASSERT_EQ(solver.initialPenetrationPolicy(), "eliminate");
+
+  std::vector<sire::physics::common::PenetrationAsPointPair> pairs{
+      patchPair(101, 0.01), patchPair(102, 0.02)};
+  solver.updatePatchInitialDepths(pairs);
+  EXPECT_DOUBLE_EQ(pairs[0].modifiedDepth, 0.0);
+  EXPECT_DOUBLE_EQ(pairs[1].modifiedDepth, 0.0);
+
+  // Persistent supports retain independent baselines. A shallower support is
+  // filtered once and ratchets its baseline down without affecting its peer.
+  pairs = {patchPair(101, 0.0102), patchPair(102, 0.0195)};
+  solver.updatePatchInitialDepths(pairs);
+  EXPECT_NEAR(pairs[0].modifiedDepth, 0.0002, 1e-15);
+  EXPECT_NEAR(pairs[1].modifiedDepth, -0.0005, 1e-15);
+  pairs = {patchPair(101, 0.0102), patchPair(102, 0.0195)};
+  solver.updatePatchInitialDepths(pairs);
+  EXPECT_NEAR(pairs[0].modifiedDepth, 0.0002, 1e-15);
+  EXPECT_DOUBLE_EQ(pairs[1].modifiedDepth, 0.0);
+
+  // Once an ID disappears it is a new impact if it later returns.
+  pairs = {patchPair(102, 0.0195)};
+  solver.updatePatchInitialDepths(pairs);
+  pairs = {patchPair(101, 0.03), patchPair(102, 0.0195)};
+  solver.updatePatchInitialDepths(pairs);
+  EXPECT_DOUBLE_EQ(pairs[0].modifiedDepth, 0.0);
+}
+
+TEST(ShiftedSpectralAdmm, PatchRetainsOnlyBoundedInitialCompression) {
+  PatchWarmStartHarness solver;
+  solver.setContactModelMode("height_field_patch");
+  solver.setInitialPenetrationPolicy("retain_bounded");
+  std::vector<sire::physics::common::PenetrationAsPointPair> pairs{
+      patchPair(201, 0.01), patchPair(202, 5e-5)};
+  solver.updatePatchInitialDepths(pairs);
+  EXPECT_NEAR(pairs[0].modifiedDepth, 1e-4, 1e-15);
+  EXPECT_NEAR(pairs[1].modifiedDepth, 5e-5, 1e-15);
 }
 
 TEST(ShiftedSpectralAdmm, ZeroTargetMatchesUnshiftedIteration) {

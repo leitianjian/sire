@@ -187,6 +187,48 @@ target_link_libraries(physics_engine_test
 		${PRI_RELY_LINK_LIB}
 )
 
+# Geometry-only regression for Sire's HeightField narrow phase.  Compile the
+# generator directly so failures do not depend on the contact solver.
+add_executable(height_field_witness_test
+	"physics/collision/height_field_witness_test.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_prism_contact_generator.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp")
+target_compile_features(height_field_witness_test PRIVATE cxx_std_17)
+target_include_directories(height_field_witness_test PRIVATE
+	"${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_witness_test PRIVATE
+	GTest::gtest_main
+	sire_lib
+	coal::coal)
+add_test(NAME height_field_witness_test COMMAND height_field_witness_test)
+
+# Manual Release benchmark: compares COAL's eight-contact query with Sire's
+# selected contacts for identical HeightField/shape poses.
+add_executable(height_field_contact_benchmark
+	"physics/collision/height_field_contact_benchmark.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp")
+target_compile_features(height_field_contact_benchmark PRIVATE cxx_std_17)
+target_include_directories(height_field_contact_benchmark PRIVATE
+	"${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_contact_benchmark PRIVATE coal::coal)
+
+# Equal flat surfaces, uncapped candidate validation, identical final reduction.
+add_executable(height_field_overhead_benchmark
+	"physics/collision/height_field_overhead_benchmark.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp")
+target_compile_features(height_field_overhead_benchmark PRIVATE cxx_std_17)
+target_include_directories(height_field_overhead_benchmark PRIVATE
+	"${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_overhead_benchmark PRIVATE sire_lib coal::coal)
+
+add_executable(height_field_prism_benchmark
+	"physics/collision/height_field_prism_benchmark.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_prism_contact_generator.cpp")
+target_compile_features(height_field_prism_benchmark PRIVATE cxx_std_17)
+target_include_directories(height_field_prism_benchmark PRIVATE "${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_prism_benchmark PRIVATE sire_lib coal::coal)
+
 # Clarabel doesn't export a CMake config, so we include it directly from the source tree
 if(NOT TARGET libclarabel_c_shared)
 	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)

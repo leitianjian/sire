@@ -1,0 +1,57 @@
+protocol_id: go2_operator_coverage_v2
+stable_entry_s: 0.75
+required_stable_s: 3.0
+maximum_session_s: 240.0
+print_interval_s: 0.5
+
+# Commands are the scaled policy inputs. The current deployment has
+# max_cmd=[1,1,1], so the values are numerically m/s, m/s, and rad/s.
+classes:
+  stand:
+    description: "Keep both sticks neutral"
+    axis: none
+    max_abs_command: 0.08
+  forward:
+    description: "Joystick command forward x in [0.40, 1.00], other axes neutral"
+    axis: 0
+    sign: 1
+    magnitude: [0.40, 1.00]
+    max_cross_axis: 0.15
+  backward:
+    description: "Joystick command backward x in [-1.00, -0.40], other axes neutral"
+    axis: 0
+    sign: -1
+    magnitude: [0.40, 1.00]
+    max_cross_axis: 0.15
+  left:
+    description: "Joystick command left y in [0.40, 1.00], other axes neutral"
+    axis: 1
+    sign: 1
+    magnitude: [0.40, 1.00]
+    max_cross_axis: 0.15
+  right:
+    description: "Joystick command right y in [-1.00, -0.40], other axes neutral"
+    axis: 1
+    sign: -1
+    magnitude: [0.40, 1.00]
+    max_cross_axis: 0.15
+  ccw:
+    description: "Joystick command counterclockwise yaw in [0.65, 1.00], linear axes neutral"
+    axis: 2
+    sign: 1
+    magnitude: [0.65, 1.00]
+    max_cross_axis: 0.15
+  cw:
+    description: "Joystick command clockwise yaw in [-1.00, -0.65], linear axes neutral"
+    axis: 2
+    sign: -1
+    magnitude: [0.65, 1.00]
+    max_cross_axis: 0.15
+
+# Counterbalanced, fixed acquisition orders. Stand is always collected first so
+# every session has a zero-command reference before operator motion.
+orders:
+  1: [stand, forward, left, ccw, backward, right, cw]
+  2: [stand, backward, right, cw, forward, left, ccw]
+  3: [stand, cw, right, backward, ccw, left, forward]
+  4: [stand, ccw, left, forward, cw, right, backward]

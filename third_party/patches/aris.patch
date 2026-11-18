@@ -1,0 +1,44 @@
+diff --git a/src/dynamic/model_solver.cpp b/src/dynamic/model_solver.cpp
+index 4508085e..d238135a 100644
+--- a/src/dynamic/model_solver.cpp
++++ b/src/dynamic/model_solver.cpp
+@@ -2115,7 +2115,8 @@ namespace aris::dynamic{
+       	Diag* d1 = pd->get_diag_from_part_id_[partid[2 * ic]];
+       	ARIS_LOOP_SYS {
+       	  if (d1 >= sys->d_data_ && d1 < sys->d_data_ + sys->d_size_) {
+-      	    s1 = sys - subsys; lb1 = d1 - subsys->d_data_; break;
++            // Body indices are local to the matched subsystem, not the first one.
++            s1 = sys - subsys; lb1 = d1 - sys->d_data_; break;
+       	  }
+       	}
+ 			}
+@@ -2125,7 +2126,7 @@ namespace aris::dynamic{
+       	Diag* d2 = pd->get_diag_from_part_id_[partid[2 * ic + 1]];
+       	ARIS_LOOP_SYS {
+           if (d2 >= sys->d_data_ && d2 < sys->d_data_ + sys->d_size_) {
+-            s2 = sys - subsys; lb2 = d2 - subsys->d_data_; break;
++            s2 = sys - subsys; lb2 = d2 - sys->d_data_; break;
+           }
+       	}
+ 			}
+@@ -2134,7 +2135,9 @@ namespace aris::dynamic{
+     // 3. Allocate output matrix
+     const int rows_per_contact = 6;   // Object 1: 3 rows, object 2: 3 rows
+     const int J_rows = rows_per_contact * nContact;
+-    A_out.resize(J_rows * J_rows, 0.0);
++    // The assembly below accumulates with +=, including when callers reuse
++    // an output vector with the same dimensions.
++    A_out.assign(J_rows * J_rows, 0.0);
+ 
+ 		// Collect non-ground object tasks involved in this subsystem
+     struct Task {
+@@ -2299,7 +2302,8 @@ namespace aris::dynamic{
+ 				s_vc(6, d->xp_, const_cast<double*>(d->part_->as()));
+ 		
+ 		// dynAccAndFce();
+-		accel0.resize(J_rows, 0.0);
++		// Ground rows are not written below and must not retain previous values.
++		accel0.assign(J_rows, 0.0);
+ 		for (int ic = 0; ic < nContact; ++ic) {
+ 			if (contact_info[ic].sys1 != -1) {
+ 				// auto& d = subsys[contact_info[ic].sys1].d_data_[contact_info[ic].local_body1];

@@ -2,6 +2,8 @@
 #define SIRE_SIMPLE_ADMM_CONTACT_SOLVER_HPP_
 
 #include <array>
+#include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 #include "sire/physics/contact/ps_vs_solver_v5.hpp"
@@ -23,6 +25,7 @@ class SIRE_API SimpleAdmmContactSolver : public ps_vs_solver_v5::PsVsSolverV5 {
   auto warmStartEnabled() const noexcept -> bool;
 
  protected:
+  auto supportsPatchContactMode() const -> bool override { return true; }
   auto solveContactForceQP(
       sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
       std::vector<double>& v0, std::vector<double>& v_target,
@@ -55,8 +58,10 @@ class SIRE_API SimpleAdmmContactSolver : public ps_vs_solver_v5::PsVsSolverV5 {
   struct WarmStartContact {
     sire::geometry::GeometryId id_a{};
     sire::geometry::GeometryId id_b{};
+    std::uint64_t contact_id{};
     std::array<double, 3> point_W{};
     std::array<double, 3> force_W{};
+    std::array<double, 3> dual_W{};
   };
 
   bool warm_start_enabled_{true};
@@ -65,6 +70,10 @@ class SIRE_API SimpleAdmmContactSolver : public ps_vs_solver_v5::PsVsSolverV5 {
   std::vector<double> prepared_dual_guess_;
   std::vector<double> last_dual_solution_;
   std::vector<WarmStartContact> warm_start_contacts_;
+  // Patch tangential force is distributed over all support indices; normal
+  // constraints remain independent and share one Coulomb budget.
+  std::vector<std::vector<int>> patch_groups_;
+  std::unordered_map<std::uint64_t, std::uint64_t> friction_anchor_ids_;
 };
 
 /// Spectral ADMM on the target-shifted NCP. The only numerical change from

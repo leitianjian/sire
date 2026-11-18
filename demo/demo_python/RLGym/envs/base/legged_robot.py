@@ -13,6 +13,7 @@ from rsl_rl.env import VecEnv
 
 from RLGym import ROOT_DIR
 from RLGym.envs.base.legged_robot_config import LeggedRobotCfg
+from RLGym.envs.base.mujoco_batch_stepper import MuJoCoBatchStepper
 from RLGym.utils.helpers import class_to_dict
 from RLGym.utils.math import quat_apply, quat_apply_yaw, quat_mul, quat_rotate_inverse, torch_rand_float, wrap_to_pi
 from RLGym.utils.terrain import TerrainLayout
@@ -45,11 +46,13 @@ class LeggedRobot(VecEnv):
         clip_actions = self.cfg.normalization.clip_actions
         self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
 
-        for _ in range(self.cfg.control.decimation):
-            self.torques = self._compute_torques(self.actions).view(self.torques.shape)
-            for i in range(self.num_envs):
-                self.datas[i].ctrl[self.actuator_ids_np] = self.torques[i].cpu().numpy()
-                mujoco.mj_step(self.models[i], self.datas[i])
+        # MuJoCo's affine actuator evaluates PD from the latest q/qvel inside
+        # every physics substep. The batch call returns the final applied force
+        # used by the torque reward, matching Sire's control-step output.
+        applied_torques = self._mujoco_batch_stepper.step(
+            self.actions.detach().cpu().numpy()
+        )
+        self.torques = torch.from_numpy(applied_torques)
 
         self.post_physics_step()
 
@@ -98,7 +101,7 @@ class LeggedRobot(VecEnv):
             r_orient = self._reward_orientation().mean().item()
             r_height = self._reward_base_height().mean().item()
             r_torque = self._reward_torques().mean().item()
-            r_air = self._reward_feet_air_time().mean().item()
+            r_air = self._last_feet_air_time_reward.mean().item()
             r_collision = self._reward_collision().mean().item()
             r_lin_vel_z_raw = self._reward_lin_vel_z().mean().item()
             r_dof_vel_raw = self._reward_dof_vel().mean().item()
@@ -172,6 +175,8 @@ class LeggedRobot(VecEnv):
         self.actions[env_ids] = 0.0
         self.last_dof_vel[env_ids] = 0.0
         self.feet_air_time[env_ids] = 0.0
+        self.last_contacts[env_ids] = False
+        self.last_slip_contacts[env_ids] = False
         self.episode_length_buf[env_ids] = 0
         self.reset_buf[env_ids] = 1
 
@@ -471,8 +476,8 @@ class LeggedRobot(VecEnv):
         self.base_quat = self.root_states[:, 3:7]
 
         self.torques = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device)
-        self.p_gains = torch.zeros(self.num_actions, dtype=torch.float, device=self.device)
-        self.d_gains = torch.zeros(self.num_actions, dtype=torch.float, device=self.device)
+        self.p_gains = torch.as_tensor(self._p_gains_np, dtype=torch.float, device=self.device)
+        self.d_gains = torch.as_tensor(self._d_gains_np, dtype=torch.float, device=self.device)
         self.actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device)
         self.last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device)
         self.last_dof_vel = torch.zeros_like(self.dof_vel)
@@ -482,6 +487,7 @@ class LeggedRobot(VecEnv):
         self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel], device=self.device)
         self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float, device=self.device)
         self.last_contacts = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device)
+        self.last_slip_contacts = torch.zeros_like(self.last_contacts)
         self.last_feet_pos_world = torch.zeros(self.num_envs, len(self.feet_indices), 3, dtype=torch.float, device=self.device)
         self.episode_foot_contact_sums = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.float, device=self.device)
 
@@ -495,21 +501,9 @@ class LeggedRobot(VecEnv):
         else:
             self.measured_heights = torch.zeros(self.num_envs, 1, device=self.device)
 
-        self.default_dof_pos = torch.zeros(self.num_dof, dtype=torch.float, device=self.device)
-        for i in range(self.num_dof):
-            name = self.dof_names[i]
-            angle = self.cfg.init_state.default_joint_angles[name]
-            self.default_dof_pos[i] = angle
-            found = False
-            for dof_name in self.cfg.control.stiffness.keys():
-                if dof_name in name:
-                    self.p_gains[i] = self.cfg.control.stiffness[dof_name]
-                    self.d_gains[i] = self.cfg.control.damping[dof_name]
-                    found = True
-            if not found and self.cfg.control.control_type in ['P', 'V']:
-                self.p_gains[i] = 0.0
-                self.d_gains[i] = 0.0
-        self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
+        self.default_dof_pos = torch.as_tensor(
+            self._default_dof_pos_np, dtype=torch.float, device=self.device
+        ).unsqueeze(0)
         hip_ids = [i for i, name in enumerate(self.dof_names) if 'hip_joint' in name]
         self.hip_indices = torch.tensor(hip_ids, dtype=torch.long, device=self.device)
         self.episode_hip_abs_sums = torch.zeros(self.num_envs, len(self.hip_indices), dtype=torch.float, device=self.device)
@@ -565,18 +559,38 @@ class LeggedRobot(VecEnv):
         self.model = base_model
         # MuJoCo parameters live on MjModel rather than MjData.  Independent
         # models are therefore required to reproduce unitree_rl_gym's
-        # per-environment friction and base-mass randomization.
-        self.models: List[mujoco.MjModel] = [self.model]
-        for _ in range(1, self.num_envs):
-            env_model = mujoco.MjModel.from_xml_path(str(self.generated_model_path))
-            env_model.opt.timestep = float(self.cfg.sim.dt)
-            self.models.append(env_model)
+        # per-environment friction and base-mass randomization. With both
+        # disabled, share the immutable model and keep independent MjData.
+        model_randomization_enabled = (
+            self.cfg.domain_rand.randomize_friction
+            or self.cfg.domain_rand.randomize_base_mass
+        )
+        if model_randomization_enabled:
+            self.models: List[mujoco.MjModel] = [self.model]
+            for _ in range(1, self.num_envs):
+                env_model = mujoco.MjModel.from_xml_path(str(self.generated_model_path))
+                env_model.opt.timestep = float(self.cfg.sim.dt)
+                self.models.append(env_model)
+        else:
+            self.models = [self.model] * self.num_envs
+            print(f'[MuJoCo] sharing one immutable MjModel across {self.num_envs} environments', flush=True)
         self.num_dof = self.num_actions
         self.num_dofs = self.num_actions
         self.num_bodies = base_model.nbody
 
         self.dof_names = [k for k in self.cfg.init_state.default_joint_angles.keys()]
         self.actuator_names = [n.replace('_joint', '') for n in self.dof_names]
+        self._default_dof_pos_np = np.array(
+            [self.cfg.init_state.default_joint_angles[name] for name in self.dof_names],
+            dtype=np.float64,
+        )
+        self._p_gains_np = np.zeros(self.num_dof, dtype=np.float64)
+        self._d_gains_np = np.zeros(self.num_dof, dtype=np.float64)
+        for dof_id, name in enumerate(self.dof_names):
+            for gain_name, stiffness in self.cfg.control.stiffness.items():
+                if gain_name in name:
+                    self._p_gains_np[dof_id] = stiffness
+                    self._d_gains_np[dof_id] = self.cfg.control.damping[gain_name]
 
         self.joint_ids_np = np.array([mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_JOINT, n) for n in self.dof_names], dtype=np.int32)
         self.actuator_ids_np = np.array([mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_ACTUATOR, n) for n in self.actuator_names], dtype=np.int32)
@@ -687,6 +701,35 @@ class LeggedRobot(VecEnv):
 
         for model in self.models:
             self.datas.append(mujoco.MjData(model))
+
+        batch_threads = int(getattr(self.cfg.sim, 'mujoco_batch_threads', 16))
+        if batch_threads <= 0:
+            batch_threads = min(16, self.num_envs)
+        self._mujoco_batch_stepper = MuJoCoBatchStepper(
+            self.models,
+            self.datas,
+            actuator_ids=self.actuator_ids_np,
+            qpos_adr=self.qpos_adr_np,
+            qvel_adr=self.qvel_adr_np,
+            root_qpos_adr=self.root_qpos_adr_np,
+            root_qvel_adr=self.root_qvel_adr_np,
+            feet_body_ids=self.feet_indices_np,
+            world_body_id=self.world_body_id_np,
+            num_bodies=self.num_bodies,
+            decimation=self.cfg.control.decimation,
+            thread_count=batch_threads,
+            control_type=self.cfg.control.control_type,
+            action_scale=self.cfg.control.action_scale,
+            p_gains=self._p_gains_np,
+            d_gains=self._d_gains_np,
+            default_dof_pos=self._default_dof_pos_np,
+            torque_limits=self.torque_limits.numpy(),
+        )
+        print(
+            f'[MuJoCo batch] envs={self.num_envs} threads={self._mujoco_batch_stepper.thread_count} '
+            f'persistent_workers={self._mujoco_batch_stepper.worker_count}',
+            flush=True,
+        )
 
     def _detect_flat_world_plane_only(self, model):
         world_geom_ids = np.where(model.geom_bodyid == self.world_body_id_np)[0]
@@ -874,13 +917,34 @@ class LeggedRobot(VecEnv):
     def _reward_feet_air_time(self):
         contact = self.foot_ground_contact
         contact_filt = torch.logical_or(contact, self.last_contacts)
-        self.last_contacts = contact
         first_contact = (self.feet_air_time > 0.0) * contact_filt
         self.feet_air_time += self.dt
-        rew_air_time = torch.sum((self.feet_air_time - 0.5) * first_contact, dim=1)
+        rewarded_air_time = torch.clamp(
+            self.feet_air_time - self.cfg.rewards.feet_air_time_threshold,
+            min=0.0,
+            max=self.cfg.rewards.feet_air_time_reward_cap,
+        )
+        rew_air_time = torch.sum(rewarded_air_time * first_contact, dim=1)
         rew_air_time *= torch.norm(self.commands[:, :2], dim=1) > 0.1
         self.feet_air_time *= ~contact_filt
+        self.last_contacts = contact.clone()
+        self._last_feet_air_time_reward = rew_air_time.detach()
         return rew_air_time
+
+    def _reward_feet_slip(self):
+        """Penalize horizontal foot motion only during persistent contact."""
+        contact = self.foot_ground_contact
+        stable_contact = torch.logical_and(contact, self.last_slip_contacts)
+        foot_velocity_xy = (
+            self.feet_pos_world[:, :, :2] - self.last_feet_pos_world[:, :, :2]
+        ) / self.dt
+        speed_sq = torch.sum(torch.square(foot_velocity_xy), dim=2)
+        speed_sq = torch.clamp(
+            speed_sq, max=self.cfg.rewards.feet_slip_speed_sq_cap
+        )
+        reward = torch.sum(speed_sq * stable_contact.float(), dim=1)
+        self.last_slip_contacts = contact.clone()
+        return reward
 
     def _reward_stumble(self):
         return torch.any(
@@ -890,14 +954,17 @@ class LeggedRobot(VecEnv):
         )
 
     def _reward_stand_still(self):
-        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :2], dim=1) < 0.1)
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
+
+    def _reward_default_pos(self):
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
 
     def _reward_hip_pos(self):
         if self.hip_indices.numel() == 0:
             return torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
         hip_pos = self.dof_pos[:, self.hip_indices]
         hip_default = self.default_dof_pos[:, self.hip_indices]
-        return torch.sum(torch.square(hip_pos - hip_default), dim=1)
+        return torch.sum(torch.abs(hip_pos - hip_default), dim=1)
 
     def _update_episode_diagnostics(self):
         if self.feet_indices.numel() > 0:
@@ -939,43 +1006,20 @@ class LeggedRobot(VecEnv):
         return self.privileged_obs_buf
 
     def _refresh_sim_tensors(self):
-        self.root_states = torch.zeros(self.num_envs, 13, dtype=torch.float, device=self.device)
-        self.dof_pos = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device)
-        self.dof_vel = torch.zeros(self.num_envs, self.num_dof, dtype=torch.float, device=self.device)
-        self.contact_forces = torch.zeros(self.num_envs, self.num_bodies, 3, dtype=torch.float, device=self.device)
-        self.feet_pos_world = torch.zeros(self.num_envs, len(self.feet_indices), 3, dtype=torch.float, device=self.device)
-        self.body_ground_contact = torch.zeros(self.num_envs, self.num_bodies, dtype=torch.bool, device=self.device)
-        self.foot_ground_contact = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device)
-        cf_buf = np.zeros(6, dtype=np.float64)
-
-        for i in range(self.num_envs):
-            model = self.models[i]
-            d = self.datas[i]
-            qpos = d.qpos
-            qvel = d.qvel
-
-            self.root_states[i, :3] = torch.tensor(qpos[self.root_qpos_adr_np : self.root_qpos_adr_np + 3], dtype=torch.float)
-            self.root_states[i, 3:7] = torch.tensor(qpos[self.root_qpos_adr_np + 3 : self.root_qpos_adr_np + 7], dtype=torch.float)
-            self.root_states[i, 7:13] = torch.tensor(qvel[self.root_qvel_adr_np : self.root_qvel_adr_np + 6], dtype=torch.float)
-
-            self.dof_pos[i] = torch.tensor(qpos[self.qpos_adr_np], dtype=torch.float)
-            self.dof_vel[i] = torch.tensor(qvel[self.qvel_adr_np], dtype=torch.float)
-            self.feet_pos_world[i] = torch.tensor(d.xpos[self.feet_indices_np], dtype=torch.float, device=self.device)
-
-            for c in range(d.ncon):
-                con = d.contact[c]
-                b1 = model.geom_bodyid[con.geom1]
-                b2 = model.geom_bodyid[con.geom2]
-                mujoco.mj_contactForce(model, d, c, cf_buf)
-                frame = con.frame.reshape(3, 3)
-                force_world = frame @ cf_buf[:3]
-                f_world = torch.tensor(force_world, dtype=torch.float, device=self.device)
-                self.contact_forces[i, b1] -= f_world
-                self.contact_forces[i, b2] += f_world
-                if b1 == self.world_body_id_np and b2 != self.world_body_id_np:
-                    self.body_ground_contact[i, b2] = True
-                elif b2 == self.world_body_id_np and b1 != self.world_body_id_np:
-                    self.body_ground_contact[i, b1] = True
-
-            if len(self.feet_indices_np) > 0:
-                self.foot_ground_contact[i] = self.body_ground_contact[i, self.feet_indices]
+        (
+            root_states,
+            dof_pos,
+            dof_vel,
+            contact_forces,
+            feet_pos_world,
+            body_ground_contact,
+            foot_ground_contact,
+        ) = self._mujoco_batch_stepper.collect()
+        # Persistent float32/bool buffers make the CPU Torch handoff zero-copy.
+        self.root_states = torch.from_numpy(root_states)
+        self.dof_pos = torch.from_numpy(dof_pos)
+        self.dof_vel = torch.from_numpy(dof_vel)
+        self.contact_forces = torch.from_numpy(contact_forces)
+        self.feet_pos_world = torch.from_numpy(feet_pos_world)
+        self.body_ground_contact = torch.from_numpy(body_ground_contact)
+        self.foot_ground_contact = torch.from_numpy(foot_ground_contact)

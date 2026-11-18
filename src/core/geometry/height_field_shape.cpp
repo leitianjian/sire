@@ -49,7 +49,7 @@ void HeightFieldShape::loadMujocoPNG(const char* png_path, double half_x,
   auto result = std::minmax_element(raw.begin(), raw.end());
   float min_val = *result.first;
   float max_val = *result.second;
-  if (max_val >= min_val) {
+  if (max_val > min_val) {
     for (float& val : raw) {
       val = (val - min_val) / (max_val - min_val);
     }

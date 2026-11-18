@@ -38,6 +38,7 @@
 #include "sire/physics/contact/ps_vs_solver3.hpp"
 #include "sire/physics/contact/ps_vs_solver_v5.hpp"
 #include "sire/physics/contact/simple_admm_contact_solver.hpp"
+#include "sire/physics/contact/smooth_linear_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable.hpp"
@@ -66,12 +67,21 @@ void init_physics(py::module& m) {
                     &sire::physics::contact::ContactSolver::setContactModelMode)
       .def("setContactModelMode",
            &sire::physics::contact::ContactSolver::setContactModelMode)
+      .def_property("height_field_prism_max_contacts",
+           &sire::physics::contact::ContactSolver::heightFieldPrismMaxContacts,
+           &sire::physics::contact::ContactSolver::setHeightFieldPrismMaxContacts)
       .def_property(
           "contact_time_method",
           &sire::physics::contact::ContactSolver::contactTimeMethod,
           &sire::physics::contact::ContactSolver::setContactTimeMethod)
       .def("setContactTimeMethod",
-           &sire::physics::contact::ContactSolver::setContactTimeMethod);
+           &sire::physics::contact::ContactSolver::setContactTimeMethod)
+      .def_property(
+          "initial_penetration_policy",
+          &sire::physics::contact::ContactSolver::initialPenetrationPolicy,
+          &sire::physics::contact::ContactSolver::setInitialPenetrationPolicy)
+      .def("setInitialPenetrationPolicy",
+           &sire::physics::contact::ContactSolver::setInitialPenetrationPolicy);
   py::class_<sire::physics::collision::CollisionFilter>(m, "CollisionFilter")
       .def(py::init<>())
       .def("saveMatConfig",
@@ -352,6 +362,17 @@ void init_physics(py::module& m) {
           py::return_value_policy::reference_internal,
           "Install target-shifted spectral ADMM; defaults to single_point")
       .def(
+          "addSmoothLinearContactSolver",
+          [](sire::physics::PhysicsEngine& self)
+              -> sire::physics::contact::smooth_linear::SmoothLinearContactSolver& {
+            self.resetContactSolver(new sire::physics::contact::smooth_linear::
+                                        SmoothLinearContactSolver);
+            return dynamic_cast<sire::physics::contact::smooth_linear::
+                SmoothLinearContactSolver&>(self.contactSolver());
+          },
+          py::return_value_policy::reference_internal,
+          "Install the old linear smooth friction law in the shared V5 pipeline")
+      .def(
           "addSimpleADMMSolver",
           [](sire::physics::PhysicsEngine& self)
               -> sire::physics::contact::simple_admm::SimpleAdmmContactSolver& {
@@ -536,6 +557,29 @@ void init_physics(py::module& m) {
                     &sire::physics::contact::simple_admm::
                         SimpleAdmmContactSolver::setWarmStartEnabled);
   m.attr("SimpleADMMSolver") = m.attr("SpectralADMMSolver");
+  py::class_<sire::physics::contact::smooth_linear::SmoothLinearContactSolver,
+             sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5>(
+      m, "SmoothLinearContactSolver")
+      .def(py::init<>())
+      .def_property_readonly("lastIterations", &sire::physics::contact::smooth_linear::SmoothLinearContactSolver::lastIterations)
+      .def_property_readonly("lastResidual", &sire::physics::contact::smooth_linear::SmoothLinearContactSolver::lastResidual)
+      .def_property_readonly("lastEnumerated", &sire::physics::contact::smooth_linear::SmoothLinearContactSolver::lastEnumerated);
+  m.def("cptContactForceSmoothLinear", [](const std::vector<double>& friction,
+      const std::vector<double>& inverse_mass, const std::vector<double>& velocity,
+      const std::vector<double>& target, const std::vector<double>& acceleration,
+      double h, const std::vector<double>& thresholds) {
+    std::vector<double> force;
+    auto info = sire::physics::contact::smooth_linear::cptContactForceSmoothLinear(
+        friction.size(), friction, inverse_mass, velocity, target, acceleration,
+        h, thresholds, force);
+    py::dict result;
+    result["force"] = force;
+    result["residual"] = info.residual;
+    result["iterations"] = info.iterations;
+    result["enumerated"] = info.enumerated;
+    return result;
+  }, py::arg("friction"), py::arg("inverse_mass"), py::arg("velocity"),
+     py::arg("normal_target"), py::arg("acceleration"), py::arg("h"), py::arg("threshold_velocity"));
   py::class_<
       sire::physics::contact::simple_admm::ShiftedSpectralAdmmContactSolver,
       sire::physics::contact::simple_admm::SimpleAdmmContactSolver>(

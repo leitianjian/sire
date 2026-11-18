@@ -823,7 +823,8 @@ auto process_penetration_depth_and_maintain_impact_set6(
     std::vector<common::PenetrationAsPointPair>& pairs) -> void {
   // V3/V5 single-point mode owns this preprocessing at the solver entry,
   // so both event-driven and direct stepping apply the baseline exactly once.
-  if (simulator_ptr->physicsEnginePtr()->contactSolver().singlePointContactMode())
+  if (simulator_ptr->physicsEnginePtr()->contactSolver().singlePointContactMode() ||
+      simulator_ptr->physicsEnginePtr()->contactSolver().patchContactMode())
     return;
   physics::PhysicsEngine* engine_ptr = simulator_ptr->physicsEnginePtr();
   core::ContactPairManager* manager_ptr = simulator_ptr->contactPairManager();

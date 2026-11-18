@@ -1,0 +1,45 @@
+protocol_id: go2_paper_protocol_v3
+command_convention: normalized_body_frame_x_y_yaw
+
+# Frozen after excluded v1/v2 commissioning. V3 lengthens ramps and holds so
+# the policy can establish a periodic gait before reversal. Each paired command
+# has zero ideal net integral, while the operator preview supplies placement
+# guidance before standing recovery.
+segments:
+  paper_v3_stand_08:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: stand, duration_s: 8.0, command: [0.0, 0.0, 0.0]}
+
+  paper_v3_fore_aft_050:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: forward_ramp, duration_s: 1.5, command_to: [0.50, 0.0, 0.0]}
+      - {name: forward_hold, duration_s: 2.0, command: [0.50, 0.0, 0.0]}
+      - {name: reversal, duration_s: 3.0, command_to: [-0.50, 0.0, 0.0]}
+      - {name: backward_hold, duration_s: 2.0, command: [-0.50, 0.0, 0.0]}
+      - {name: backward_stop, duration_s: 1.5, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 4.0, command: [0.0, 0.0, 0.0]}
+
+  paper_v3_lateral_pair_050:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: left_ramp, duration_s: 1.5, command_to: [0.0, 0.50, 0.0]}
+      - {name: left_hold, duration_s: 2.0, command: [0.0, 0.50, 0.0]}
+      - {name: reversal, duration_s: 3.0, command_to: [0.0, -0.50, 0.0]}
+      - {name: right_hold, duration_s: 2.0, command: [0.0, -0.50, 0.0]}
+      - {name: right_stop, duration_s: 1.5, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 4.0, command: [0.0, 0.0, 0.0]}
+
+  paper_v3_yaw_pair_080:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ccw_ramp, duration_s: 1.5, command_to: [0.0, 0.0, 0.80]}
+      - {name: ccw_hold, duration_s: 2.0, command: [0.0, 0.0, 0.80]}
+      - {name: reversal, duration_s: 3.0, command_to: [0.0, 0.0, -0.80]}
+      - {name: cw_hold, duration_s: 2.0, command: [0.0, 0.0, -0.80]}
+      - {name: cw_stop, duration_s: 1.5, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 4.0, command: [0.0, 0.0, 0.0]}

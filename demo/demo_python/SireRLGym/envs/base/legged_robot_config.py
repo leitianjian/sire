@@ -192,10 +192,10 @@ class LeggedRobotCfg(BaseConfig):
         # Isolate rare native numerical failures. A lifetime threshold scales
         # poorly with long runs and many environments, so zero disables it.
         # The sliding fraction is recoveries per environment control step.
-        sire_max_recoveries_per_step = 8
+        sire_max_recoveries_per_step = 1024  # disabled for 1024-env training
         sire_max_total_recoveries = 0
         sire_recovery_window_steps = 1000
-        sire_max_recovery_fraction = 1e-4
+        sire_max_recovery_fraction = 0.0  # disable sliding-window abort
         gravity = [0.0, 0.0, -9.81]
         up_axis = 1
 

@@ -4,6 +4,8 @@ import argparse
 import sys
 from pathlib import Path
 
+import torch
+
 ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
@@ -38,12 +40,49 @@ def _parse_float_list(value):
     return values or None
 
 
+def _resolve_rl_device(value: str) -> torch.device:
+    requested = str(value).strip().lower()
+    if requested == 'auto':
+        requested = 'cuda' if torch.cuda.is_available() else 'cpu'
+    try:
+        device = torch.device(requested)
+    except (RuntimeError, ValueError) as error:
+        raise ValueError(
+            f"Invalid --rl_device {value!r}; use auto, cpu, cuda, or cuda:<index>."
+        ) from error
+    if device.type not in {'cpu', 'cuda'}:
+        raise ValueError(
+            f"Unsupported --rl_device {value!r}; RLGym PPO supports CPU or CUDA."
+        )
+    if device.type == 'cuda':
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                f"--rl_device {value!r} requested CUDA, but torch.cuda.is_available() is false."
+            )
+        index = torch.cuda.current_device() if device.index is None else device.index
+        if index < 0 or index >= torch.cuda.device_count():
+            raise ValueError(
+                f"CUDA device index {index} is out of range; "
+                f"available device count is {torch.cuda.device_count()}."
+            )
+        device = torch.device('cuda', index)
+    return device
+
+
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--task', type=str, default='go2')
     p.add_argument('--num_envs', type=int, default=None)
+    p.add_argument(
+        '--mujoco_batch_threads', type=int, default=None,
+        help='Persistent MuJoCo batch worker count; 0 selects up to 16 workers.',
+    )
     p.add_argument('--max_iterations', type=int, default=None)
     p.add_argument('--seed', type=int, default=None)
+    p.add_argument(
+        '--rl_device', type=str, default='auto',
+        help='PPO policy/storage device: auto, cpu, cuda, or cuda:<index>.',
+    )
     p.add_argument('--debug_reward', action='store_true')
     p.add_argument('--resume', nargs='?', const='auto', default=None, help='Resume from latest checkpoint, or provide a checkpoint path.')
     p.add_argument('--head', type=_str2bool, nargs='?', const=True, default=False, help='Enable live MuJoCo viewer during training.')
@@ -105,11 +144,16 @@ def _infer_scene_tag(env_cfg):
 
 def main():
     args = parse_args()
+    rl_device = _resolve_rl_device(args.rl_device)
     env_cfg = make_env_cfg(args.task)
     train_cfg = make_train_cfg(args.task)
 
     if args.num_envs is not None:
         env_cfg.env.num_envs = args.num_envs
+    if args.mujoco_batch_threads is not None:
+        if args.mujoco_batch_threads < 0:
+            raise ValueError('--mujoco_batch_threads must be >= 0')
+        env_cfg.sim.mujoco_batch_threads = args.mujoco_batch_threads
     if args.max_iterations is not None:
         train_cfg.runner.max_iterations = args.max_iterations
     if args.seed is not None:
@@ -198,17 +242,27 @@ def main():
         f"num_envs={env_cfg.env.num_envs} "
         f"max_iterations={'inf' if getattr(train_cfg.runner, 'infinite_mode', False) else train_cfg.runner.max_iterations} "
         f"save_interval={train_cfg.runner.save_interval} "
+        f"rl_device={rl_device} "
         f"seed={train_cfg.seed} "
         f"log_dir={log_dir}",
         flush=True,
     )
     train_cfg_dict = class_to_dict(train_cfg)
     train_cfg_dict['runner']['debug_reward'] = bool(args.debug_reward)
-    runner = OnPolicyRunner(env, train_cfg_dict, log_dir=log_dir, device='cpu')
+    runner = OnPolicyRunner(env, train_cfg_dict, log_dir=log_dir, device=rl_device)
     if resume_path is not None:
         checkpoint = runner.load(resume_path)
         print(f"train_resume path={resume_path} iter={runner.current_learning_iteration} log_dir={log_dir}", flush=True)
-    runner.learn(train_cfg.runner.max_iterations)
+    target_iteration = int(train_cfg.runner.max_iterations)
+    remaining_iterations = max(
+        0, target_iteration - int(runner.current_learning_iteration)
+    )
+    print(
+        f"train_iterations current={runner.current_learning_iteration} "
+        f"target={target_iteration} remaining={remaining_iterations}",
+        flush=True,
+    )
+    runner.learn(remaining_iterations)
 
 
 if __name__ == '__main__':
