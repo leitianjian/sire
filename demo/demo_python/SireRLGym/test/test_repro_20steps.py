@@ -483,8 +483,8 @@ def main():
     print(f"  Final base vz (world): {vs_final[2]:.3f}")
     if n_contacts > 0 and all("|f|=0.0" in cd for cd in contact_details):
         print("\n  ⚠️  CONTACT PAIRS DETECTED BUT ALL FORCES ARE ZERO!")
-        print("  → PsVsSolver3 finds penetration but force_W is zero.")
-        print("  → Check src/physics/contact/ps_vs_solver3.cpp")
+        print("  → SorContactSolver finds penetration but force_W is zero.")
+        print("  → Check src/physics/contact/sor_contact_solver.cpp")
 
 
 if __name__ == "__main__":

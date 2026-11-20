@@ -612,7 +612,7 @@ TEST(HeightFieldWitnessTest, ManifoldSeparatesParallelContactLevels) {
       const coal::Vec3s normal = coal::Vec3s::UnitZ();
       candidates.emplace_back(
           terrain.collisionGeometry().get(), box.collisionGeometry().get(),
-          coal::Contact::NONE, coal::Contact::NONE, terrain_point,
+          int{coal::Contact::NONE}, int{coal::Contact::NONE}, terrain_point,
           terrain_point - 0.001 * normal, normal, -0.001);
     }
   }
@@ -635,7 +635,7 @@ TEST(HeightFieldWitnessTest, ManifoldKeepsSmoothNormalFanTogether) {
     const coal::Vec3s normal(std::sin(radians), 0, std::cos(radians));
     candidates.emplace_back(
         terrain.collisionGeometry().get(), box.collisionGeometry().get(),
-        coal::Contact::NONE, coal::Contact::NONE, terrain_point,
+        int{coal::Contact::NONE}, int{coal::Contact::NONE}, terrain_point,
         terrain_point - 0.001 * normal, normal, -0.001);
   }
   sire::physics::collision::HeightFieldContactManifold manifold;
@@ -657,7 +657,7 @@ TEST(HeightFieldWitnessTest, ManifoldSplitsSharpNormalEdge) {
     const coal::Vec3s normal(std::sin(radians), 0, std::cos(radians));
     candidates.emplace_back(
         terrain.collisionGeometry().get(), box.collisionGeometry().get(),
-        coal::Contact::NONE, coal::Contact::NONE, terrain_point,
+        int{coal::Contact::NONE}, int{coal::Contact::NONE}, terrain_point,
         terrain_point - 0.001 * normal, normal, -0.001);
   }
   sire::physics::collision::HeightFieldContactManifold manifold;
@@ -679,7 +679,7 @@ TEST(HeightFieldWitnessTest, ManifoldPrioritizesDeepPatchCoverage) {
       const coal::Vec3s normal = coal::Vec3s::UnitZ();
       candidates.emplace_back(
           terrain.collisionGeometry().get(), box.collisionGeometry().get(),
-          coal::Contact::NONE, coal::Contact::NONE, terrain_point,
+          int{coal::Contact::NONE}, int{coal::Contact::NONE}, terrain_point,
           terrain_point - 0.001 * normal, normal, -0.001);
     }
   }

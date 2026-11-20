@@ -2,6 +2,13 @@
 cmake_minimum_required(VERSION 3.18.0)
 project(sire VERSION 1.0.0)
 
+option(SIRE_ENABLE_CUDA "Build Sire's native CUDA simulation backend" OFF)
+if(SIRE_ENABLE_CUDA)
+	enable_language(CUDA)
+	find_package(CUDAToolkit REQUIRED)
+	add_subdirectory(src/physics/cuda)
+endif()
+
 if(POLICY CMP0167)
 	cmake_policy(SET CMP0167 NEW)
 	set(CMAKE_POLICY_DEFAULT_CMP0167 NEW)
@@ -233,9 +240,9 @@ target_sources(sire_physics
 		"src/physics/contact/contact_position_force_solver.cpp"
 		"src/physics/contact/contact_force_solver.cpp"
 		"src/physics/contact/ps_vs_solver.cpp"
-		"src/physics/contact/ps_vs_solver2.cpp"
-		"src/physics/contact/ps_vs_solver3.cpp"
-		"src/physics/contact/ps_vs_solver_v5.cpp"
+		"src/physics/contact/clarabel_contact_solver.cpp"
+		"src/physics/contact/sor_contact_solver.cpp"
+		"src/physics/contact/admm_contact_solver.cpp"
 		"src/physics/contact/simple_admm_contact_solver.cpp"
 		"src/physics/contact/smooth_linear_contact_solver.cpp"
 		"src/physics/contact/newton_pipg_contact_solver.cpp"
@@ -270,9 +277,9 @@ target_sources(sire_physics
 		"include/sire/physics/contact/analytical_implicit_friction_solver.hpp"
 		"include/sire/physics/contact/contact_force_solver.hpp"
 		"include/sire/physics/contact/ps_vs_solver.hpp"
-		"include/sire/physics/contact/ps_vs_solver2.hpp"
-		"include/sire/physics/contact/ps_vs_solver3.hpp"
-		"include/sire/physics/contact/ps_vs_solver_v5.hpp"
+		"include/sire/physics/contact/clarabel_contact_solver.hpp"
+		"include/sire/physics/contact/sor_contact_solver.hpp"
+		"include/sire/physics/contact/admm_contact_solver.hpp"
 		"include/sire/physics/contact/simple_admm_contact_solver.hpp"
 		"include/sire/physics/contact/newton_pipg_contact_solver.hpp"
 		"include/sire/physics/contact/exact_coulomb_contact_solver.hpp"
@@ -527,6 +534,18 @@ set(PUB_RELY_LINK_LIB coal::coal ${aris_LIBRARIES} msgpack-cxx)
 set(PRI_RELY_LINK_LIB libclarabel_c_shared)
 message(STATUS ${coal_LIBRARIES})
 target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB} PRIVATE ${PRI_RELY_LINK_LIB} sire_profiler)
+
+if(SIRE_ENABLE_CUDA)
+	add_library(sire_cuda_scene_objects OBJECT
+		src/physics/cuda/flat_ground_model.cpp
+		src/physics/cuda/rigid_body_batch.cpp
+		src/physics/cuda/rigid_body_limits_model.cpp
+		src/physics/cuda/rigid_body_model.cpp)
+	set_target_properties(sire_cuda_scene_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	target_link_libraries(sire_cuda_scene_objects PRIVATE sire_cuda sire_lib)
+	add_library(sire_cuda_scene STATIC $<TARGET_OBJECTS:sire_cuda_scene_objects>)
+	target_link_libraries(sire_cuda_scene PUBLIC sire_cuda sire_lib)
+endif()
 
 if(WIN32)
 	add_custom_command(TARGET sire_lib POST_BUILD

@@ -821,8 +821,8 @@ auto process_penetration_depth_and_maintain_impact_set5(
 auto process_penetration_depth_and_maintain_impact_set6(
     simulator::SimulationLoop* simulator_ptr,
     std::vector<common::PenetrationAsPointPair>& pairs) -> void {
-  // V3/V5 single-point mode owns this preprocessing at the solver entry,
-  // so both event-driven and direct stepping apply the baseline exactly once.
+  // The SOR and ADMM solvers preprocess single-point and patch contacts at
+  // solver entry so both event-driven and direct stepping apply the baseline once.
   if (simulator_ptr->physicsEnginePtr()->contactSolver().singlePointContactMode() ||
       simulator_ptr->physicsEnginePtr()->contactSolver().patchContactMode())
     return;
@@ -955,7 +955,7 @@ auto process_penetration_depth_and_maintain_impact_set7(
 }
 
 /// @brief TODO: 筛选 Set8: 仅做帧内接触点去重，不做跨帧记录与初始穿深比对。
-/// ps_vs_solver3 内部自己处理 modifiedDepth（直接清零），
+/// SorContactSolver 内部自己处理 modifiedDepth（直接清零），
 /// 这里只负责移除过于靠近的重复接触点，避免接触求解器做无用功。
 /// 去重标准：同geometry对、位置相距 < 2mm 且法向夹角 < 0.5° 视为重复，
 /// 保留穿深最大的那个。

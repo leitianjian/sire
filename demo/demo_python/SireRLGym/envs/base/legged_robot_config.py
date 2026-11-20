@@ -188,6 +188,7 @@ class LeggedRobotCfg(BaseConfig):
         # 0 selects min(os.cpu_count(), num_envs). The executor persists for
         # the full environment lifetime and includes the calling thread.
         sire_batch_threads = 0
+        sire_cuda_streams = 4
         sire_diagnostics = False
         # Isolate rare native numerical failures. A lifetime threshold scales
         # poorly with long runs and many environments, so zero disables it.

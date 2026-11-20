@@ -495,6 +495,9 @@ auto PhysicsEngine::cptContactVelocityAB(
 auto PhysicsEngine::contactForceIdx() -> sire::Size {
   return imp_->contact_force_idx_;
 }
+auto PhysicsEngine::contactForceCount() const -> sire::Size {
+  return imp_->contact_force_size_;
+}
 auto PhysicsEngine::setContactForceIdxSize(int contact_force_idx,
                                            sire::Size contact_force_size)
     -> void {

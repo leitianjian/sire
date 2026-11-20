@@ -6,7 +6,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 
 namespace sire::physics::contact::simple_admm {
 
@@ -14,9 +14,9 @@ namespace sire::physics::contact::simple_admm {
 ///
 /// This class only replaces the assembled contact-force solve.  Collision
 /// handling, contact-frame construction, force application, and time stepping
-/// are inherited from PsVsSolverV5 so comparisons isolate the numerical
+/// are inherited from AdmmContactSolver so comparisons isolate the numerical
 /// contact solver.
-class SIRE_API SimpleAdmmContactSolver : public ps_vs_solver_v5::PsVsSolverV5 {
+class SIRE_API SimpleAdmmContactSolver : public admm_contact::AdmmContactSolver {
  public:
   SimpleAdmmContactSolver() = default;
   ~SimpleAdmmContactSolver() override = default;
@@ -117,6 +117,15 @@ SIRE_API auto cptContactForceShiftedSpectralAdmm(
     std::vector<double>& v0, std::vector<double>& v_target,
     std::vector<double>& b, double h, std::vector<double>& contactFce,
     sire::Size max_iters = 1000, double max_err = 1e-8) -> double;
+
+/// Solve the same shifted contact problem with explicitly prepared warm
+/// starts. A null guess selects the ordinary cold-start initialization.
+SIRE_API auto cptContactForceShiftedSpectralAdmmWithWarmStart(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    const std::vector<double>* initial_force, const std::vector<double>* initial_dual,
+    std::vector<double>* solved_dual, sire::Size max_iters, double max_err) -> double;
 
 /// Backward-compatible alias. Prefer cptContactForceSpectralAdmm in new code.
 auto cptContactForceSimpleAdmm(

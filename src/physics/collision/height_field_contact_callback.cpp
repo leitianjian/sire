@@ -145,7 +145,7 @@ auto HeightFieldContactManifold::select(
     if (!duplicate) {
       candidates.emplace_back(
           terrain.collisionGeometry().get(), shape.collisionGeometry().get(),
-          Contact::NONE, Contact::NONE, terrain_world, shape_world,
+          int{Contact::NONE}, int{Contact::NONE}, terrain_world, shape_world,
           normal_world, depth);
     }
     }

@@ -446,7 +446,7 @@ auto AnalyticalImplicitFrictionSolver::cptContactSolverResult(
     for (int j = 0; j < dim_t; ++j) P_tt(i, j) = P(idx_t[i], idx_t[j]);
   }
 
-  // Regularize P_nn (same as ps_vs_solver2)
+  // Regularize P_nn (same as clarabel_contact)
   const double reg_eps = 1e-8 * P_nn.diagonal().cwiseAbs().maxCoeff();
   Eigen::MatrixXd P_nn_reg = P_nn;
   for (int i = 0; i < dim_n; ++i) P_nn_reg(i, i) += reg_eps;

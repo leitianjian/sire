@@ -1,11 +1,11 @@
 """
-Demo: Ghost contact bug in PsVsSolver2.
+Demo: Ghost contact bug in ClarabelContactSolver.
 
 When the robot hits the ground, it bounces up, but the contact solver
 keeps a "ghost" contact alive, applying continuous upward force.
 The robot accelerates upward instead of falling back down under gravity.
 
-Root cause: filterPairsAndPreprocessInfo() in ps_vs_solver2.cpp
+Root cause: filterPairsAndPreprocessInfo() in clarabel_contact_solver.cpp
 re-adds contacts that are no longer detected by collision detection,
 creating a spurious force that blows up the simulation.
 

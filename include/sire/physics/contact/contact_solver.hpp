@@ -34,7 +34,7 @@ class SIRE_API ContactSolver {
 
   auto physicsEnginePtr() -> physics::PhysicsEngine* { return engine_ptr_; };
 
-  /// V3/V5 contact pipeline: "height_field" preserves the existing behavior;
+  /// SOR and ADMM contact pipelines: "height_field" preserves the existing behavior;
   /// "height_field_patch" records initial depth per persistent contact ID and
   /// computes coupled contact end times; "single_point" records one initial
   /// depth per geometry pair. "height_field_prism" uses the same patch solver
@@ -74,7 +74,7 @@ class SIRE_API ContactSolver {
  protected:
   virtual auto supportsSinglePointContactMode() const -> bool { return false; }
   virtual auto supportsPatchContactMode() const -> bool { return false; }
-  /// Called once per collision batch by V3/V5, including empty batches.
+  /// Called once per collision batch by the SOR and ADMM solvers, including empty batches.
   auto prepareSinglePointContacts(
       std::vector<common::PenetrationAsPointPair>& pairs,
       std::vector<std::array<double, 16>>& frames,

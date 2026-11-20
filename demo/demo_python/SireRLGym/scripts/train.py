@@ -80,6 +80,12 @@ def parse_args():
         help='Persistent Sire batch thread count; 0 selects an automatic value.',
     )
     p.add_argument('--max_iterations', type=int, default=None)
+    p.add_argument('--num_steps_per_env', type=int, default=None,
+                   help='Control steps collected per environment per PPO iteration.')
+    p.add_argument('--sire_backend', choices=('cpu', 'cuda'), default='cpu',
+                   help='Sire physics backend. CUDA requires a flat go2 scene.')
+    p.add_argument('--sire_cuda_streams', type=int, default=None,
+                   help='CUDA simulation streams (default: 4, capped at the environment count).')
     p.add_argument(
         '--save_interval',
         type=int,
@@ -180,8 +186,16 @@ def main():
         if args.sire_batch_threads < 0:
             raise ValueError('--sire_batch_threads must be >= 0')
         env_cfg.sim.sire_batch_threads = args.sire_batch_threads
+    if args.sire_cuda_streams is not None:
+        if args.sire_cuda_streams < 1:
+            raise ValueError('--sire_cuda_streams must be positive')
+        env_cfg.sim.sire_cuda_streams = args.sire_cuda_streams
     if args.max_iterations is not None:
         train_cfg.runner.max_iterations = args.max_iterations
+    if args.num_steps_per_env is not None:
+        if args.num_steps_per_env <= 0:
+            raise ValueError('--num_steps_per_env must be positive')
+        train_cfg.runner.num_steps_per_env = args.num_steps_per_env
     if args.save_interval is not None:
         if args.save_interval <= 0:
             raise ValueError('--save_interval must be > 0')
@@ -283,7 +297,14 @@ def main():
             'Training requires SIRE_ENABLE_TRACY=OFF. Rebuild/install Sire with '
             'profiling disabled, or pass --allow_profile for diagnostic runs.')
     env_cfg.sim.sire_diagnostics = False
-    env = make_env_from_cfg(args.task, env_cfg, headless=not args.head)
+    if args.sire_backend == 'cuda':
+        if rl_device.type != 'cuda':
+            raise ValueError('The CUDA simulator and PPO must run on the same CUDA device.')
+        if args.visualize_interval is not None or args.solver_trace:
+            raise ValueError('CUDA training does not enable Sire CPU recording or solver tracing.')
+    sim_device = rl_device if args.sire_backend == 'cuda' else 'cpu'
+    env = make_env_from_cfg(args.task, env_cfg, headless=not args.head,
+                            sire_backend=args.sire_backend, sim_device=sim_device)
     scene_tag = _infer_scene_tag(env_cfg)
     log_root = str(args.log_dir) if args.log_dir else 'logs'
     log_dir = make_log_dir(train_cfg, root=log_root, scene_tag=scene_tag)
@@ -291,7 +312,10 @@ def main():
         "train_start "
         f"task={args.task} "
         f"num_envs={env_cfg.env.num_envs} "
+        f"sire_backend={args.sire_backend} "
+        f"num_steps_per_env={train_cfg.runner.num_steps_per_env} "
         f"sire_batch_threads={env_cfg.sim.sire_batch_threads} "
+        f"sire_cuda_streams={getattr(env, 'sire_cuda_streams', 0)} "
         f"max_iterations={'inf' if getattr(train_cfg.runner, 'infinite_mode', False) else train_cfg.runner.max_iterations} "
         f"save_interval={train_cfg.runner.save_interval} "
         f"visualize_interval={args.visualize_interval} "

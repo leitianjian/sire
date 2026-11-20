@@ -165,6 +165,12 @@ class OnPolicyRunner:
         lenbuffer = deque(maxlen=100)
         cur_reward_sum = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
         cur_episode_length = torch.zeros(self.env.num_envs, dtype=torch.float, device=self.device)
+        cuda_policy = torch.device(self.device).type == 'cuda'
+        if cuda_policy and self.log_dir is not None:
+            rollout_shape = (self.num_steps_per_env, self.env.num_envs)
+            completed = torch.empty(rollout_shape, dtype=torch.bool, device=self.device)
+            returns = torch.empty(rollout_shape, dtype=torch.float, device=self.device)
+            lengths = torch.empty_like(returns)
 
         resume_tot_time = self.tot_time
         it = self.current_learning_iteration
@@ -177,10 +183,12 @@ class OnPolicyRunner:
             sample_memory = self.memory_interval > 0 and it % self.memory_interval == 0
             if sample_memory:
                 write_memory_sample(self.memory_path, it, 'before_rollout')
-            start = time.time()
+            if cuda_policy:
+                torch.cuda.synchronize(self.device)
+            start = time.perf_counter()
 
             with torch.inference_mode():
-                for _ in range(self.num_steps_per_env):
+                for step in range(self.num_steps_per_env):
                     actions = self.alg.act(obs, critic_obs)
                     env_actions = self.joint_order_adapter.actions_policy_to_env(actions)
                     obs, privileged_obs, rewards, dones, infos = self.env.step(env_actions)
@@ -198,13 +206,23 @@ class OnPolicyRunner:
                             ep_infos.append(infos['episode'])
                         cur_reward_sum += rewards
                         cur_episode_length += 1
-                        new_ids = (dones > 0).nonzero(as_tuple=False)
-                        rewbuffer.extend(cur_reward_sum[new_ids][:, 0].cpu().numpy().tolist())
-                        lenbuffer.extend(cur_episode_length[new_ids][:, 0].cpu().numpy().tolist())
-                        cur_reward_sum[new_ids] = 0
-                        cur_episode_length[new_ids] = 0
+                        if cuda_policy:
+                            done = dones > 0
+                            completed[step].copy_(done)
+                            returns[step].copy_(cur_reward_sum)
+                            lengths[step].copy_(cur_episode_length)
+                            cur_reward_sum.masked_fill_(done, 0)
+                            cur_episode_length.masked_fill_(done, 0)
+                        else:
+                            new_ids = (dones > 0).nonzero(as_tuple=False)
+                            rewbuffer.extend(cur_reward_sum[new_ids][:, 0].tolist())
+                            lenbuffer.extend(cur_episode_length[new_ids][:, 0].tolist())
+                            cur_reward_sum[new_ids] = 0
+                            cur_episode_length[new_ids] = 0
 
-                stop = time.time()
+                if cuda_policy:
+                    torch.cuda.synchronize(self.device)
+                stop = time.perf_counter()
                 collection_time = stop - start
                 start = stop
                 self.alg.compute_returns(critic_obs)
@@ -223,8 +241,13 @@ class OnPolicyRunner:
                 mean_surrogate_loss = 0.0
                 mean_entropy = 0.0
                 mean_sym_loss = None
-            stop = time.time()
+            if cuda_policy:
+                torch.cuda.synchronize(self.device)
+            stop = time.perf_counter()
             learn_time = stop - start
+            if cuda_policy and self.log_dir is not None:
+                rewbuffer.extend(returns[completed].cpu().tolist())
+                lenbuffer.extend(lengths[completed].cpu().tolist())
             if sample_memory:
                 write_memory_sample(self.memory_path, it, 'after_update')
 
@@ -275,6 +298,7 @@ class OnPolicyRunner:
         ep_string = ""
         filtered_ep_string = ""
         if locs.get('ep_infos'):
+            env_on_cuda = torch.device(self.env.device).type == 'cuda'
             # Episode dictionaries can contain event-specific metrics.  For
             # example, physics_failure_count is only present in a step that
             # recovered an unstable environment.  Preserve the encounter
@@ -287,6 +311,8 @@ class OnPolicyRunner:
             )
             for key in episode_keys:
                 info_values = []
+                episode_counts = []
+                per_episode = env_on_cuda and key.startswith(('rew_', 'contact_ratio_', 'hip_offset_'))
                 for ep_info in locs['ep_infos']:
                     if key not in ep_info:
                         continue
@@ -300,10 +326,19 @@ class OnPolicyRunner:
                         if info_value.ndim == 0:
                             info_value = info_value.unsqueeze(0)
                     info_values.append(info_value)
+                    if per_episode:
+                        episode_counts.append(ep_info['episode_count'].reshape(1))
                 if not info_values:
                     continue
                 infotensor = torch.cat(info_values)
-                value = torch.mean(infotensor).item()
+                if per_episode:
+                    counts = torch.cat(episode_counts)
+                    count = counts.sum()
+                    if count.item() == 0:
+                        continue
+                    value = ((counts * infotensor).sum() / count).item()
+                else:
+                    value = torch.mean(infotensor).item()
                 self.writer.add_scalar('Episode/' + key, value, locs['it'])
                 line = f"{f'Mean episode {key}:':>{pad}} {value:.4f}\n"
                 ep_string += line

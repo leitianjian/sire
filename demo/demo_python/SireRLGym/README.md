@@ -1,6 +1,7 @@
 # SireRLGym
 
-`SireRLGym` trains a GO2 policy on CPU using one independent Sire simulator per
+`SireRLGym` trains Go2 policies with Sire. See the [CUDA guide](../../../docs/cuda_implementation.md)
+for GPU builds and training commands. The CPU backend uses one independent Sire simulator per
 environment. Physics advances through the native `SireRLBatchStepper`, whose
 persistent worker pool is reused for the lifetime of the environment.
 

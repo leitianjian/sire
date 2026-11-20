@@ -19,7 +19,7 @@ namespace contact::analytical_implicit_friction {
 /// @brief 解析 DAE + 隐式 Coulomb 投影接触求解器
 ///
 /// 融合 analytical_tangent_force 的 DAE 框架（矩阵指数, RealSchur 求根）
-/// 与 ps_vs_solver2 的隐式切向迭代思想，用 O(n) Coulomb 维投影替代 SOCP:
+/// 与 clarabel_contact 的隐式切向迭代思想，用 O(n) Coulomb 维投影替代 SOCP:
 ///
 ///   for each contact i:
 ///     f_tan_desired = 平衡切向外力 + 惯量耦合所需的力

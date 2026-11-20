@@ -34,7 +34,7 @@
 #include "sire/physics/contact/contact_position_force_solver.hpp"
 #include "sire/physics/contact/contact_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver.hpp"
-#include "sire/physics/contact/ps_vs_solver2.hpp"
+#include "sire/physics/contact/clarabel_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable.hpp"
@@ -59,6 +59,9 @@ void init_simulator(py::module& m);
 void init_physics(py::module& m);
 void init_model(py::module& m);
 void init_core(py::module& m);
+#ifdef SIRE_PYTHON_CUDA
+void init_cuda_rl(py::module& m);
+#endif
 
 PYBIND11_MODULE(sire, m) {
   aris::core::setDefaultLogDirectory(std::filesystem::current_path() / "log");
@@ -82,4 +85,7 @@ PYBIND11_MODULE(sire, m) {
   init_physics(m);
   init_model(m);
   init_core(m);
+#ifdef SIRE_PYTHON_CUDA
+  init_cuda_rl(m);
+#endif
 }

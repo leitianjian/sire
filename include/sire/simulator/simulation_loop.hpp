@@ -163,7 +163,7 @@ class SIRE_API SimulationLoop {
   auto advanceToSimTime(double targetTime)
       -> std::pair<double, sire::Size>;
 
-  /// One physics sub-step using PsVsSolver3's split API:
+  /// One physics sub-step using SorContactSolver's split API:
   ///   1. resetPartContactForce + updateGeometryLocation
   ///   2. collisionDetection → cptPointPairPenetration
   ///   3. process_penetration_depth

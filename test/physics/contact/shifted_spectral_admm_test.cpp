@@ -158,8 +158,8 @@ TEST(ShiftedSpectralAdmm, DefaultsToSinglePointWithoutChangingBaselineDefault) {
 
   baseline.setContactModelMode("height_field_patch");
   EXPECT_TRUE(baseline.patchContactMode());
-  sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5 v5;
-  EXPECT_THROW(v5.setContactModelMode("height_field_patch"),
+  sire::physics::contact::admm_contact::AdmmContactSolver admm_solver;
+  EXPECT_THROW(admm_solver.setContactModelMode("height_field_patch"),
                std::invalid_argument);
 
   baseline.setInitialPenetrationPolicy("eliminate");

@@ -1,9 +1,9 @@
 # 单接触点回归模式
 
-`PsVsSolver3` 和 `PsVsSolverV5`（包括继承 V5 的求解器）支持两种模式：
+`SorContactSolver` 和 `AdmmContactSolver`（包括继承 `AdmmContactSolver` 的求解器）支持两种模式：
 
 当前切向实验新增 `ShiftedSpectralAdmmContactSolver`，默认选择 `single_point`。
-原 V3、V5 和未偏移的 Spectral ADMM 默认值不变。
+原 SOR、ADMM 和未偏移的 Spectral ADMM 默认值不变。
 
 | 配置值 | 穿深处理 | 本步时间 |
 | --- | --- | --- |
@@ -25,11 +25,11 @@ assert contactSolver.contactModelMode == "single_point"
 # 继续配置材料、事件、模型，再初始化并运行仿真。
 ```
 
-也可以在原 V5/ADMM 对象上设置同一个属性，或调用
+也可以在ADMM 对象上设置同一个属性，或调用
 `contactSolver.setContactModelMode("single_point")`。
 **模式不改变切向求解算法**：原 ADMM v6 和未偏移的 Spectral ADMM 本来就不使用
 DAE 法向目标速度；启用模式后恢复穿深前处理和接触时间，也不会改写这个约定。
-V3、PIPG、Exact Coulomb 的现有目标速度接口继续接收本步法向模型结果。
+SOR、PIPG、Exact Coulomb 的现有目标速度接口继续接收本步法向模型结果。
 
 `boxSliding.py` 已默认选择此求解器和单接触点模式，直接运行：
 
@@ -40,7 +40,7 @@ python demo/demo_python/sire/boxSliding/boxSliding.py
 未偏移的论文基线仍通过 `addSpectralADMMSolver()` 选择。若希望在相同的法向
 前处理和接触时间下对比两种 ADMM，应也给论文基线设置
 `contactSolver.contactModelMode = "single_point"`，并固定材料和初始条件。
-V3 基线仍通过 `addPsVsSolver3()` 加 `contactModelMode = "single_point"` 使用。
+SOR 基线仍通过 `addSorContactSolver()` 加 `contactModelMode = "single_point"` 使用。
 
 ## Shifted Spectral ADMM 的定义
 
@@ -78,7 +78,7 @@ De Saxce 修正。新旧版本共用同一个迭代核，唯一模型变化是�
 C++ 使用 `solver.setContactModelMode("single_point")`。
 新求解器 XML 元素名为 `ShiftedSpectralAdmmContactSolver`，省略
 `contact_model_mode` 时默认就是 `single_point`。
-原 V3/V5 求解器不设置属性时继续使用原模式；新 shifted 求解器默认单接触点。
+原 SOR 和 ADMM 求解器不设置属性时继续使用原模式；新 shifted 求解器默认单接触点。
 原 heightField 几何、碰撞回调和事件处理器保留；当前示例的事件映射
 `{0:12, 1:13, 2:14}` 可直接使用，不必为了回归模式更换事件 ID。
 V2 及更早的求解器不提供这个模式，仍保留它们原本的行为。
@@ -87,7 +87,7 @@ V2 及更早的求解器不提供这个模式，仍保留它们原本的行为�
 对于示例使用的 Handler5，`integrate()` 分发到空的 handler 积分方法，
 `handleContact()` 则分发到 `InitHandler5/StepHandler5/CtrlHandler5::handle()`，
 完成碰撞检测并调用 `PhysicsEngine::integrateByContactInfo()`，最终进入
-V3/V5 的 `cptContactSolverResult()`。穿深处理、接触时间求根、实际积分及
+SOR 和 ADMM 的 `cptContactSolverResult()`。穿深处理、接触时间求根、实际积分及
 下一事件的创建均在这条调用链上完成，不依赖 `step()` 或 `stepPhysics()`。
 
 ## 状态和时间语义
@@ -195,7 +195,7 @@ Jordan 耦合、奇异增广外力、振荡缩放、大迹平移、Padé 回退�
 新增 `core/matrix_exp_pade/solve` 和 `/square` 分别观察求解与平方成本。
 该公共函数的其他调用者也使用新 Padé 实现，因此应一起做仿真回归。
 
-V3/V5（包括 shifted ADMM）增加 `contact_time_method`：
+SOR 和 ADMM（包括 shifted ADMM）增加 `contact_time_method`：
 
 - `exponential`：默认，原扫描与 Brent 路径，使用优化后的 Padé。
 - `polynomial`：实验性分段 Taylor 轨迹扫描，困难计算回退到默认路径。

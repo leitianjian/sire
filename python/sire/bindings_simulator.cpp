@@ -33,7 +33,7 @@
 #include "sire/physics/contact/analytical_implicit_friction_solver.hpp"
 #include "sire/physics/contact/contact_position_force_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver.hpp"
-#include "sire/physics/contact/ps_vs_solver2.hpp"
+#include "sire/physics/contact/clarabel_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable.hpp"

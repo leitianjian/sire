@@ -408,7 +408,7 @@ auto cptContactForceExactCoulombWithOptions(
   Eigen::MatrixXd H = -h * W;
   H = 0.5 * (H + H.transpose());
 
-  // c = H f + g is the post-step contact velocity.  PsVsSolverV5 stores the
+  // c = H f + g is the post-step contact velocity.  AdmmContactSolver stores the
   // desired normal velocity as -v_target, hence w_N = c_N + v_target.
   Eigen::VectorXd shifted_free_velocity = v0_map - h * b_map;
   for (int i = 0; i < contact_count; ++i)
@@ -1287,7 +1287,7 @@ auto ExactCoulombContactSolver::solveContactForceQP(
 
 ARIS_REGISTRATION {
   aris::core::class_<ExactCoulombContactSolver>("ExactCoulombContactSolver")
-      .inherit<ps_vs_solver_v5::PsVsSolverV5>();
+      .inherit<admm_contact::AdmmContactSolver>();
 }
 
 }  // namespace sire::physics::contact::exact_coulomb

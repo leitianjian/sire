@@ -52,10 +52,20 @@ def make_env_cfg(task: str):
     return env_cfg
 
 
-def make_env_from_cfg(task: str, env_cfg, headless: bool = True):
+def make_env_from_cfg(task: str, env_cfg, headless: bool = True, *,
+                      sire_backend: str = 'cpu', sim_device='cpu'):
     spec = _TASKS[task]
-    env = spec.env_class(env_cfg, sim_params=env_cfg.sim, physics_engine='sire', sim_device='cpu', headless=headless)
-    return env
+    env_class = spec.env_class
+    if sire_backend == 'cuda':
+        if task != 'go2':
+            raise ValueError('The CUDA simulator currently supports the flat go2 task.')
+        from SireRLGym.envs.base.legged_robot_sire_cuda import LeggedRobotSireCuda
+
+        env_class = LeggedRobotSireCuda
+    elif sire_backend != 'cpu':
+        raise ValueError(f'Unknown Sire simulator backend {sire_backend!r}.')
+    return env_class(env_cfg, sim_params=env_cfg.sim, physics_engine='sire',
+                     sim_device=sim_device, headless=headless)
 
 
 def make_log_dir(train_cfg, root='logs', scene_tag=None):

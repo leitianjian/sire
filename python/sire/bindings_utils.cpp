@@ -40,15 +40,14 @@
 #include "sire/physics/contact/exact_coulomb_contact_solver.hpp"
 #include "sire/physics/contact/newton_pipg_contact_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver.hpp"
-#include "sire/physics/contact/ps_vs_solver2.hpp"
-#include "sire/physics/contact/ps_vs_solver3.hpp"
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/clarabel_contact_solver.hpp"
+#include "sire/physics/contact/sor_contact_solver.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 #include "sire/physics/contact/simple_admm_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
 
-// Forward-declare solver functions (v3/v4 defined in ps_vs_solver3.cpp, not in
-// header):
-namespace sire::physics::contact::ps_vs_solver3 {
+// Internal friction solvers from sor_contact_solver.cpp.
+namespace sire::physics::contact::sor_contact {
 auto cptContactForceWithTargetState3(
     sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
     std::vector<double>& v0, std::vector<double>& v_target,
@@ -59,7 +58,7 @@ auto cptContactForceWithTargetState4(
     std::vector<double>& v0, std::vector<double>& v_target,
     std::vector<double>& b, double h, std::vector<double>& contactFce,
     sire::Size max_iters, double max_err) -> double;
-}  // namespace sire::physics::contact::ps_vs_solver3
+}  // namespace sire::physics::contact::sor_contact
 #include "sire/physics/geometry/capsule_collision_geometry.hpp"
 #include "sire/physics/geometry/collidable.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
@@ -342,7 +341,7 @@ void init_utils(py::module& m) {
          std::vector<double> b, double h, int max_iters,
          double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::ps_vs_solver3::
+        double error = sire::physics::contact::sor_contact::
             cptContactForceWithTargetState2(
                 static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
                 result, static_cast<sire::Size>(max_iters), max_err);
@@ -360,7 +359,7 @@ void init_utils(py::module& m) {
          std::vector<double> b, double h, int max_iters,
          double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::ps_vs_solver3::
+        double error = sire::physics::contact::sor_contact::
             cptContactForceWithTargetState3(
                 static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
                 result, static_cast<sire::Size>(max_iters), max_err);
@@ -378,7 +377,7 @@ void init_utils(py::module& m) {
          std::vector<double> b, double h, int max_iters,
          double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::ps_vs_solver3::
+        double error = sire::physics::contact::sor_contact::
             cptContactForceWithTargetState4(
                 static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
                 result, static_cast<sire::Size>(max_iters), max_err);
@@ -396,7 +395,7 @@ void init_utils(py::module& m) {
          std::vector<double> b, double h, int max_iters,
          double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::ps_vs_solver_v5::
+        double error = sire::physics::contact::admm_contact::
             cptContactForceWithTargetState5(
                 static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
                 result, static_cast<sire::Size>(max_iters), max_err);
@@ -414,7 +413,7 @@ void init_utils(py::module& m) {
          std::vector<double> b, double h, int max_iters,
          double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::ps_vs_solver_v5::
+        double error = sire::physics::contact::admm_contact::
             cptContactForceWithTargetState6(
                 static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
                 result, static_cast<sire::Size>(max_iters), max_err);
@@ -487,7 +486,7 @@ void init_utils(py::module& m) {
          std::vector<double> b, double h, int max_iters,
          double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::ps_vs_solver_v5::
+        double error = sire::physics::contact::admm_contact::
             cptContactForceWithTargetState7(
                 static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
                 result, static_cast<sire::Size>(max_iters), max_err);
@@ -505,7 +504,7 @@ void init_utils(py::module& m) {
          std::vector<double> b, double h, int max_iters,
          double max_err) -> std::pair<std::vector<double>, double> {
         std::vector<double> result(3 * n);
-        double error = sire::physics::contact::ps_vs_solver_v5::
+        double error = sire::physics::contact::admm_contact::
             cptContactForceWithTargetState8(
                 static_cast<sire::Size>(n), fri_coef, invM, v0, v_target, b, h,
                 result, static_cast<sire::Size>(max_iters), max_err);

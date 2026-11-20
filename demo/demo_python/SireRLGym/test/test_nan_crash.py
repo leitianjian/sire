@@ -9,7 +9,7 @@ Key findings:
     step 60: z=1.57  vz=+14.46 (still accelerating upward!!)
     step 80: z=2.93  vz=+34.34
     step 90: CRASH — position overflows to 1e124
-- Root cause: filterPairsAndPreprocessInfo() in ps_vs_solver2.cpp
+- Root cause: filterPairsAndPreprocessInfo() in clarabel_contact_solver.cpp
   re-adds ghost contacts even when collision detection no longer finds them.
   This creates a continuous upward force → energy blow-up → NaN.
 

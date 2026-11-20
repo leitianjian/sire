@@ -1,14 +1,14 @@
 #ifndef SIRE_NEWTON_PIPG_CONTACT_SOLVER_HPP_
 #define SIRE_NEWTON_PIPG_CONTACT_SOLVER_HPP_
 
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 
 namespace sire::physics::contact::newton_pipg {
 
 /// Hybrid PIPG/Newton solver for the equality-constrained Coulomb-cone QP
-/// assembled by PsVsSolverV5.
+/// assembled by AdmmContactSolver.
 class SIRE_API NewtonPipgContactSolver
-    : public ps_vs_solver_v5::PsVsSolverV5 {
+    : public admm_contact::AdmmContactSolver {
  public:
   NewtonPipgContactSolver() = default;
   ~NewtonPipgContactSolver() override = default;

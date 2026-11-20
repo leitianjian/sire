@@ -197,6 +197,6 @@ auto SmoothLinearContactSolver::clearContactSolverState() -> void {
 
 ARIS_REGISTRATION {
   aris::core::class_<SmoothLinearContactSolver>("SmoothLinearContactSolver")
-      .inherit<ps_vs_solver_v5::PsVsSolverV5>();
+      .inherit<admm_contact::AdmmContactSolver>();
 }
 }  // namespace sire::physics::contact::smooth_linear

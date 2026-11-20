@@ -15,6 +15,8 @@
 
 #include "sire/core/profiler.hpp"
 
+#include "spectral_admm_math.hpp"
+
 namespace sire::physics::contact::simple_admm {
 
 namespace {
@@ -23,23 +25,8 @@ using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
 
 auto projectCoulombCone(const Eigen::Vector3d& value, double mu)
     -> Eigen::Vector3d {
-  const double normal = value.z();
-  const double tangent_norm = value.head<2>().norm();
-
-  if (mu <= std::numeric_limits<double>::epsilon()) {
-    return Eigen::Vector3d(0.0, 0.0, std::max(0.0, normal));
-  }
-  if (normal >= 0.0 && tangent_norm <= mu * normal) return value;
-  if (tangent_norm <= -normal / mu) return Eigen::Vector3d::Zero();
-
-  const double projected_normal =
-      (mu * tangent_norm + normal) / (1.0 + mu * mu);
-  if (projected_normal <= 0.0) return Eigen::Vector3d::Zero();
-
-  Eigen::Vector3d result;
-  result.head<2>() = (mu * projected_normal / tangent_norm) * value.head<2>();
-  result.z() = projected_normal;
-  return result;
+  const auto projected = detail::projectCoulombCone({value.x(), value.y(), value.z()}, mu);
+  return {projected.x, projected.y, projected.normal};
 }
 
 auto projectCoulombCones(const Eigen::VectorXd& value, int contact_count,
@@ -55,10 +42,8 @@ auto projectCoulombCones(const Eigen::VectorXd& value, int contact_count,
 
 auto projectDualCoulombCone(const Eigen::Vector3d& value, double mu)
     -> Eigen::Vector3d {
-  if (mu <= std::numeric_limits<double>::epsilon()) {
-    return Eigen::Vector3d(value.x(), value.y(), std::max(0.0, value.z()));
-  }
-  return projectCoulombCone(value, 1.0 / mu);
+  const auto projected = detail::projectDualCoulombCone({value.x(), value.y(), value.z()}, mu);
+  return {projected.x, projected.y, projected.normal};
 }
 
 auto projectDualCoulombCones(const Eigen::VectorXd& value, int contact_count,
@@ -284,24 +269,9 @@ auto solveSpectralAdmm(sire::Size n, std::vector<double>& fri_coef,
     }
   }
 
-  // Simple's default spectral-ADMM parameters. Pinocchio applies tau to the
-  // augmented-Lagrangian penalty while rho itself follows the spectral rule.
-  constexpr double eta = 1e-6;
-  constexpr double tau = 0.5;
-  constexpr double initial_rho_power = 0.2;
-  constexpr double rho_power_increment = 0.05;
-  constexpr double residual_ratio = 50.0;
-
-  // In the rigid case R=0, the reference implementation uses m=eta and
-  // L=lambda_max(G), then rho=sqrt(mL)*(L/m)^p.
-  const double largest_eigenvalue = std::max(estimateLargestEigenvalue(G), eta);
-  const double smallest_regularized_eigenvalue = eta;
-  const double condition_number =
-      std::max(1.0, largest_eigenvalue / smallest_regularized_eigenvalue);
-  const double rho_multiplier = std::pow(condition_number, rho_power_increment);
-  double rho = std::sqrt(largest_eigenvalue * smallest_regularized_eigenvalue) *
-               std::pow(condition_number, initial_rho_power);
-  rho = std::max(rho, eta);
+  constexpr double eta = detail::spectral_admm_eta;
+  constexpr double tau = detail::spectral_admm_tau;
+  auto penalty = detail::initialSpectralPenalty(estimateLargestEigenvalue(G));
 
   Eigen::VectorXd f = Eigen::VectorXd::Zero(dimension);
   if (initial_force &&
@@ -326,7 +296,7 @@ auto solveSpectralAdmm(sire::Size n, std::vector<double>& fri_coef,
   Eigen::VectorXd y = project_primal(f);
   Eigen::VectorXd z = Eigen::VectorXd::Zero(dimension);
 
-  double effective_penalty = tau * rho;
+  double effective_penalty = tau * penalty.rho;
   if (initial_dual && initial_dual->size() >= static_cast<size_t>(dimension)) {
     z = Eigen::Map<const Eigen::VectorXd>(initial_dual->data(), dimension);
   } else {
@@ -374,7 +344,7 @@ auto solveSpectralAdmm(sire::Size n, std::vector<double>& fri_coef,
       // Numerical fallback only; it does not change the NCP being solved.
       const Eigen::MatrixXd regularized =
           augmented_matrix +
-          1e-10 * Eigen::MatrixXd::Identity(dimension, dimension);
+          detail::spectral_admm_fallback * Eigen::MatrixXd::Identity(dimension, dimension);
       f = regularized.ldlt().solve(rhs);
     }
 
@@ -397,17 +367,8 @@ auto solveSpectralAdmm(sire::Size n, std::vector<double>& fri_coef,
 
     // Sec. III-F spectral update: p <- p +/- 0.05 is equivalent to
     // rho <- rho * kappa^(+/- 0.05) because m and L remain fixed here.
-    bool update_rho = false;
-    if (primal_residual > residual_ratio * dual_residual) {
-      rho *= rho_multiplier;
-      update_rho = true;
-    } else if (dual_residual > residual_ratio * primal_residual) {
-      rho /= rho_multiplier;
-      update_rho = true;
-    }
-    if (update_rho) {
-      rho = std::clamp(rho, 1e-12, 1e12);
-      effective_penalty = tau * rho;
+    if (detail::adaptSpectralPenalty(penalty, primal_residual, dual_residual)) {
+      effective_penalty = tau * penalty.rho;
       factorization_ok = refactor();
       ++factorization_updates;
     }
@@ -427,7 +388,7 @@ auto solveSpectralAdmm(sire::Size n, std::vector<double>& fri_coef,
   SIRE_PROFILE_PLOT("spectral_admm.dual_residual", dual_residual);
   SIRE_PROFILE_PLOT("spectral_admm.complementarity_residual",
                     complementarity_residual);
-  SIRE_PROFILE_PLOT("spectral_admm.rho", rho);
+  SIRE_PROFILE_PLOT("spectral_admm.rho", penalty.rho);
   SIRE_PROFILE_PLOT("spectral_admm.iterations",
                     static_cast<double>(iterations));
   SIRE_PROFILE_PLOT("spectral_admm.factorization_updates",
@@ -453,9 +414,19 @@ auto cptContactForceShiftedSpectralAdmm(
     std::vector<double>& v0, std::vector<double>& v_target,
     std::vector<double>& b, double h, std::vector<double>& contactFce,
     sire::Size max_iters, double max_err) -> double {
+  return cptContactForceShiftedSpectralAdmmWithWarmStart(n, fri_coef, invM_3n, v0, v_target,
+      b, h, contactFce, nullptr, nullptr, nullptr, max_iters, max_err);
+}
+
+auto cptContactForceShiftedSpectralAdmmWithWarmStart(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    const std::vector<double>* initial_force, const std::vector<double>* initial_dual,
+    std::vector<double>* solved_dual, sire::Size max_iters, double max_err) -> double {
   return solveSpectralAdmm(n, fri_coef, invM_3n, v0, &v_target, nullptr, b, h,
-                           nullptr, nullptr, contactFce, nullptr, max_iters,
-                           max_err);
+                           initial_force, initial_dual, contactFce, solved_dual,
+                           max_iters, max_err);
 }
 
 auto cptContactForceSimpleAdmm(sire::Size n, std::vector<double>& fri_coef,
@@ -502,9 +473,12 @@ auto SimpleAdmmContactSolver::solveSpectralContactForce(
   const auto* groups = patchContactMode() && !patch_groups_.empty()
                            ? &patch_groups_
                            : nullptr;
+  const bool trace_single_point = shifted && singlePointContactMode();
+  if (trace_single_point) traceShiftedAdmmInputs(initial_force, initial_dual);
   const double error = solveSpectralAdmm(
       n, fri_coef, invM_3n, v0, normal_target, groups, b, h, initial_force,
       initial_dual, contactFce, &last_dual_solution_, max_iters, max_err);
+  if (trace_single_point) traceShiftedAdmmDual(last_dual_solution_);
   has_primal_guess_ = false;
   has_dual_guess_ = false;
   prepared_dual_guess_.clear();
@@ -737,7 +711,7 @@ auto ShiftedSpectralAdmmContactSolver::solveContactForceQP(
 
 ARIS_REGISTRATION {
   aris::core::class_<SimpleAdmmContactSolver>("SimpleAdmmContactSolver")
-      .inherit<ps_vs_solver_v5::PsVsSolverV5>()
+      .inherit<admm_contact::AdmmContactSolver>()
       .prop("warm_start_enabled", &SimpleAdmmContactSolver::setWarmStartEnabled,
             &SimpleAdmmContactSolver::warmStartEnabled);
   aris::core::class_<ShiftedSpectralAdmmContactSolver>(

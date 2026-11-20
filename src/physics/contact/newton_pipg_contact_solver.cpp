@@ -153,7 +153,7 @@ auto cptContactForceNewtonPipg(
 
   Eigen::VectorXd rhs_full(nc);
   for (int i = 0; i < nc; ++i) {
-    // Post-step velocity is g + H f.  The v5 DAE convention requires its
+    // Post-step velocity is g + H f.  The ADMM solver's DAE convention requires its
     // normal component to equal -v_target, hence H_N f = -v_target - g_N.
     rhs_full(i) =
         -v_target[i] - v0[3 * i + 2] + h * b[3 * i + 2];
@@ -274,7 +274,7 @@ auto NewtonPipgContactSolver::solveContactForceQP(
 
 ARIS_REGISTRATION {
   aris::core::class_<NewtonPipgContactSolver>("NewtonPipgContactSolver")
-      .inherit<ps_vs_solver_v5::PsVsSolverV5>();
+      .inherit<admm_contact::AdmmContactSolver>();
 }
 
 }  // namespace sire::physics::contact::newton_pipg

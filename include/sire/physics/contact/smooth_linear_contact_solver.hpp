@@ -1,7 +1,7 @@
 #ifndef SIRE_SMOOTH_LINEAR_CONTACT_SOLVER_HPP_
 #define SIRE_SMOOTH_LINEAR_CONTACT_SOLVER_HPP_
 
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 
 namespace sire::physics::contact::smooth_linear {
 
@@ -12,7 +12,7 @@ struct SmoothLinearSolveInfo {
 };
 
 /// Linear velocity regularization from the previous smooth law, evaluated at
-/// the current contact tangential velocity. Forces use the common V5 sign and
+/// the current contact tangential velocity. Forces use the common ADMM sign and
 /// normal-target convention. No collision, mass assembly or integration here.
 SIRE_API auto cptContactForceSmoothLinear(
     sire::Size n, const std::vector<double>& friction,
@@ -25,8 +25,8 @@ SIRE_API auto cptContactForceSmoothLinear(
 
 /// Only the contact-force kernel differs from the shifted ADMM baseline.
 /// Collision, inverse contact inertia, depth baselines, separation-time search,
-/// force recording, integration and native batching all remain in V5.
-class SIRE_API SmoothLinearContactSolver : public ps_vs_solver_v5::PsVsSolverV5 {
+/// force recording, integration and native batching are inherited from AdmmContactSolver.
+class SIRE_API SmoothLinearContactSolver : public admm_contact::AdmmContactSolver {
  public:
   SmoothLinearContactSolver();
   auto doInit(physics::PhysicsEngine* engine_ptr) -> void override;

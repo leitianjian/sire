@@ -67,6 +67,16 @@ target_link_libraries(sire
     ${PRI_RELY_LINK_LIB}
 )
 
+if(SIRE_ENABLE_CUDA)
+  target_sources(sire PRIVATE bindings_cuda.cpp $<TARGET_OBJECTS:sire_cuda_scene_objects>)
+  target_compile_definitions(sire PRIVATE SIRE_PYTHON_CUDA=1)
+  target_link_libraries(sire PRIVATE sire_cuda)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # Keep this toolkit's runtime private when PyTorch has loaded its own.
+    target_link_options(sire PRIVATE "LINKER:--exclude-libs,libcudart_static.a")
+  endif()
+endif()
+
 # 设置模块输出名称和路径
 set_target_properties(sire PROPERTIES
   OUTPUT_NAME "sire"

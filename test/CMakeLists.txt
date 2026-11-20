@@ -365,5 +365,37 @@ target_link_libraries(single_point_contact_test PRIVATE
 	GTest::gtest_main sire_lib ${PUB_RELY_LINK_LIB})
 add_test(NAME single_point_contact_test COMMAND single_point_contact_test)
 
+if(SIRE_ENABLE_CUDA)
+	add_executable(cuda_contact_trajectory_test "physics/contact/cuda_contact_trajectory_test.cpp")
+	target_include_directories(cuda_contact_trajectory_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+	target_link_libraries(cuda_contact_trajectory_test PRIVATE sire_cuda sire_lib)
+	add_test(NAME cuda_contact_trajectory_test COMMAND cuda_contact_trajectory_test)
+	set_tests_properties(cuda_contact_trajectory_test PROPERTIES SKIP_RETURN_CODE 77)
+	add_executable(cuda_spectral_admm_test "physics/contact/cuda_spectral_admm_test.cpp")
+	target_include_directories(cuda_spectral_admm_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+	target_link_libraries(cuda_spectral_admm_test PRIVATE sire_cuda sire_lib)
+	add_test(NAME cuda_spectral_admm_test COMMAND cuda_spectral_admm_test)
+	set_tests_properties(cuda_spectral_admm_test PROPERTIES SKIP_RETURN_CODE 77)
+	add_executable(cuda_contact_history_test "physics/contact/cuda_contact_history_test.cpp")
+	target_link_libraries(cuda_contact_history_test PRIVATE sire_cuda sire_lib)
+	add_test(NAME cuda_contact_history_test COMMAND cuda_contact_history_test)
+	set_tests_properties(cuda_contact_history_test PROPERTIES SKIP_RETURN_CODE 77)
+	add_executable(cuda_flat_ground_collision_test "physics/collision/cuda_flat_ground_collision_test.cpp")
+	target_link_libraries(cuda_flat_ground_collision_test PRIVATE sire_cuda_scene)
+	add_test(NAME cuda_flat_ground_collision_test COMMAND cuda_flat_ground_collision_test go2_rai_foot.xml)
+	set_tests_properties(cuda_flat_ground_collision_test PROPERTIES SKIP_RETURN_CODE 77
+		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/demo/demo_python/sirePaperDogRL")
+	add_executable(cuda_rigid_body_dynamics_test "physics/contact/cuda_rigid_body_dynamics_test.cpp")
+	target_link_libraries(cuda_rigid_body_dynamics_test PRIVATE sire_cuda_scene)
+	add_test(NAME cuda_rigid_body_dynamics_test COMMAND cuda_rigid_body_dynamics_test go2_rai_foot.xml)
+	set_tests_properties(cuda_rigid_body_dynamics_test PROPERTIES SKIP_RETURN_CODE 77
+		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/demo/demo_python/sirePaperDogRL")
+	add_executable(cuda_rigid_body_batch_test "physics/contact/cuda_rigid_body_batch_test.cpp")
+	target_link_libraries(cuda_rigid_body_batch_test PRIVATE sire_cuda_scene)
+	add_test(NAME cuda_rigid_body_batch_test COMMAND cuda_rigid_body_batch_test go2_rai_foot.xml)
+	set_tests_properties(cuda_rigid_body_batch_test PROPERTIES SKIP_RETURN_CODE 77
+		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/demo/demo_python/sirePaperDogRL")
+endif()
+
 # set not to run test post build
 # gtest_discover_tests(collision_detection_test sorted_pair_test multi_contact_mass_matrix force_screw_test)

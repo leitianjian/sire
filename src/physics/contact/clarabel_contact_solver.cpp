@@ -1,14 +1,10 @@
-#include "sire/physics/contact/ps_vs_solver3.hpp"
+#include "sire/physics/contact/clarabel_contact_solver.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cmath>
 #include <fstream>
-#include <limits>
 #include <map>
-#include <memory>
 #include <mutex>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -40,38 +36,10 @@
 
 #include "log/easyloggingConfig.hpp"
 
-namespace sire::physics::contact::ps_vs_solver3 {
+namespace sire::physics::contact::clarabel_contact {
 using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
-
-// 前向声明：解析法向力求解（不用 Clarabel，COD 分解）
-auto cptContactForceWithTargetState(
-    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
-    std::vector<double>& v0, std::vector<double>& v_target,
-    std::vector<double>& b, double h, std::vector<double>& contactFce,
-    sire::Size max_iters, double max_err) -> double;
-
-/// @brief 最大耗散原理版本：摩擦方向迭代至与终点切向速度自洽
-/// 与 cptContactForceWithTargetState 的区别：
-///   - 旧版：摩擦方向锁定在步初 v_t(0)；新版：迭代使方向对齐 v_t'(f)
-///   - 旧版：单次 COD 求解；新版：外层固定点迭代 + 每轮重求 fn
-///   - 新版返回值 = 最终摩擦方向变化量（收敛指标），旧版始终返回 0
-auto cptContactForceWithTargetState3(
-    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
-    std::vector<double>& v0, std::vector<double>& v_target,
-    std::vector<double>& b, double h, std::vector<double>& contactFce,
-    sire::Size max_iters, double max_err) -> double;
-
-/// @brief 逐接触点 SOR + 粘/滑二分法（v4）
-auto cptContactForceWithTargetState4(
-    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
-    std::vector<double>& v0, std::vector<double>& v_target,
-    std::vector<double>& b, double h, std::vector<double>& contactFce,
-    sire::Size max_iters, double max_err) -> double;
-
-// TODO: 临时将 DLOG 改为 LOG(INFO) 以在 Release 模式下输出调试信息后恢复
-// #undef DLOG
-// #define DLOG(level) LOG(INFO)
-
+// TODO: 临时将 DLOG 改为 LOG(INFO) 以在 Release 模式下输出调试信息，排查 bug
+// 后恢复 #undef DLOG #define DLOG(level) LOG(INFO)
 using PartPool =
     aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>;
 class FceActiveStateRecorder {
@@ -581,438 +549,10 @@ auto cptFormulaIXdtComposeAbx0(sire::Size n, const double* Abx0, double t0,
     ixdt[i] -= temp[n * i + n - 1];  // result = eatc - eat0;
   }
 }
-namespace {
-// Dense Taylor output on a local segment. The baseline scan grid is retained:
-// uncertain signs use exponential action rather than skipping a candidate.
-struct PolynomialStats {
-  int prepares{0}, normSkips{0}, errorFailures{0}, degreeFailures{0};
-  int uncertainSigns{0}, arithmeticFailures{0}, retrySkips{0}, fixedSkips{0};
-};
-class ContactTimePolynomial {
- public:
-  ContactTimePolynomial(sire::Size n, const double* matrix, PolynomialStats& stats)
-      : n_(n), matrix_(matrix), stats_(stats) {
-    for (sire::Size i = 0; i < n; ++i) {
-      double row = 0;
-      for (sire::Size j = 0; j < n; ++j) row += std::abs(matrix[i*n+j]);
-      norm_ = std::max(norm_, row);
-    }
-  }
-  void invalidate() { valid_ = false; }
-  bool tryScan(double start, double time, double maxHorizon,
-               const std::vector<double>& state, sire::Size contacts,
-               std::vector<double>& out) {
-    const double interval = time - start;
-    if (valid_ && time >= start_ && time - start_ <= horizon_) {
-      if (evaluate(time, contacts, out)) return true;
-      // Do not rebuild the same uncertain point. Exponential action decides it.
-      retryBelow_ = std::min(retryBelow_, interval);
-      invalidate();
-      return false;
-    }
-    invalidate();
-    if (interval >= retryBelow_ || stats_.prepares >= 16) {
-      ++stats_.retrySkips;
-      return false;
-    }
-    // Matrix is fixed for this solve. Reject impossible horizons before
-    // entering a preparation zone or allocating coefficients.
-    double horizon = maxHorizon;
-    if (!std::isfinite(norm_) || interval * norm_ > 16) {
-      ++stats_.normSkips;
-      return false;
-    }
-    if (norm_ > 0)
-      horizon = std::min(horizon, std::nextafter(16 / norm_, 0.0));
-    if (horizon < interval) { ++stats_.normSkips; return false; }
-    // Try intermediate lengths instead of jumping from a long segment to
-    // one sample. Bound failed work per scan AND across the whole solve.
-    for (int attempt = 0; attempt < 4 && stats_.prepares < 16; ++attempt) {
-      if (attempt == 3) horizon = interval;
-      if (prepare(start, horizon, state)) {
-        if (evaluate(time, contacts, out)) return true;
-        break;
-      }
-      if (horizon <= interval) break;
-      horizon = std::max(interval, horizon / 2);
-    }
-    // This is a performance heuristic, not a claim that a changed state
-    // cannot succeed. Larger later intervals take the reliable baseline;
-    // a shorter final interval can still retry if the work budget permits.
-    retryBelow_ = std::min(retryBelow_, interval);
-    invalidate();
-    return false;
-  }
- private:
-  bool prepare(double start, double horizon, const std::vector<double>& state) {
-    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/polynomialPrepare");
-    ++stats_.prepares;
-    valid_ = false;
-    const double rho = horizon * norm_;
-    if (!(horizon > 0) || !std::isfinite(rho)) { ++stats_.arithmeticFailures; return false; }
-    // Large norm alone is not proof of difficult dynamics, but limits the
-    // usefulness of this inexpensive remainder estimate. Defer to baseline.
-    if (rho > 16) { ++stats_.normSkips; return false; }
-    coefficients_.resize((maxDegree + 2) * n_);
-    std::copy(state.begin(), state.end(), coefficients_.begin());
-    const double eps = std::numeric_limits<double>::epsilon();
-    const double gamma = 4 * (static_cast<double>(n_) + 2) * eps;
-    double previousNorm = 0, coefficientError = 0;
-    for (double value : state) previousNorm = std::max(previousNorm, std::abs(value));
-    const double budget = 64 * eps * std::max(1.0, previousNorm);
-    error_ = 0;
-    for (int k = 1; k <= maxDegree + 1; ++k) {
-      double termNorm = 0;
-      for (sire::Size i = 0; i < n_; ++i) {
-        double value = 0;
-        for (sire::Size j = 0; j < n_; ++j)
-          value += matrix_[i*n_+j] * coefficients_[(k-1)*n_+j];
-        value *= horizon / k;
-        if (!std::isfinite(value)) { ++stats_.arithmeticFailures; return false; }
-        coefficients_[k*n_+i] = value;
-        termNorm = std::max(termNorm, std::abs(value));
-      }
-      coefficientError = (rho / k) * coefficientError +
-                         gamma * (rho / k) * previousNorm;
-      const double ratio = rho / (k + 1);
-      // The k-th coefficient is the first omitted term. Subsequent terms
-      // are bounded by a geometric majorant of their factorial recurrence.
-      if (ratio < 1 && (termNorm + coefficientError) / (1-ratio) <= budget) {
-        degree_ = k - 1;
-        error_ += (termNorm + coefficientError) / (1-ratio);
-        start_ = start; horizon_ = horizon;
-        valid_ = std::isfinite(error_) && error_ <= budget;
-        if (!valid_) ++stats_.errorFailures;
-        return valid_;
-      }
-      error_ += coefficientError;
-      // This accumulated bound cannot decrease at later degrees.
-      if (!std::isfinite(error_) || error_ > budget) {
-        ++stats_.errorFailures;
-        return false;
-      }
-      previousNorm = termNorm;
-    }
-    ++stats_.degreeFailures;
-    return false;
-  }
-  bool evaluate(double time, sire::Size contacts, std::vector<double>& out) const {
-    if (!valid_ || time < start_ || time - start_ > horizon_) return false;
-    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/polynomialEvaluate");
-    const double u = (time - start_) / horizon_;
-    const double gamma = 4 * (degree_ + 1) * std::numeric_limits<double>::epsilon();
-    for (sire::Size i = 0; i < n_; ++i) {
-      double value = coefficients_[degree_*n_+i], magnitude = std::abs(value);
-      for (int k = degree_; k-- > 0;) {
-        value = value * u + coefficients_[k*n_+i];
-        magnitude = magnitude * u + std::abs(coefficients_[k*n_+i]);
-      }
-      out[i] = value;
-      if (!std::isfinite(value)) { ++stats_.arithmeticFailures; return false; }
-      // Include an inflated roundoff estimate, not just truncation error.
-      // Near-zero contacts always use the baseline sign calculation.
-      if (i < contacts && std::abs(value) <= error_ + gamma * magnitude) {
-        ++stats_.uncertainSigns;
-        return false;
-      }
-    }
-    return true;
-  }
- private:
-  static constexpr int maxDegree = 32;
-  sire::Size n_;
-  const double* matrix_;
-  PolynomialStats& stats_;
-  double retryBelow_{std::numeric_limits<double>::infinity()};
-  double norm_{0}, start_{0}, horizon_{0}, error_{0};
-  int degree_{0};
-  bool valid_{false};
-  std::vector<double> coefficients_;
-};
-}  // namespace
-
 // clang-format off
-/// @brief 搜索本步最早分离时间；固定间隔扫描复用完整状态转移矩阵，
-/// 变间隔、末尾补齐和 Brent 求根局部推进，负穿深从初值复核。
+/// @brief 原始版本：每次求 x(t) 调用 cptFormulaXComposeAb（内部 matrix_exp_pade），
+/// 精度最高但最慢。保留用于对比测试。
 // clang-format on
-auto findSinglePointContactEndTime(sire::Size nContact, double suggestDt,
-                                   const double* A, const double* b,
-                                   const double* x0, const std::string& method) -> double {
-  SIRE_PROFILE_SCOPE("ps_vs/findSinglePointContactEndTime");
-  if (method != "exponential" && method != "polynomial")
-    throw std::invalid_argument("Unknown contact time method");
-  const bool usePolynomial = method == "polynomial";
-  if (!std::isfinite(suggestDt) || suggestDt <= 0) {
-    throw std::invalid_argument("Contact time requires a positive finite step");
-  }
-  if (nContact == 0) return -1;
-  const sire::Size n2 = 2 * nContact, n3 = n2 + 1;
-  std::vector<double> Ab(n3 * n3, 0), x01(n3), xt(n3);
-  core::screw::matrixVectorComposeBack(n2, A, b, Ab.data());
-  std::copy(x0, x0 + n2, x01.begin());
-  x01[n2] = 1;
-
-  // Eigenvalues determine only the sampling scale. Both direct evaluation
-  // and fixed-step propagation retain the full coupling and affine forcing.
-  double fastestRate = 0, fastestFrequency = 0;
-  {
-    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/spectrum");
-    Eigen::MatrixXd matrix = Eigen::Map<const MatrixXdRM>(A, n2, n2);
-    Eigen::EigenSolver<Eigen::MatrixXd> spectrum(matrix, false);
-    if (spectrum.info() != Eigen::Success) {
-      throw std::runtime_error("Cannot determine contact time sampling scale");
-    }
-    for (Eigen::Index i = 0; i < spectrum.eigenvalues().size(); ++i) {
-      const auto eigenvalue = spectrum.eigenvalues()[i];
-      fastestRate = std::max(fastestRate, std::abs(eigenvalue));
-      fastestFrequency = std::max(fastestFrequency, std::abs(eigenvalue.imag()));
-    }
-  }
-  double maxStep = suggestDt / 32;
-  if (fastestFrequency > 0) {
-    maxStep = std::min(maxStep, sire::PI / (16 * fastestFrequency));
-  }
-  double scanStep = maxStep;
-  if (fastestRate > 0) scanStep = std::min(scanStep, 1 / (32 * fastestRate));
-  // Resolve a fixed fraction of the current search horizon, with an absolute
-  // 10 ns cap for ordinary simulation steps.  Using a fixed ultra-small
-  // tolerance makes event-refined steps do just as much root work even when
-  // their entire horizon is only 1e-7 s.  The machine floor is expressed at
-  // the scale of the global simulation clock, where the returned dt is added.
-  const double timeTolerance = std::max(
-      64 * std::numeric_limits<double>::epsilon() *
-          std::max(1.0, std::abs(suggestDt)),
-      std::min(1e-8, suggestDt * 1e-4));
-  int scanEvaluations = 0, rootEvaluations = 0, interpolationSteps = 0;
-  int bisectionSteps = 0, confirmations = 0;
-  int polynomialHits = 0, polynomialFallbacks = 0, polynomialSegments = 0;
-  PolynomialStats polynomialStats;
-  auto finish = [&](double result) {
-    if (usePolynomial) {
-      SIRE_PROFILE_PLOT("contact_time.poly_prepare_calls", static_cast<double>(polynomialStats.prepares));
-      SIRE_PROFILE_PLOT("contact_time.poly_norm_skips", static_cast<double>(polynomialStats.normSkips));
-      SIRE_PROFILE_PLOT("contact_time.poly_error_failures", static_cast<double>(polynomialStats.errorFailures));
-      SIRE_PROFILE_PLOT("contact_time.poly_degree_failures", static_cast<double>(polynomialStats.degreeFailures));
-      SIRE_PROFILE_PLOT("contact_time.poly_uncertain_signs", static_cast<double>(polynomialStats.uncertainSigns));
-      SIRE_PROFILE_PLOT("contact_time.poly_arithmetic_failures", static_cast<double>(polynomialStats.arithmeticFailures));
-      SIRE_PROFILE_PLOT("contact_time.poly_retry_skips", static_cast<double>(polynomialStats.retrySkips));
-      SIRE_PROFILE_PLOT("contact_time.poly_fixed_skips", static_cast<double>(polynomialStats.fixedSkips));
-    }
-    SIRE_PROFILE_PLOT("contact_time.polynomial_hits", static_cast<double>(polynomialHits));
-    SIRE_PROFILE_PLOT("contact_time.polynomial_fallbacks", static_cast<double>(polynomialFallbacks));
-    SIRE_PROFILE_PLOT("contact_time.polynomial_segments", static_cast<double>(polynomialSegments));
-    SIRE_PROFILE_PLOT("contact_time.n_contacts", static_cast<double>(nContact));
-    SIRE_PROFILE_PLOT("contact_time.suggest_dt", suggestDt);
-    SIRE_PROFILE_PLOT("contact_time.max_rate", fastestRate);
-    SIRE_PROFILE_PLOT("contact_time.max_frequency", fastestFrequency);
-    SIRE_PROFILE_PLOT("contact_time.max_scan_step", maxStep);
-    SIRE_PROFILE_PLOT("contact_time.time_tolerance", timeTolerance);
-    SIRE_PROFILE_PLOT("contact_time.scan_evaluations", static_cast<double>(scanEvaluations));
-    SIRE_PROFILE_PLOT("contact_time.root_evaluations", static_cast<double>(rootEvaluations));
-    SIRE_PROFILE_PLOT("contact_time.interpolation_steps", static_cast<double>(interpolationSteps));
-    SIRE_PROFILE_PLOT("contact_time.bisection_steps", static_cast<double>(bisectionSteps));
-    SIRE_PROFILE_PLOT("contact_time.confirmations", static_cast<double>(confirmations));
-    SIRE_PROFILE_PLOT("contact_time.separation_found", result > 0 ? 1.0 : 0.0);
-    return result;
-  };
-  core::screw::MatrixExpMultiplyWorkspace action(n3, Ab.data());
-  core::screw::MatrixExpPadeWorkspace fixedPade(n3);
-  // Polynomial data and all matrix workspaces are local to this solve.
-  std::unique_ptr<ContactTimePolynomial> polynomial;
-  if (usePolynomial) polynomial = std::make_unique<ContactTimePolynomial>(n3, Ab.data(), polynomialStats);
-  auto minimumDepth = [&](const std::vector<double>& state) {
-    return *std::min_element(state.begin(), state.begin() + nContact);
-  };
-  auto hasNegativeDepth = [&]() {
-    for (double value : xt) {
-      if (!std::isfinite(value)) {
-        throw std::runtime_error("Non-finite state while finding contact end time");
-      }
-    }
-    for (sire::Size i = 0; i < nContact; ++i) {
-      if (xt[i] < 0) return true;
-    }
-    return false;
-  };
-  auto anyNegativeDepth = [&](double time) {
-    ++confirmations;
-    {
-      SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/exponentialAction");
-      action.apply(x01.data(), xt.data(), time);
-    }
-    return hasNegativeDepth();
-  };
-
-  // Do not treat a new impact's initial zero depth as separation. Resolve
-  // fast damped transients, then grow the scan intervals to the frequency
-  // cap. Always include suggestDt, including for purely real eigenvalues.
-  {
-    SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/scan");
-    // Local to this call: A, b and the initial state may change next step.
-    // Keep input/output vectors separate because s_mm is not in-place safe.
-    std::vector<double> scanState = x01;
-    std::vector<double> fixedTransition;
-    double lower = 0;
-    while (lower < suggestDt) {
-      ++scanEvaluations;
-      const double upper = std::min(suggestDt, lower + scanStep);
-      if (upper <= lower) {
-        throw std::runtime_error("Contact time scan cannot advance");
-      }
-      bool negativeDepth;
-      bool polynomialAccepted = false;
-      const bool fullFixedInterval = scanStep == maxStep && lower + scanStep <= suggestDt;
-      if (polynomial && fullFixedInterval && !fixedTransition.empty()) {
-        // Once paid for, the fixed transition is cheaper than preparing a
-        // replacement. The shortened final interval may still use polynomial.
-        ++polynomialStats.fixedSkips;
-        polynomial->invalidate();
-      } else if (polynomial) {
-        const int before = polynomialStats.prepares;
-        polynomialAccepted = polynomial->tryScan(
-            lower, upper, std::min(maxStep * 4, suggestDt - lower),
-            scanState, nContact, xt);
-        if (polynomialStats.prepares != before) ++polynomialSegments;
-        if (polynomialAccepted) ++polynomialHits;
-        else ++polynomialFallbacks;
-      }
-      // Keep the original sampling times. Only full maxStep intervals reuse
-      // exp(Ab*maxStep); other intervals use a local exponential action.
-      if (polynomialAccepted) {
-        negativeDepth = hasNegativeDepth();
-      } else if (fullFixedInterval) {
-        if (fixedTransition.empty()) {
-          SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/fixedStepExponential");
-          fixedTransition.resize(n3 * n3);
-          fixedPade.apply(Ab.data(), fixedTransition.data(), maxStep);
-        }
-        {
-          SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/fixedStepAdvance");
-          aris::dynamic::s_mm(n3, 1, n3, fixedTransition.data(), scanState.data(),
-                              xt.data());
-        }
-        negativeDepth = hasNegativeDepth();
-      } else {
-        {
-          SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/scanAction");
-          action.apply(scanState.data(), xt.data(), upper - lower);
-        }
-        negativeDepth = hasNegativeDepth();
-      }
-      // Confirm every candidate from x(0), including variable/final intervals.
-      // If rejected, xt holds the directly recomputed state and the swap below
-      // resets accumulated propagation error before continuing the scan.
-      if (negativeDepth) {
-        negativeDepth = anyNegativeDepth(upper);
-        if (polynomial) polynomial->invalidate();
-      }
-      if (negativeDepth) {
-        SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/brent");
-        double left = lower, right = upper;
-        std::vector<double> leftState = scanState;
-
-        // Brent-Dekker on min_i depth_i(t): its sign is exactly the previous
-        // any-negative predicate. a,b are the bracket endpoints with b the
-        // better residual; c,d track previous trials for progress safeguards.
-        // Keep a separate chronological bracket for forward-only propagation.
-        double a = left, b = right;
-        double fa = minimumDepth(leftState), fb = minimumDepth(xt);
-        if (std::abs(fa) < std::abs(fb)) {
-          std::swap(a, b);
-          std::swap(fa, fb);
-        }
-        double c = a, fc = fa, d = c;
-        bool lastWasBisection = true;
-        bool zeroProbeUsed = false;
-        for (int iteration = 0; iteration < 80 && right - left > timeTolerance;
-             ++iteration) {
-          double trial = left + (right - left) / 2;
-          bool bisect = true;
-          // A zero endpoint may be the exact crossing or a flat zero-depth
-          // contact. Probe towards the negative endpoint once; never accept
-          // zero itself as separation or repeatedly crawl across a plateau.
-          if (iteration < 32 && !zeroProbeUsed && (fa == 0.0 || fb == 0.0)) {
-            const double zeroTime = fa == 0.0 ? a : b;
-            trial = zeroTime + timeTolerance / 2;
-            bisect = !(trial > left && trial < right);
-            zeroProbeUsed = true;
-          }
-          // Zero depth is not a separation event: a newly touching or
-          // persistently zero-depth contact must not terminate the search.
-          // Reserve the last 48 iterations for bisection. Since the initial
-          // width <= suggestDt/32 and tol >= 32*eps*suggestDt, that is enough
-          // to reach the original width tolerance if interpolation stalls.
-          if (iteration < 32 && fa != 0.0 && fb != 0.0 && fa != fb) {
-            const double scale = std::max(std::abs(fa),
-                                          std::max(std::abs(fb), std::abs(fc)));
-            const double va = fa / scale, vb = fb / scale, vc = fc / scale;
-            double candidate;
-            if (va != vc && vb != vc && va != vb) {
-              // Inverse quadratic interpolation in coordinates relative to b.
-              candidate = b + (a - b) * vb * vc / ((va - vb) * (va - vc))
-                            + (c - b) * va * vb / ((vc - va) * (vc - vb));
-            } else {
-              candidate = b - (b - a) * vb / (vb - va);
-            }
-            const double guard = a + (b - a) / 4;
-            const double history = lastWasBisection ? std::abs(b - c)
-                                                    : std::abs(c - d);
-            if (std::isfinite(candidate) &&
-                candidate > std::min(guard, b) && candidate < std::max(guard, b) &&
-                history > timeTolerance && std::abs(candidate - b) < history / 2) {
-              // Avoid a rounded repeat of b while retaining a strict bracket.
-              trial = std::abs(candidate - b) < timeTolerance / 2
-                          ? b + std::copysign(timeTolerance / 2, a - b)
-                          : candidate;
-              bisect = !(trial > left && trial < right);
-            }
-          }
-          if (bisect) {
-            trial = left + (right - left) / 2;
-            ++bisectionSteps;
-          } else {
-            ++interpolationSteps;
-          }
-          ++rootEvaluations;
-          {
-            SIRE_PROFILE_SCOPE("ps_vs/contactEndTime/rootAction");
-            action.apply(leftState.data(), xt.data(), trial - left);
-          }
-          const bool trialNegative = hasNegativeDepth();
-          const double ftrial = minimumDepth(xt);
-          if (trialNegative) {
-            right = trial;
-          } else {
-            left = trial;
-            leftState.swap(xt);
-          }
-          d = c;
-          c = b;
-          fc = fb;
-          if ((fa < 0.0) != trialNegative) {
-            b = trial;
-            fb = ftrial;
-          } else {
-            a = trial;
-            fa = ftrial;
-          }
-          if (std::abs(fa) < std::abs(fb)) {
-            std::swap(a, b);
-            std::swap(fa, fb);
-          }
-          lastWasBisection = bisect;
-        }
-        // The positive upper bracket avoids a zero step and reaches separation.
-        return finish(right);
-      }
-      scanState.swap(xt);
-      lower = upper;
-      scanStep = std::min(maxStep, scanStep * 1.5);
-    }
-  }
-  return finish(-1);
-}
-
 auto findMinRootOriginal(sire::Size nContact, double suggestDt, const double* A,
                          const double* b, const double* x0, double tolerance,
                          sire::Size maxIter) -> double {
@@ -1393,7 +933,6 @@ auto findMinRootSchur(sire::Size nContact, double suggestDt, const double* A,
     }
   }
   if (i == maxIter) m = -1;
-  DLOG(DEBUG) << "depths at m: " << depths;
   return m;
 }
 
@@ -1431,14 +970,13 @@ auto cptAvgContactFce(sire::Size nContact, const double* A, const double* b,
         (stiffness[i] * ixdt[i] + damping[i] * ixdt[i + nContact]) / (tc - t0);
   }
 }
-// // TODO: 筛选接触点 — 判断两个接触点是否太近（法向差<0.5° 且 位置差<2cm）
-// auto contactPairsTooClosedFlag(
-//     const sire::physics::common::PenetrationAsPointPair& pairA,
-//     const sire::physics::common::PenetrationAsPointPair& pairB) -> bool {
-//   // 0.5 degree and 5cm difference.
-//   return pairA.nhat_AB_W.cross(pairB.nhat_AB_W).norm() < 1e-2 &&
-//          (pairA.p_WC - pairB.p_WC).cwiseAbs().sum() < 2e-2;
-// }
+auto contactPairsTooClosedFlag(
+    const sire::physics::common::PenetrationAsPointPair& pairA,
+    const sire::physics::common::PenetrationAsPointPair& pairB) -> bool {
+  // 0.5 degree and 5cm difference.
+  return pairA.nhat_AB_W.cross(pairB.nhat_AB_W).norm() < 1e-2 &&
+         (pairA.p_WC - pairB.p_WC).cwiseAbs().sum() < 2e-2;
+}
 auto preprocessContactInfo(
     sire::physics::PhysicsEngine& engine,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -1984,7 +1522,6 @@ auto cptCpiMatrix(
     forcePool.pop_back();
   }
 }
-// TODO: 筛选接触点 — filterPairsAndPreprocessInfo (简单版): 只按 depth>=0 过滤
 auto filterPairsAndPreprocessInfo(
     sire::physics::PhysicsEngine& engine,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -2016,8 +1553,6 @@ auto filterPairsAndPreprocessInfo(
                             accelExt.data(), invCpiResult.data());
   engine.activateContactForce(true);
 }
-// TODO: 筛选接触点 — filterPairsAndPreprocessInfo (完整版): 过滤
-// modifiedDepth<0 或法向速度>=0 的接触点
 auto filterPairsAndPreprocessInfo(
     sire::physics::PhysicsEngine& engine,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -2027,37 +1562,33 @@ auto filterPairsAndPreprocessInfo(
     std::vector<sire::Size>& preservedPairsIdx,
     std::vector<sire::Size>& pairsNeedModifiedIdx,
     std::vector<sire::Size>& targetConditionIdx) -> void {
-  // for (sire::Size i{0}; i < contactNotEnd.size(); ++i) {
-  //   auto& pair = contactNotEnd[i];
-  //   if (auto& search =
-  //           std::find_if(penetration_pairs.begin(), penetration_pairs.end(),
-  //                        [&pair](const common::PenetrationAsPointPair& p) {
-  //                          return pair.compareById(p);
-  //                        });
-  //       search == penetration_pairs.end()) {
-  //     //
-  //     不存在的接触对加入pairs计算，说明已经穿出，这个时候，不加1e-4的长时间接触保护
-  //     pairsNeedModifiedIdx.push_back(penetration_pairs.size());
-  //     pair.modifiedDepth = (pair.modifiedDepth > 1e-8)
-  //                              ? pair.modifiedDepth
-  //                              : 1e-7;  // 确保不会被过滤掉
-  //     // pair.modifiedDepth = -1;  // 确保不会被过滤掉
-  //     penetration_pairs.push_back(pair);
-  //     targetConditionIdx.push_back(i);
-  //   } else {
-  //     pairsNeedModifiedIdx.push_back(
-  //         std::distance(penetration_pairs.begin(), search));
-  //     // 还没穿出，这个时候就用当前的接触检测的结果就可以
-  //     // 确保不会被过滤掉
-  //     // 修改search的penetration_pairs的depth，随便给一个大于零的，
-  //     // 防止被筛掉，状态已经在别处记录了
-  //     search->modifiedDepth =
-  //         (search->modifiedDepth > 1e-8) ? search->modifiedDepth : 1e-7;
-  //     // pair.modifiedDepth = (pair.modifiedDepth > 0) ? pair.modifiedDepth :
-  //     // 1e-7;  // 确保不会被过滤掉
-  //     targetConditionIdx.push_back(i);
-  //   }
-  // }
+  for (sire::Size i{0}; i < contactNotEnd.size(); ++i) {
+    auto& pair = contactNotEnd[i];
+    if (auto search =
+            std::find_if(penetration_pairs.begin(), penetration_pairs.end(),
+                         [&pair](const common::PenetrationAsPointPair& p) {
+                           return pair.compareById(p);
+                         });
+        search == penetration_pairs.end()) {
+      // Contact no longer detected by collision detection — the bodies
+      // have physically separated.  Do NOT add a ghost contact back into
+      // the solver; let it end naturally.  Otherwise a spurious force
+      // continues to accelerate the robot, causing energy blow-up.
+      contactEnded.push_back(pair);
+    } else {
+      pairsNeedModifiedIdx.push_back(
+          std::distance(penetration_pairs.begin(), search));
+      // 还没穿出，这个时候就用当前的接触检测的结果就可以
+      // 确保不会被过滤掉
+      // 修改search的penetration_pairs的depth，随便给一个大于零的，
+      // 防止被筛掉，状态已经在别处记录了
+      search->modifiedDepth =
+          (search->modifiedDepth > 1e-8) ? search->modifiedDepth : 1e-7;
+      // pair.modifiedDepth = (pair.modifiedDepth > 0) ? pair.modifiedDepth :
+      // 1e-7;  // 确保不会被过滤掉
+      targetConditionIdx.push_back(i);
+    }
+  }
   // DLOG(DEBUG) << "after contact not end, contact pairs: ";
   // for (sire::Size i{0}; i < penetration_pairs.size(); ++i) {
   //   DLOG(DEBUG) << "contact detected id: " << penetration_pairs[i].id_A << "
@@ -2066,17 +1597,14 @@ auto filterPairsAndPreprocessInfo(
   //               << " modified depth: " << penetration_pairs[i].modifiedDepth;
   // }
   cptContactFrame(penetration_pairs, T_C_vec);
-  // std::vector<int> idxNeedDecrease(pairsNeedModifiedIdx.size(), 0);
+  std::vector<int> idxNeedDecrease(pairsNeedModifiedIdx.size(), 0);
   for (sire::Size i{0}; i < penetration_pairs.size(); ++i) {
-    // TODO: 筛选接触点 — 过滤
-    // modifiedDepth<0（已分离）或法向速度>=0（正在分离）的接触点
     bool shouldFilter = false;
     if (penetration_pairs[i].modifiedDepth < 0) {
       // 如果穿透深度小于0，说明接触点已经分离
       shouldFilter = true;
     }
-    // TODO: 注意如果接触点过多过少要改这个
-    if (std::abs(penetration_pairs[i].modifiedDepth) < 1e-6) {
+    if (std::abs(penetration_pairs[i].modifiedDepth) < 1e-8) {
       std::array<double, 3> v_contact;
       engine.cptContactVelocityB2A(penetration_pairs[i], T_C_vec[i], v_contact);
       if (v_contact[2] >= 0) {
@@ -2086,40 +1614,24 @@ auto filterPairsAndPreprocessInfo(
     }
     if (!shouldFilter) {
       preservedPairsIdx.push_back(i);
+    } else {
+      // 因为pairsNeedModifiedIdx的idx是基于penetration_pairs的，所以在过滤掉的点
+      // 需要将后续的idx减一得到在preservedPairsIdx中的idx
+      for (sire::Size j{0}; j < pairsNeedModifiedIdx.size(); ++j) {
+        if (pairsNeedModifiedIdx[j] > i) {
+          // 需要修改的idx不再需要
+          idxNeedDecrease[j] += 1;
+        }
+      }
     }
-    // else {
-    //   //
-    //   因为pairsNeedModifiedIdx的idx是基于penetration_pairs的，所以在过滤掉的点
-    //   // 需要将后续的idx减一得到在preservedPairsIdx中的idx
-    //   for (sire::Size j{0}; j < pairsNeedModifiedIdx.size(); ++j) {
-    //     if (pairsNeedModifiedIdx[j] > i) {
-    //       // 需要修改的idx不再需要
-    //       idxNeedDecrease[j] += 1;
-    //     }
-    //   }
-    // }
   }
-  // for (sire::Size i{0}; i < pairsNeedModifiedIdx.size(); ++i) {
-  //   // 需要修改的idx在preservedPairsIdx中的idx
-  //   pairsNeedModifiedIdx[i] -= idxNeedDecrease[i];
-  // }
-}
-
-// TODO: 筛选接触点 — modifyPenetrationDepth: 将 modifiedDepth 截断为 1e-6
-auto modifyPenetrationDepth(
-    sire::physics::PhysicsEngine& engine,
-    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
-    std::vector<sire::Size>& preservedPairsIdx) -> void {
-  for (sire::Size i{0}; i < preservedPairsIdx.size(); ++i) {
-    auto& pair = penetration_pairs[preservedPairsIdx[i]];
-    if (std::abs(pair.modifiedDepth) > 1e-6) {
-      pair.modifiedDepth = 1e-6;
-    }
-    // 修改穿透深度为一个小于零的值，确保不会被过滤掉
+  for (sire::Size i{0}; i < pairsNeedModifiedIdx.size(); ++i) {
+    // 需要修改的idx在preservedPairsIdx中的idx
+    pairsNeedModifiedIdx[i] -= idxNeedDecrease[i];
   }
 }
 
-struct PsVsSolver3::Imp {
+struct ClarabelContactSolver::Imp {
   std::unique_ptr<core::MaterialManager> material_manager_;
   nlohmann::json records;
   // 消耗系数
@@ -2156,32 +1668,32 @@ struct PsVsSolver3::Imp {
         default_tv_(0.1),
         prevStiffScale(1) {}
 };
-PsVsSolver3::PsVsSolver3() : imp_(std::make_unique<Imp>()) {}
-PsVsSolver3::~PsVsSolver3() {};
-SIRE_DEFINE_MOVE_CTOR_CPP(PsVsSolver3);
-auto PsVsSolver3::resetMaterialManager(core::MaterialManager* manager) -> void {
+ClarabelContactSolver::ClarabelContactSolver() : imp_(std::make_unique<Imp>()) {}
+ClarabelContactSolver::~ClarabelContactSolver() {};
+SIRE_DEFINE_MOVE_CTOR_CPP(ClarabelContactSolver);
+auto ClarabelContactSolver::resetMaterialManager(core::MaterialManager* manager) -> void {
   imp_->material_manager_.reset(manager);
 }
-auto PsVsSolver3::materialManager() -> core::MaterialManager& {
+auto ClarabelContactSolver::materialManager() -> core::MaterialManager& {
   return *imp_->material_manager_;
 }
-auto PsVsSolver3::setDefaultStiffness(double k) noexcept -> void {
+auto ClarabelContactSolver::setDefaultStiffness(double k) noexcept -> void {
   imp_->default_k_ = k;
 }
-auto PsVsSolver3::defaultStiffness() noexcept -> double {
+auto ClarabelContactSolver::defaultStiffness() noexcept -> double {
   return imp_->default_k_;
 }
-auto PsVsSolver3::setDefaultCr(double cr) noexcept -> void {
+auto ClarabelContactSolver::setDefaultCr(double cr) noexcept -> void {
   imp_->default_cr_ = cr;
 }
-auto PsVsSolver3::defaultCr() noexcept -> double { return imp_->default_cr_; }
-auto PsVsSolver3::setDefaultVelocityThreshold(double tv) noexcept -> void {
+auto ClarabelContactSolver::defaultCr() noexcept -> double { return imp_->default_cr_; }
+auto ClarabelContactSolver::setDefaultVelocityThreshold(double tv) noexcept -> void {
   imp_->default_tv_ = tv;
 }
-auto PsVsSolver3::defaultVelocityThreshold() noexcept -> double {
+auto ClarabelContactSolver::defaultVelocityThreshold() noexcept -> double {
   return imp_->default_tv_;
 }
-auto PsVsSolver3::debugByRecords() -> nlohmann::json {
+auto ClarabelContactSolver::debugByRecords() -> nlohmann::json {
   // std::ofstream file("contact_solver_result.json");
   // std::cout << "records: " << imp_->records.dump(2) << std::endl;
   return imp_->records;
@@ -2233,9 +1745,8 @@ auto cptNormalContactForceByX0X1tVel(
   contactVelFce.assign(contactVelForce.data(),
                        contactVelForce.data() + contactVelForce.size());
 }
-// 既然记录在多接触点的情况下并不好用，那就不记录了，每帧消除穿深，
-// 但是保留一个k d = Fext 的深度用来帮助穿透回正。
-auto PsVsSolver3::cptContactSolverResult(
+
+auto ClarabelContactSolver::cptContactSolverResult(
     const aris::dynamic::Model* current_state,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec, ContactSolverResult& result)
@@ -2251,19 +1762,10 @@ auto PsVsSolver3::cptContactSolverResult(
   std::vector<sire::Size> pairsNeedModifiedIdx;
   std::vector<sire::Size> targetConditionIdx;
   {
-    // TODO: 筛选接触点 — 调用 filterPairsAndPreprocessInfo +
-    // modifyPenetrationDepth
     SIRE_PROFILE_SCOPE("ps_vs/filterPairsAndPreprocessInfo");
-    if (singlePointContactMode()) {
-      prepareSinglePointContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
-    } else if (patchContactMode()) {
-      preparePatchContacts(penetration_pairs, T_C_vec, preservedPairsIdx);
-    } else {
-      filterPairsAndPreprocessInfo(
-          *enginePtr, penetration_pairs, imp_->contactEnded, imp_->contactNotEnd,
-          T_C_vec, preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx);
-      modifyPenetrationDepth(*enginePtr, penetration_pairs, preservedPairsIdx);
-    }
+    filterPairsAndPreprocessInfo(
+        *enginePtr, penetration_pairs, imp_->contactEnded, imp_->contactNotEnd,
+        T_C_vec, preservedPairsIdx, pairsNeedModifiedIdx, targetConditionIdx);
   }
   sire::Size n{preservedPairsIdx.size()};
   SIRE_PROFILE_PLOT("ps_vs.n_contacts", static_cast<double>(n));
@@ -2272,14 +1774,13 @@ auto PsVsSolver3::cptContactSolverResult(
       static_cast<double>(enginePtr->simLoopPtr()->timer().simTime()));
 
   if (n == 0) {
-    // imp_->contactNotEnd.clear();
-    // imp_->contactEnded.clear();
-    // imp_->contactNotEndCondition.clear();
+    imp_->contactNotEnd.clear();
+    imp_->contactEnded.clear();
+    imp_->contactNotEndCondition.clear();
     sire::simulator::SimulationLoop* simulator_ptr = enginePtr->simLoopPtr();
     simulator_ptr->recorder().recordModelState(*modelPtr);
-    // Clear stale contact results: when n==0 no recordContactPairResults is
-    // called, so the previous step's data would remain in the record and
-    // lastContactPairResults() would return stale data.
+    // Keep the lightweight latest-contact cache exact for RL.  Without this,
+    // a no-contact event would expose forces from the preceding event.
     simulator_ptr->recorder().recordContactPairResults({});
     std::unique_ptr<core::EventBase> eventPtr{nullptr};
     DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
@@ -2298,47 +1799,13 @@ auto PsVsSolver3::cptContactSolverResult(
     simulator_ptr->recorder().recordDt(dt);
     simulator_ptr->integratorPoolPtr()->at(0).updPs(dt);
     double currentTime = simulator_ptr->timer().updateSimTime(dt);
+    simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
     DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
     simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
                                                     currentTime);
-    if (singlePointContactMode() || patchContactMode())
-      simulator_ptr->model()->setTime(currentTime);
+    // simulator_ptr->model()->setTime(currentTime);
     simulator_ptr->eventManager().addEvent(std::move(eventPtr));
     return;
-  }
-  for (sire::Size i{0}; i < n; ++i) {
-    DLOG(DEBUG) << "contact detected id: "
-                << penetration_pairs[preservedPairsIdx[i]].id_A << " "
-                << penetration_pairs[preservedPairsIdx[i]].id_B
-                << " real depth: "
-                << penetration_pairs[preservedPairsIdx[i]].depth
-                << " modified depth: "
-                << penetration_pairs[preservedPairsIdx[i]].modifiedDepth
-                << " contact position: "
-                << penetration_pairs[preservedPairsIdx[i]].p_WC[0] << " "
-                << penetration_pairs[preservedPairsIdx[i]].p_WC[1] << " "
-                << penetration_pairs[preservedPairsIdx[i]].p_WC[2]
-                << " contact normal: "
-                << penetration_pairs[preservedPairsIdx[i]].nhat_AB_W[0] << " "
-                << penetration_pairs[preservedPairsIdx[i]].nhat_AB_W[1] << " "
-                << penetration_pairs[preservedPairsIdx[i]].nhat_AB_W[2];
-    // DLOG(DEBUG) << "contact frame: " << T_C_vec[preservedPairsIdx[i]][0] << "
-    // "
-    //             << T_C_vec[preservedPairsIdx[i]][1] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][2] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][3] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][4] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][5] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][6] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][7] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][8] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][9] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][10] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][11] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][12] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][13] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][14] << " "
-    //             << T_C_vec[preservedPairsIdx[i]][15];
   }
   sire::Size n2{2 * n};
   std::vector<geometry::CollidableGeometry*> geomPtrVector(n2, nullptr);
@@ -2402,17 +1869,7 @@ auto PsVsSolver3::cptContactSolverResult(
     for (sire::Size i2{0}; i2 < 2; ++i2)
       accelExt[2 * i + i2] = allAccelExt[6 * i + 3 * i2 + 2];
 
-  std::vector<double> accelExt3(n2, 0);
-  // auto& fce =
-  //     dynamic_cast<aris::dynamic::GeneralForce&>(modelPtr->forcePool()[0]);
-  // DLOG(DEBUG) << "ball force: " << fce.fce()[0] << " " << fce.fce()[1] << " "
-  //             << fce.fce()[2] << " " << fce.fce()[3] << " " << fce.fce()[4]
-  //             << " " << fce.fce()[5];
-  cptAccelExtVector(*modelPtr, penetration_pairs, T_C_vec, preservedPairsIdx,
-                    prtIdVector.data(), accelExt3.data());
-
-  DLOG(DEBUG) << "invCpi = " << invCpi << " accelExt = " << accelExt
-              << " accelExt3 = " << accelExt3;
+  DLOG(DEBUG) << "invCpi = " << invCpi << " accelExt = " << accelExt;
   std::vector<double> stiffness(n), damping(n), fri_coef(n), x0(n2),
       realDepthX0(n2), v0(3 * n);
   double stiffScale = cptInitialCondition(
@@ -2435,13 +1892,12 @@ auto PsVsSolver3::cptContactSolverResult(
   //   realContactCptInfo.push_back(contactCptInfo);
   // }
   // imp_->records["realContactState"].push_back(realContactCptInfo);
-  // for (sire::Size i{0}; i < pairsNeedModifiedIdx.size(); ++i) {
-  //   sire::Size idx = pairsNeedModifiedIdx[i];
-  //   x0[idx] = imp_->contactNotEndCondition[2 * targetConditionIdx[i]] *
-  //             (imp_->prevStiffScale / stiffScale);
-  //   x0[n + idx] = imp_->contactNotEndCondition[2 * targetConditionIdx[i] +
-  //   1];
-  // }
+  for (sire::Size i{0}; i < pairsNeedModifiedIdx.size(); ++i) {
+    sire::Size idx = pairsNeedModifiedIdx[i];
+    x0[idx] = imp_->contactNotEndCondition[2 * targetConditionIdx[i]] *
+              (imp_->prevStiffScale / stiffScale);
+    x0[n + idx] = imp_->contactNotEndCondition[2 * targetConditionIdx[i] + 1];
+  }
   // nlohmann::json modifiedContactCptInfo;
   // for (sire::Size i{0}; i < preservedPairsIdx.size(); ++i) {
   //   nlohmann::json contactCptInfo;
@@ -2456,39 +1912,35 @@ auto PsVsSolver3::cptContactSolverResult(
   //   modifiedContactCptInfo.push_back(contactCptInfo);
   // }
   // imp_->records["modifiedContactState"].push_back(modifiedContactCptInfo);
-  // Initial conditions always come from the current model and collision data.
-  // imp_->contactNotEnd.clear();
-  // imp_->contactEnded.clear();
-  // imp_->contactNotEndCondition.clear();
+  imp_->prevStiffScale = stiffScale;
+  imp_->contactNotEnd.clear();
+  imp_->contactEnded.clear();
+  imp_->contactNotEndCondition.clear();
   // cpi因为要去掉ground，所以可能不是n2的，但是最后相减之后应该是 n 的
   // 对于算出来的cpi，在算逆前先类似得到矩阵A的处理一下（相减）应该就可以，
   // 同时PrtExtForce也不用管。
   // remove ground related cpi and fext;
   // 注意 cpi 可能是奇数，因为要去掉相应的ground，但A一定是偶数矩阵
-  auto& ball = partPool[1];
-  DLOG(DEBUG) << "ball as: " << ball.as()[0] << " " << ball.as()[1] << " "
-              << ball.as()[2] << " " << ball.as()[3] << " " << ball.as()[4]
-              << " " << ball.as()[5];
-  DLOG(DEBUG) << "ball vs: " << ball.vs()[0] << " " << ball.vs()[1] << " "
-              << ball.vs()[2] << " " << ball.vs()[3] << " " << ball.vs()[4]
-              << " " << ball.vs()[5];
   std::vector<double> A(n2 * n2), b(n2);
   cptDAECoeff(*enginePtr, n, stiffness.data(), damping.data(), stiffScale,
               accelExt.data(), invCpi.data(), A.data(), b.data());
   // 因为矩阵 A 经常无逆，所以使用其增广形式 [A b; 0 0] 作为状态转移矩阵，x0 =
   // [x0 1] 作为初始状态（求微分方程解的微分部分）
-  double minTime = (singlePointContactMode() || patchContactMode())
-                       ? findSinglePointContactEndTime(
-                             n, result.dt, A.data(), b.data(), x0.data(), contactTimeMethod())
-                       : -1;
+  double minTime =
+      findMinRootSchur(n, result.dt, A.data(), b.data(), x0.data(), 1e-10, 50);
   DLOG(DEBUG) << " minTime: " << minTime << " b: " << b << " A: " << A
               << " x0: " << x0 << " stiffScale: " << stiffScale;
-  // Solver diagnostics must not accumulate for the lifetime of an RL job.
-  auto* debug_loop = enginePtr->simLoopPtr();
-  if (debug_loop != nullptr && debug_loop->recorder().historyEnabled()) {
-    auto& times = imp_->records["currentTime"];
-    if (times.size() < 4096) {
-      times.push_back(modelPtr->time());
+  // These timing samples are diagnostic-only.  Historically every solver
+  // instance appended forever, which made long multi-environment RL jobs grow
+  // until the OS killed them.  RL disables recorder history for all but env 0;
+  // retain a small bounded sample there and allocate nothing in other envs.
+  auto* simulation_loop = enginePtr->simLoopPtr();
+  constexpr std::size_t kMaxDebugRecordCount = 4096;
+  if (simulation_loop != nullptr &&
+      simulation_loop->recorder().historyEnabled()) {
+    auto& current_time_records = imp_->records["currentTime"];
+    if (current_time_records.size() < kMaxDebugRecordCount) {
+      current_time_records.push_back(modelPtr->time());
       imp_->records["minTime"].push_back(minTime);
     }
   }
@@ -2520,36 +1972,35 @@ auto PsVsSolver3::cptContactSolverResult(
   // " << x1t;
   cptFormulaXComposeAb(n2 + 1, Ab.data(), minTime, x01.data(), x1t.data());
   // DLOG(DEBUG) << "x01: " << x01 << " x1t: " << x1t;
-  // for (sire::Size i{0}; i < n; ++i) {
-  //   if (x1t[i] >= 1e-10) {
-  //     // 由于碰撞点not
-  //     end，但是计算出来的末位置条件会比较苛刻，调整计算接触力的
-  //     // 目标条件为 x1t.depth = 1e-4 + x1t.depth.
-  //     imp_->contactNotEnd.push_back(penetration_pairs[preservedPairsIdx[i]]);
-  //     imp_->contactNotEnd.back().modifiedDepth = x1t[i] * stiffScale;
-  //     imp_->contactNotEnd.back().depth = x1t[i] * stiffScale;
-  //     // x1t[i] += 1e-4 / stiffScale;
-  //     imp_->contactNotEndCondition.push_back(x1t[i]);
-  //     imp_->contactNotEndCondition.push_back(x1t[n + i]);
-  //   } else {
-  //     imp_->contactEnded.push_back(penetration_pairs[preservedPairsIdx[i]]);
-  //   }
-  // }
+  for (sire::Size i{0}; i < n; ++i) {
+    if (x1t[i] >= 1e-10) {
+      // 由于碰撞点not end，但是计算出来的末位置条件会比较苛刻，调整计算接触力的
+      // 目标条件为 x1t.depth = 1e-4 + x1t.depth.
+      imp_->contactNotEnd.push_back(penetration_pairs[preservedPairsIdx[i]]);
+      imp_->contactNotEnd.back().modifiedDepth = x1t[i] * stiffScale;
+      imp_->contactNotEnd.back().depth = x1t[i] * stiffScale;
+      // x1t[i] += 1e-4 / stiffScale;
+      imp_->contactNotEndCondition.push_back(x1t[i]);
+      imp_->contactNotEndCondition.push_back(x1t[n + i]);
+    } else {
+      imp_->contactEnded.push_back(penetration_pairs[preservedPairsIdx[i]]);
+    }
+  }
   DLOG(DEBUG) << "Contact points velocity: " << v0;
-  // for (auto& pair : imp_->contactNotEnd) {
-  //   DLOG(DEBUG) << "Not end id: " << pair.id_A << " " << pair.id_B
-  //               << " real depth: " << pair.depth
-  //               << " modified depth: " << pair.modifiedDepth;
-  // }
-  // DLOG(DEBUG) << imp_->contactNotEnd.size() << " contact(s) not end, "
-  //             << "with condition: " << imp_->contactNotEndCondition;
-  // // DLOG(DEBUG) << "x1t: " << x1t;
-  // for (auto& pair : imp_->contactEnded) {
-  //   DLOG(DEBUG) << "Ended id: " << pair.id_A << " " << pair.id_B
-  //               << " real depth: " << pair.depth
-  //               << " modified depth: " << pair.modifiedDepth;
-  // }
-  // DLOG(DEBUG) << imp_->contactEnded.size() << " contact(s) ended. ";
+  for (auto& pair : imp_->contactNotEnd) {
+    DLOG(DEBUG) << "Not end id: " << pair.id_A << " " << pair.id_B
+                << " real depth: " << pair.depth
+                << " modified depth: " << pair.modifiedDepth;
+  }
+  DLOG(DEBUG) << imp_->contactNotEnd.size() << " contact(s) not end, "
+              << "with condition: " << imp_->contactNotEndCondition;
+  // DLOG(DEBUG) << "x1t: " << x1t;
+  for (auto& pair : imp_->contactEnded) {
+    DLOG(DEBUG) << "Ended id: " << pair.id_A << " " << pair.id_B
+                << " real depth: " << pair.depth
+                << " modified depth: " << pair.modifiedDepth;
+  }
+  DLOG(DEBUG) << imp_->contactEnded.size() << " contact(s) ended. ";
 
   std::vector<double> invM2(9 * n * n, 0);
   for (sire::Size i{0}; i < n; ++i)
@@ -2574,9 +2025,7 @@ auto PsVsSolver3::cptContactSolverResult(
   std::unique_ptr<core::EventBase> eventPtr{nullptr};
   DLOG(DEBUG) << "nextCtrlSimSuggestDt: " << nextCtrlSimSuggestDt
               << " suggestDt: " << result.dt;
-  if ((singlePointContactMode() || patchContactMode())
-          ? result.dt < nextCtrlSimSuggestDt
-          : nextCtrlSimSuggestDt - result.dt > 1e-6) {
+  if (nextCtrlSimSuggestDt - result.dt > 1e-6) {
     // 添加 stepEvents
     eventPtr = simulator_ptr->eventManager().createEventById(1);
     eventPtr->eventProp().addProp("isCtrl", 0.0);
@@ -2609,17 +2058,8 @@ auto PsVsSolver3::cptContactSolverResult(
   // simulator_ptr->integratorPoolPtr()->at(0).updPs(dt);
   std::vector<double> vTargetVel(x1t.data() + n, x1t.data() + 2 * n);
   DLOG(DEBUG) << "vTargetVel: " << vTargetVel << " v0: " << v0;
-  double error =
-      cptContactForceWithTargetState4(n, fri_coef, invM2, v0, vTargetVel,
-                                      accelExt2, minTime, contactFce, 30, 1e-8);
-  // double error =
-  //     cptContactForceWithTargetState3(n, fri_coef, invM2, v0, vTargetVel,
-  //                                     accelExt2, minTime, contactFce, 30,
-  //                                     1e-6);
-  // double error =
-  //     cptContactForceWithTargetState(n, fri_coef, invM2, v0, vTargetVel,
-  //                                    accelExt2, minTime, contactFce, 30,
-  //                                    1e-6);
+  double error = cptContactForceWithTargetState2(
+      n, fri_coef, invM2, v0, vTargetVel, accelExt2, minTime, contactFce, 30);
   DLOG(DEBUG) << "Error of contact force: " << error;
   {
     SIRE_PROFILE_SCOPE("ps_vs/afterCptContactForce");
@@ -2652,7 +2092,7 @@ auto PsVsSolver3::cptContactSolverResult(
       r.point_W[1] = pair.p_WC[1];
       r.point_W[2] = pair.p_WC[2];
       pairResults.push_back(r);
-
+      
       DLOG(DEBUG) << "Contact force: " << f_Bc_C[0] << " " << f_Bc_C[1] << " "
                   << f_Bc_C[2] << ", in fs: " << fs[0] << " " << fs[1] << " "
                   << fs[2] << " " << fs[3] << " " << fs[4] << " " << fs[5];
@@ -2684,6 +2124,9 @@ auto PsVsSolver3::cptContactSolverResult(
     // DLOG(DEBUG) << "----------- ctrl integrate with dt " << dt << "
     // -----------";
     double currentTime = simulator_ptr->timer().updateSimTime(dt);
+    // TODO:
+    // 这里添加record可能会触发内存重新分配，导致某个时刻的时间过长，可能可以用list替代
+    simulator_ptr->recorder().addRecord(simulator_ptr->timer().simTime());
     DLOG(DEBUG) << "current time: " << simulator_ptr->timer().simTime();
     simulator_ptr->eventManager().updateCtrlSimTime(eventPtr->eventId(),
                                                     currentTime);
@@ -2703,13 +2146,17 @@ auto cptContactForceWithTargetState2(
   // 3n). aris::dynamic::s_mm(3 * n, 3 * n, 3 * n, invM.data(), D.data(),
   // invMD.data());
   SIRE_PROFILE_FUNCTION();
+  // TODO: 临时保存原始 v0，用于 dump（vFree-=h*bVec 会原地修改 v0）
   std::vector<double> v0_original = v0;
   // invM already negative, so we can directly use it to compute P
   Eigen::Map<MatrixXdRM> WMat(invM.data(), 3 * n, 3 * n);
+  // DLOG(DEBUG) << WMat;
   Eigen::MatrixXd P = -h * 0.5 * (WMat + WMat.transpose());
   // Eigen::MatrixXd P = -h * 0.5 * (WMat + WMat.transpose());
   Eigen::Map<Eigen::VectorXd> vFree(v0.data(), 3 * n), bVec(b.data(), 3 * n),
       vTarget(v_target.data(), n);
+  // DLOG(DEBUG) << "P: " << P;
+  // DLOG(DEBUG) << "bVec: " << bVec.transpose();
   vFree -= h * bVec;
 
   // std::vector<int> idx_n(n, 0), idx_t(2 * n, 0);
@@ -2746,9 +2193,12 @@ auto cptContactForceWithTargetState2(
   // Use COD instead of LDLT because P_nn can be rank-deficient when
   // multiple contact points share the same rigid body (e.g., 4 spheres on
   // one box → only 3 independent normal force modes).
-  // Note: COD is re-created inside the loop for active-submatrix solves
-  // (iterative negative-fn removal). The pre-loop decomposition is kept
-  // for clarity but not used directly.
+  // Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd> P_nn_cod(P_nn);
+
+  const double reg_eps = 1e-8 * P_nn.diagonal().cwiseAbs().maxCoeff();
+  Eigen::MatrixXd P_nn_reg = P_nn;
+  for (int i = 0; i < dim_n; ++i) P_nn_reg(i, i) += reg_eps;
+  Eigen::LDLT<Eigen::MatrixXd> P_nn_ldlt(P_nn_reg);
 
   Eigen::SparseMatrix<double> P_tt_sparse =
       Eigen::MatrixXd(P_tt.triangularView<Eigen::Upper>()).sparseView();
@@ -2767,8 +2217,18 @@ auto cptContactForceWithTargetState2(
   for (int i = 0; i < n; ++i)
     cones.push_back(clarabel::SecondOrderConeT<double>(3));
 
+  // Relaxed tolerances: outer loop converges to 1e-2, inner 1e-4 is sufficient.
+  // Static regularization prevents KKT ill-conditioning on friction cone
+  // boundary, avoiding expensive dynamic-regularization retries (was causing
+  // 3ms spikes).
   clarabel::DefaultSettings<double> settings =
-      clarabel::DefaultSettingsBuilder<double>::default_settings().build();
+      clarabel::DefaultSettingsBuilder<double>::default_settings()
+          // .max_iter(30)
+          // .tol_gap_abs(1e-4)
+          // .tol_feas(1e-4)
+          // .static_regularization_constant(1e-6)
+          // .static_regularization_proportional(1e-6)
+          .build();
   settings.verbose = false;
 
   Eigen::VectorXd q_tt_current = q_t;
@@ -2780,11 +2240,11 @@ auto cptContactForceWithTargetState2(
   Eigen::VectorXd ft_val = Eigen::VectorXd::Zero(2 * n);
 
   int outer_iters_used = 0;
-  // double clarabel_inner_iter_sum = 0.0;
-  // double clarabel_solve_time_sum = 0.0;
-  // double clarabel_solve_time_max = 0.0;
-  // clarabel::SolverStatus clarabel_last_status =
-  // clarabel::SolverStatus::Unsolved;
+  double clarabel_inner_iter_sum = 0.0;
+  double clarabel_solve_time_sum = 0.0;
+  double clarabel_solve_time_max = 0.0;
+  clarabel::SolverStatus clarabel_last_status =
+      clarabel::SolverStatus::Unsolved;
 
   // Basic Iteration
   double error = -1;
@@ -2792,57 +2252,10 @@ auto cptContactForceWithTargetState2(
     outer_iters_used = iter;
     // Eigen::VectorXd rhs = vTarget + q_n - P_nt * ft_val;
     Eigen::VectorXd rhs = -vTarget - q_n - P_nt * ft_val;
-
-    // 迭代处理负法向力：与方法1/3一致，把fn<0的接触点从P_nn子矩阵中
-    // 去掉后重解，确保力在剩余接触点间正确重分配。
-    // 对比cwiseMax(0)：近奇异矩阵中正负力对相互抵消（fn=[+F,-F,...]），
-    // cwiseMax(0)只截负不调正 → 合力F+G≠0 → 弹飞。
-    Eigen::VectorXd fn_new(n);
-    {
-      std::vector<bool> active(n, true);
-      bool has_negative = true;
-      for (int pass = 0; pass <= n && has_negative; ++pass) {
-        has_negative = false;
-        std::vector<int> idx;
-        for (int i = 0; i < n; ++i)
-          if (active[i]) idx.push_back(i);
-        int na = static_cast<int>(idx.size());
-        if (na == 0) {
-          fn_new.setZero();
-          break;
-        }
-        Eigen::MatrixXd P_sub(na, na);
-        Eigen::VectorXd rhs_sub(na);
-        for (int i = 0; i < na; ++i) {
-          rhs_sub(i) = rhs(idx[i]);
-          for (int j = 0; j < na; ++j) P_sub(i, j) = P_nn(idx[i], idx[j]);
-        }
-
-        // Tikhonov regularization: breaks degeneracy from redundant contacts
-        // (identical pos/normal → near-singular P_sub).
-        // MuJoCo's QP formulation naturally distributes forces in the nullspace
-        // via the quadratic objective min(½fᵀAf).  In our explicit linear
-        // solve, adding λI provides equivalent effect: redundant contacts share
-        // force evenly instead of COD's arbitrary min-norm assignment. λ =
-        // 1e-3×max_diag: large enough to resolve degeneracy (~1e-8×σ₁), small
-        // enough to be negligible for well-conditioned contacts.
-        double lambda = 1e-3 * P_sub.diagonal().cwiseAbs().maxCoeff();
-        for (int i = 0; i < na; ++i) P_sub(i, i) += lambda;
-
-        Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd> cod_sub(P_sub);
-        cod_sub.setThreshold(1e-8 * P_sub.cwiseAbs().maxCoeff());
-        Eigen::VectorXd fn_sub = cod_sub.solve(rhs_sub);
-
-        fn_new.setZero();
-        for (int i = 0; i < na; ++i) {
-          fn_new(idx[i]) = fn_sub(i);
-          if (fn_sub(i) < 0) {
-            has_negative = true;
-            active[idx[i]] = false;
-          }
-        }
-      }
-    }
+    // DLOG(DEBUG) << "iter: " << iter << " rhs: " << rhs.transpose()
+    //             << " error: " << error;
+    Eigen::VectorXd fn_new = P_nn_ldlt.solve(rhs);
+    fn_new = fn_new.cwiseMax(0.0);
     fn_val = fn_new;
 
     q_tt_current.noalias() = P_nt.transpose() * fn_val + q_t;
@@ -2853,13 +2266,13 @@ auto cptContactForceWithTargetState2(
     solver.update_b(b_eigen);
     solver.solve();
 
-    // auto info = solver.info();
-    // clarabel_last_status = info.status;
-    // clarabel_inner_iter_sum += static_cast<double>(info.iterations);
-    // clarabel_solve_time_sum += info.solve_time;
-    // if (info.solve_time > clarabel_solve_time_max) {
-    //   clarabel_solve_time_max = info.solve_time;
-    // }
+    auto info = solver.info();
+    clarabel_last_status = info.status;
+    clarabel_inner_iter_sum += static_cast<double>(info.iterations);
+    clarabel_solve_time_sum += info.solve_time;
+    if (info.solve_time > clarabel_solve_time_max) {
+      clarabel_solve_time_max = info.solve_time;
+    }
     // SIRE_PROFILE_PLOT("ps_vs.contact.outer_iter", static_cast<double>(iter));
     // SIRE_PROFILE_PLOT("ps_vs.contact.clarabel_inner_iter",
     //                   static_cast<double>(info.iterations));
@@ -2884,14 +2297,12 @@ auto cptContactForceWithTargetState2(
   }
 
   const double outer_iters_d = static_cast<double>(outer_iters_used);
-  // const double clarabel_inner_iter_mean =
-  //     (outer_iters_used > 0) ? (clarabel_inner_iter_sum / outer_iters_d) :
-  //     0.0;
-  // const double clarabel_solve_time_mean_ms =
-  //     (outer_iters_used > 0) ? ((clarabel_solve_time_sum / outer_iters_d) *
-  //     1e3)
-  //                            : 0.0;
-  // const double clarabel_solve_time_max_ms = clarabel_solve_time_max * 1e3;
+  const double clarabel_inner_iter_mean =
+      (outer_iters_used > 0) ? (clarabel_inner_iter_sum / outer_iters_d) : 0.0;
+  const double clarabel_solve_time_mean_ms =
+      (outer_iters_used > 0) ? ((clarabel_solve_time_sum / outer_iters_d) * 1e3)
+                             : 0.0;
+  const double clarabel_solve_time_max_ms = clarabel_solve_time_max * 1e3;
   SIRE_PROFILE_PLOT("ps_vs.contact.outer_iters_used", outer_iters_d);
   // SIRE_PROFILE_PLOT("ps_vs.contact.clarabel_inner_iter_mean",
   //                   clarabel_inner_iter_mean);
@@ -2910,531 +2321,9 @@ auto cptContactForceWithTargetState2(
   //   debugData["v_target"] = v_target;
   //   debugData["b"] = b;
   //   debugData["cResult"] = contactFce;
-  //   std::ofstream f("D:\\code\\sire\\scripts\\tools\\result1.json");
+  //   std::ofstream f("D:\\code\\sire\\scripts\\tools\\result.json");
   //   f << debugData.dump(2);
   // }
-  return error;
-}
-
-/// @brief 解析法向力求解（不用 Clarabel）：构建摩擦矩阵 D，算 invMD = invM *
-/// D， 用 COD 分解求解法向力 fn = invMD
-/// \ a_target，负法向力时去掉对应摩擦项重解。 参考
-/// analytical_tangent_force_solver 的实现。
-auto cptContactForceWithTargetState(
-    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
-    std::vector<double>& v0, std::vector<double>& v_target,
-    std::vector<double>& b, double h, std::vector<double>& contactFce,
-    sire::Size max_iters, double max_err) -> double {
-  SIRE_PROFILE_FUNCTION();
-
-  // ---- Step 1: 构建 n×3n 的法向逆惯量矩阵 (提取 z 行) ----
-  // invM_3n 是 3n×3n，每 3 行对应一个接触点的 x,y,z 方向。
-  // 我们只需要 z 方向 (行索引 3*i+2)。
-  DLOG(DEBUG) << "invM (3n*3n): " << invM_3n;
-  std::vector<double> invM(n * 3 * n);
-  for (sire::Size i{0}; i < n; ++i)
-    for (sire::Size j{0}; j < n; ++j)
-      for (sire::Size l{0}; l < 3; ++l)
-        invM[3 * n * i + 3 * j + l] =
-            invM_3n[9 * n * i + 3 * n * 2 + 3 * j + l];
-  DLOG(DEBUG) << "invM (n*3n): " << invM;
-  // ---- Step 2: 构建摩擦方向矩阵 D (3n × n) ----
-  // D 的每列对应一个接触点，3 行 = (tangent_x, tangent_y, normal_z)
-  std::vector<double> D(3 * n * n, 0);
-  for (sire::Size i{0}; i < n; ++i) {
-    double* vc = v0.data() + 3 * i;
-    double vt = std::sqrt(vc[0] * vc[0] + vc[1] * vc[1]);
-    double vt_reg = std::max(vt, 1e-8);
-    double mu_eff = fri_coef[i];
-    D[3 * i * n + i] = -(vc[0] / vt_reg) * mu_eff;
-    D[(3 * i + 1) * n + i] = -(vc[1] / vt_reg) * mu_eff;
-    D[(3 * i + 2) * n + i] = 1.0;
-  }
-
-  // ---- Step 3: 计算 invMD = invM * D (n × n) ----
-  std::vector<double> invMD(n * n, 0);
-  aris::dynamic::s_mm(n, n, 3 * n, invM.data(), D.data(), invMD.data());
-  DLOG(DEBUG) << "invMD: " << invMD;
-  // ---- Step 4: 目标加速度 a_target = (vContactTarget - vContact0) / h - b_n
-  // ---- v_target 来自 DAE 状态（= -v_contact_z），需先转回接触坐标系约定
-  // v0[3*i+2] 已经是接触坐标系约定（v_contact_z）
-  std::vector<double> a_target(n);
-  for (sire::Size i{0}; i < n; ++i) {
-    // double v_contact_target = -v_target[i];  // DAE → 接触坐标系
-    // 统统转换到相对于接触深度的速度约定
-    double dv = v_target[i] + v0[3 * i + 2];
-    a_target[i] = dv / h - b[3 * i + 2];
-  }
-  DLOG(DEBUG) << "b: " << b;
-  DLOG(DEBUG) << "a_target: " << a_target;
-
-  // ---- Step 5: COD 求解法向力 ----
-  using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
-  MatrixXdRM invMDMat = Eigen::Map<MatrixXdRM>(invMD.data(), n, n);
-  Eigen::CompleteOrthogonalDecomposition<MatrixXdRM> cod(invMDMat);
-  Eigen::VectorXd aVec = Eigen::Map<Eigen::VectorXd>(a_target.data(), n);
-  Eigen::VectorXd fn = cod.solve(aVec);
-
-  std::vector<double> contactNormalFce(fn.data(), fn.data() + n);
-
-  // ---- Step 6: 迭代处理负法向力，去掉对应摩擦项重解 ----
-  // 因为 invM 有接触耦合，去掉一列后重新求解可能导致之前为正的 fn 变负，
-  // 需要循环直到没有新的负法向力出现。
-  bool hasNegative = true;
-  int maxPasses = static_cast<int>(n) + 1;  // 最多 n+1 轮，防止死循环
-  for (int pass = 0; pass < maxPasses && hasNegative; ++pass) {
-    hasNegative = false;
-    for (sire::Size i{0}; i < n; ++i) {
-      if (contactNormalFce[i] < 0) {
-        hasNegative = true;
-        // 将负法向力对应的摩擦方向整列清零
-        D[3 * i * n + i] = 0;
-        D[(3 * i + 1) * n + i] = 0;
-        D[(3 * i + 2) * n + i] = 0;
-      }
-    }
-    if (hasNegative) {
-      // 重建 invMD 并重解
-      aris::dynamic::s_mm(n, n, 3 * n, invM.data(), D.data(), invMD.data());
-      invMDMat = Eigen::Map<MatrixXdRM>(invMD.data(), n, n);
-      Eigen::CompleteOrthogonalDecomposition<MatrixXdRM> codPass(invMDMat);
-      fn = codPass.solve(aVec);
-      contactNormalFce.assign(fn.data(), fn.data() + n);
-    }
-  }
-
-  // ---- Step 7: 映射到 3D 接触力 contactFce = D * fn ----
-  std::fill(contactFce.begin(), contactFce.end(), 0.0);
-  aris::dynamic::s_mm(3 * n, 1, n, D.data(), contactNormalFce.data(),
-                      contactFce.data());
-
-  // 确保法向力非负，零或负时整组力归零（避免法向为0但切向非零的物理矛盾）
-  for (sire::Size i{0}; i < n; ++i) {
-    if (contactFce[3 * i + 2] <= 0) {
-      contactFce[3 * i + 0] = 0;
-      contactFce[3 * i + 1] = 0;
-      contactFce[3 * i + 2] = 0;
-    }
-  }
-
-  return 0.0;  // 无迭代，直接解析求解
-}
-
-/// @brief 最大耗散原理版本（v3）：摩擦方向与终点切向速度迭代自洽。
-/// 公式推导见文档：
-///   D(d) = [d_x*μ, d_y*μ, 1]^T  (每个接触点一列)
-///   H(d) = M^{-1}_{n,:} · D(d)
-///   f_n = H(d)^{-1} · a_target
-///   f = D(d) · f_n
-///   v' = v0 + h·(M^{-1}·f + b)
-///   d^{new} = -normalize(v'_t)
-/// 迭代至 d 收敛。
-auto cptContactForceWithTargetState3(
-    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
-    std::vector<double>& v0, std::vector<double>& v_target,
-    std::vector<double>& b, double h, std::vector<double>& contactFce,
-    sire::Size max_iters, double max_err) -> double {
-  SIRE_PROFILE_FUNCTION();
-
-  // ---- Step 1: 构建 n×3n 的法向逆惯量矩阵 (提取 z 行) ----
-  std::vector<double> invM_z(n * 3 * n);
-  for (sire::Size i{0}; i < n; ++i)
-    for (sire::Size j{0}; j < n; ++j)
-      for (sire::Size l{0}; l < 3; ++l)
-        invM_z[3 * n * i + 3 * j + l] =
-            invM_3n[9 * n * i + 3 * n * 2 + 3 * j + l];
-
-  // ---- Step 2: 法向目标加速度（与摩擦方向无关，只算一次） ----
-  std::vector<double> a_target(n);
-  for (sire::Size i{0}; i < n; ++i) {
-    double dv = v_target[i] + v0[3 * i + 2];
-    a_target[i] = dv / h - b[3 * i + 2];
-  }
-  DLOG(DEBUG) << "v3 a_target: " << a_target;
-
-  // ---- Step 3: 初始化摩擦方向 d_i = -normalize(v_{t,i}(0)) ----
-  std::vector<double> fric_dir(2 * n);  // [dx0, dy0, dx1, dy1, ...]
-  for (sire::Size i{0}; i < n; ++i) {
-    double vtx = v0[3 * i + 0];
-    double vty = v0[3 * i + 1];
-    double vt = std::sqrt(vtx * vtx + vty * vty);
-    double vt_reg = std::max(vt, 1e-8);
-    fric_dir[2 * i + 0] = -(vtx / vt_reg);
-    fric_dir[2 * i + 1] = -(vty / vt_reg);
-  }
-
-  using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
-  std::vector<double> D(3 * n * n, 0);
-  std::vector<double> invMD(n * n, 0);
-  std::vector<double> contactNormalFce(n);
-  std::vector<double> v_final(3 * n);
-  std::vector<double> invM_f(3 * n);
-
-  double error = -1.0;
-  int outer_used = 0;
-  for (outer_used = 0; outer_used < max_iters; ++outer_used) {
-    // ---- 构建 D(d)，摩擦列 = [d_x·μ, d_y·μ, 1]^T ----
-    std::fill(D.begin(), D.end(), 0.0);
-    for (sire::Size i{0}; i < n; ++i) {
-      D[3 * i * n + i] = fric_dir[2 * i + 0] * fri_coef[i];
-      D[(3 * i + 1) * n + i] = fric_dir[2 * i + 1] * fri_coef[i];
-      D[(3 * i + 2) * n + i] = 1.0;
-    }
-
-    // ---- H = invM_z * D, COD 求解 f_n ----
-    aris::dynamic::s_mm(n, n, 3 * n, invM_z.data(), D.data(), invMD.data());
-    MatrixXdRM invMDMat = Eigen::Map<MatrixXdRM>(invMD.data(), n, n);
-    Eigen::CompleteOrthogonalDecomposition<MatrixXdRM> cod(invMDMat);
-    Eigen::VectorXd aVec = Eigen::Map<Eigen::VectorXd>(a_target.data(), n);
-    Eigen::VectorXd fn = cod.solve(aVec);
-    contactNormalFce.assign(fn.data(), fn.data() + n);
-
-    // ---- 处理负法向力：迭代清零对应列 ----
-    bool hasNegative = true;
-    int maxPasses = static_cast<int>(n) + 1;
-    for (int pass = 0; pass < maxPasses && hasNegative; ++pass) {
-      hasNegative = false;
-      for (sire::Size i{0}; i < n; ++i) {
-        if (contactNormalFce[i] < 0) {
-          hasNegative = true;
-          D[3 * i * n + i] = 0;
-          D[(3 * i + 1) * n + i] = 0;
-          D[(3 * i + 2) * n + i] = 0;
-        }
-      }
-      if (hasNegative) {
-        aris::dynamic::s_mm(n, n, 3 * n, invM_z.data(), D.data(), invMD.data());
-        invMDMat = Eigen::Map<MatrixXdRM>(invMD.data(), n, n);
-        Eigen::CompleteOrthogonalDecomposition<MatrixXdRM> codPass(invMDMat);
-        fn = codPass.solve(aVec);
-        contactNormalFce.assign(fn.data(), fn.data() + n);
-      }
-    }
-
-    // ---- f = D * f_n ----
-    std::fill(contactFce.begin(), contactFce.end(), 0.0);
-    aris::dynamic::s_mm(3 * n, 1, n, D.data(), contactNormalFce.data(),
-                        contactFce.data());
-
-    // ---- v' = v0 + h·(M^{-1}·f + b) ----
-    aris::dynamic::s_mm(3 * n, 1, 3 * n, invM_3n.data(), contactFce.data(),
-                        invM_f.data());
-    for (sire::Size i{0}; i < 3 * n; ++i)
-      v_final[i] = v0[i] + h * (invM_f[i] + b[i]);
-
-    // ---- 更新摩擦方向：d_new = -normalize(v'_t) ----
-    double max_dir_change = 0.0;
-    for (sire::Size i{0}; i < n; ++i) {
-      if (contactNormalFce[i] <= 0) continue;  // 无接触力，保留旧方向
-      double vtx = v_final[3 * i + 0];
-      double vty = v_final[3 * i + 1];
-      double vt2 = vtx * vtx + vty * vty;
-      if (vt2 < 1e-16) continue;  // 粘滞，保留旧方向
-      double vt = std::sqrt(vt2);
-      double new_dx = -(vtx / vt);
-      double new_dy = -(vty / vt);
-      double change = std::abs(new_dx - fric_dir[2 * i + 0]) +
-                      std::abs(new_dy - fric_dir[2 * i + 1]);
-      max_dir_change = std::max(max_dir_change, change);
-      fric_dir[2 * i + 0] = new_dx;
-      fric_dir[2 * i + 1] = new_dy;
-    }
-
-    error = max_dir_change;
-    DLOG(DEBUG) << "v3 iter=" << outer_used << " dir_change=" << error;
-    if (error < max_err) break;
-  }
-
-  // ---- 最终 clamp ----
-  for (sire::Size i{0}; i < n; ++i) {
-    if (contactFce[3 * i + 2] <= 0) {
-      contactFce[3 * i + 0] = 0;
-      contactFce[3 * i + 1] = 0;
-      contactFce[3 * i + 2] = 0;
-    }
-  }
-
-  DLOG(DEBUG) << "v3 outer_iters=" << outer_used << " final_error=" << error;
-  return error;
-}
-
-// ============================================================================
-// v4: 逐接触点 SOR + 粘/滑状态分类 + 滑移二分法
-// 将全局 3n 变量 SOCP 分解为 n 个 3 变量逐接触点子问题，
-// 每个子问题用粘滞/滑移显式分类 + 极坐标二分法求解。
-// 对标 RaiSim 论文的 per-contact bisection 结构，子问题修改了法向约束常数项。
-// ============================================================================
-
-namespace {
-
-/// @brief 滑移单接触子问题：在圆锥曲线 C 上二分搜索最优冲量
-/// @param W 3×3 逆表观惯性矩阵 M_{i,i}^{-1}
-/// @param c 3 维权速度常数项 (v0_i + h·b_i + h·ΣW_ij·f_j)
-/// @param v_tgt 法向目标速度
-/// @param h 接触时间步长
-/// @param mu 摩擦系数
-/// @return 最优接触力 f (3 维)
-auto solveSlipBisection(const Eigen::Matrix3d& W, const Eigen::Vector3d& c,
-                        double v_tgt, double h, double mu) -> Eigen::Vector3d {
-  const double W31 = W(2, 0), W32 = W(2, 1), W33 = W(2, 2);
-  const double cn = c(2);
-  const double numer = (v_tgt - cn) / h;
-
-  // r(θ) = numer / (W33/μ + W31·cosθ + W32·sinθ)
-  auto r_of_theta = [&](double theta) -> double {
-    double denom = W33 / mu + W31 * std::cos(theta) + W32 * std::sin(theta);
-    if (std::abs(denom) < 1e-30) return -1.0;
-    return numer / denom;
-  };
-
-  // f(θ, r)
-  auto f_of = [&](double theta, double r) -> Eigen::Vector3d {
-    return {r * std::cos(theta), r * std::sin(theta), r / mu};
-  };
-
-  // 能量：E(f) = ½h·fᵀWf + cᵀf
-  auto energy = [&](double theta) -> double {
-    double r = r_of_theta(theta);
-    if (r <= 0) return 1e100;
-    Eigen::Vector3d f = f_of(theta, r);
-    return 0.5 * h * f.dot(W * f) + c.dot(f);
-  };
-
-  // 数值梯度符号（沿 θ 方向）
-  auto grad_sign = [&](double theta) -> int {
-    double eps = 1e-10;
-    double ep = energy(theta + eps);
-    double em = energy(theta - eps);
-    if (ep >= 1e99 || em >= 1e99) return 0;  // 无效区域
-    return (ep > em) ? 1 : -1;
-  };
-
-  // ---- Step 1: 初始猜测 θ₀ ----
-  // 零速度解 f_v0 = -W^{-1}·c_mod，其切向分量方向给出初始 θ
-  Eigen::Vector3d c_mod = c;
-  c_mod(2) -= v_tgt / h;
-  Eigen::Vector3d f_v0 = -W.ldlt().solve(c_mod);
-  double theta0 = std::atan2(f_v0(1), f_v0(0));
-
-  // 验证初始 r 为正（在摩擦锥边界上可达）
-  {
-    double r0 = r_of_theta(theta0);
-    if (r0 <= 0) {
-      // 扫描找到第一个合法方向
-      for (int k = 0; k < 16; ++k) {
-        double test_theta = static_cast<double>(k) * 2.0 * sire::PI / 16.0;
-        double test_r = r_of_theta(test_theta);
-        if (test_r > 0) {
-          theta0 = test_theta;
-          break;
-        }
-      }
-    }
-  }
-  double r0 = r_of_theta(theta0);
-  if (r0 <= 0) {
-    // 无可达滑移解 → 回退到零力（应由外层张开处理）
-    return Eigen::Vector3d::Zero();
-  }
-
-  // ---- Step 2: 增量步进，定位包含最小值的区间 ----
-  const int D0 = grad_sign(theta0);
-  if (D0 == 0) {
-    // 起点的梯度无效，直接返回投影解
-    return f_of(theta0, r0);
-  }
-
-  double alpha = -0.15 * D0;  // 初始步长
-  const double beta2 = 0.5;   // 回退因子
-  const double beta3 = 2.0;   // 加速因子
-
-  double theta_left = theta0;
-  double theta_right = theta0;
-  bool interval_found = false;
-
-  for (int step = 0; step < 30 && !interval_found; ++step) {
-    double theta_new = theta_right + alpha;
-    double r_new = r_of_theta(theta_new);
-
-    // 物理可行性检查：r > 0（在锥外边界上）
-    if (r_new <= 0) {
-      alpha *= beta2;
-      continue;
-    }
-
-    int D_new = grad_sign(theta_new);
-    if (D_new == 0) {
-      alpha *= beta2;
-      continue;
-    }
-
-    if (D_new == D0) {
-      // 未跨过零点，继续步进
-      theta_left = theta_new;
-      alpha *= beta3;
-    } else {
-      theta_right = theta_new;
-      interval_found = true;
-    }
-  }
-
-  if (!interval_found) {
-    // 未找到区间 → 返回初始投影解
-    return f_of(theta0, r0);
-  }
-
-  // ---- Step 3: 二分法求精 ----
-  const double tol = 1e-12;
-  for (int bisect = 0; bisect < 50; ++bisect) {
-    if (theta_right - theta_left < tol) break;
-
-    double theta_mid = (theta_left + theta_right) / 2.0;
-    int D_mid = grad_sign(theta_mid);
-
-    if (D_mid == 0) break;
-    if (D_mid == D0) {
-      theta_left = theta_mid;
-    } else {
-      theta_right = theta_mid;
-    }
-  }
-
-  double theta_opt = (theta_left + theta_right) / 2.0;
-  double r_opt = r_of_theta(theta_opt);
-  if (r_opt <= 0) r_opt = 1e-12;  // 安全下限
-
-  return f_of(theta_opt, r_opt);
-}
-
-}  // namespace
-
-/// @brief 逐接触点 SOR + 粘/滑二分法（v4）
-/// 对标 RaiSim 的 per-contact bisection + 非线性块 SOR 结构。
-/// 与 RaiSim 的区别：法向约束从"零法向速度"改为"目标法向速度(v_target)"。
-///
-/// 求解流程：
-///   for iter in 0..max_iters:
-///     for each contact i (正向/反向交替扫描):
-///       c_i = v0_i + h·b_i + h·Σ_{j≠i} W_ij · f_j    ← 自由速度+耦合
-///
-///       if v_target_i > c_i_n:                           ← 张开
-///         f_i* = 0
-///       else:
-///         f_stick = -W_ii^{-1} · (c_i - [0,0,v_tgt_i/h])
-///         if f_stick_z ≥ 0 && ||f_stick_t|| ≤ μ·f_stick_z:  ← 粘滞
-///           f_i* = f_stick
-///         else:                                          ← 滑移
-///           f_i* = solveSlipBisection(...)
-///
-///       f_i ← α·f_i* + (1-α)·f_i                       ← SOR 松弛更新
-///     α ← α_min + γ·(α - α_min)                          ← 衰减
-///     翻转扫描方向
-///
-/// @warning 此函数与 v1/v2/v3 参数接口一致，可直接替换调用。
-auto cptContactForceWithTargetState4(
-    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
-    std::vector<double>& v0, std::vector<double>& v_target,
-    std::vector<double>& b, double h, std::vector<double>& contactFce,
-    sire::Size max_iters, double max_err) -> double {
-  SIRE_PROFILE_FUNCTION();
-
-  const int dim3 = 3 * static_cast<int>(n);
-  using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
-
-  Eigen::Map<MatrixXdRM> W(invM_3n.data(), dim3, dim3);
-  W = -W;
-  Eigen::Map<Eigen::VectorXd> v0_vec(v0.data(), dim3);
-  Eigen::Map<Eigen::VectorXd> v_tgt(v_target.data(), n);
-  v_tgt = -v_tgt;  // DAE → 接触坐标系约定
-  Eigen::Map<Eigen::VectorXd> b_vec(b.data(), dim3);
-  b_vec = -b_vec;  // DAE → 接触坐标系约定
-
-  // 当前力估计（从零初始化；可从 warm-start 载入）
-  Eigen::VectorXd f = Eigen::VectorXd::Zero(dim3);
-
-  // SOR 超参数
-  double alpha_val = 1.0;
-  const double alpha_min = 0.7;
-  const double gamma = 0.99;
-
-  double error = -1.0;
-  int outer_used = 0;
-
-  for (outer_used = 0; outer_used < static_cast<int>(max_iters); ++outer_used) {
-    bool forward = (outer_used % 2 == 0);  // 正/反向交替扫描
-    double max_change = 0.0;
-
-    for (int sweep = 0; sweep < static_cast<int>(n); ++sweep) {
-      int i = forward ? sweep : (static_cast<int>(n) - 1 - sweep);
-
-      // ---- 计算 c_i ----
-      Eigen::Vector3d c_i =
-          v0_vec.segment<3>(3 * i) + h * b_vec.segment<3>(3 * i);
-      for (int j = 0; j < static_cast<int>(n); ++j) {
-        if (j == i) continue;
-        c_i.noalias() += h * W.block<3, 3>(3 * i, 3 * j) * f.segment<3>(3 * j);
-      }
-
-      Eigen::Matrix3d W_ii = W.block<3, 3>(3 * i, 3 * i);
-      Eigen::Vector3d f_star;
-
-      // ---- 判断接触状态 ----
-      if (v_tgt(i) <= c_i(2)) {
-        // 张开：无约束法向速度已超过目标 → 不需力
-        f_star.setZero();
-      } else {
-        // 尝试粘滞解
-        Eigen::Vector3d c_mod = c_i;
-        c_mod(2) -= v_tgt(i);  // ✅ 只减 v_tgt
-        Eigen::Vector3d f_stick = -W_ii.ldlt().solve(c_mod);
-        f_stick /= h;  // ✅ 整体除以 h
-
-        double fn = f_stick(2);
-        double ft_norm = f_stick.head<2>().norm();
-
-        if (fn > 0 && ft_norm <= fri_coef[i] * fn * (1.0 + 1e-12)) {
-          // 粘滞：冲量在摩擦锥内 → 直接取闭式解
-          f_star = f_stick;
-        } else {
-          // 滑移 → 二分法
-          f_star = solveSlipBisection(W_ii, c_i, v_tgt(i), h, fri_coef[i]);
-        }
-      }
-
-      // ---- SOR 松弛更新 ----
-      Eigen::Vector3d f_old = f.segment<3>(3 * i);
-      f.segment<3>(3 * i) = alpha_val * f_star + (1.0 - alpha_val) * f_old;
-
-      double change = (f.segment<3>(3 * i) - f_old).norm();
-      max_change = std::max(max_change, change);
-    }
-
-    // 衰减松弛因子
-    alpha_val = alpha_min + gamma * (alpha_val - alpha_min);
-
-    // Contact force grows roughly as 1/h when the same velocity correction is
-    // requested over a shorter interval.  Use a relative force update so a
-    // refined event step does not make the fixed absolute tolerance
-    // artificially harder to reach.
-    const double force_scale = std::max(1.0, f.cwiseAbs().maxCoeff());
-    error = max_change / force_scale;
-    SIRE_PROFILE_PLOT("ps_vs.v4.outer_iter", static_cast<double>(outer_used));
-    SIRE_PROFILE_PLOT("ps_vs.v4.error", error);
-
-    if (error < max_err) break;
-  }
-  std::copy(f.data(), f.data() + dim3, contactFce.data());
-  for (int i = 0; i < static_cast<int>(n); ++i) {
-    if (contactFce[3 * i + 2] <= 0) {
-      DLOG(WARNING) << "unexpected negative contact force at contact " << i
-                    << ": f = [" << contactFce[3 * i + 0] << ", "
-                    << contactFce[3 * i + 1] << ", " << contactFce[3 * i + 2]
-                    << "]";
-    }
-  }
-
-  SIRE_PROFILE_PLOT("ps_vs.v4.outer_used", static_cast<double>(outer_used));
-  DLOG(DEBUG) << "v4 outer_iters=" << outer_used << " final_error=" << error;
   return error;
 }
 
@@ -3481,14 +2370,14 @@ auto cptGlbContactWrench(
 
 ARIS_REGISTRATION {
   typedef sire::physics::collision::CollisionFilter& (
-      PsVsSolver3::*CollisionFilterPoolFunc)();
-  typedef sire::core::MaterialManager& (PsVsSolver3::*MaterialManagerFunc)();
-  aris::core::class_<PsVsSolver3>("PsVsSolver3")
+      ClarabelContactSolver::*CollisionFilterPoolFunc)();
+  typedef sire::core::MaterialManager& (ClarabelContactSolver::*MaterialManagerFunc)();
+  aris::core::class_<ClarabelContactSolver>("PsVsSolver2")
       .inherit<ContactSolver>()
-      .prop("material_manager", &PsVsSolver3::resetMaterialManager,
-            MaterialManagerFunc(&PsVsSolver3::materialManager))
-      .prop("default_k", &PsVsSolver3::setDefaultStiffness,
-            &PsVsSolver3::defaultStiffness)
-      .prop("default_cr", &PsVsSolver3::setDefaultCr, &PsVsSolver3::defaultCr);
+      .prop("material_manager", &ClarabelContactSolver::resetMaterialManager,
+            MaterialManagerFunc(&ClarabelContactSolver::materialManager))
+      .prop("default_k", &ClarabelContactSolver::setDefaultStiffness,
+            &ClarabelContactSolver::defaultStiffness)
+      .prop("default_cr", &ClarabelContactSolver::setDefaultCr, &ClarabelContactSolver::defaultCr);
 }
-}  // namespace sire::physics::contact::ps_vs_solver3
+}  // namespace sire::physics::contact::clarabel_contact

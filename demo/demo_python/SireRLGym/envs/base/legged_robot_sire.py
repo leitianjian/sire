@@ -76,7 +76,7 @@ class LeggedRobotSire(VecEnv):
         self.cfg = cfg
         self.sim_params = sim_params
         self.physics_engine = physics_engine
-        self.device = torch.device("cpu")
+        self.device = self._simulation_device(sim_device)
         self.headless = headless
 
         self.height_samples = None
@@ -93,6 +93,12 @@ class LeggedRobotSire(VecEnv):
         self.reset_idx(torch.arange(self.num_envs, device=self.device))
         self.compute_observations()
         self.init_done = True
+
+    def _simulation_device(self, sim_device):
+        return torch.device("cpu")
+
+    def _num_sire_instances(self):
+        return self.num_envs
 
     # ------------------------------------------------------------------
     #  Main simulation step
@@ -1138,38 +1144,7 @@ class LeggedRobotSire(VecEnv):
                 self.p_gains[i] = 0.0
                 self.d_gains[i] = 0.0
         self.default_dof_pos = self.default_dof_pos.unsqueeze(0)
-        # ── Pre-convert to numpy (for vectorized PD math, matching MuJoCo) ──
-        self._p_gains = self.p_gains.numpy().astype(np.float64)
-        self._d_gains = self.d_gains.numpy().astype(np.float64)
-        self._torque_limits = self.torque_limits.numpy().astype(np.float64)
-        self._default_pos = self.default_dof_pos.squeeze(0).numpy().astype(np.float64)
-        sire_batch_threads = int(getattr(self.cfg.sim, "sire_batch_threads", 0))
-        self._sire_batch_stepper = sire.SireRLBatchStepper(
-            self.sire_simulators,
-            self._motion_idx,
-            self.feet_indices_np,
-            self.cfg.control.control_type,
-            float(self.cfg.control.action_scale),
-            self._p_gains,
-            self._d_gains,
-            self._default_pos,
-            self._torque_limits,
-            np.asarray(self._dof_limits_lo, dtype=np.float64),
-            np.asarray(self._dof_limits_hi, dtype=np.float64),
-            float(self.cfg.sim.dt),
-            float(self.dt),
-            sire_batch_threads,
-        )
-        if getattr(self.cfg.sim, "sire_diagnostics", False):
-            self.setSireHistoryRecording(True)
-        # Public spelling requested by the training CLI/config.  It reports
-        # the effective count after clamping to num_envs.
-        self.sireBatchThread = self._sire_batch_stepper.threadCount
-        print(
-            f"[Sire batch] envs={self.num_envs} threads={self.sireBatchThread} "
-            f"persistent_workers={self._sire_batch_stepper.workerCount}",
-            flush=True,
-        )
+        self._initialize_batch_stepper()
         hip_ids = [i for i, name in enumerate(self.dof_names) if "hip_joint" in name]
         self.hip_indices = torch.tensor(hip_ids, dtype=torch.long, device=self.device)
         self.episode_hip_abs_sums = torch.zeros(
@@ -1203,6 +1178,38 @@ class LeggedRobotSire(VecEnv):
         self.compute_observations()
         self.last_feet_pos_world[:] = self.feet_pos_world[:]
 
+    def _initialize_batch_stepper(self):
+        self._p_gains = self.p_gains.numpy().astype(np.float64)
+        self._d_gains = self.d_gains.numpy().astype(np.float64)
+        self._torque_limits = self.torque_limits.numpy().astype(np.float64)
+        self._default_pos = self.default_dof_pos.squeeze(0).numpy().astype(np.float64)
+        sire_batch_threads = int(getattr(self.cfg.sim, "sire_batch_threads", 0))
+        self._sire_batch_stepper = sire.SireRLBatchStepper(
+            self.sire_simulators,
+            self._motion_idx,
+            self.feet_indices_np,
+            self.cfg.control.control_type,
+            float(self.cfg.control.action_scale),
+            self._p_gains,
+            self._d_gains,
+            self._default_pos,
+            self._torque_limits,
+            np.asarray(self._dof_limits_lo, dtype=np.float64),
+            np.asarray(self._dof_limits_hi, dtype=np.float64),
+            float(self.cfg.sim.dt),
+            float(self.dt),
+            sire_batch_threads,
+        )
+        if getattr(self.cfg.sim, "sire_diagnostics", False):
+            self.setSireHistoryRecording(True)
+        # Public spelling requested by the training CLI/config.  It reports
+        # the effective count after clamping to num_envs.
+        self.sireBatchThread = self._sire_batch_stepper.threadCount
+        print(
+            f"[Sire batch] envs={self.num_envs} threads={self.sireBatchThread} "
+            f"persistent_workers={self._sire_batch_stepper.workerCount}",
+            flush=True,
+        )
     def _prepare_reward_function(self):
         for key in list(self.reward_scales.keys()):
             scale = self.reward_scales[key]
@@ -1382,7 +1389,7 @@ class LeggedRobotSire(VecEnv):
         base_simulator.simulationLoop().deltaT = float(self.cfg.sim.dt)
         self.simulator = base_simulator
         # base_model.opt.timestep = float(self.cfg.sim.dt)
-        for i in range(self.num_envs):
+        for i in range(self._num_sire_instances()):
             sim = sire.Simulator()
             sire.fromXmlFile(sim, str(self.generated_model_path))
             model = sim.model()
@@ -1423,13 +1430,13 @@ class LeggedRobotSire(VecEnv):
 
         self.friction_coeffs = torch.tensor(
             friction_coeffs, dtype=torch.float32, device=self.device
-        ).unsqueeze(1)
+        ).unsqueeze(1).expand(self.num_envs, 1)
         self.base_mass_offsets = torch.tensor(
             base_mass_offsets, dtype=torch.float32, device=self.device
-        ).unsqueeze(1)
+        ).unsqueeze(1).expand(self.num_envs, 1)
         self.nominal_base_masses = torch.tensor(
             nominal_base_masses, dtype=torch.float32, device=self.device
-        ).unsqueeze(1)
+        ).unsqueeze(1).expand(self.num_envs, 1)
         if getattr(self.cfg.sim, "sire_diagnostics", False):
             print(
                 "[Sire domain randomization] "

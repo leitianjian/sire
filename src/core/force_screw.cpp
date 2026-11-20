@@ -1,5 +1,7 @@
 #include "sire/core/force_screw.hpp"
 
+#include "matrix_exp_pade.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -206,80 +208,36 @@ auto MatrixExpPadeWorkspace::apply(const double* A, double* res, double t) -> vo
     throw std::invalid_argument("Invalid Pade input");
   const auto size = n * n;
   // Lazy allocation: a Taylor-only action never allocates these matrices.
-  scaled_.resize(size); power_.resize(size); numerator_.resize(size);
-  denominator_.resize(size); scratch_.resize(size);
-  double norm = 0;
-  for (sire::Size i = 0; i < n; ++i) {
-    double rowNorm = 0;
-    for (sire::Size j = 0; j < n; ++j) {
-      const double value = t * A[i * n + j];
-      if (!std::isfinite(value)) throw std::overflow_error("Non-finite Pade input");
-      scaled_[i * n + j] = value;
-      rowNorm += std::abs(value);
-    }
-    norm = std::max(norm, rowNorm);
-  }
-  if (!std::isfinite(norm)) throw std::overflow_error("Pade norm overflow");
-  // Preserve the old scaling rule, including its conservative extra factor 2.
-  const int squarings = norm > 0 ? std::max(0, 1 + static_cast<int>(std::ceil(std::log2(norm)))) : 0;
-  for (auto& value : scaled_) value = std::ldexp(value, -squarings);
-  power_ = scaled_;
-  for (sire::Size i = 0; i < size; ++i) {
-    const double identity = i / n == i % n ? 1.0 : 0.0;
-    numerator_[i] = identity + 0.5 * scaled_[i];
-    denominator_[i] = identity - 0.5 * scaled_[i];
-  }
-  double coefficient = 0.5;
-  for (int k = 2; k <= 6; ++k) {
-    coefficient *= static_cast<double>(7 - k) / (k * (13 - k));
-    aris::dynamic::s_mm(n, n, n, scaled_.data(), power_.data(), scratch_.data());
-    power_.swap(scratch_);
-    for (sire::Size i = 0; i < size; ++i) {
-      const double term = coefficient * power_[i];
-      numerator_[i] += term;
-      denominator_[i] += k % 2 ? -term : term;
-    }
-  }
+  scaled_.resize(size);
+  power_.resize(size);
+  numerator_.resize(size);
+  denominator_.resize(size);
+  scratch_.resize(size);
+  detail::PadeBuffers buffers{scaled_.data(), power_.data(), numerator_.data(),
+                              denominator_.data(), scratch_.data()};
+  const auto multiply = [](std::size_t dimension, const double* lhs,
+                           const double* rhs, double* product) {
+    aris::dynamic::s_mm(dimension, dimension, dimension, lhs, rhs, product);
+  };
+
+  int squarings = 0;
+  const auto preparation = detail::preparePade(n, A, t, buffers, squarings, multiply);
+  if (preparation == detail::PadeStatus::NonFiniteInput)
+    throw std::overflow_error("Non-finite Pade input");
+  if (preparation == detail::PadeStatus::NormOverflow)
+    throw std::overflow_error("Pade norm overflow");
   {
     SIRE_PROFILE_SCOPE("core/matrix_exp_pade/solve");
-    // Gaussian elimination with partial pivoting and n simultaneous RHS.
-    // Reuse the numerator as the solution; never form the inverse.
-    for (sire::Size k = 0; k < n; ++k) {
-      sire::Size pivot = k;
-      for (sire::Size i = k + 1; i < n; ++i)
-        if (std::abs(denominator_[i*n+k]) > std::abs(denominator_[pivot*n+k])) pivot = i;
-      if (denominator_[pivot*n+k] == 0.0)
-        throw std::runtime_error("Singular Pade denominator");
-      if (pivot != k) for (sire::Size j = 0; j < n; ++j) {
-        std::swap(denominator_[k*n+j], denominator_[pivot*n+j]);
-        std::swap(numerator_[k*n+j], numerator_[pivot*n+j]);
-      }
-      for (sire::Size i = k + 1; i < n; ++i) {
-        const double factor = denominator_[i*n+k] / denominator_[k*n+k];
-        denominator_[i*n+k] = 0;
-        for (sire::Size j = k + 1; j < n; ++j)
-          denominator_[i*n+j] -= factor * denominator_[k*n+j];
-        for (sire::Size j = 0; j < n; ++j)
-          numerator_[i*n+j] -= factor * numerator_[k*n+j];
-      }
-    }
-    for (sire::Size row = n; row-- > 0;) {
-      for (sire::Size k = row + 1; k < n; ++k)
-        for (sire::Size j = 0; j < n; ++j)
-          numerator_[row*n+j] -= denominator_[row*n+k] * numerator_[k*n+j];
-      for (sire::Size j = 0; j < n; ++j) numerator_[row*n+j] /= denominator_[row*n+row];
-    }
+    if (detail::solvePade(n, buffers) == detail::PadeStatus::Singular)
+      throw std::runtime_error("Singular Pade denominator");
   }
   {
     SIRE_PROFILE_SCOPE("core/matrix_exp_pade/square");
-    for (int k = 0; k < squarings; ++k) {
-      aris::dynamic::s_mm(n, n, n, numerator_.data(), numerator_.data(), scratch_.data());
-      numerator_.swap(scratch_);
-    }
+    if (detail::squarePade(n, buffers, squarings, multiply) ==
+        detail::PadeStatus::NonFiniteResult)
+      throw std::overflow_error("Non-finite Pade result");
   }
-  for (double value : numerator_)
-    if (!std::isfinite(value)) throw std::overflow_error("Non-finite Pade result");
-  std::copy(numerator_.begin(), numerator_.end(), res);
+  std::copy(buffers.numerator, buffers.numerator + size, res);
 }
 
 auto matrix_exp_pade(sire::Size n, const double* A, double* res) -> void {

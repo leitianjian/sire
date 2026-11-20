@@ -5,7 +5,7 @@
 #include <limits>
 #include <vector>
 
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 
 namespace sire::physics::contact::exact_coulomb {
 
@@ -105,7 +105,7 @@ struct ModePredictorSsnStatistics {
 /// the exact normal-complementarity/tangential-maximum-dissipation residual.
 /// A rejected Newton step falls back to the globally convergent phase.
 class SIRE_API ExactCoulombContactSolver
-    : public ps_vs_solver_v5::PsVsSolverV5 {
+    : public admm_contact::AdmmContactSolver {
  public:
   ExactCoulombContactSolver() = default;
   ~ExactCoulombContactSolver() override = default;

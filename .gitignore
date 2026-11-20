@@ -107,6 +107,21 @@ log.txt
 motion_data/
 *.pdb
 
+# Local experiment runs, generated diagnostics and backups.
+/docs/cuda_performance.md
+/.codex_runs/
+/sire_parallel_experiment_*/
+/sim2sim/policies/go2_cuda_1024/
+/demo/demo_python/SireRLGym/repro_20steps.json
+/demo/demo_python/heightField/box_data.txt
+/demo/demo_python/heightField/hfield_data.txt
+/demo/demo_python/heightField/ball_drop_hf_bak.xml
+/demo/demo_python/mujocoDogRL/go2_bak.xml
+/scripts/tools/result1_swapped.json
+/scripts/tools/result_debug.json
+/sim2sim/deploy_sire/validation/final_report.json
+/src/physics/contact/avg_force_contact_solver_bak.cpp
+
 # python
 */.env
 */local.toml

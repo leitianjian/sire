@@ -34,9 +34,9 @@
 #include "sire/physics/contact/analytical_tangent_force_solver.hpp"
 #include "sire/physics/contact/contact_position_force_solver.hpp"
 #include "sire/physics/contact/ps_vs_solver.hpp"
-#include "sire/physics/contact/ps_vs_solver2.hpp"
-#include "sire/physics/contact/ps_vs_solver3.hpp"
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/clarabel_contact_solver.hpp"
+#include "sire/physics/contact/sor_contact_solver.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 #include "sire/physics/contact/simple_admm_contact_solver.hpp"
 #include "sire/physics/contact/smooth_linear_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
@@ -90,6 +90,25 @@ void init_physics(py::module& m) {
            &sire::physics::collision::CollisionFilter::loadMatConfig)
       .def("enableCollisionPair",
            &sire::physics::collision::CollisionFilter::enableCollisionPair);
+
+  using sire::physics::contact::admm_contact::AdmmContactSolver;
+  using sire::physics::contact::clarabel_contact::ClarabelContactSolver;
+  using sire::physics::contact::sor_contact::SorContactSolver;
+  const auto add_clarabel_contact_solver =
+      [](sire::physics::PhysicsEngine& engine) -> ClarabelContactSolver& {
+        engine.resetContactSolver(new ClarabelContactSolver);
+        return dynamic_cast<ClarabelContactSolver&>(engine.contactSolver());
+      };
+  const auto add_sor_contact_solver =
+      [](sire::physics::PhysicsEngine& engine) -> SorContactSolver& {
+        engine.resetContactSolver(new SorContactSolver);
+        return dynamic_cast<SorContactSolver&>(engine.contactSolver());
+      };
+  const auto add_admm_contact_solver =
+      [](sire::physics::PhysicsEngine& engine) -> AdmmContactSolver& {
+        engine.resetContactSolver(new AdmmContactSolver);
+        return dynamic_cast<AdmmContactSolver&>(engine.contactSolver());
+      };
 
   py::class_<sire::physics::PhysicsEngine>(m, "PhysicsEngine")
       .def(py::init<>())
@@ -286,55 +305,20 @@ void init_physics(py::module& m) {
                         self.contactSolver());
                   },
           py::return_value_policy::reference_internal)
-      .def(
-          "addPsVsSolver2",
-          [](sire::physics::PhysicsEngine& self)
-              -> sire::physics::contact::ps_vs_solver2::PsVsSolver2& {
-            self.resetContactSolver(
-                new sire::physics::contact::ps_vs_solver2::PsVsSolver2);
-            return dynamic_cast<
-                sire::physics::contact::ps_vs_solver2::PsVsSolver2&>(
-                self.contactSolver());
-          },
-          py::return_value_policy::reference_internal)
-      .def(
-          "addPsVsSolver3",
-          [](sire::physics::PhysicsEngine& self)
-              -> sire::physics::contact::ps_vs_solver3::PsVsSolver3& {
-            self.resetContactSolver(
-                new sire::physics::contact::ps_vs_solver3::PsVsSolver3);
-            return dynamic_cast<
-                sire::physics::contact::ps_vs_solver3::PsVsSolver3&>(
-                self.contactSolver());
-          },
-          py::return_value_policy::reference_internal)
-      .def(
-          "addADMMSolver",
-          [](sire::physics::PhysicsEngine& self)
-              -> sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5& {
-            // PsVsSolverV5 owns the shared DAE/simulation pipeline.  Its
-            // default virtual solveContactForceQP implementation dispatches
-            // to the existing nested/frozen-shift ADMM v6.
-            self.resetContactSolver(
-                new sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5);
-            return dynamic_cast<
-                sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5&>(
-                self.contactSolver());
-          },
-          py::return_value_policy::reference_internal,
-          "Install the existing nested ADMM v6 contact solver")
-      .def(
-          "addPsVsSolverV6",
-          [](sire::physics::PhysicsEngine& self)
-              -> sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5& {
-            self.resetContactSolver(
-                new sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5);
-            return dynamic_cast<
-                sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5&>(
-                self.contactSolver());
-          },
-          py::return_value_policy::reference_internal,
-          "Alias of addADMMSolver; explicitly identifies the v6 solver")
+      .def("addClarabelContactSolver", add_clarabel_contact_solver,
+           py::return_value_policy::reference_internal)
+      .def("addPsVsSolver2", add_clarabel_contact_solver,
+           py::return_value_policy::reference_internal)
+      .def("addSorContactSolver", add_sor_contact_solver,
+           py::return_value_policy::reference_internal)
+      .def("addPsVsSolver3", add_sor_contact_solver,
+           py::return_value_policy::reference_internal)
+      .def("addADMMSolver", add_admm_contact_solver,
+           py::return_value_policy::reference_internal,
+           "Install the nested ADMM contact solver")
+      .def("addPsVsSolverV6", add_admm_contact_solver,
+           py::return_value_policy::reference_internal,
+           "Alias of addADMMSolver")
       .def(
           "addSpectralADMMSolver",
           [](sire::physics::PhysicsEngine& self)
@@ -371,7 +355,7 @@ void init_physics(py::module& m) {
                 SmoothLinearContactSolver&>(self.contactSolver());
           },
           py::return_value_policy::reference_internal,
-          "Install the old linear smooth friction law in the shared V5 pipeline")
+          "Install the old linear smooth friction law in the shared ADMM pipeline")
       .def(
           "addSimpleADMMSolver",
           [](sire::physics::PhysicsEngine& self)
@@ -494,11 +478,10 @@ void init_physics(py::module& m) {
                self.materialManager().setDefaultProp(pm_);
              }
            });  // 默认构造函数
-  py::class_<sire::physics::contact::ps_vs_solver2::PsVsSolver2>(m,
-                                                                 "PsVsSolver2")
+  py::class_<ClarabelContactSolver>(m, "ClarabelContactSolver")
       .def(py::init<>())
       .def("addMaterialPair",
-           [](sire::physics::contact::ps_vs_solver2::PsVsSolver2& self,
+           [](ClarabelContactSolver& self,
               const std::string& name1, const std::string& name2,
               const std::string& prop) {
              self.materialManager().addProp(
@@ -506,18 +489,18 @@ void init_physics(py::module& m) {
                  sire::core::PropMap(prop));
            })
       .def("setDefaultProp",
-           [](sire::physics::contact::ps_vs_solver2::PsVsSolver2& self,
+           [](ClarabelContactSolver& self,
               const std::string& prop) {
              {
                sire::core::PropMap pm_(prop);
                self.materialManager().setDefaultProp(pm_);
              }
            });  // 默认构造函数
-  py::class_<sire::physics::contact::ps_vs_solver3::PsVsSolver3,
-             sire::physics::contact::ContactSolver>(m, "PsVsSolver3")
+  py::class_<SorContactSolver,
+             sire::physics::contact::ContactSolver>(m, "SorContactSolver")
       .def(py::init<>())
       .def("addMaterialPair",
-           [](sire::physics::contact::ps_vs_solver3::PsVsSolver3& self,
+           [](SorContactSolver& self,
               const std::string& name1, const std::string& name2,
               const std::string& prop) {
              self.materialManager().addProp(
@@ -525,16 +508,16 @@ void init_physics(py::module& m) {
                  sire::core::PropMap(prop));
            })
       .def("setDefaultProp",
-           [](sire::physics::contact::ps_vs_solver3::PsVsSolver3& self,
+           [](SorContactSolver& self,
               const std::string& prop) {
              sire::core::PropMap material_prop(prop);
              self.materialManager().setDefaultProp(material_prop);
            });
-  py::class_<sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5,
+  py::class_<AdmmContactSolver,
              sire::physics::contact::ContactSolver>(m, "ADMMSolver")
       .def(py::init<>())
       .def("addMaterialPair",
-           [](sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5& self,
+           [](AdmmContactSolver& self,
               const std::string& name1, const std::string& name2,
               const std::string& prop) {
              self.materialManager().addProp(
@@ -542,13 +525,15 @@ void init_physics(py::module& m) {
                  sire::core::PropMap(prop));
            })
       .def("setDefaultProp",
-           [](sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5& self,
+           [](AdmmContactSolver& self,
               const std::string& prop) {
              sire::core::PropMap material_prop(prop);
              self.materialManager().setDefaultProp(material_prop);
            });
+  m.attr("PsVsSolver2") = m.attr("ClarabelContactSolver");
+  m.attr("PsVsSolver3") = m.attr("SorContactSolver");
   py::class_<sire::physics::contact::simple_admm::SimpleAdmmContactSolver,
-             sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5>(
+             AdmmContactSolver>(
       m, "SpectralADMMSolver")
       .def(py::init<>())
       .def_property("warmStartEnabled",
@@ -558,7 +543,7 @@ void init_physics(py::module& m) {
                         SimpleAdmmContactSolver::setWarmStartEnabled);
   m.attr("SimpleADMMSolver") = m.attr("SpectralADMMSolver");
   py::class_<sire::physics::contact::smooth_linear::SmoothLinearContactSolver,
-             sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5>(
+             AdmmContactSolver>(
       m, "SmoothLinearContactSolver")
       .def(py::init<>())
       .def_property_readonly("lastIterations", &sire::physics::contact::smooth_linear::SmoothLinearContactSolver::lastIterations)

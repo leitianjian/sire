@@ -35,7 +35,7 @@ auto ContactSolver::setContactModelMode(const std::string& mode) -> void {
   }
   if (mode == "single_point" && !supportsSinglePointContactMode()) {
     throw std::invalid_argument(
-        "single_point is supported by PsVsSolver3 and V5-derived solvers");
+        "single_point is supported by SorContactSolver and the AdmmContactSolver family");
   }
   if ((mode == "height_field_patch" || mode == "height_field_prism") &&
       !supportsPatchContactMode()) {

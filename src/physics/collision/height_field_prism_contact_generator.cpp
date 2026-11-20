@@ -117,7 +117,7 @@ auto queryPrisms(const coal::CollisionObject& terrain,
         const int prism_id = 2 * (r * (xs.size() - 1) + c) + triangle;
         contacts.emplace_back(
             terrain.collisionGeometry().get(), shape_object.collisionGeometry().get(),
-            prism_id, coal::Contact::NONE, world.transform(p1), world.transform(p2),
+            prism_id, int{coal::Contact::NONE}, world.transform(p1), world.transform(p2),
             world.rotation() * normal, gap);
         if (contacts.size() >= maximum) {
           stats.limit_reached = true;

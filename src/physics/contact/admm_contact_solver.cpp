@@ -1,4 +1,4 @@
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -12,6 +12,7 @@
 #include <sstream>
 #include <thread>
 #include <typeinfo>
+#include <utility>
 #include <vector>
 
 #include <eigen3/Eigen/Cholesky>
@@ -30,18 +31,19 @@
 #include "sire/core/material_manager.hpp"
 #include "sire/core/profiler.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
+#include "sire/physics/contact/simple_admm_contact_solver.hpp"
 #include "sire/physics/geometry/collidable_geometry.hpp"
 #include "sire/physics/physics_engine.hpp"
 #include "sire/simulator/simulation_loop.hpp"
 
 #include "log/easyloggingConfig.hpp"
+#include "contact_assembly_math.hpp"
 
-// Reuse preprocessing functions from v3
-#include "sire/physics/contact/ps_vs_solver3.hpp"
+// Reuse preprocessing functions from the SOR solver
+#include "sire/physics/contact/sor_contact_solver.hpp"
 
-// Forward-declare v3 internals defined in ps_vs_solver3.cpp but missing from
-// header:
-namespace sire::physics::contact::ps_vs_solver3 {
+// Internal preprocessing functions from sor_contact_solver.cpp.
+namespace sire::physics::contact::sor_contact {
 auto preprocessContactInfo(
     sire::physics::PhysicsEngine& engine,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -51,7 +53,7 @@ auto modifyPenetrationDepth(
     sire::physics::PhysicsEngine& engine,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<sire::Size>& preservedPairsIdx) -> void;
-// v3 cpp defines 12-param; header only has 11-param:
+// Internal overload with an extra parameter.
 auto cptInitialCondition(
     sire::physics::PhysicsEngine& engine, sire::core::MaterialManager& manager,
     const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -60,9 +62,9 @@ auto cptInitialCondition(
     const std::vector<geometry::CollidableGeometry*>& geomPtrVector,
     double* stiffness, double* damping, double* fri_coef, double* x0,
     double* realDepthX0, double* v0) -> double;
-}  // namespace sire::physics::contact::ps_vs_solver3
+}  // namespace sire::physics::contact::sor_contact
 
-namespace sire::physics::contact::ps_vs_solver_v5 {
+namespace sire::physics::contact::admm_contact {
 
 using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
 
@@ -171,7 +173,7 @@ auto cptContactForceWithTargetState5(
     if (v_pos(i) <= 0.0) {
       double a_pos_i = v_pos(i);
       v_pos(i) = 0.0;
-      // DLOG(DEBUG) << "v5 c" << i << " opening, a_pos=" << a_pos_i << " →
+      // DLOG(DEBUG) << "ADMM c" << i << " opening, a_pos=" << a_pos_i << " →
       // force=0";
     }
   }
@@ -309,13 +311,15 @@ auto cptContactForceWithTargetState5(
 }
 
 // ============================================================================
-// PsVsSolverV5 class implementation
+// AdmmContactSolver class implementation
 // ============================================================================
 
-struct PsVsSolverV5::Imp {
+struct AdmmContactSolver::Imp {
   std::unique_ptr<core::MaterialManager> material_manager_;
   nlohmann::json records;
   std::filesystem::path trace_dir_;
+  std::ofstream contact_history_trace_;
+  nlohmann::json shifted_admm_trace_;
   std::mutex trace_mutex_;
   std::size_t trace_frame_{0};
   double default_cr_;
@@ -379,6 +383,92 @@ struct PsVsSolverV5::Imp {
     LOG(INFO) << "solver trace enabled: " << trace_dir_.string();
   }
 
+  struct BodyContactTrace {
+    const std::vector<double>& inverse_inertia;
+    const std::vector<double>& free_acceleration;
+    const std::vector<common::PenetrationAsPointPair>& pairs;
+    const std::vector<sire::Size>& active_indices;
+    const std::vector<geometry::CollidableGeometry*>& geometries;
+  };
+
+  struct NormalTrajectoryTrace {
+    const std::vector<double>& matrix;
+    const std::vector<double>& bias;
+    const std::vector<double>& initial_state;
+    const std::vector<double>& state_at_h;
+    double suggest_dt;
+    double separation_time;
+    const char* separation_method;
+    const BodyContactTrace* body_contacts;
+  };
+
+  auto recordContactHistory(physics::PhysicsEngine& engine, double sim_time,
+                            double horizon, bool retain_depth, bool warm_start,
+                            const std::vector<common::PenetrationAsPointPair>& pairs,
+                            const std::vector<std::array<double, 16>>& frames,
+                            const std::vector<sire::Size>& active) -> void {
+    std::lock_guard<std::mutex> lock(trace_mutex_);
+    if (!contact_history_trace_.is_open()) {
+      contact_history_trace_.open(trace_dir_ / "single_point_contact_history.jsonl");
+      if (!contact_history_trace_) {
+        LOG(ERROR) << "solver trace: cannot open single-point contact history";
+        return;
+      }
+    }
+
+    const auto& parts = engine.currentModel()->partPool();
+    std::vector<std::array<double, 16>> body_poses(parts.size());
+    std::vector<std::array<double, 6>> body_velocities(parts.size());
+    std::vector<std::array<double, 6>> body_applied_wrenches(parts.size());
+    for (sire::Size i = 0; i < parts.size(); ++i) {
+      parts.at(i).getPm(body_poses[i].data());
+      parts.at(i).getVs(body_velocities[i].data());
+    }
+    const auto contact_force_begin = engine.contactForceIdx();
+    const auto contact_force_count = engine.contactForceCount();
+    const auto& forces = engine.currentModel()->forcePool();
+    for (sire::Size i = 0; i < forces.size(); ++i) {
+      const auto& force = forces.at(i);
+      if (!force.active() || (i >= contact_force_begin && i - contact_force_begin < contact_force_count)) {
+        continue;
+      }
+      double wrench_a[6], wrench_b[6];
+      force.cptGlbFs(wrench_a, wrench_b);
+      auto& a = body_applied_wrenches[force.makI()->fatherPart().id()];
+      auto& b = body_applied_wrenches[force.makJ()->fatherPart().id()];
+      for (std::size_t k = 0; k < 6; ++k) {
+        a[k] += wrench_a[k];
+        b[k] += wrench_b[k];
+      }
+    }
+
+    nlohmann::json detected = nlohmann::json::array();
+    for (sire::Size i = 0; i < pairs.size(); ++i) {
+      const auto& pair = pairs[i];
+      const auto* a = engine.queryGeometryPoolById(pair.id_A);
+      const auto* b = engine.queryGeometryPoolById(pair.id_B);
+      const auto& material = material_manager_->getPropMapOrDefault({a->material(), b->material()});
+      std::array<double, 3> velocity{};
+      engine.cptContactVelocityB2A(pair, frames[i], velocity);
+      detected.push_back({{"geometry_a", pair.id_A}, {"geometry_b", pair.id_B},
+                          {"body_a", a->partId()}, {"body_b", b->partId()},
+                          {"frame", frames[i]}, {"depth", pair.depth},
+                          {"point", pair.p_WC}, {"normal", pair.nhat_AB_W},
+                          {"modified_depth", pair.modifiedDepth}, {"relative_velocity", velocity},
+                          {"stiffness", material.getPropValueOrDefault("k", 2e8)},
+                          {"damping", material.getPropValueOrDefault("d", 5e3)},
+                          {"friction", material.getPropValueOrDefault("cof", 0.3)}});
+    }
+    const nlohmann::json step{
+        {"sim_time", sim_time}, {"horizon", horizon}, {"retain_bounded_depth", retain_depth},
+        {"warm_start", warm_start}, {"body_count", parts.size()}, {"body_poses", body_poses},
+        {"body_velocities", body_velocities}, {"body_applied_wrenches", body_applied_wrenches},
+        {"solver_frame", active.empty() ? nlohmann::json(nullptr) : nlohmann::json(trace_frame_)},
+        {"active", active}, {"detected", std::move(detected)}};
+    contact_history_trace_ << step.dump() << '\n';
+    contact_history_trace_.flush();
+  }
+
   auto recordSolverFrame(double sim_time, sire::Size n,
                          const std::vector<double>& fri_coef,
                          const std::vector<double>& invM,
@@ -387,7 +477,8 @@ struct PsVsSolverV5::Imp {
                          const std::vector<double>& b, double h,
                          const std::vector<double>& result, double solver_error,
                          sire::Size solver_max_iters, double solver_max_error,
-                         const char* solver_type) -> void {
+                         const char* solver_type,
+                         const NormalTrajectoryTrace& trajectory) -> void {
     if (trace_dir_.empty()) return;
 
     std::lock_guard<std::mutex> lock(trace_mutex_);
@@ -408,6 +499,36 @@ struct PsVsSolverV5::Imp {
                         {"b", b},
                         {"cResult", result},
                         {"cADMMResult", result}};
+    data["normal_trajectory"] = {
+        {"A", trajectory.matrix},
+        {"b", trajectory.bias},
+        {"x0", trajectory.initial_state},
+        {"state_at_h", std::vector<double>(trajectory.state_at_h.begin(),
+                                           trajectory.state_at_h.begin() + 2 * n)},
+        {"suggest_dt", trajectory.suggest_dt},
+        {"separation_time", trajectory.separation_time}};
+    if (trajectory.separation_method) {
+      data["normal_trajectory"]["separation_method"] = trajectory.separation_method;
+    }
+    if (trajectory.body_contacts) {
+      const auto& contacts = *trajectory.body_contacts;
+      std::vector<double> depths(n), stiffness(n), damping(n);
+      for (sire::Size i = 0; i < n; ++i) {
+        depths[i] = contacts.pairs[contacts.active_indices[i]].modifiedDepth;
+        const auto& material = material_manager_->getPropMapOrDefault(
+            {contacts.geometries[2 * i]->material(), contacts.geometries[2 * i + 1]->material()});
+        stiffness[i] = material.getPropValueOrDefault("k", 2e8);
+        damping[i] = material.getPropValueOrDefault("d", 5e3);
+      }
+      data["body_contact_inputs"] = {{"inverse_inertia", contacts.inverse_inertia},
+                                     {"free_acceleration", contacts.free_acceleration},
+                                     {"modified_depth", depths}, {"stiffness", stiffness},
+                                     {"damping", damping}};
+    }
+    if (!shifted_admm_trace_.is_null()) {
+      data["shifted_spectral_admm"] = std::move(shifted_admm_trace_);
+      shifted_admm_trace_ = nullptr;
+    }
 
     std::ostringstream filename;
     filename << "frame_" << std::setw(8) << std::setfill('0') << frame
@@ -440,36 +561,36 @@ struct PsVsSolverV5::Imp {
   }
 };
 
-PsVsSolverV5::PsVsSolverV5() : imp_(std::make_unique<Imp>()) {}
-PsVsSolverV5::~PsVsSolverV5() {}
-SIRE_DEFINE_MOVE_CTOR_CPP(PsVsSolverV5);
+AdmmContactSolver::AdmmContactSolver() : imp_(std::make_unique<Imp>()) {}
+AdmmContactSolver::~AdmmContactSolver() {}
+SIRE_DEFINE_MOVE_CTOR_CPP(AdmmContactSolver);
 
-auto PsVsSolverV5::resetMaterialManager(core::MaterialManager* manager)
+auto AdmmContactSolver::resetMaterialManager(core::MaterialManager* manager)
     -> void {
   imp_->material_manager_.reset(manager);
 }
-auto PsVsSolverV5::materialManager() -> core::MaterialManager& {
+auto AdmmContactSolver::materialManager() -> core::MaterialManager& {
   return *imp_->material_manager_;
 }
-auto PsVsSolverV5::setDefaultStiffness(double k) noexcept -> void {
+auto AdmmContactSolver::setDefaultStiffness(double k) noexcept -> void {
   imp_->default_k_ = k;
 }
-auto PsVsSolverV5::defaultStiffness() noexcept -> double {
+auto AdmmContactSolver::defaultStiffness() noexcept -> double {
   return imp_->default_k_;
 }
-auto PsVsSolverV5::setDefaultCr(double cr) noexcept -> void {
+auto AdmmContactSolver::setDefaultCr(double cr) noexcept -> void {
   imp_->default_cr_ = cr;
 }
-auto PsVsSolverV5::defaultCr() noexcept -> double { return imp_->default_cr_; }
-auto PsVsSolverV5::setDefaultVelocityThreshold(double tv) noexcept -> void {
+auto AdmmContactSolver::defaultCr() noexcept -> double { return imp_->default_cr_; }
+auto AdmmContactSolver::setDefaultVelocityThreshold(double tv) noexcept -> void {
   imp_->default_tv_ = tv;
 }
-auto PsVsSolverV5::defaultVelocityThreshold() noexcept -> double {
+auto AdmmContactSolver::defaultVelocityThreshold() noexcept -> double {
   return imp_->default_tv_;
 }
-auto PsVsSolverV5::debugByRecords() -> nlohmann::json { return imp_->records; }
+auto AdmmContactSolver::debugByRecords() -> nlohmann::json { return imp_->records; }
 
-auto PsVsSolverV5::cptContactSolverResult(
+auto AdmmContactSolver::cptContactSolverResult(
     const aris::dynamic::Model* current_state,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec, ContactSolverResult& result)
@@ -481,7 +602,7 @@ auto PsVsSolverV5::cptContactSolverResult(
   auto modelPtr = enginePtr->currentModel();
   SIRE_ASSERT(modelPtr != nullptr);
 
-  using namespace ::sire::physics::contact::ps_vs_solver3;
+  using namespace ::sire::physics::contact::sor_contact;
 
   sire::Size n = penetration_pairs.size();
   double nextCtrlSimSuggestDt = result.dt;
@@ -501,10 +622,16 @@ auto PsVsSolverV5::cptContactSolverResult(
     modifyPenetrationDepth(*enginePtr, penetration_pairs, preservedPairsIdx);
   }
   n = preservedPairsIdx.size();
-  DLOG(DEBUG) << "v5 n_contacts=" << n << " suggest_dt=" << suggest_dt;
+  DLOG(DEBUG) << "ADMM n_contacts=" << n << " suggest_dt=" << suggest_dt;
 
   // Select the next event only AFTER the actual contact step is known.
   auto simulator_ptr = enginePtr->simLoopPtr();
+  if (singlePointContactMode() && !imp_->trace_dir_.empty()) {
+    const auto* solver = dynamic_cast<const simple_admm::SimpleAdmmContactSolver*>(this);
+    imp_->recordContactHistory(*enginePtr, simulator_ptr->timer().simTime(), suggest_dt,
+        initialPenetrationPolicy() == "retain_bounded", solver && solver->warmStartEnabled(),
+        penetration_pairs, T_C_vec, preservedPairsIdx);
+  }
   auto createNextEvent = [&]() {
     const bool contactEndsEarly = (singlePointContactMode() || patchContactMode())
                                       ? result.dt < nextCtrlSimSuggestDt
@@ -553,11 +680,11 @@ auto PsVsSolverV5::cptContactSolverResult(
       *enginePtr, *imp_->material_manager_, penetration_pairs, T_C_vec,
       preservedPairsIdx, geomPtr, stiffness.data(), damping.data(),
       fri_coef.data(), x0.data(), realDepthX0.data(), v0.data());
-  DLOG(DEBUG) << "v5 stiffScale=" << stiffScale
+  DLOG(DEBUG) << "ADMM stiffScale=" << stiffScale
               << " x0=" << std::vector<double>(x0.begin(), x0.end())
               << " v0=" << std::vector<double>(v0.begin(), v0.end());
 
-  // ---- Inverse inertia and free acceleration (same interface as V3) ----
+  // ---- Inverse inertia and free acceleration ----
   std::vector<double> contactFrames(16 * n), contactPoints(3 * n);
   std::vector<double> allInvCpi, allAccelExt;
   {
@@ -587,10 +714,11 @@ auto PsVsSolverV5::cptContactSolverResult(
       for (sire::Size k = 0; k < 3; ++k)
         for (sire::Size l = 0; l < 3; ++l)
           invM2[9 * n * i + 3 * n * k + 3 * j + l] =
-              allInvCpi[6 * n * (6 * i + k) + 6 * j + l + 3] +
-              allInvCpi[6 * n * (6 * i + k + 3) + 6 * j + l] -
-              allInvCpi[6 * n * (6 * i + k) + 6 * j + l] -
-              allInvCpi[6 * n * (6 * i + k + 3) + 6 * j + l + 3];
+              detail::signedRelativeInertia({
+                  allInvCpi[6 * n * (6 * i + k) + 6 * j + l],
+                  allInvCpi[6 * n * (6 * i + k) + 6 * j + l + 3],
+                  allInvCpi[6 * n * (6 * i + k + 3) + 6 * j + l],
+                  allInvCpi[6 * n * (6 * i + k + 3) + 6 * j + l + 3]});
 
   std::vector<double> accelExt2(3 * n);
   for (sire::Size i = 0; i < n; ++i)
@@ -624,8 +752,9 @@ auto PsVsSolverV5::cptContactSolverResult(
            : accelExt2.data(),
       invCpi_dae.data(), A_mat.data(), b_vec.data());
 
+  const bool searchForSeparation = singlePointContactMode() || patchContactMode();
   const double contactEndTime =
-      (singlePointContactMode() || patchContactMode())
+      searchForSeparation
           ? findSinglePointContactEndTime(
                                      n, suggest_dt, A_mat.data(), b_vec.data(),
                                      x0.data(), contactTimeMethod())
@@ -662,14 +791,19 @@ auto PsVsSolverV5::cptContactSolverResult(
   } else {
     clearContactSolverState();
   }
+  const Imp::BodyContactTrace body_trace{allInvCpi, allAccelExt, penetration_pairs,
+                                         preservedPairsIdx, geomPtr};
   imp_->recordSolverFrame(simulator_ptr->timer().simTime(), n, fri_coef, invM2,
                           v0, vTargetVel, accelExt2, minTime, contactFce, error,
-                          solver_max_iterations, 1e-8, typeid(*this).name());
-  DLOG(DEBUG) << "v5 error=" << error << " minTime=" << minTime
+                          solver_max_iterations, 1e-8, typeid(*this).name(),
+                          {A_mat, b_vec, x0, x1t, suggest_dt, contactEndTime,
+                           searchForSeparation ? contactTimeMethod().c_str() : nullptr,
+                           singlePointContactMode() ? &body_trace : nullptr});
+  DLOG(DEBUG) << "ADMM error=" << error << " minTime=" << minTime
               << " vTargetVel="
               << std::vector<double>(vTargetVel.begin(), vTargetVel.end());
 
-  // ---- Apply forces to model (v3 full pipeline tail) ----
+  // ---- Apply forces to the model ----
   enginePtr->resetPartContactForce();
   auto& force_pool = modelPtr->forcePool();
   const sire::Size contact_force_offset = enginePtr->contactForceIdx();
@@ -692,7 +826,7 @@ auto PsVsSolverV5::cptContactSolverResult(
     r.point_W[2] = penetration_pairs[preservedPairsIdx[i]].p_WC[2];
     pairResults.push_back(r);
 
-    DLOG(DEBUG) << "v5 c" << i << ": f_Bc_C=[" << f_Bc_C[0] << ", " << f_Bc_C[1]
+    DLOG(DEBUG) << "ADMM c" << i << ": f_Bc_C=[" << f_Bc_C[0] << ", " << f_Bc_C[1]
                 << ", " << f_Bc_C[2] << "]";
 
     aris::dynamic::GeneralForce& force_A =
@@ -728,7 +862,7 @@ auto PsVsSolverV5::cptContactSolverResult(
   result.dt = minTime;
 }
 
-auto PsVsSolverV5::cptContactForces(
+auto AdmmContactSolver::cptContactForces(
     aris::dynamic::Model& model, sire::physics::PhysicsEngine& engine,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec,
@@ -740,7 +874,7 @@ auto PsVsSolverV5::cptContactForces(
   return result.dt;
 }
 
-auto PsVsSolverV5::solveContactForceQP(
+auto AdmmContactSolver::solveContactForceQP(
     sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
     std::vector<double>& v0, std::vector<double>& v_target,
     std::vector<double>& b, double h, std::vector<double>& contactFce,
@@ -749,30 +883,43 @@ auto PsVsSolverV5::solveContactForceQP(
                                          h, contactFce, max_iters, max_err);
 }
 
-auto PsVsSolverV5::prepareContactForceInitialGuess(
+auto AdmmContactSolver::prepareContactForceInitialGuess(
     const std::vector<common::PenetrationAsPointPair>&,
     const std::vector<std::array<double, 16>>&, const std::vector<sire::Size>&,
     double, std::vector<double>&) -> void {}
 
-auto PsVsSolverV5::commitContactForceSolution(
+auto AdmmContactSolver::commitContactForceSolution(
     const std::vector<common::PenetrationAsPointPair>&,
     const std::vector<std::array<double, 16>>&, const std::vector<sire::Size>&,
     double, const std::vector<double>&) -> void {}
 
-auto PsVsSolverV5::clearContactSolverState() -> void {}
+auto AdmmContactSolver::clearContactSolverState() -> void {}
+
+auto AdmmContactSolver::traceShiftedAdmmInputs(const std::vector<double>* force,
+                                         const std::vector<double>* dual) -> void {
+  if (imp_->trace_dir_.empty()) return;
+  imp_->shifted_admm_trace_ = {
+      {"initial_force", force ? nlohmann::json(*force) : nlohmann::json(nullptr)},
+      {"initial_dual", dual ? nlohmann::json(*dual) : nlohmann::json(nullptr)}};
+}
+
+auto AdmmContactSolver::traceShiftedAdmmDual(const std::vector<double>& dual) -> void {
+  if (imp_->shifted_admm_trace_.is_null()) return;
+  imp_->shifted_admm_trace_["final_dual"] = dual;
+}
 
 ARIS_REGISTRATION {
   typedef sire::physics::collision::CollisionFilter& (
-      PsVsSolverV5::*CollisionFilterPoolFunc)();
-  typedef sire::core::MaterialManager& (PsVsSolverV5::*MaterialManagerFunc)();
-  aris::core::class_<PsVsSolverV5>("PsVsSolverV5")
+      AdmmContactSolver::*CollisionFilterPoolFunc)();
+  typedef sire::core::MaterialManager& (AdmmContactSolver::*MaterialManagerFunc)();
+  aris::core::class_<AdmmContactSolver>("PsVsSolverV5")
       .inherit<ContactSolver>()
-      .prop("material_manager", &PsVsSolverV5::resetMaterialManager,
-            MaterialManagerFunc(&PsVsSolverV5::materialManager))
-      .prop("default_k", &PsVsSolverV5::setDefaultStiffness,
-            &PsVsSolverV5::defaultStiffness)
-      .prop("default_cr", &PsVsSolverV5::setDefaultCr,
-            &PsVsSolverV5::defaultCr);
+      .prop("material_manager", &AdmmContactSolver::resetMaterialManager,
+            MaterialManagerFunc(&AdmmContactSolver::materialManager))
+      .prop("default_k", &AdmmContactSolver::setDefaultStiffness,
+            &AdmmContactSolver::defaultStiffness)
+      .prop("default_cr", &AdmmContactSolver::setDefaultCr,
+            &AdmmContactSolver::defaultCr);
 }
 
 // ============================================================================
@@ -1164,4 +1311,4 @@ auto cptContactForceWithTargetState8(
   return error;
 }
 
-}  // namespace sire::physics::contact::ps_vs_solver_v5
+}  // namespace sire::physics::contact::admm_contact

@@ -3,10 +3,10 @@
 
 #include <gtest/gtest.h>
 
-#include "sire/physics/contact/ps_vs_solver3.hpp"
-#include "sire/physics/contact/ps_vs_solver_v5.hpp"
+#include "sire/physics/contact/sor_contact_solver.hpp"
+#include "sire/physics/contact/admm_contact_solver.hpp"
 
-using sire::physics::contact::ps_vs_solver3::findSinglePointContactEndTime;
+using sire::physics::contact::sor_contact::findSinglePointContactEndTime;
 
 // The production search returns the negative-depth side of a numerical
 // bracket, not the exact analytical zero. Its existing width cap is 10 ns
@@ -35,7 +35,7 @@ TEST(SinglePointContactPolynomial, FlatZeroCannotHideCoupledSeparation) {
 }
 
 TEST(SinglePointContactPolynomial, ConfigurationValidation) {
-  sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5 solver;
+  sire::physics::contact::admm_contact::AdmmContactSolver solver;
   EXPECT_EQ(solver.contactTimeMethod(), "exponential");
   solver.setContactTimeMethod("polynomial");
   EXPECT_EQ(solver.contactTimeMethod(), "polynomial");
@@ -208,16 +208,16 @@ TEST(SinglePointContactTime, ExactZeroAtScanPointStillRequiresSeparation) {
 }
 
 TEST(SinglePointContactMode, IsExplicitAndPreservesExistingDefault) {
-  sire::physics::contact::ps_vs_solver3::PsVsSolver3 v3;
-  sire::physics::contact::ps_vs_solver_v5::PsVsSolverV5 v5;
-  EXPECT_EQ(v3.contactModelMode(), "height_field");
-  EXPECT_EQ(v5.contactModelMode(), "height_field");
-  v3.setContactModelMode("single_point");
-  v5.setContactModelMode("single_point");
-  EXPECT_TRUE(v3.singlePointContactMode());
-  EXPECT_TRUE(v5.singlePointContactMode());
-  EXPECT_THROW(v3.setContactModelMode("typo"), std::invalid_argument);
-  EXPECT_TRUE(v3.singlePointContactMode());
-  v3.setContactModelMode("height_field");
-  EXPECT_FALSE(v3.singlePointContactMode());
+  sire::physics::contact::sor_contact::SorContactSolver sor_solver;
+  sire::physics::contact::admm_contact::AdmmContactSolver admm_solver;
+  EXPECT_EQ(sor_solver.contactModelMode(), "height_field");
+  EXPECT_EQ(admm_solver.contactModelMode(), "height_field");
+  sor_solver.setContactModelMode("single_point");
+  admm_solver.setContactModelMode("single_point");
+  EXPECT_TRUE(sor_solver.singlePointContactMode());
+  EXPECT_TRUE(admm_solver.singlePointContactMode());
+  EXPECT_THROW(sor_solver.setContactModelMode("typo"), std::invalid_argument);
+  EXPECT_TRUE(sor_solver.singlePointContactMode());
+  sor_solver.setContactModelMode("height_field");
+  EXPECT_FALSE(sor_solver.singlePointContactMode());
 }

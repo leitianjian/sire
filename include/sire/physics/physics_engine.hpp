@@ -107,6 +107,7 @@ class SIRE_API PhysicsEngine {
   auto cptModelContactWrench() -> void {};
 
   auto contactForceIdx() -> sire::Size;
+  auto contactForceCount() const -> sire::Size;
   auto setContactForceIdxSize(int contact_force_idx,
                               sire::Size contact_force_size) -> void;
 
