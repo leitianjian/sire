@@ -19,7 +19,8 @@
 namespace sire {
 namespace simulator {
 class SimulationLoop;
-};
+class Simulator;
+};  // namespace simulator
 namespace middleware {
 class SireMiddleware;
 }
@@ -73,6 +74,30 @@ class SIRE_API PhysicsEngine {
   auto setCollisionDetectionFlag(bool flag) -> void;
   auto contactSolverFlag() const -> bool;
   auto setContactSolverFlag(bool flag) -> void;
+  /// Joint limits are independent of the selected contact solver. Supported
+  /// methods are "shifted_ncp", "projection", and "disabled".
+  auto setJointLimitMethod(const std::string& method) -> void;
+  auto jointLimitMethod() const -> std::string;
+  auto setJointLimitActivationMargin(double margin) -> void;
+  auto jointLimitActivationMargin() const -> double;
+  auto setJointLimitRecoveryFactor(double factor) -> void;
+  auto jointLimitRecoveryFactor() const -> double;
+  auto setJointLimitEmergencyTolerance(double tolerance) -> void;
+  auto jointLimitEmergencyTolerance() const -> double;
+  auto setJointLimitMaxForce(double force) -> void;
+  auto jointLimitMaxForce() const -> double;
+  auto setJointLimitMaxIterations(sire::Size iterations) -> void;
+  auto jointLimitMaxIterations() const -> sire::Size;
+  auto setJointLimitTolerance(double tolerance) -> void;
+  auto jointLimitTolerance() const -> double;
+  /// Diagnostics from the most recent joint-limit solve. These values are
+  /// retained even in non-Tracy builds so rare RL failures can report the
+  /// constraint state that preceded an integrator exception.
+  auto jointLimitLastActiveCount() const -> sire::Size;
+  auto jointLimitLastIterations() const -> sire::Size;
+  auto jointLimitLastResidual() const -> double;
+  auto jointLimitLastMaxReaction() const -> double;
+  auto jointLimitLastSaturatedCount() const -> sire::Size;
 
   // continuous collision detection
   // will insert some time value which should be processed.
@@ -81,6 +106,8 @@ class SIRE_API PhysicsEngine {
   // compute contact wrench of model
   auto cptModelContactWrench() -> void {};
 
+  auto contactForceIdx() -> sire::Size;
+  auto contactForceCount() const -> sire::Size;
   auto setContactForceIdxSize(int contact_force_idx,
                               sire::Size contact_force_size) -> void;
 
@@ -89,6 +116,8 @@ class SIRE_API PhysicsEngine {
 
   // compute point pair penetration and get result
   auto cptPointPairPenetration(
+      std::vector<common::PenetrationAsPointPair>& pairs) -> void;
+  auto cptHeightFieldPenetration(
       std::vector<common::PenetrationAsPointPair>& pairs) -> void;
 
   // compute real contact time
@@ -108,6 +137,12 @@ class SIRE_API PhysicsEngine {
       const std::vector<common::PenetrationAsPointPair>& pairs,
       std::vector<std::array<double, 3>>& v_contact) -> void;
   auto fwdActuators() -> void;
+  /// Apply the configured joint-limit safety projection. This remains a hard
+  /// fallback for shifted_ncp and is the primary operation for projection.
+  auto enforceJointLimitSafety() -> bool;
+  /// Assemble and solve active scalar shifted NCP joint limits, then add their
+  /// reaction forces to the motion force pool. No-op for other methods.
+  auto applyJointLimitForces(double dt) -> void;
 
   // engine state getter
   inline auto numGeometries() -> sire::Size { return geometryPool().size(); }
@@ -119,20 +154,24 @@ class SIRE_API PhysicsEngine {
   auto init(middleware::SireMiddleware* middlewarePtr) -> void;
   auto init(simulator::SimulationLoop* simLoopPtr) -> void;
   auto init(aris::dynamic::Model* m) -> void;
+  auto init(aris::dynamic::Model* m, simulator::SimulationLoop* simLoopPtr)
+      -> void;
 
   // this prt_pm represent the pose of geometry on part coordinate
-  auto addSphereGeometry(double radius, int part_id = 0,
-                         bool is_dynamic = false,
-                         const double* prt_pm = nullptr) -> bool;
-  auto addBoxGeometry(double x, double y, double z, int part_id = 0,
-                      bool is_dynamic = false, const double* prt_pm = nullptr)
-      -> bool;
-  auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
-                       bool is_dynamic = false, const double* prt_pm = nullptr)
-      -> bool;
-  auto addCapsuleGeometry(double radius, double length, int part_id = 0,
-                          bool is_dynamic = false,
-                          const double* prt_pm = nullptr) -> bool;
+  //   auto addSphereGeometry(double radius, int part_id = 0,
+  //                          bool is_dynamic = false,
+  //                          const double* prt_pm = nullptr) -> bool;
+  //   auto addBoxGeometry(double x, double y, double z, int part_id = 0,
+  //                       bool is_dynamic = false, const double* prt_pm =
+  //                       nullptr)
+  //       -> bool;
+  //   auto addMeshGeometry(const std::string& resource_path, int part_id = 0,
+  //                        bool is_dynamic = false, const double* prt_pm =
+  //                        nullptr)
+  //       -> bool;
+  //   auto addCapsuleGeometry(double radius, double length, int part_id = 0,
+  //                           bool is_dynamic = false,
+  //                           const double* prt_pm = nullptr) -> bool;
   auto addDynamicGeometry(geometry::CollidableGeometry& dynamic_geometry)
       -> bool;
   auto addAnchoredGeometry(geometry::CollidableGeometry& anchored_geometry)
@@ -148,6 +187,10 @@ class SIRE_API PhysicsEngine {
   auto hasCollision() -> bool;
   auto computePointPairPenetration()
       -> std::vector<common::PenetrationAsPointPair>;
+  /// @brief 与 computePointPairPenetration 类似，但 HeightField
+  /// 碰撞对会检测多个接触点并做空间去重。
+  auto computeHeightFieldPenetration()
+      -> std::vector<common::PenetrationAsPointPair>;
 
   auto cptContactInfo(
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
@@ -162,6 +205,10 @@ class SIRE_API PhysicsEngine {
       double suggestTime,
       std::vector<common::PenetrationAsPointPair>& penetration_pairs,
       std::vector<common::PointPairContactInfo>& contact_info) -> double;
+  auto integrateByContactInfo(
+      double suggestTime,
+      std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      std::vector<common::PointPairContactInfo>& contact_info) -> void;
   auto recordsContactCptInfo() -> nlohmann::json;
   auto cptGlbForceByContactInfo(
       const std::vector<common::PointPairContactInfo>& contact_info) -> bool;
@@ -175,6 +222,7 @@ class SIRE_API PhysicsEngine {
 
   auto saveInitialModel(aris::dynamic::Model& model) -> void;
   auto resetInitialModel() -> void;
+  auto reset() -> void;
 
   PhysicsEngine();
   virtual ~PhysicsEngine();

@@ -1,0 +1,54 @@
+# Reproducible sources and plotting inputs are versioned; generated outputs are not.
+/outputs/
+/log/
+/logs/
+/published/
+/provenance/
+/EXPERIMENT_AUDIT_*.md
+/FIGURE_REVISIONS.md
+/VALIDATION.md
+__pycache__/
+*.py[cod]
+*.log
+
+# Local full archives remain intact. Configurations and montage inputs are small
+# dependencies of the public training-review and plotting commands.
+/data/**
+!/data/montage/
+!/data/montage/*.json
+!/data/montage/*.png
+!/data/training/
+!/data/training/**/
+!/data/training/**/config.yaml
+!/data/training_velocity_regularized/
+!/data/training_velocity_regularized/**/
+!/data/training_velocity_regularized/**/config.yaml
+/hardware/policies/
+
+# Historical source snapshots are not the active engine. Retain only the
+# comparator's saved configuration and scene used by the review command.
+/sources/**
+!/sources/smooth_training/
+!/sources/smooth_training/**/
+!/sources/smooth_training/**/config.yaml
+!/sources/smooth_training/**/*.xml
+
+# The two vector scene diagrams are plotting inputs, not generated figures.
+!/res/sliding_box.pdf
+!/res/sphere_free_fall_test.pdf
+
+# The scene schematic reads the nominal case parameters from this small summary.
+!/data/contact_law/
+!/data/contact_law/runs/
+!/data/contact_law/runs/nominal/
+!/data/contact_law/runs/nominal/shifted/
+!/data/contact_law/runs/nominal/shifted/summary.json
+
+# Public GitHub release is code/configuration only. Research outputs and inputs
+# remain in the local full archive, even when used by the plotting scripts.
+/analysis/
+/res/
+/archive_inventory.json
+/data/contact_law/
+/data/montage/
+/hardware/*manifest.json

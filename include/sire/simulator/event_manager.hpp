@@ -28,6 +28,7 @@ class SIRE_API EventHandlerIdPair {
 class SIRE_API EventManager {
  public:
   auto init(simulator::SimulationLoop* simulationLoopPtr) -> void;
+  auto reset() -> void;
   auto resetEventHandlerPairPool(
       aris::core::PointerArray<EventHandlerIdPair>* pool) -> void;
   auto eventHandlerPairPool() -> aris::core::PointerArray<EventHandlerIdPair>&;

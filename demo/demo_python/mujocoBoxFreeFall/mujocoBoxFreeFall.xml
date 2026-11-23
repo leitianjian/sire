@@ -1,0 +1,23 @@
+<mujoco>
+  <option timestep="0.01"/>
+  
+  <worldbody>
+    <!-- 地面 -->
+    <geom name="ground" type="plane" size="10 10 0.1" pos="0 0 0" rgba="0.8 0.9 0.8 1"/>
+    
+    <!-- 墙壁 -->
+    <geom name="wall1" type="box" size="0.1 10 1" pos="-10 0 1" rgba="0.8 0.8 0.9 1"/>
+    <geom name="wall2" type="box" size="0.1 10 1" pos="10 0 1" rgba="0.8 0.8 0.9 1"/>
+    <geom name="wall3" type="box" size="10 0.1 1" pos="0 -10 1" rgba="0.8 0.8 0.9 1"/>
+    <geom name="wall4" type="box" size="10 0.1 1" pos="0 10 1" rgba="0.8 0.8 0.9 1"/>
+    
+    <!-- 小球 -->
+    <body name="ball" pos="0 0 5">
+      <freejoint/>
+      <geom name="ball_geom" type="sphere" size="0.5" rgba="0.9 0.2 0.2 1" mass="1"/>
+    </body>
+  </worldbody>
+  
+  <!-- 重力设置 -->
+  <option gravity="0 0 -9.81"/>
+</mujoco>

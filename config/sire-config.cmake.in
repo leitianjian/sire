@@ -9,6 +9,9 @@ if(UNIX)
 	set(sire_LIBRARIES -Wl,--start-group ${sire_LIBRARIES} -Wl,--end-group)
 endif(UNIX)
 
+include(CMakeFindDependencyMacro)
+find_dependency(coal REQUIRED)
+
 
 include("${CMAKE_CURRENT_LIST_DIR}/sire-targets-release.cmake")
 include("${CMAKE_CURRENT_LIST_DIR}/sire-targets-debug.cmake")

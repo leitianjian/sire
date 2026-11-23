@@ -9,13 +9,13 @@ target_include_directories(${sire_demo}
 	PRIVATE
 		${aris_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR}
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
 target_link_libraries(${sire_demo}
 	PRIVATE
 		sire_lib
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 )
 install(
 	TARGETS

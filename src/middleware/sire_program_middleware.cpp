@@ -25,9 +25,9 @@ struct SireProgramMiddleware::Imp {
 
   std::atomic_bool is_stop_{false}, is_pause_{false};
   // 重要的模块单独列出来
-  unique_ptr<core::SireModuleBase> physics_engine_;
+  std::unique_ptr<core::SireModuleBase> physics_engine_;
   // 不那么重要的就放pool里面
-  unique_ptr<
+  std::unique_ptr<
       aris::core::PointerArray<core::SireModuleBase, aris::core::NamedObject>>
       modules_pool_;
 };
@@ -567,8 +567,7 @@ auto SireProgramMiddleware::executeCmd(
             // LOG_INFO << "pro " << "---" << (imp_->is_stop_.load() ? "program
             // stopped" : "program finished") << std::endl;
 
-            while (!imp_->auto_thread_.joinable())
-              ;
+            while (!imp_->auto_thread_.joinable());
             imp_->auto_thread_.detach();
           });
           return send_code_and_msg(0, "");

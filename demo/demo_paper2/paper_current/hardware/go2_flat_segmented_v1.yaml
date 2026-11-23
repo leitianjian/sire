@@ -1,0 +1,67 @@
+protocol_id: go2_flat_segmented_v1
+command_convention: normalized_body_frame_x_y_yaw
+
+# The old low-level logs had no valid SportModeState. A read-only check while
+# mcf was active produced base position but zero sport foot kinematics; behavior
+# after releasing mcf remains unverified. Translational examples therefore use
+# operator_deadman: a physical spotter and continuously held A button are the
+# boundary guard.
+segments:
+  stand:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 5.0, command: [0.0, 0.0, 0.0]}
+
+  forward_030:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ramp_up, duration_s: 1.0, command_to: [0.30, 0.0, 0.0]}
+      - {name: hold, duration_s: 1.5, command: [0.30, 0.0, 0.0]}
+      - {name: ramp_down, duration_s: 1.0, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+
+  backward_025:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ramp_up, duration_s: 1.0, command_to: [-0.25, 0.0, 0.0]}
+      - {name: hold, duration_s: 1.5, command: [-0.25, 0.0, 0.0]}
+      - {name: ramp_down, duration_s: 1.0, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+
+  lateral_left_020:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ramp_up, duration_s: 1.0, command_to: [0.0, 0.20, 0.0]}
+      - {name: hold, duration_s: 1.5, command: [0.0, 0.20, 0.0]}
+      - {name: ramp_down, duration_s: 1.0, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+
+  lateral_right_020:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ramp_up, duration_s: 1.0, command_to: [0.0, -0.20, 0.0]}
+      - {name: hold, duration_s: 1.5, command: [0.0, -0.20, 0.0]}
+      - {name: ramp_down, duration_s: 1.0, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+
+  yaw_ccw_040:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ramp_up, duration_s: 1.0, command_to: [0.0, 0.0, 0.40]}
+      - {name: hold, duration_s: 2.0, command: [0.0, 0.0, 0.40]}
+      - {name: ramp_down, duration_s: 1.0, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+
+  yaw_cw_040:
+    boundary_mode: operator_deadman
+    phases:
+      - {name: baseline, duration_s: 2.0, command: [0.0, 0.0, 0.0]}
+      - {name: ramp_up, duration_s: 1.0, command_to: [0.0, 0.0, -0.40]}
+      - {name: hold, duration_s: 2.0, command: [0.0, 0.0, -0.40]}
+      - {name: ramp_down, duration_s: 1.0, command_to: [0.0, 0.0, 0.0]}
+      - {name: post_stop, duration_s: 2.0, command: [0.0, 0.0, 0.0]}

@@ -17,6 +17,9 @@
 #include <aris/server/control_server.hpp>
 
 namespace sire::physics::geometry {
+using namespace std;
+using namespace coal;
+
 struct Collidable::Imp {
   unique_ptr<CollisionObject> fcl_object_ptr_{nullptr};
 
@@ -40,7 +43,7 @@ auto Collidable::setContactProp(core::PropMap& map) -> void {
   std::swap(imp_->contact_properties_, map);
 }
 auto Collidable::setContactProp(std::string& propString) -> void {
-  std::swap(imp_->contact_properties_, core::PropMap(propString));
+  imp_->contact_properties_ = core::PropMap(propString);
 }
 auto Collidable::contactProp() const -> const core::PropMap& {
   return imp_->contact_properties_;

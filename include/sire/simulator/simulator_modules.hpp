@@ -12,6 +12,9 @@ namespace sire {
 namespace middleware {
 class SireMiddleware;
 }
+namespace physics {
+class PhysicsEngine;
+}
 namespace simulator {
 class SimulatorModules {
   using IntegratorPool = aris::core::PointerArray<IntegratorBase>;
@@ -19,7 +22,8 @@ class SimulatorModules {
 
  public:
   auto init(middleware::SireMiddleware* middleware_ptr) -> void;
-
+  auto init(physics::PhysicsEngine* engine_ptr) -> void;
+  auto reset() -> void;
   // Integrator //
   auto resetIntegratorPool(IntegratorPool* pool) -> void;
   auto integratorPool() const -> const IntegratorPool&;

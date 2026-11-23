@@ -18,6 +18,7 @@
 #include "sire/physics/physics_engine.hpp"
 #include "sire/sensor/sensor.hpp"
 #include "sire/simulator/controller.hpp"
+#include "sire/simulator/simulator_modules.hpp"
 #include "sire/simulator/event_manager.hpp"
 #include "sire/simulator/recorder.hpp"
 
@@ -26,12 +27,29 @@ namespace middleware {
 class SireMiddleware;
 }
 namespace simulator {
+class SIRE_API ModelData {
+ public:
+   sire::Size partSize{0};
+   sire::Size motionSize{0};
+   std::vector<std::array<double, 7>> partPqVec;
+   std::vector<std::array<double, 6>> partVsVec;
+   sire::Size fcePoolSize{0};
+   std::vector<sire::Size> generalFceIdx;
+   std::vector<sire::Size> singleCompFceIdx;
+   std::vector<std::array<double, 6>> generalFceVec;
+   std::vector<double> singleCompFceVec;
+
+   auto initFromModel(const aris::dynamic::Model& model) -> void;
+   auto update(aris::dynamic::Model& model) -> void;
+   auto resetModel(aris::dynamic::Model& model) -> void;
+}; 
 // Under Model node, using pointer to get useful resource
 class SIRE_API SimulationLoop {
   using IntegratorPool = aris::core::PointerArray<IntegratorBase>;
   using SensorPool = aris::core::PointerArray<sensor::SensorBase>;
 
  public:
+  auto cptNextCtrlSimSuggestDt() -> double;
   auto createHandlerByEventId(sire::Size event_id)
       -> std::unique_ptr<core::HandlerBase>;
 
@@ -77,11 +95,14 @@ class SIRE_API SimulationLoop {
     return const_cast<simulator::Controller&>(
         static_cast<const SimulationLoop*>(this)->controller());
   }
-
   auto deltaT() -> double;
   auto setDeltaT(double delta_t_in) -> void;
   auto ctrlT() -> double;
   auto setCtrlT(double ctrlt_) -> void;
+  auto isInitCtrl() -> bool;
+  auto setIsInitCtrl(bool isInitCtrl) -> void;
+  auto isCtrlFlag() -> bool;
+  auto setIsCtrlFlag(bool isCtrlFlag) -> void;
   auto targetRealtimeRate() -> double;
   auto realtimeRate() -> double;
   auto setRealtimeRate(double rate) -> void;
@@ -115,15 +136,50 @@ class SIRE_API SimulationLoop {
   auto isTimeout() -> bool;
   auto isEventListEmpty() -> bool;
   auto init(middleware::SireMiddleware* middleware) -> void;
+  auto init(aris::dynamic::Model* m, physics::PhysicsEngine* e, simulator::SimulatorModules* sm) -> void;
   auto start() -> void;
   auto isRunning() -> bool;
+
+  // ---- legacy event-based API (kept for backward compat) ----
+  auto headerIsCtrl() -> bool;
   auto handleContact() -> void;
   auto integrate() -> bool;
   auto step(sire::Size frame_skip, bool pause_if_fast = false) -> void;
+
+  // ---- MuJoCo-style control-timed API ----
+  /// Apply motor torques from forcePool (reset contact force + fwdActuators).
+  auto applyActuators() -> void;
+
+  /// Advance physics one sub-step.  Returns the actual dt used.
+  /// Internally: collisionDetection → contactSolver → integrate.
+  auto stepPhysics() -> double;
+
+  /// applyActuators + stepPhysics.  Equivalent to MuJoCo mj_step.
+  auto stepSimple() -> double;
+
+  /// Repeatedly call stepSimple() until simTime() reaches targetTime.
+  /// Torques in forcePool persist across sub-steps within one control
+  /// interval.  Returns (total elapsed, number of sub-steps).
+  auto advanceToSimTime(double targetTime)
+      -> std::pair<double, sire::Size>;
+
+  /// One physics sub-step using SorContactSolver's split API:
+  ///   1. resetPartContactForce + updateGeometryLocation
+  ///   2. collisionDetection → cptPointPairPenetration
+  ///   3. process_penetration_depth
+  ///   4. solver->cptContactForces  (force-only, no integration)
+  ///   5. updPs(dt) — forward integration
+  ///   6. updateSimTime + record
+  /// Returns the actual dt used.
+  auto stepPhysicsSimple() -> double;
+
   auto pause() -> void;
   auto playback() -> void {};
   auto stop() -> void {};
   auto reset() -> void;
+  auto resetRL() -> void;
+  auto resetRLNoTimer() -> void;
+  auto resetRecorder() -> void;
 
   SimulationLoop();
   virtual ~SimulationLoop();

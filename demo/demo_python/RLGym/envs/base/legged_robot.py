@@ -1,0 +1,1025 @@
+from __future__ import annotations
+
+import math
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+import mujoco
+import mujoco.viewer
+import numpy as np
+import torch
+
+from rsl_rl.env import VecEnv
+
+from RLGym import ROOT_DIR
+from RLGym.envs.base.legged_robot_config import LeggedRobotCfg
+from RLGym.envs.base.mujoco_batch_stepper import MuJoCoBatchStepper
+from RLGym.utils.helpers import class_to_dict
+from RLGym.utils.math import quat_apply, quat_apply_yaw, quat_mul, quat_rotate_inverse, torch_rand_float, wrap_to_pi
+from RLGym.utils.terrain import TerrainLayout
+
+
+class LeggedRobot(VecEnv):
+    def __init__(self, cfg: LeggedRobotCfg, sim_params=None, physics_engine=None, sim_device='cpu', headless=True):
+        self.cfg = cfg
+        self.sim_params = sim_params
+        self.physics_engine = physics_engine
+        self.device = torch.device('cpu')
+        self.headless = headless
+
+        self.height_samples = None
+        self.debug_viz = False
+        self.init_done = False
+        self.viewer = None
+        self.viewer_camera_initialized = False
+
+        self._parse_cfg(self.cfg)
+        self.create_sim()
+        self._sync_dt_with_model()
+        self._init_buffers()
+        self._prepare_reward_function()
+        self.reset_idx(torch.arange(self.num_envs, device=self.device))
+        self.compute_observations()
+        self.init_done = True
+
+    def step(self, actions):
+        clip_actions = self.cfg.normalization.clip_actions
+        self.actions = torch.clip(actions, -clip_actions, clip_actions).to(self.device)
+
+        # MuJoCo's affine actuator evaluates PD from the latest q/qvel inside
+        # every physics substep. The batch call returns the final applied force
+        # used by the torque reward, matching Sire's control-step output.
+        applied_torques = self._mujoco_batch_stepper.step(
+            self.actions.detach().cpu().numpy()
+        )
+        self.torques = torch.from_numpy(applied_torques)
+
+        self.post_physics_step()
+
+        clip_obs = self.cfg.normalization.clip_observations
+        self.obs_buf = torch.clip(self.obs_buf, -clip_obs, clip_obs)
+        if self.privileged_obs_buf is not None:
+            self.privileged_obs_buf = torch.clip(self.privileged_obs_buf, -clip_obs, clip_obs)
+
+        return self.obs_buf, self.privileged_obs_buf, self.rew_buf, self.reset_buf, self.extras
+
+    def post_physics_step(self):
+        self.extras = {}
+        self.episode_length_buf += 1
+        self.common_step_counter += 1
+
+        self._refresh_sim_tensors()
+
+        self.base_quat[:] = self.root_states[:, 3:7]
+        self.base_lin_vel[:] = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
+        # MuJoCo free-joint angular qvel is already body-local, matching the
+        # policy observation and the real robot's IMU gyro convention.
+        self.base_ang_vel[:] = self.root_states[:, 10:13]
+        self.projected_gravity[:] = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+
+        self._post_physics_step_callback()
+        self._update_episode_diagnostics()
+        self._post_physics_step_tasks()
+
+        self.check_termination()
+        self.compute_reward()
+        env_ids = self.reset_buf.nonzero(as_tuple=False).flatten()
+        self.reset_idx(env_ids)
+        if self.cfg.domain_rand.push_robots:
+            self._push_robots()
+        self.compute_observations()
+
+        self.last_actions[:] = self.actions[:]
+        self.last_dof_vel[:] = self.dof_vel[:]
+        self.last_root_vel[:] = self.root_states[:, 7:13]
+        self.last_feet_pos_world[:] = self.feet_pos_world[:]
+
+        # ---- MuJoCo reward decomposition diagnostic (first 20 steps) ----
+        if self.common_step_counter <= 20:
+            r_track_lin = self._reward_tracking_lin_vel().mean().item()
+            r_track_ang = self._reward_tracking_ang_vel().mean().item()
+            r_orient = self._reward_orientation().mean().item()
+            r_height = self._reward_base_height().mean().item()
+            r_torque = self._reward_torques().mean().item()
+            r_air = self._last_feet_air_time_reward.mean().item()
+            r_collision = self._reward_collision().mean().item()
+            r_lin_vel_z_raw = self._reward_lin_vel_z().mean().item()
+            r_dof_vel_raw = self._reward_dof_vel().mean().item()
+            r_dof_acc_raw = self._reward_dof_acc().mean().item()
+            r_action_rate_raw = self._reward_action_rate().mean().item()
+            r_ang_vel_xy_raw = self._reward_ang_vel_xy().mean().item()
+            world_vx = self.root_states[:, 7].mean().item()
+            world_vy = self.root_states[:, 8].mean().item()
+            world_vz = self.root_states[:, 9].mean().item()
+            base_vx = self.base_lin_vel[:, 0].mean().item()
+            base_vy = self.base_lin_vel[:, 1].mean().item()
+            base_vz = self.base_lin_vel[:, 2].mean().item()
+            qx = self.base_quat[0, 0].item()
+            qy = self.base_quat[0, 1].item()
+            qz = self.base_quat[0, 2].item()
+            qw = self.base_quat[0, 3].item()
+            base_z = self.root_states[:, 2].mean().item()
+            tilt = self.projected_gravity[:, :2].norm(dim=1).mean().item()
+            foot_ct = self.foot_ground_contact.float().mean().item()
+            contact_nz = (self.contact_forces.abs().sum(dim=-1).sum(dim=-1) > 0).sum().item()
+            cum_lin_vel_z = self.episode_sums.get("lin_vel_z",
+                torch.zeros(1))[0].item()
+            print(
+                f"[MuJoCo diag step {self.common_step_counter}] "
+                f"rew_total={self.rew_buf.mean():.4f} dt={self.dt:.4f}\n"
+                f"  raw_rew: lin_vel_z={r_lin_vel_z_raw:.2f} "
+                f"dof_vel={r_dof_vel_raw:.2f} dof_acc={r_dof_acc_raw:.2f} "
+                f"act_rate={r_action_rate_raw:.2f} ang_vel_xy={r_ang_vel_xy_raw:.2f}\n"
+                f"  world_vel: vx={world_vx:.3f} vy={world_vy:.3f} vz={world_vz:.3f}\n"
+                f"  base_vel:  vx={base_vx:.3f} vy={base_vy:.3f} vz={base_vz:.3f}\n"
+                f"  quat[0]: qx={qx:.4f} qy={qy:.4f} qz={qz:.4f} qw={qw:.4f}\n"
+                f"  base_z={base_z:.3f} tilt={tilt:.4f} foot_ct={foot_ct:.2f} "
+                f"nz_envs={contact_nz}\n"
+                f"  scaled: track_lin={r_track_lin:+.4f} track_ang={r_track_ang:+.4f} "
+                f"air={r_air:+.4f} orient={r_orient:+.4f} height={r_height:+.4f} "
+                f"torque={r_torque:+.4f} collision={r_collision:+.4f} "
+                f"cum_lin_vel_z={cum_lin_vel_z:.2f}",
+                flush=True,
+            )
+
+    def check_termination(self):
+        base_contacts = torch.norm(self.contact_forces[:, self.termination_contact_indices, :], dim=-1) > 1.0
+        self.reset_buf = torch.any(base_contacts, dim=1)
+        # Match unitree_rl_gym's Go2 termination envelope.  base_quat is
+        # scalar-first [w, x, y, z] in this MuJoCo environment.
+        w, x, y, z = self.base_quat.unbind(dim=1)
+        roll = torch.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (x * x + y * y))
+        pitch = torch.asin(torch.clamp(2.0 * (w * y - z * x), -1.0, 1.0))
+        self.reset_buf |= (torch.abs(pitch) > 1.0) | (torch.abs(roll) > 0.8)
+        self.time_out_buf = self.episode_length_buf > self.max_episode_length
+        self.reset_buf |= self.time_out_buf
+        self._update_task_termination()
+
+    def reset_idx(self, env_ids):
+        if len(env_ids) == 0:
+            return
+
+        if self.cfg.terrain.curriculum:
+            self._update_terrain_curriculum(env_ids)
+        if self.cfg.commands.curriculum and (self.common_step_counter % int(self.max_episode_length) == 0):
+            self.update_command_curriculum(env_ids)
+
+        self._reset_dofs(env_ids)
+        self._reset_root_states(env_ids)
+        self._resample_commands(env_ids)
+
+        ep_len = self.episode_length_buf[env_ids].float().clamp(min=1.0)
+        ep_duration = (ep_len * self.dt).clamp(min=self.dt)
+
+        self.last_actions[env_ids] = 0.0
+        self.actions[env_ids] = 0.0
+        self.last_dof_vel[env_ids] = 0.0
+        self.feet_air_time[env_ids] = 0.0
+        self.last_contacts[env_ids] = False
+        self.last_slip_contacts[env_ids] = False
+        self.episode_length_buf[env_ids] = 0
+        self.reset_buf[env_ids] = 1
+
+        self.extras['episode'] = {}
+        self.extras['episode']['episode_count'] = float(len(env_ids))
+        for key in self.episode_sums.keys():
+            # Log reward terms as average contribution per second over the actual episode duration.
+            self.extras['episode']['rew_' + key] = torch.mean(self.episode_sums[key][env_ids] / ep_duration)
+            self.episode_sums[key][env_ids] = 0.0
+        if len(env_ids) > 0:
+            for foot_i, foot_name in enumerate(self.foot_names):
+                ratio = self.episode_foot_contact_sums[env_ids, foot_i] / ep_len
+                self.extras['episode'][f'contact_ratio_{foot_name}'] = torch.mean(ratio)
+                self.episode_foot_contact_sums[env_ids, foot_i] = 0.0
+            for hip_i, hip_name in enumerate(self.hip_names):
+                offset = self.episode_hip_abs_sums[env_ids, hip_i] / ep_len
+                self.extras['episode'][f'hip_offset_{hip_name}'] = torch.mean(offset)
+                self.episode_hip_abs_sums[env_ids, hip_i] = 0.0
+
+        if self.cfg.terrain.curriculum:
+            self.extras['episode']['terrain_level'] = torch.mean(self.terrain_levels.float())
+        if self.cfg.commands.curriculum:
+            self.extras['episode']['max_command_x'] = self.command_ranges['lin_vel_x'][1]
+        if self.cfg.env.send_timeouts:
+            self.extras['time_outs'] = self.time_out_buf
+        self._update_task_episode_extras(env_ids)
+        self._reset_task_buffers(env_ids)
+
+        # Hip coupling diagnostics for gait debugging.
+        # self.extras['episode'].update(self._compute_hip_debug_stats())
+
+    def compute_reward(self):
+        self.rew_buf[:] = 0.0
+        for i in range(len(self.reward_functions)):
+            name = self.reward_names[i]
+            rew = self.reward_functions[i]() * self.reward_scales[name]
+            self.rew_buf += rew
+            self.episode_sums[name] += rew
+
+        if self.cfg.rewards.only_positive_rewards:
+            self.rew_buf[:] = torch.clip(self.rew_buf[:], min=0.0)
+
+        if 'termination' in self.reward_scales:
+            rew = self._reward_termination() * self.reward_scales['termination']
+            self.rew_buf += rew
+            self.episode_sums['termination'] += rew
+
+    def compute_observations(self):
+        actor_obs = torch.cat(
+            (
+                self.base_ang_vel * self.obs_scales.ang_vel,
+                self.projected_gravity,
+                self.commands[:, :3] * self.commands_scale,
+                (self.dof_pos - self.default_dof_pos) * self.obs_scales.dof_pos,
+                self.dof_vel * self.obs_scales.dof_vel,
+                self.actions,
+            ),
+            dim=-1,
+        )
+        # Match SireRLGym's asymmetric critic input while keeping base linear
+        # velocity out of the deployable 45-dimensional actor observation.
+        full_obs = torch.cat(
+            (
+                self.base_lin_vel * self.obs_scales.lin_vel,
+                actor_obs,
+            ),
+            dim=-1,
+        )
+        if self.cfg.terrain.measure_heights:
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.5 - self.measured_heights, -1, 1.0) * self.obs_scales.height_measurements
+            full_obs = torch.cat((full_obs, heights), dim=-1)
+
+        # Support both legacy 235-dim privileged observations and newer 263-dim
+        # checkpoints by appending critic-only extras when requested.
+        if self.num_privileged_obs is not None and self.num_privileged_obs > full_obs.shape[1]:
+            privileged_extras = torch.cat(
+                (
+                    torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) * 1e-3,
+                    self.torques / torch.clamp(self.torque_limits, min=1e-6),
+                    (self.last_dof_vel - self.dof_vel) / max(self.dt, 1e-6) * 1e-4,
+                ),
+                dim=-1,
+            )
+            full_obs = torch.cat((full_obs, privileged_extras), dim=-1)
+
+        self.obs_buf = actor_obs[:, :self.num_obs]
+
+        if self.add_noise:
+            self.obs_buf += (2 * torch.rand_like(self.obs_buf) - 1) * self.noise_scale_vec
+
+        if self.privileged_obs_buf is not None:
+            # SireRLGym reserves 235 critic inputs even when the flat-terrain
+            # configuration supplies fewer values; keep the unused tail zero.
+            self.privileged_obs_buf.zero_()
+            n = min(full_obs.shape[1], self.num_privileged_obs)
+            self.privileged_obs_buf[:, :n] = full_obs[:, :n]
+
+    def create_sim(self):
+        self.up_axis_idx = 2
+        self.terrain = None
+        if self.cfg.terrain.mesh_type in ['heightfield', 'trimesh']:
+            self.terrain = TerrainLayout(self.cfg.terrain, self.cfg.env.num_envs)
+        self._create_envs()
+
+    def render(self):
+        if self.headless:
+            return
+        if self.viewer is None:
+            self.viewer = mujoco.viewer.launch_passive(self.model, self.datas[0])
+            self.viewer_camera_initialized = False
+        if not self.viewer.is_running():
+            return
+
+        base_pos = self.root_states[0, :3].detach().cpu().numpy()
+        terrain_length = float(getattr(self.cfg.terrain, 'terrain_length', 10.0))
+        terrain_width = float(getattr(self.cfg.terrain, 'terrain_width', 10.0))
+        distance = max(6.0, 0.9 * max(terrain_length, terrain_width))
+
+        self.viewer.cam.lookat[:] = base_pos
+        self.viewer.cam.lookat[2] += 0.2
+        if not self.viewer_camera_initialized:
+            self.viewer.cam.distance = distance
+            self.viewer.cam.elevation = -30.0
+            self.viewer.cam.azimuth = 135.0
+            self.viewer_camera_initialized = True
+        self.viewer.sync()
+
+    def _post_physics_step_callback(self):
+        env_ids = (self.episode_length_buf % int(self.cfg.commands.resampling_time / self.dt) == 0).nonzero(as_tuple=False).flatten()
+        self._resample_commands(env_ids)
+
+        if self.cfg.commands.heading_command:
+            forward = quat_apply(self.base_quat, self.forward_vec)
+            heading = torch.atan2(forward[:, 1], forward[:, 0])
+            self.commands[:, 2] = torch.clip(0.5 * wrap_to_pi(self.commands[:, 3] - heading), -1.0, 1.0)
+
+        if self.cfg.terrain.measure_heights:
+            self.measured_heights = self._get_heights()
+
+    def _resample_commands(self, env_ids):
+        if len(env_ids) == 0:
+            return
+        self.commands[env_ids, 0] = torch_rand_float(self.command_ranges['lin_vel_x'][0], self.command_ranges['lin_vel_x'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        self.commands[env_ids, 1] = torch_rand_float(self.command_ranges['lin_vel_y'][0], self.command_ranges['lin_vel_y'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        if self.cfg.commands.heading_command:
+            self.commands[env_ids, 3] = torch_rand_float(self.command_ranges['heading'][0], self.command_ranges['heading'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+        else:
+            self.commands[env_ids, 2] = torch_rand_float(self.command_ranges['ang_vel_yaw'][0], self.command_ranges['ang_vel_yaw'][1], (len(env_ids), 1), device=self.device).squeeze(1)
+
+        self.commands[env_ids, :2] *= (torch.norm(self.commands[env_ids, :2], dim=1) > 0.2).unsqueeze(1)
+
+        prob_zero = float(getattr(self.cfg.commands, 'prob_zero_command', 0.0))
+        prob_neg = float(getattr(self.cfg.commands, 'prob_negative_command', 0.0))
+        if prob_zero > 0.0 or prob_neg > 0.0:
+            draws = torch.rand(len(env_ids), device=self.device)
+            zero_mask = draws < prob_zero
+            neg_mask = (draws >= prob_zero) & (draws < prob_zero + prob_neg)
+            if zero_mask.any():
+                zero_ids = env_ids[zero_mask]
+                self.commands[zero_ids, :2] = 0.0
+                self.commands[zero_ids, 2] = 0.0
+                if self.cfg.commands.heading_command:
+                    self.commands[zero_ids, 3] = 0.0
+            if neg_mask.any():
+                neg_ids = env_ids[neg_mask]
+                neg_range = getattr(self.cfg.commands, 'negative_lin_vel_x_range', [-0.3, -0.1])
+                count = int(neg_mask.sum().item())
+                self.commands[neg_ids, 0] = torch_rand_float(
+                    float(neg_range[0]), float(neg_range[1]),
+                    (count, 1), device=self.device,
+                ).squeeze(1)
+                self.commands[neg_ids, 1] = 0.0
+                if self.cfg.commands.heading_command:
+                    self.commands[neg_ids, 3] = 0.0
+
+    def _compute_torques(self, actions):
+        actions_scaled = actions * self.cfg.control.action_scale
+        control_type = self.cfg.control.control_type
+        if control_type == 'P':
+            torques = self.p_gains * (actions_scaled + self.default_dof_pos - self.dof_pos) - self.d_gains * self.dof_vel
+        elif control_type == 'V':
+            torques = self.p_gains * (actions_scaled - self.dof_vel) - self.d_gains * (self.dof_vel - self.last_dof_vel) / self.dt
+        elif control_type == 'T':
+            torques = actions_scaled
+        else:
+            raise NameError(f'Unknown controller type: {control_type}')
+        return torch.clip(torques, -self.torque_limits, self.torque_limits)
+
+    def _reset_dofs(self, env_ids):
+        self.dof_pos[env_ids] = self.default_dof_pos * torch_rand_float(0.5, 1.5, (len(env_ids), self.num_dof), device=self.device)
+        self.dof_vel[env_ids] = 0.0
+
+        for eid in env_ids.tolist():
+            d = self.datas[eid]
+            d.qpos[self.qpos_adr_np] = self.dof_pos[eid].cpu().numpy()
+            d.qvel[self.qvel_adr_np] = 0.0
+            mujoco.mj_forward(self.models[eid], d)
+
+    def _reset_root_states(self, env_ids):
+        if self.custom_origins:
+            self.root_states[env_ids] = self.base_init_state
+            self.root_states[env_ids, :3] += self.env_origins[env_ids]
+            rand_x_low, rand_x_high = self.cfg.terrain.spawn_rand_x_range
+            rand_y_low, rand_y_high = self.cfg.terrain.spawn_rand_y_range
+            self.root_states[env_ids, 0] += torch_rand_float(rand_x_low, rand_x_high, (len(env_ids), 1), device=self.device).squeeze(1)
+            self.root_states[env_ids, 1] += torch_rand_float(rand_y_low, rand_y_high, (len(env_ids), 1), device=self.device).squeeze(1)
+        else:
+            self.root_states[env_ids] = self.base_init_state
+            self.root_states[env_ids, :3] += self.env_origins[env_ids]
+
+        yaw_low, yaw_high = self.cfg.init_state.init_yaw_range
+        if yaw_low != 0.0 or yaw_high != 0.0:
+            yaw = torch_rand_float(yaw_low, yaw_high, (len(env_ids), 1), device=self.device).squeeze(1)
+            half_yaw = 0.5 * yaw
+            yaw_quat = torch.stack(
+                (
+                    torch.cos(half_yaw),
+                    torch.zeros_like(half_yaw),
+                    torch.zeros_like(half_yaw),
+                    torch.sin(half_yaw),
+                ),
+                dim=1,
+            )
+            self.root_states[env_ids, 3:7] = quat_mul(yaw_quat, self.root_states[env_ids, 3:7])
+
+        self.root_states[env_ids, 7:13] = torch_rand_float(-0.5, 0.5, (len(env_ids), 6), device=self.device)
+
+        for eid in env_ids.tolist():
+            d = self.datas[eid]
+            root = self.root_states[eid]
+            d.qpos[self.root_qpos_adr_np : self.root_qpos_adr_np + 3] = root[:3].cpu().numpy()
+            d.qpos[self.root_qpos_adr_np + 3 : self.root_qpos_adr_np + 7] = root[3:7].cpu().numpy()
+            d.qvel[self.root_qvel_adr_np : self.root_qvel_adr_np + 6] = root[7:13].cpu().numpy()
+            mujoco.mj_forward(self.models[eid], d)
+
+    def _push_robots(self):
+        env_ids = (
+            self.episode_length_buf % int(self.cfg.domain_rand.push_interval) == 0
+        ).nonzero(as_tuple=False).flatten()
+        if len(env_ids) == 0:
+            return
+        max_vel = self.cfg.domain_rand.max_push_vel_xy
+        self.root_states[env_ids, 7:9] = torch_rand_float(
+            -max_vel, max_vel, (len(env_ids), 2), device=self.device
+        )
+        for i in env_ids.tolist():
+            self.datas[i].qvel[self.root_qvel_adr_np : self.root_qvel_adr_np + 2] = self.root_states[i, 7:9].cpu().numpy()
+
+    def _update_terrain_curriculum(self, env_ids):
+        if not self.init_done or not self.custom_origins or not hasattr(self, 'terrain_origins'):
+            return
+        distance = torch.norm(self.root_states[env_ids, :2] - self.env_origins[env_ids, :2], dim=1)
+        move_up = distance > (self.terrain.patch_length * 0.5)
+        move_down = distance < torch.norm(self.commands[env_ids, :2], dim=1) * self.max_episode_length_s * 0.5
+        move_down &= ~move_up
+        self.terrain_levels[env_ids] += move_up.long() - move_down.long()
+        self.terrain_levels[env_ids] = torch.where(
+            self.terrain_levels[env_ids] >= self.max_terrain_level,
+            torch.randint_like(self.terrain_levels[env_ids], self.max_terrain_level),
+            torch.clamp(self.terrain_levels[env_ids], min=0),
+        )
+        self.env_origins[env_ids] = self.terrain_origins[self.terrain_levels[env_ids], self.terrain_types[env_ids]]
+
+    def update_command_curriculum(self, env_ids):
+        if 'tracking_lin_vel' not in self.episode_sums:
+            return
+        if torch.mean(self.episode_sums['tracking_lin_vel'][env_ids]) / self.max_episode_length > 0.8 * self.reward_scales['tracking_lin_vel']:
+            self.command_ranges['lin_vel_x'][0] = np.clip(self.command_ranges['lin_vel_x'][0] - 0.5, -self.cfg.commands.max_curriculum, 0.0)
+            self.command_ranges['lin_vel_x'][1] = np.clip(self.command_ranges['lin_vel_x'][1] + 0.5, 0.0, self.cfg.commands.max_curriculum)
+
+    def _get_noise_scale_vec(self, cfg):
+        noise_vec = torch.zeros(self.num_obs, device=self.device)
+        self.add_noise = self.cfg.noise.add_noise
+        noise_scales = self.cfg.noise.noise_scales
+        noise_level = self.cfg.noise.noise_level
+
+        for start, end, value in (
+            (0, 3, noise_scales.ang_vel * noise_level * self.obs_scales.ang_vel),
+            (3, 6, noise_scales.gravity * noise_level),
+            (6, 9, 0.0),
+            (9, 21, noise_scales.dof_pos * noise_level * self.obs_scales.dof_pos),
+            (21, 33, noise_scales.dof_vel * noise_level * self.obs_scales.dof_vel),
+            (33, 45, 0.0),
+        ):
+            if start < self.num_obs:
+                noise_vec[start:min(end, self.num_obs)] = value
+        return noise_vec
+
+    def _init_buffers(self):
+        self._refresh_sim_tensors()
+
+        self.common_step_counter = 0
+        self.extras = {}
+        self.noise_scale_vec = self._get_noise_scale_vec(self.cfg)
+        self.gravity_vec = torch.tensor([0.0, 0.0, -1.0], device=self.device).repeat((self.num_envs, 1))
+        self.forward_vec = torch.tensor([1.0, 0.0, 0.0], device=self.device).repeat((self.num_envs, 1))
+        self.base_quat = self.root_states[:, 3:7]
+
+        self.torques = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device)
+        self.p_gains = torch.as_tensor(self._p_gains_np, dtype=torch.float, device=self.device)
+        self.d_gains = torch.as_tensor(self._d_gains_np, dtype=torch.float, device=self.device)
+        self.actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device)
+        self.last_actions = torch.zeros(self.num_envs, self.num_actions, dtype=torch.float, device=self.device)
+        self.last_dof_vel = torch.zeros_like(self.dof_vel)
+        self.last_root_vel = torch.zeros_like(self.root_states[:, 7:13])
+
+        self.commands = torch.zeros(self.num_envs, self.cfg.commands.num_commands, dtype=torch.float, device=self.device)
+        self.commands_scale = torch.tensor([self.obs_scales.lin_vel, self.obs_scales.lin_vel, self.obs_scales.ang_vel], device=self.device)
+        self.feet_air_time = torch.zeros(self.num_envs, self.feet_indices.shape[0], dtype=torch.float, device=self.device)
+        self.last_contacts = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.bool, device=self.device)
+        self.last_slip_contacts = torch.zeros_like(self.last_contacts)
+        self.last_feet_pos_world = torch.zeros(self.num_envs, len(self.feet_indices), 3, dtype=torch.float, device=self.device)
+        self.episode_foot_contact_sums = torch.zeros(self.num_envs, len(self.feet_indices), dtype=torch.float, device=self.device)
+
+        self.base_lin_vel = quat_rotate_inverse(self.base_quat, self.root_states[:, 7:10])
+        self.base_ang_vel = self.root_states[:, 10:13].clone()
+        self.projected_gravity = quat_rotate_inverse(self.base_quat, self.gravity_vec)
+
+        if self.cfg.terrain.measure_heights:
+            self.height_points = self._init_height_points()
+            self.measured_heights = self._get_heights()
+        else:
+            self.measured_heights = torch.zeros(self.num_envs, 1, device=self.device)
+
+        self.default_dof_pos = torch.as_tensor(
+            self._default_dof_pos_np, dtype=torch.float, device=self.device
+        ).unsqueeze(0)
+        hip_ids = [i for i, name in enumerate(self.dof_names) if 'hip_joint' in name]
+        self.hip_indices = torch.tensor(hip_ids, dtype=torch.long, device=self.device)
+        self.episode_hip_abs_sums = torch.zeros(self.num_envs, len(self.hip_indices), dtype=torch.float, device=self.device)
+
+        self.obs_buf = torch.zeros(self.num_envs, self.num_obs, dtype=torch.float, device=self.device)
+        self.privileged_obs_buf = None if self.num_privileged_obs is None else torch.zeros(self.num_envs, self.num_privileged_obs, dtype=torch.float, device=self.device)
+        self.rew_buf = torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        self.reset_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+        self.time_out_buf = torch.zeros(self.num_envs, dtype=torch.bool, device=self.device)
+        self.episode_length_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
+
+        self.compute_observations()
+        self.last_feet_pos_world[:] = self.feet_pos_world[:]
+
+    def _prepare_reward_function(self):
+        for key in list(self.reward_scales.keys()):
+            scale = self.reward_scales[key]
+            if scale == 0:
+                self.reward_scales.pop(key)
+            else:
+                self.reward_scales[key] *= self.dt
+
+        self.reward_functions = []
+        self.reward_names = []
+        for name, _ in self.reward_scales.items():
+            if name == 'termination':
+                continue
+            self.reward_names.append(name)
+            self.reward_functions.append(getattr(self, '_reward_' + name))
+
+        self.episode_sums = {
+            name: torch.zeros(self.num_envs, dtype=torch.float, device=self.device) for name in self.reward_scales.keys()
+        }
+
+    def _create_envs(self):
+        model_path = Path(self.cfg.asset.file.format(LEGGED_GYM_ROOT_DIR=str(ROOT_DIR)))
+        if not model_path.exists():
+            raise FileNotFoundError(f'MJCF file not found: {model_path}')
+
+        self.num_envs = self.cfg.env.num_envs
+        self.num_obs = self.cfg.env.num_observations
+        self.num_privileged_obs = self.cfg.env.num_privileged_obs
+        self.num_actions = self.cfg.env.num_actions
+
+        self.datas: List[mujoco.MjData] = []
+        self.generated_model_path = model_path
+
+        if self.terrain is not None:
+            self.generated_model_path = self.terrain.write_scene(model_path)
+
+        base_model = mujoco.MjModel.from_xml_path(str(self.generated_model_path))
+        base_model.opt.timestep = float(self.cfg.sim.dt)
+        self.model = base_model
+        # MuJoCo parameters live on MjModel rather than MjData.  Independent
+        # models are therefore required to reproduce unitree_rl_gym's
+        # per-environment friction and base-mass randomization. With both
+        # disabled, share the immutable model and keep independent MjData.
+        model_randomization_enabled = (
+            self.cfg.domain_rand.randomize_friction
+            or self.cfg.domain_rand.randomize_base_mass
+        )
+        if model_randomization_enabled:
+            self.models: List[mujoco.MjModel] = [self.model]
+            for _ in range(1, self.num_envs):
+                env_model = mujoco.MjModel.from_xml_path(str(self.generated_model_path))
+                env_model.opt.timestep = float(self.cfg.sim.dt)
+                self.models.append(env_model)
+        else:
+            self.models = [self.model] * self.num_envs
+            print(f'[MuJoCo] sharing one immutable MjModel across {self.num_envs} environments', flush=True)
+        self.num_dof = self.num_actions
+        self.num_dofs = self.num_actions
+        self.num_bodies = base_model.nbody
+
+        self.dof_names = [k for k in self.cfg.init_state.default_joint_angles.keys()]
+        self.actuator_names = [n.replace('_joint', '') for n in self.dof_names]
+        self._default_dof_pos_np = np.array(
+            [self.cfg.init_state.default_joint_angles[name] for name in self.dof_names],
+            dtype=np.float64,
+        )
+        self._p_gains_np = np.zeros(self.num_dof, dtype=np.float64)
+        self._d_gains_np = np.zeros(self.num_dof, dtype=np.float64)
+        for dof_id, name in enumerate(self.dof_names):
+            for gain_name, stiffness in self.cfg.control.stiffness.items():
+                if gain_name in name:
+                    self._p_gains_np[dof_id] = stiffness
+                    self._d_gains_np[dof_id] = self.cfg.control.damping[gain_name]
+
+        self.joint_ids_np = np.array([mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_JOINT, n) for n in self.dof_names], dtype=np.int32)
+        self.actuator_ids_np = np.array([mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_ACTUATOR, n) for n in self.actuator_names], dtype=np.int32)
+
+        self.qpos_adr_np = base_model.jnt_qposadr[self.joint_ids_np]
+        self.qvel_adr_np = base_model.jnt_dofadr[self.joint_ids_np]
+
+        self.root_joint_id_np = mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_JOINT, 'root')
+        self.root_qpos_adr_np = int(base_model.jnt_qposadr[self.root_joint_id_np])
+        self.root_qvel_adr_np = int(base_model.jnt_dofadr[self.root_joint_id_np])
+
+        self.base_body_id_np = mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_BODY, 'base')
+        self.world_body_id_np = 0
+        self._ray_geomgroup = np.ones(6, dtype=np.uint8)
+        self._ray_down_vec = np.array([0.0, 0.0, -1.0], dtype=np.float64)
+        self._ray_height_margin = 5.0
+
+        body_names = [mujoco.mj_id2name(base_model, mujoco.mjtObj.mjOBJ_BODY, i) or '' for i in range(base_model.nbody)]
+        feet_names = [s for s in body_names if self.cfg.asset.foot_name in s]
+        if len(feet_names) == 0:
+            raise RuntimeError(
+                f"No foot bodies found with foot_name='{self.cfg.asset.foot_name}'. "
+                "Please define explicit *_foot bodies in XML."
+            )
+        penalized_contact_names = []
+        for name in self.cfg.asset.penalize_contacts_on:
+            penalized_contact_names.extend([s for s in body_names if name in s])
+        termination_contact_names = []
+        for name in self.cfg.asset.terminate_after_contacts_on:
+            termination_contact_names.extend([s for s in body_names if name in s])
+
+        feet_names = sorted(set(feet_names))
+        penalized_contact_names = sorted(set(penalized_contact_names))
+        termination_contact_names = sorted(set(termination_contact_names))
+        self.foot_names = [name.lower().replace('_foot', '') for name in feet_names]
+
+        feet_ids = [mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_BODY, n) for n in feet_names]
+        penalized_ids = [mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_BODY, n) for n in penalized_contact_names]
+        # Do not penalize designated feet contacts (equivalent to LeggedGym where feet are excluded from collision penalty).
+        feet_id_set = set(feet_ids)
+        penalized_ids = [pid for pid in penalized_ids if pid not in feet_id_set]
+
+        self.feet_indices = torch.tensor(feet_ids, dtype=torch.long, device=self.device)
+        self.feet_indices_np = np.array(feet_ids, dtype=np.int32)
+        self.penalised_contact_indices = torch.tensor(penalized_ids, dtype=torch.long, device=self.device)
+        self.termination_contact_indices = torch.tensor(
+            [mujoco.mj_name2id(base_model, mujoco.mjtObj.mjOBJ_BODY, n) for n in termination_contact_names], dtype=torch.long, device=self.device
+        )
+
+        if self.termination_contact_indices.numel() == 0:
+            self.termination_contact_indices = torch.tensor([self.base_body_id_np], dtype=torch.long, device=self.device)
+
+        # ── diagnostic: dump body ID mappings ──
+        print("=" * 70)
+        print("MuJoCo Body Names (name → ID):")
+        for bid, bname in enumerate(body_names):
+            tags = []
+            if bid in feet_ids:              tags.append("FOOT")
+            if bid in penalized_ids:         tags.append("PENALTY")
+            if bid in self.termination_contact_indices.tolist(): tags.append("TERMINATE")
+            tag_str = " [" + ", ".join(tags) + "]" if tags else ""
+            print(f"  body[{bid:2d}] = {bname:20s}{tag_str}")
+
+        print(f"\nfeet_names                      = {self.foot_names}")
+        print(f"feet_ids                        = {self.feet_indices.tolist()}")
+        print(f"penalized_contact_names         = {penalized_contact_names}")
+        print(f"penalized_ids (excl feet)       = {penalized_ids}")
+        print(f"self.penalised_contact_indices  = {self.penalised_contact_indices.tolist()}")
+        print(f"termination_contact_names       = {termination_contact_names}")
+        print(f"termination_contact_indices     = {self.termination_contact_indices.tolist()}")
+        print(f"base_body_id_np                 = {self.base_body_id_np}")
+        print(f"world_body_id_np                = {self.world_body_id_np}")
+        print(f"dof_names                       = {self.dof_names}")
+        print(f"num_obs / num_priv_obs / num_act = {self.num_obs} / {self.num_privileged_obs} / {self.num_actions}")
+        print("=" * 70, flush=True)
+
+        self.dof_pos_limits = torch.tensor(base_model.jnt_range[self.joint_ids_np], dtype=torch.float, device=self.device)
+        self.torque_limits = torch.tensor(base_model.jnt_actfrcrange[self.joint_ids_np, 1], dtype=torch.float, device=self.device)
+        # MuJoCo MJCF does not expose per-joint velocity limits in this model; use a conservative default.
+        self.dof_vel_limits = torch.full((self.num_dof,), 100.0, dtype=torch.float, device=self.device)
+        self.hip_names = [name.lower().replace('_joint', '') for name in self.dof_names if 'hip_joint' in name]
+
+        self.base_body_mass = float(base_model.body_mass[self.base_body_id_np])
+        self._flat_world_plane_only = self._detect_flat_world_plane_only(base_model)
+
+        if self.cfg.domain_rand.randomize_friction:
+            friction_range = self.cfg.domain_rand.friction_range
+            num_buckets = 64
+            bucket_ids = torch.randint(0, num_buckets, (self.num_envs,))
+            buckets = torch_rand_float(
+                friction_range[0], friction_range[1], (num_buckets,), device='cpu'
+            )
+            friction_coeffs = buckets[bucket_ids].cpu().numpy()
+            for env_id, model in enumerate(self.models):
+                model.geom_friction[:, 0] = float(friction_coeffs[env_id])
+
+        if self.cfg.domain_rand.randomize_base_mass:
+            mass_range = self.cfg.domain_rand.added_mass_range
+            for model in self.models:
+                delta = np.random.uniform(mass_range[0], mass_range[1])
+                model.body_mass[self.base_body_id_np] = max(
+                    0.1, self.base_body_mass + delta
+                )
+
+        self._get_env_origins()
+        base_init_state_list = self.cfg.init_state.pos + [self.cfg.init_state.rot[3], self.cfg.init_state.rot[0], self.cfg.init_state.rot[1], self.cfg.init_state.rot[2]] + self.cfg.init_state.lin_vel + self.cfg.init_state.ang_vel
+        self.base_init_state = torch.tensor(base_init_state_list, device=self.device, dtype=torch.float)
+
+        for model in self.models:
+            self.datas.append(mujoco.MjData(model))
+
+        batch_threads = int(getattr(self.cfg.sim, 'mujoco_batch_threads', 16))
+        if batch_threads <= 0:
+            batch_threads = min(16, self.num_envs)
+        self._mujoco_batch_stepper = MuJoCoBatchStepper(
+            self.models,
+            self.datas,
+            actuator_ids=self.actuator_ids_np,
+            qpos_adr=self.qpos_adr_np,
+            qvel_adr=self.qvel_adr_np,
+            root_qpos_adr=self.root_qpos_adr_np,
+            root_qvel_adr=self.root_qvel_adr_np,
+            feet_body_ids=self.feet_indices_np,
+            world_body_id=self.world_body_id_np,
+            num_bodies=self.num_bodies,
+            decimation=self.cfg.control.decimation,
+            thread_count=batch_threads,
+            control_type=self.cfg.control.control_type,
+            action_scale=self.cfg.control.action_scale,
+            p_gains=self._p_gains_np,
+            d_gains=self._d_gains_np,
+            default_dof_pos=self._default_dof_pos_np,
+            torque_limits=self.torque_limits.numpy(),
+        )
+        print(
+            f'[MuJoCo batch] envs={self.num_envs} threads={self._mujoco_batch_stepper.thread_count} '
+            f'persistent_workers={self._mujoco_batch_stepper.worker_count}',
+            flush=True,
+        )
+
+    def _detect_flat_world_plane_only(self, model):
+        world_geom_ids = np.where(model.geom_bodyid == self.world_body_id_np)[0]
+        if len(world_geom_ids) == 0:
+            return False
+        world_geom_types = model.geom_type[world_geom_ids]
+        if not np.all(world_geom_types == mujoco.mjtGeom.mjGEOM_PLANE):
+            return False
+        world_geom_quats = model.geom_quat[world_geom_ids]
+        identity_quat = np.array([1.0, 0.0, 0.0, 0.0], dtype=np.float64)
+        return bool(np.allclose(world_geom_quats, identity_quat, atol=1e-8))
+
+    def _get_env_origins(self):
+        if self.terrain is not None:
+            self.custom_origins = True
+            self.env_origins = torch.zeros(self.cfg.env.num_envs, 3, device=self.device)
+            max_init_level = min(self.cfg.terrain.max_init_terrain_level, self.cfg.terrain.num_rows - 1)
+            if not self.cfg.terrain.curriculum:
+                max_init_level = self.cfg.terrain.num_rows - 1
+            self.terrain_levels = torch.randint(0, max_init_level + 1, (self.num_envs,), device=self.device)
+            envs_per_col = max(1, math.ceil(self.num_envs / self.cfg.terrain.num_cols))
+            self.terrain_types = torch.div(
+                torch.arange(self.num_envs, device=self.device),
+                envs_per_col,
+                rounding_mode='floor',
+            ).clamp(max=self.cfg.terrain.num_cols - 1).to(torch.long)
+            self.max_terrain_level = self.cfg.terrain.num_rows
+            self.terrain_origins = torch.from_numpy(self.terrain.env_origins).to(self.device).to(torch.float)
+            self.env_origins[:] = self.terrain_origins[self.terrain_levels, self.terrain_types]
+            return
+
+        self.custom_origins = False
+        self.env_origins = torch.zeros(self.cfg.env.num_envs, 3, device=self.device)
+        num_cols = np.floor(np.sqrt(self.cfg.env.num_envs))
+        num_rows = np.ceil(self.cfg.env.num_envs / num_cols)
+        xx, yy = torch.meshgrid(torch.arange(int(num_rows), device=self.device), torch.arange(int(num_cols), device=self.device), indexing='ij')
+        spacing = self.cfg.env.env_spacing
+        self.env_origins[:, 0] = spacing * xx.flatten()[: self.cfg.env.num_envs]
+        self.env_origins[:, 1] = spacing * yy.flatten()[: self.cfg.env.num_envs]
+        self.env_origins[:, 2] = 0.0
+        self.terrain_levels = torch.zeros(self.cfg.env.num_envs, dtype=torch.long, device=self.device)
+
+    def _parse_cfg(self, cfg):
+        sim_dt = cfg.sim.dt if self.sim_params is None else self.sim_params.dt
+        self.dt = self.cfg.control.decimation * sim_dt
+        self.obs_scales = self.cfg.normalization.obs_scales
+        self.reward_scales = class_to_dict(self.cfg.rewards.scales)
+        self.command_ranges = class_to_dict(self.cfg.commands.ranges)
+
+        if self.cfg.terrain.mesh_type not in ['heightfield', 'trimesh']:
+            self.cfg.terrain.curriculum = False
+
+        self.max_episode_length_s = self.cfg.env.episode_length_s
+        self.max_episode_length = int(np.ceil(self.max_episode_length_s / self.dt))
+        self.cfg.domain_rand.push_interval = int(np.ceil(self.cfg.domain_rand.push_interval_s / self.dt))
+
+    def _sync_dt_with_model(self):
+        # Use MuJoCo model timestep as source of truth to avoid cfg/xml mismatch.
+        if hasattr(self, 'model'):
+            sim_dt = float(self.model.opt.timestep)
+            self.dt = self.cfg.control.decimation * sim_dt
+            self.max_episode_length = int(np.ceil(self.max_episode_length_s / self.dt))
+            self.cfg.domain_rand.push_interval = int(np.ceil(self.cfg.domain_rand.push_interval_s / self.dt))
+
+    def _init_height_points(self):
+        y = torch.tensor(self.cfg.terrain.measured_points_y, device=self.device)
+        x = torch.tensor(self.cfg.terrain.measured_points_x, device=self.device)
+        grid_x, grid_y = torch.meshgrid(x, y, indexing='ij')
+
+        self.num_height_points = grid_x.numel()
+        points = torch.zeros(self.num_envs, self.num_height_points, 3, device=self.device)
+        points[:, :, 0] = grid_x.flatten()
+        points[:, :, 1] = grid_y.flatten()
+        return points
+
+    def _get_heights(self, env_ids=None):
+        if env_ids is None:
+            env_ids_tensor = torch.arange(self.num_envs, device=self.device)
+        else:
+            env_ids_tensor = env_ids if isinstance(env_ids, torch.Tensor) else torch.as_tensor(env_ids, device=self.device, dtype=torch.long)
+
+        num_height_points = getattr(self, 'num_height_points', 1)
+        if num_height_points == 0:
+            return torch.zeros(len(env_ids_tensor), 0, dtype=torch.float, device=self.device)
+
+        if self._flat_world_plane_only:
+            return torch.zeros(len(env_ids_tensor), num_height_points, dtype=torch.float, device=self.device)
+
+        base_quat = self.base_quat[env_ids_tensor]
+        height_points = self.height_points[env_ids_tensor]
+        world_points = quat_apply_yaw(base_quat.repeat_interleave(self.num_height_points, dim=0), height_points.reshape(-1, 3))
+        world_points = world_points.reshape(len(env_ids_tensor), self.num_height_points, 3)
+        world_points += self.root_states[env_ids_tensor, :3].unsqueeze(1)
+
+        heights = torch.zeros(len(env_ids_tensor), self.num_height_points, dtype=torch.float, device=self.device)
+        geomid = np.zeros(1, dtype=np.int32)
+
+        for out_i, env_id in enumerate(env_ids_tensor.tolist()):
+            model = self.models[env_id]
+            data = self.datas[env_id]
+            points_np = world_points[out_i].cpu().numpy()
+            ray_origin_z = float(max(self.root_states[env_id, 2].item() + self._ray_height_margin, 5.0))
+            for point_i in range(self.num_height_points):
+                ray_origin = np.array([points_np[point_i, 0], points_np[point_i, 1], ray_origin_z], dtype=np.float64)
+                dist = mujoco.mj_ray(
+                    model,
+                    data,
+                    ray_origin,
+                    self._ray_down_vec,
+                    self._ray_geomgroup,
+                    1,
+                    self.base_body_id_np,
+                    geomid,
+                )
+                if dist >= 0.0:
+                    heights[out_i, point_i] = ray_origin_z - float(dist)
+
+        return heights
+
+    def _reward_lin_vel_z(self):
+        return torch.square(self.base_lin_vel[:, 2])
+
+    def _reward_ang_vel_xy(self):
+        return torch.sum(torch.square(self.base_ang_vel[:, :2]), dim=1)
+
+    def _reward_orientation(self):
+        return torch.sum(torch.square(self.projected_gravity[:, :2]), dim=1)
+
+    def _reward_base_height(self):
+        base_height = torch.mean(self.root_states[:, 2].unsqueeze(1) - self.measured_heights, dim=1)
+        return torch.square(base_height - self.cfg.rewards.base_height_target)
+
+    def _reward_torques(self):
+        return torch.sum(torch.square(self.torques), dim=1)
+
+    def _reward_dof_vel(self):
+        return torch.sum(torch.square(self.dof_vel), dim=1)
+
+    def _reward_dof_acc(self):
+        return torch.sum(torch.square((self.last_dof_vel - self.dof_vel) / self.dt), dim=1)
+
+    def _reward_action_rate(self):
+        return torch.sum(torch.square(self.last_actions - self.actions), dim=1)
+
+    def _reward_action_magnitude(self):
+        """Penalize sustained large policy outputs, including constant saturation."""
+        return torch.sum(torch.square(self.actions), dim=1)
+
+    def _reward_collision(self):
+        if self.penalised_contact_indices.numel() == 0:
+            return torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        return torch.sum(
+            (torch.norm(self.contact_forces[:, self.penalised_contact_indices, :], dim=-1) > 0.1).float(),
+            dim=1,
+        )
+
+    def _reward_termination(self):
+        return self.reset_buf * (~self.time_out_buf)
+
+    def _reward_dof_pos_limits(self):
+        out_of_limits = -(self.dof_pos - self.dof_pos_limits[:, 0]).clip(max=0.0)
+        out_of_limits += (self.dof_pos - self.dof_pos_limits[:, 1]).clip(min=0.0)
+        return torch.sum(out_of_limits, dim=1)
+
+    def _reward_dof_vel_limits(self):
+        return torch.sum(
+            (torch.abs(self.dof_vel) - self.dof_vel_limits * self.cfg.rewards.soft_dof_vel_limit).clip(min=0.0, max=1.0),
+            dim=1,
+        )
+
+    def _reward_torque_limits(self):
+        return torch.sum(
+            (torch.abs(self.torques) - self.torque_limits * self.cfg.rewards.soft_torque_limit).clip(min=0.0),
+            dim=1,
+        )
+
+    def _reward_tracking_lin_vel(self):
+        lin_vel_error = torch.sum(torch.square(self.commands[:, :2] - self.base_lin_vel[:, :2]), dim=1)
+        return torch.exp(-lin_vel_error / self.cfg.rewards.tracking_sigma)
+
+    def _reward_tracking_ang_vel(self):
+        ang_vel_error = torch.square(self.commands[:, 2] - self.base_ang_vel[:, 2])
+        return torch.exp(-ang_vel_error / self.cfg.rewards.tracking_sigma)
+
+    def _reward_feet_air_time(self):
+        contact = self.foot_ground_contact
+        contact_filt = torch.logical_or(contact, self.last_contacts)
+        first_contact = (self.feet_air_time > 0.0) * contact_filt
+        self.feet_air_time += self.dt
+        rewarded_air_time = torch.clamp(
+            self.feet_air_time - self.cfg.rewards.feet_air_time_threshold,
+            min=0.0,
+            max=self.cfg.rewards.feet_air_time_reward_cap,
+        )
+        rew_air_time = torch.sum(rewarded_air_time * first_contact, dim=1)
+        rew_air_time *= torch.norm(self.commands[:, :2], dim=1) > 0.1
+        self.feet_air_time *= ~contact_filt
+        self.last_contacts = contact.clone()
+        self._last_feet_air_time_reward = rew_air_time.detach()
+        return rew_air_time
+
+    def _reward_feet_slip(self):
+        """Penalize horizontal foot motion only during persistent contact."""
+        contact = self.foot_ground_contact
+        stable_contact = torch.logical_and(contact, self.last_slip_contacts)
+        foot_velocity_xy = (
+            self.feet_pos_world[:, :, :2] - self.last_feet_pos_world[:, :, :2]
+        ) / self.dt
+        speed_sq = torch.sum(torch.square(foot_velocity_xy), dim=2)
+        speed_sq = torch.clamp(
+            speed_sq, max=self.cfg.rewards.feet_slip_speed_sq_cap
+        )
+        reward = torch.sum(speed_sq * stable_contact.float(), dim=1)
+        self.last_slip_contacts = contact.clone()
+        return reward
+
+    def _reward_stumble(self):
+        return torch.any(
+            torch.norm(self.contact_forces[:, self.feet_indices, :2], dim=2)
+            > 5 * torch.abs(self.contact_forces[:, self.feet_indices, 2]),
+            dim=1,
+        )
+
+    def _reward_stand_still(self):
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1) * (torch.norm(self.commands[:, :3], dim=1) < 0.1)
+
+    def _reward_default_pos(self):
+        return torch.sum(torch.abs(self.dof_pos - self.default_dof_pos), dim=1)
+
+    def _reward_hip_pos(self):
+        if self.hip_indices.numel() == 0:
+            return torch.zeros(self.num_envs, dtype=torch.float, device=self.device)
+        hip_pos = self.dof_pos[:, self.hip_indices]
+        hip_default = self.default_dof_pos[:, self.hip_indices]
+        return torch.sum(torch.abs(hip_pos - hip_default), dim=1)
+
+    def _update_episode_diagnostics(self):
+        if self.feet_indices.numel() > 0:
+            self.episode_foot_contact_sums += self.foot_ground_contact.float()
+        if self.hip_indices.numel() > 0:
+            hip_pos = self.dof_pos[:, self.hip_indices]
+            hip_default = self.default_dof_pos[:, self.hip_indices]
+            self.episode_hip_abs_sums += torch.abs(hip_pos - hip_default)
+
+    def _post_physics_step_tasks(self):
+        return None
+
+    def _update_task_termination(self):
+        return None
+
+    def _update_task_episode_extras(self, env_ids):
+        return None
+
+    def _reset_task_buffers(self, env_ids):
+        return None
+
+    def _reward_feet_contact_forces(self):
+        return torch.sum(
+            (torch.norm(self.contact_forces[:, self.feet_indices, :], dim=-1) - self.cfg.rewards.max_contact_force).clip(min=0.0),
+            dim=1,
+        )
+
+    def reset(self, env_ids=None):
+        if env_ids is None:
+            env_ids = torch.arange(self.num_envs, device=self.device)
+        self.reset_idx(env_ids)
+        self.compute_observations()
+        return self.obs_buf, self.privileged_obs_buf
+
+    def get_observations(self):
+        return self.obs_buf
+
+    def get_privileged_observations(self):
+        return self.privileged_obs_buf
+
+    def _refresh_sim_tensors(self):
+        (
+            root_states,
+            dof_pos,
+            dof_vel,
+            contact_forces,
+            feet_pos_world,
+            body_ground_contact,
+            foot_ground_contact,
+        ) = self._mujoco_batch_stepper.collect()
+        # Persistent float32/bool buffers make the CPU Torch handoff zero-copy.
+        self.root_states = torch.from_numpy(root_states)
+        self.dof_pos = torch.from_numpy(dof_pos)
+        self.dof_vel = torch.from_numpy(dof_vel)
+        self.contact_forces = torch.from_numpy(contact_forces)
+        self.feet_pos_world = torch.from_numpy(feet_pos_world)
+        self.body_ground_contact = torch.from_numpy(body_ground_contact)
+        self.foot_ground_contact = torch.from_numpy(foot_ground_contact)

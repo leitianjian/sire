@@ -9,7 +9,6 @@ target_include_directories(${sire_demo}
 	PRIVATE
 		${aris_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR}
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
 target_link_libraries(${sire_demo}
@@ -24,6 +23,7 @@ target_link_libraries(${sire_demo}
 		sire_physics
 		sire_actuator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 		PRIVATE ftxui::screen
 		PRIVATE ftxui::dom
 		PRIVATE ftxui::component # Not needed for this example.

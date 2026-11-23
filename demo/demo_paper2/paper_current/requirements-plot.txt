@@ -1,0 +1,6 @@
+numpy>=1.24
+matplotlib>=3.7
+SciencePlots>=2.1
+Pillow>=10
+pypdf>=5
+# Fig. 2 cropping also requires the pdftoppm executable (Poppler).

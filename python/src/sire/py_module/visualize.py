@@ -5,7 +5,14 @@ import meshcat.geometry as g
 import meshcat.transformations as tf
 from meshcat.animation import Animation
 from scipy.spatial.transform import Rotation as R
-from scipy.spatial.transform import RigidTransform as TF
+try:
+    from scipy.spatial.transform import RigidTransform as TF
+except ImportError:
+    # RigidTransform requires scipy>=1.16 (Python>=3.11). Only used by
+    # pe3132tfmatrix / s_pe_dot_pe, which the sim2sim pipeline does not call.
+    TF = None
+from PIL import Image
+from meshcat.geometry import TriangularMeshGeometry
 
 def pq2tfmatrix(pq):
   """
@@ -32,6 +39,157 @@ def pe3132tfmatrix(pe):
                 rotation=R.from_euler("ZXZ", pe[3:], degrees=False))
   return tf1.as_matrix().flatten()
 
+def buildHFieldMeshHeights(width, depth, nrow, ncol, heights):
+    # 生成顶点
+    x_vals = np.linspace(-width / 2, width / 2, ncol)
+    y_vals = np.linspace(depth/2, -depth/2, nrow)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+    zz = np.array(heights).reshape(nrow, ncol)
+
+    vertices = np.stack([xx.ravel(), yy.ravel(), zz.ravel()], axis=1).astype(np.float32)
+
+    # 生成三角面索引
+    faces = []
+    for r in range(nrow - 1):
+        for c in range(ncol - 1):
+            a = r * ncol + c
+            b = a + 1
+            c_idx = a + ncol
+            d = c_idx + 1
+            faces.append([a, b, d])
+            faces.append([a, d, c_idx])
+    faces = np.array(faces, dtype=np.uint32)
+
+    return TriangularMeshGeometry(vertices, faces)
+
+
+def buildHFieldMeshFull(width, depth, nrow, ncol, heights, min_height):
+    """
+    生成 HeightField 的完整碰撞几何可视化网格，包括：
+      - 顶面（实际高度）
+      - 底面（min_height）
+      - 四个侧面（连接顶面和底面边缘）
+
+    min_height 即 coal 中 HeightField 的底面 z 坐标（本地坐标系）。
+    """
+    x_vals = np.linspace(-width / 2, width / 2, ncol)
+    y_vals = np.linspace(depth / 2, -depth / 2, nrow)
+    xx, yy = np.meshgrid(x_vals, y_vals)
+    zz_top = np.array(heights).reshape(nrow, ncol).astype(np.float32)
+
+    N = nrow * ncol  # 每层顶点数
+
+    # ---- 顶点：先顶面，再底面 ----
+    top_v = np.stack([xx.ravel(), yy.ravel(), zz_top.ravel()], axis=1)
+    bot_v = np.stack(
+        [xx.ravel(), yy.ravel(), np.full(N, min_height, dtype=np.float32)],
+        axis=1,
+    )
+    vertices = np.concatenate([top_v, bot_v], axis=0)
+
+    faces = []
+
+    # ---- 顶面 (法线朝上) ----
+    for r in range(nrow - 1):
+        for c in range(ncol - 1):
+            a = r * ncol + c
+            b = a + 1
+            d = a + ncol
+            e = d + 1
+            faces.append([a, b, e])
+            faces.append([a, e, d])
+
+    # ---- 底面 (法线朝下，翻转绕序) ----
+    for r in range(nrow - 1):
+        for c in range(ncol - 1):
+            a = N + r * ncol + c
+            b = a + 1
+            d = a + ncol
+            e = d + 1
+            faces.append([a, e, b])
+            faces.append([a, d, e])
+
+    # ---- 侧面 ----
+    # +y 侧边 (y = +depth/2, row=0)
+    for c in range(ncol - 1):
+        t0 = 0 * ncol + c          # top, row=0
+        t1 = t0 + 1
+        b0 = N + t0                # bottom, row=0
+        b1 = N + t1
+        faces.append([t0, b0, b1])
+        faces.append([t0, b1, t1])
+
+    # -y 侧边 (y = -depth/2, row=nrow-1)
+    for c in range(ncol - 1):
+        t0 = (nrow - 1) * ncol + c
+        t1 = t0 + 1
+        b0 = N + t0
+        b1 = N + t1
+        faces.append([t0, t1, b1])
+        faces.append([t0, b1, b0])
+
+    # -x 侧边 (x = -width/2, col=0)
+    for r in range(nrow - 1):
+        t0 = r * ncol + 0
+        t1 = (r + 1) * ncol + 0
+        b0 = N + t0
+        b1 = N + t1
+        faces.append([t0, t1, b1])
+        faces.append([t0, b1, b0])
+
+    # +x 侧边 (x = +width/2, col=ncol-1)
+    for r in range(nrow - 1):
+        t0 = r * ncol + (ncol - 1)
+        t1 = (r + 1) * ncol + (ncol - 1)
+        b0 = N + t0
+        b1 = N + t1
+        faces.append([t0, b0, b1])
+        faces.append([t0, b1, t1])
+
+    faces = np.array(faces, dtype=np.uint32)
+    return TriangularMeshGeometry(vertices, faces)
+
+def buildHFieldMeshPNG(png_path, width, depth, scale_z):
+    """
+    按照 MuJoCo 的 hfield 归一化方式从 PNG 生成三角网格。
+
+    png_path  : MuJoCo 输出的高度场 PNG
+    width     : 地形全长（X 方向，米）
+    depth     : 地形全长（Y 方向，米）
+    scale_z   : 高度缩放（对应 MuJoCo geom.size[2]）
+    pos_z     : 垂直偏移（对应 MuJoCo geom.pos.z）
+    """
+    # 1. 读取 PNG 并转换为 [0, 1]（MuJoCo 用红色通道或灰度，256 或 65535）
+    img = Image.open(png_path)
+    if img.mode in ('I', 'I;16'):
+        # 16 位灰度
+        pixels = np.array(img, dtype=np.float64) / 65535.0
+    elif img.mode == 'L':
+        pixels = np.array(img, dtype=np.float64) / 255.0
+    else:
+        # RGB/RGBA -> 取红色通道
+        pixels = np.array(img.convert('RGB'))[:, :, 0].astype(np.float64) / 255.0
+
+    # 2. MuJoCo 风格的 min‑max 归一化到 [0, 1]
+    emin = pixels.min()
+    emax = pixels.max()
+    if emin > emax:
+        raise ValueError("Invalid height field data: min > max")
+    pixels -= emin
+    if emax - emin > 1e-10:  # MuJoCo 中用的是 mjEPS ≈ 1e-10
+        pixels /= (emax - emin)
+
+    rows, cols = pixels.shape
+
+    # 3. 生成顶点（局部坐标，中心在 origin）
+    # x_vals = np.linspace(-width / 2, width / 2, cols)
+    # y_vals = np.linspace(-depth / 2, depth / 2, rows)
+    # y_vals = np.linspace(depth/2, -depth/2, rows)    # 修正后
+    # xx, yy = np.meshgrid(x_vals, y_vals)
+    zz = pixels * scale_z
+
+    return buildHFieldMeshHeights(width, depth, rows, cols, zz)
+
 def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
   robot = vis['robot']
   partInitConfig = displayInitJson['part_init_config']
@@ -47,7 +205,7 @@ def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
       material = g.MeshPhongMaterial(color=0x0660FF)
     else:
       material = g.MeshPhongMaterial(color=0xD4D4D4)
-    if i == 0:
+    if str(geometry['part_id']) == "0":
       material = g.MeshPhongMaterial(color=0x755338)
     if(geometry['shape_type'] == 'box'):
       meshcatGeo.set_object(g.Box([geometry['length'], geometry['width'], geometry['height']]), material=material)
@@ -57,6 +215,15 @@ def robotInit(numLinks, resourcePath: str, displayInitJson, vis):
       meshcatGeo.set_object(g.Cylinder(geometry['length'], geometry['radius']), material=material)
     elif(geometry['shape_type'] == 'sphere'):
       meshcatGeo.set_object(g.Sphere(geometry['radius']), material=material)
+    elif(geometry['shape_type'] == 'hfield'):
+      meshcatGeo.set_object(buildHFieldMeshFull(
+        width=geometry['x_dim'],
+        depth=geometry['y_dim'],
+        nrow=geometry['nrow'],
+        ncol=geometry['ncol'],
+        heights=geometry['heights'],
+        min_height=geometry.get('min_height', 0.0),
+      ), material=material)
     elif(geometry['shape_type'] == 'mesh'):
       ext = geometry['resource_path'].split('.')[-1]
       if ext == 'stl' or ext == 'STL':

@@ -600,7 +600,7 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
   std::vector<double> pois(numberSlices * alphaVec.size());
   for (int i{0}; i < alphaVec.size(); ++i) {
     double maxValue = 8 * sire::PI / alphaVec[i];
-    for (int j{0}; j < numberSlices; ++ j) {
+    for (int j{0}; j < numberSlices; ++j) {
       pois[numberSlices * i + j] = j * maxValue / numberSlices;
     }
     // pois[8 * i] = 0.25 * temp;
@@ -629,10 +629,12 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
     cptFormulaXComposeAb(n2 + 1, Ab.data(), poi, x01.data(), x1t.data());
     DLOG(DEBUG) << "poi: " << poi << " "
                 << (std::find_if(x1t.begin(), depthEnd,
-                                 [](double x) { return x < 0; }) == depthEnd) << " " << x1t;
+                                 [](double x) { return x < 0; }) == depthEnd)
+                << " " << x1t;
     if (std::find_if(x1t.begin(), depthEnd, [](double x) { return x < 0; }) ==
         depthEnd) {
-      // if (std::find_if(depthEnd, velocityEnd, [](double x) { return x < 0; }) !=
+      // if (std::find_if(depthEnd, velocityEnd, [](double x) { return x < 0; })
+      // !=
       //   velocityEnd) {
       //   if(minStartDecrease == 0) {
       //     minStartDecrease = poi;
@@ -663,8 +665,10 @@ auto findMinRootBisection(sire::Size nContact, const double* A, const double* b,
   //     cptFormulaXComposeAb(n2 + 1, Ab.data(), poi, x01.data(), x1t.data());
   //     DLOG(DEBUG) << "poi: " << poi << " "
   //                 << (std::find_if(x1t.begin(), depthEnd,
-  //                                  [](double x) { return x < 0; }) == depthEnd) << " " << x1t;
-  //     if (std::find_if(x1t.begin(), depthEnd, [](double x) { return x < 0; }) ==
+  //                                  [](double x) { return x < 0; }) ==
+  //                                  depthEnd) << " " << x1t;
+  //     if (std::find_if(x1t.begin(), depthEnd, [](double x) { return x < 0; })
+  //     ==
   //         depthEnd) {
   //       lowerBound = poi;  // x向量元素全部大于零
   //       continue;
@@ -1362,7 +1366,7 @@ auto filterPairsAndPreprocessInfo(
   // }
   for (sire::Size i{0}; i < contactNotEnd.size(); ++i) {
     auto& pair = contactNotEnd[i];
-    if (auto& search =
+    if (auto search =
             std::find_if(penetration_pairs.begin(), penetration_pairs.end(),
                          [&pair](const common::PenetrationAsPointPair& p) {
                            return pair.compareById(p);
@@ -1440,7 +1444,7 @@ auto filterPairsAndPreprocessInfo(
 }
 
 struct ContactPositionForceSolver::Imp {
-  unique_ptr<core::MaterialManager> material_manager_;
+  std::unique_ptr<core::MaterialManager> material_manager_;
   nlohmann::json records;
   // 消耗系数
   double default_cr_;
@@ -1511,13 +1515,11 @@ auto ContactPositionForceSolver::debugByRecords() -> nlohmann::json {
   // std::cout << "records: " << imp_->records.dump(2) << std::endl;
   return imp_->records;
 }
-
-auto cptNormalContactForceByX0X1t(
+auto cptNormalContactForceByX0X1tPos(
     Size n, const double* x0, const double* x1t,
     Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd>& cod,
     const double* b, double minTime, double stiffScale,
-    std::vector<double>& contactPosFce, std::vector<double>& contactVelFce)
-    -> void {
+    std::vector<double>& contactPosFce) -> void {
   // 使用目标位置计算接触力
   std::vector<double> temp1(x1t, x1t + n);
   aris::dynamic::s_vs(n, x0, temp1.data());
@@ -1531,6 +1533,12 @@ auto cptNormalContactForceByX0X1t(
   Eigen::VectorXd contactPosForce = cod.solve(a0tVec);
   contactPosFce.assign(contactPosForce.data(),
                        contactPosForce.data() + contactPosForce.size());
+}
+auto cptNormalContactForceByX0X1tVel(
+    Size n, const double* x0, const double* x1t,
+    Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd>& cod,
+    const double* b, double minTime, double stiffScale,
+    std::vector<double>& contactVelFce) -> void {
   // 使用目标速度计算接触力
   std::vector<double> temp2(x1t + n, x1t + 2 * n);
   aris::dynamic::s_vs(n, x0 + n, temp2.data());
@@ -1708,7 +1716,7 @@ auto ContactPositionForceSolver::cptContactSolverResult(
           invCpi[2 * i * n2 + j * 2 + 1] + invCpi[(2 * i + 1) * n2 + j * 2];
     }
   }
-
+  DLOG(DEBUG) << "invM: " << invM;
   // std::vector<double> temp1(x1t.data(), x1t.data() + n);
   // aris::dynamic::s_vs(n, x0.data(), temp1.data());
   // aris::dynamic::s_nv(n, stiffScale / minTime, temp1.data());
@@ -1742,29 +1750,39 @@ auto ContactPositionForceSolver::cptContactSolverResult(
   Eigen::MatrixXd invMMat =
       Eigen::Map<Eigen::MatrixXd>(const_cast<double*>(invM.data()), n, n);
   Eigen::CompleteOrthogonalDecomposition<Eigen::MatrixXd> cod(invMMat);
-  std::vector<double> contactPosFce(n), contactVelFce(n);
-  cptNormalContactForceByX0X1t(n, x0.data(), x1t.data(), cod, b.data(), minTime,
-                               stiffScale, contactPosFce, contactVelFce);
-  std::vector<double> avgFce(n);
-  cptAvgContactFce(n, A.data(), b.data(), x0.data(), 0, minTime,
-                   stiffness.data(), damping.data(), avgFce.data());
-  DLOG(DEBUG) << "(modified x0) Contact position force: " << contactPosFce
-              << " Contact veclocity force: " << contactVelFce
-              << " avgFce: " << avgFce;
+  // std::vector<double> contactPosFce(n), contactVelFce(n);
+  // cptNormalContactForceByX0X1t(n, x0.data(), x1t.data(), cod, b.data(),
+  // minTime,
+  //                              stiffScale, contactPosFce, contactVelFce);
+  // std::vector<double> avgFce(n);
+  // cptAvgContactFce(n, A.data(), b.data(), x0.data(), 0, minTime,
+  //                  stiffness.data(), damping.data(), avgFce.data());
+  // DLOG(DEBUG) << "(modified x0) Contact position force: " << contactPosFce
+  //             << " Contact veclocity force: " << contactVelFce
+  //             << " avgFce: " << avgFce;
 
   DLOG(DEBUG) << "Real x0: " << realX0;
-  std::vector<double> contactPosFce2(n), contactVelFce2(n);
-  cptNormalContactForceByX0X1t(n, realX0.data(), x1t.data(), cod, b.data(),
-                               minTime, stiffScale, contactPosFce2,
-                               contactVelFce2);
-  DLOG(DEBUG) << "(real x0) Contact position force: " << contactPosFce2
-              << " Contact veclocity force: " << contactVelFce2;
+  DLOG(DEBUG) << "x1: " << x1t;
+  std::vector<double> contactVelFce2(n);
+  cptNormalContactForceByX0X1tVel(n, realX0.data(), x1t.data(), cod, b.data(),
+                                  minTime, stiffScale, contactVelFce2);
+  // cptNormalContactForceByX0X1t(n, realX0.data(), x1t.data(), cod, b.data(),
+  //                              minTime, stiffScale, contactPosFce2,
+  //                              contactVelFce2);
+  // DLOG(DEBUG) << "(real x0) Contact position force: " << contactPosFce2
+  //             << " Contact velocity force: " << contactVelFce2;
+  DLOG(DEBUG) << "(real x0) Contact velocity force: " << contactVelFce2;
+
   for (sire::Size i{0}; i < n; ++i) {
     sire::Size idx = preservedPairsIdx[i];
     const common::PenetrationAsPointPair& pair = penetration_pairs[idx];
     // 用pos可能会有问题，因为在平衡状态下，速度可能没有被抵消，
     // 后续可能要综合pos 和 vel，给velFce加上一个pos的约束稳定项
-    result.fn[idx] = contactVelFce2[i];
+    if (contactVelFce2[i] < 0) {
+      result.fn[idx] = 0;
+    } else {
+      result.fn[idx] = contactVelFce2[i];
+    }
   }
   std::vector<double> ftVec(n2 * 2, 0);
   for (sire::Size i{0}, ftIdx{0}; i < n; ++i) {

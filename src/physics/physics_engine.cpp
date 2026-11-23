@@ -1,7 +1,12 @@
 #include "sire/physics/physics_engine.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <map>
+#include <memory>
+#include <stdexcept>
+#include <unordered_map>
 
 #include <aris/core/reflection.hpp>
 #include <aris/core/serialization.hpp>
@@ -13,12 +18,14 @@
 #include "sire/actuator/actuator.hpp"
 #include "sire/core/force_screw.hpp"
 #include "sire/core/geometry/geometry_base.hpp"
+#include "sire/core/profiler.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/middleware/sire_middleware.hpp"
 #include "sire/physics/collision/collision_detection.hpp"
 #include "sire/physics/common/penetration_as_point_pair.hpp"
 #include "sire/physics/common/point_pair_contact_info.hpp"
 #include "sire/physics/contact/contact_solver_result.hpp"
+#include "sire/simulator/simulation_loop.hpp"
 // #include "sire/physics/contact/stiffness_damping_contact_solver.hpp"
 #include "sire/physics/contact/avg_force_contact_solver.hpp"
 #include "sire/physics/geometry/box_collision_geometry.hpp"
@@ -30,7 +37,6 @@
 #include "log/easyloggingConfig.hpp"
 
 namespace sire::physics {
-using namespace std;
 // 在创建的时候记录 fce 的激活状态
 // 并在销毁的时候将记录的状态设置回去，放置在方法调用时放置过程中修改导致的状态不一致
 class FceActiveStateRecorder {
@@ -51,30 +57,40 @@ struct PhysicsEngine::Imp {
   bool collision_detection_flag_{false};
   // Contact solver enabled options
   bool contact_solver_flag_{false};
+  std::string joint_limit_method_{"shifted_ncp"};
+  double joint_limit_activation_margin_{1e-4};
+  double joint_limit_recovery_factor_{0.5};
+  double joint_limit_emergency_tolerance_{1e-4};
+  double joint_limit_max_force_{1e6};
+  sire::Size joint_limit_max_iterations_{30};
+  double joint_limit_tolerance_{1e-8};
+  sire::Size joint_limit_last_active_count_{0};
+  sire::Size joint_limit_last_iterations_{0};
+  double joint_limit_last_residual_{0.0};
+  double joint_limit_last_max_reaction_{0.0};
+  sire::Size joint_limit_last_saturated_count_{0};
 
   // Self management data.
-  unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
-                                      aris::dynamic::Geometry>>
+  std::unique_ptr<aris::core::PointerArray<geometry::CollidableGeometry,
+                                           aris::dynamic::Geometry>>
       geometry_pool_;
-  unordered_map<GeometryId, geometry::CollidableGeometry*>
+  std::unordered_map<GeometryId, geometry::CollidableGeometry*>
       dynamic_objects_map_{};
-  unordered_map<GeometryId, geometry::CollidableGeometry*>
+  std::unordered_map<GeometryId, geometry::CollidableGeometry*>
       anchored_objects_map_{};
-  unique_ptr<collision::CollisionDetection> collision_detection_;
-  unique_ptr<contact::ContactSolver> contact_solver_;
-  unique_ptr<collision::CollisionFilter> collision_filter_;
+  std::unique_ptr<collision::CollisionDetection> collision_detection_;
+  std::unique_ptr<contact::ContactSolver> contact_solver_;
+  std::unique_ptr<collision::CollisionFilter> collision_filter_;
 
-  std::vector<common::PenetrationAsPointPair> penetration_pairs_;
-  std::vector<common::PointPairContactInfo> contact_info_;
+  // std::vector<common::PenetrationAsPointPair> penetration_pairs_;
+  // std::vector<common::PointPairContactInfo> contact_info_;
 
   // Useful pointer and information from outer module
   std::string initial_model_config_{};
   aris::dynamic::Model* model_ptr_{nullptr};
   // middleware::SireMiddleware* middleware_ptr_{nullptr};
   simulator::SimulationLoop* simulation_loop_ptr_{nullptr};
-  aris::core::PointerArray<aris::dynamic::Part, aris::dynamic::Element>*
-      part_pool_ptr_{nullptr};
-  sire::Size part_size_{0};
+  sire::Size forcePool_offset_{0};
   int contact_force_idx_{0};
   sire::Size contact_force_size_{0};
 
@@ -87,9 +103,7 @@ struct PhysicsEngine::Imp {
         collision_detection_(std::make_unique<collision::CollisionDetection>()),
         contact_solver_(std::make_unique<contact::AverageForceContactSolver>()),
         collision_filter_(std::make_unique<collision::CollisionFilter>()),
-        model_ptr_(nullptr),
-        part_pool_ptr_(nullptr),
-        part_size_(0) {}
+        model_ptr_(nullptr) {}
 };
 PhysicsEngine::PhysicsEngine() : imp_(new Imp) {}
 PhysicsEngine::~PhysicsEngine() { sire::geometry::reset_geometry_id(); };
@@ -110,13 +124,11 @@ auto PhysicsEngine::doInit() -> void {
     }
   }
   // 初始化contact geometry的id相关
-  if (imp_->geometry_pool_ != nullptr) {
-    for (sire::Size i{0}; i < imp_->geometry_pool_->size(); ++i) {
-      imp_->geometry_pool_->at(i).setGeometryId(i);
-    }
-  }
-  imp_->part_pool_ptr_ = &imp_->model_ptr_->partPool();
-  imp_->part_size_ = imp_->part_pool_ptr_->size();
+  // if (imp_->geometry_pool_ != nullptr) {
+  //   for (sire::Size i{0}; i < imp_->geometry_pool_->size(); ++i) {
+  //     imp_->geometry_pool_->at(i).setGeometryId(i);
+  //   }
+  // }
   if (collisionDetectionFlag()) {
     // 根据当前的PhysicalEngine的GeometryPool初始化碰撞检测引擎，添加到里面的Tree
     imp_->collision_detection_->init(this);
@@ -152,6 +164,13 @@ auto PhysicsEngine::init() -> void {
     //     ");
   }
   saveInitialModel(*imp_->model_ptr_);
+  doInit();
+}
+auto PhysicsEngine::init(aris::dynamic::Model* m,
+                         simulator::SimulationLoop* simLoopPtr) -> void {
+  imp_->model_ptr_ = m;
+  imp_->simulation_loop_ptr_ = simLoopPtr;
+  initPartContactForce2Model();
   doInit();
 }
 auto PhysicsEngine::init(sire::middleware::SireMiddleware* middlewarePtr)
@@ -198,6 +217,91 @@ auto PhysicsEngine::contactSolverFlag() const -> bool {
 auto PhysicsEngine::setContactSolverFlag(bool flag) -> void {
   imp_->contact_solver_flag_ = flag;
 }
+auto PhysicsEngine::setJointLimitMethod(const std::string& method) -> void {
+  if (method != "shifted_ncp" && method != "projection" &&
+      method != "disabled") {
+    throw std::invalid_argument(
+        "joint_limit_method must be shifted_ncp, projection, or disabled");
+  }
+  imp_->joint_limit_method_ = method;
+}
+auto PhysicsEngine::jointLimitMethod() const -> std::string {
+  return imp_->joint_limit_method_;
+}
+auto PhysicsEngine::setJointLimitActivationMargin(double margin) -> void {
+  if (!std::isfinite(margin) || margin < 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_activation_margin must be finite and nonnegative");
+  }
+  imp_->joint_limit_activation_margin_ = margin;
+}
+auto PhysicsEngine::jointLimitActivationMargin() const -> double {
+  return imp_->joint_limit_activation_margin_;
+}
+auto PhysicsEngine::setJointLimitRecoveryFactor(double factor) -> void {
+  if (!std::isfinite(factor) || factor <= 0.0 || factor > 1.0) {
+    throw std::invalid_argument(
+        "joint_limit_recovery_factor must be in (0, 1]");
+  }
+  imp_->joint_limit_recovery_factor_ = factor;
+}
+auto PhysicsEngine::jointLimitRecoveryFactor() const -> double {
+  return imp_->joint_limit_recovery_factor_;
+}
+auto PhysicsEngine::setJointLimitEmergencyTolerance(double tolerance) -> void {
+  if (!std::isfinite(tolerance) || tolerance < 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_emergency_tolerance must be finite and nonnegative");
+  }
+  imp_->joint_limit_emergency_tolerance_ = tolerance;
+}
+auto PhysicsEngine::jointLimitEmergencyTolerance() const -> double {
+  return imp_->joint_limit_emergency_tolerance_;
+}
+auto PhysicsEngine::setJointLimitMaxForce(double force) -> void {
+  if (!std::isfinite(force) || force <= 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_max_force must be finite and positive");
+  }
+  imp_->joint_limit_max_force_ = force;
+}
+auto PhysicsEngine::jointLimitMaxForce() const -> double {
+  return imp_->joint_limit_max_force_;
+}
+auto PhysicsEngine::setJointLimitMaxIterations(sire::Size iterations) -> void {
+  if (iterations == 0) {
+    throw std::invalid_argument("joint_limit_max_iterations must be positive");
+  }
+  imp_->joint_limit_max_iterations_ = iterations;
+}
+auto PhysicsEngine::jointLimitMaxIterations() const -> sire::Size {
+  return imp_->joint_limit_max_iterations_;
+}
+auto PhysicsEngine::setJointLimitTolerance(double tolerance) -> void {
+  if (!std::isfinite(tolerance) || tolerance <= 0.0) {
+    throw std::invalid_argument(
+        "joint_limit_tolerance must be finite and positive");
+  }
+  imp_->joint_limit_tolerance_ = tolerance;
+}
+auto PhysicsEngine::jointLimitTolerance() const -> double {
+  return imp_->joint_limit_tolerance_;
+}
+auto PhysicsEngine::jointLimitLastActiveCount() const -> sire::Size {
+  return imp_->joint_limit_last_active_count_;
+}
+auto PhysicsEngine::jointLimitLastIterations() const -> sire::Size {
+  return imp_->joint_limit_last_iterations_;
+}
+auto PhysicsEngine::jointLimitLastResidual() const -> double {
+  return imp_->joint_limit_last_residual_;
+}
+auto PhysicsEngine::jointLimitLastMaxReaction() const -> double {
+  return imp_->joint_limit_last_max_reaction_;
+}
+auto PhysicsEngine::jointLimitLastSaturatedCount() const -> sire::Size {
+  return imp_->joint_limit_last_saturated_count_;
+}
 auto PhysicsEngine::resetCollisionFilter(collision::CollisionFilter* filter)
     -> void {
   imp_->collision_filter_.reset(filter);
@@ -236,34 +340,35 @@ auto PhysicsEngine::anchoredObjectsMap()
     -> std::unordered_map<GeometryId, geometry::CollidableGeometry*>& {
   return imp_->anchored_objects_map_;
 }
-auto PhysicsEngine::addSphereGeometry(double radius, int part_id,
-                                      bool is_dynamic, const double* prt_pm)
-    -> bool {
-  imp_->geometry_pool_->add<geometry::SphereCollisionGeometry>(
-      radius, part_id, is_dynamic, prt_pm);
-  return true;
-}
-auto PhysicsEngine::addBoxGeometry(double x, double y, double z, int part_id,
-                                   bool is_dynamic, const double* prt_pm)
-    -> bool {
-  imp_->geometry_pool_->add<geometry::BoxCollisionGeometry>(x, y, z, part_id,
-                                                            is_dynamic, prt_pm);
-  return true;
-}
-auto PhysicsEngine::addMeshGeometry(const std::string& resource_path,
-                                    int part_id, bool is_dynamic,
-                                    const double* prt_pm) -> bool {
-  imp_->geometry_pool_->add<geometry::MeshCollisionGeometry>(
-      resource_path, part_id, is_dynamic, prt_pm);
-  return true;
-}
-auto PhysicsEngine::addCapsuleGeometry(double radius, double length,
-                                       int part_id, bool is_dynamic,
-                                       const double* prt_pm) -> bool {
-  imp_->geometry_pool_->add<geometry::CapsuleCollisionGeometry>(
-      radius, length, part_id, is_dynamic, prt_pm);
-  return true;
-}
+// auto PhysicsEngine::addSphereGeometry(double radius, int part_id,
+//                                       bool is_dynamic, const double* prt_pm)
+//     -> bool {
+//   imp_->geometry_pool_->add<geometry::SphereCollisionGeometry>(
+//       radius, part_id, is_dynamic, prt_pm);
+//   return true;
+// }
+// auto PhysicsEngine::addBoxGeometry(double x, double y, double z, int part_id,
+//                                    bool is_dynamic, const double* prt_pm)
+//     -> bool {
+//   imp_->geometry_pool_->add<geometry::BoxCollisionGeometry>(x, y, z, part_id,
+//                                                             is_dynamic, prt_pm);
+//   return true;
+// }
+// auto PhysicsEngine::addMeshGeometry(const std::string& resource_path,
+//                                     int part_id, bool is_dynamic,
+//                                     const double* prt_pm) -> bool {
+//   std::array<double, 3> default_scale{1.0, 1.0, 1.0};
+//   imp_->geometry_pool_->add<geometry::MeshCollisionGeometry>(
+//       resource_path, default_scale, part_id, is_dynamic, prt_pm);
+//   return true;
+// }
+// auto PhysicsEngine::addCapsuleGeometry(double radius, double length,
+//                                        int part_id, bool is_dynamic,
+//                                        const double* prt_pm) -> bool {
+//   imp_->geometry_pool_->add<geometry::CapsuleCollisionGeometry>(
+//       radius, length, part_id, is_dynamic, prt_pm);
+//   return true;
+// }
 auto PhysicsEngine::addDynamicGeometry(
     geometry::CollidableGeometry& dynamic_geometry) -> bool {
   imp_->collision_detection_->addDynamicGeometry2FCL(dynamic_geometry);
@@ -387,7 +492,12 @@ auto PhysicsEngine::cptContactVelocityAB(
     // v_contact.data());
   }
 }
-
+auto PhysicsEngine::contactForceIdx() -> sire::Size {
+  return imp_->contact_force_idx_;
+}
+auto PhysicsEngine::contactForceCount() const -> sire::Size {
+  return imp_->contact_force_size_;
+}
 auto PhysicsEngine::setContactForceIdxSize(int contact_force_idx,
                                            sire::Size contact_force_size)
     -> void {
@@ -403,6 +513,10 @@ auto PhysicsEngine::activateContactForce(bool flag) -> void {
 auto PhysicsEngine::cptPointPairPenetration(
     std::vector<common::PenetrationAsPointPair>& pairs) -> void {
   imp_->collision_detection_->computePointPairPenetration(pairs);
+}
+auto PhysicsEngine::cptHeightFieldPenetration(
+    std::vector<common::PenetrationAsPointPair>& pairs) -> void {
+  imp_->collision_detection_->computeHeightFieldPenetration(pairs);
 }
 auto PhysicsEngine::resetContactSolver(
     contact::ContactSolver* contact_solver_in) -> void {
@@ -435,9 +549,19 @@ auto PhysicsEngine::hasCollision() -> bool {
 }
 auto PhysicsEngine::computePointPairPenetration()
     -> std::vector<common::PenetrationAsPointPair> {
+  SIRE_PROFILE_FUNCTION();
   std::vector<common::PenetrationAsPointPair> pairs;
   if (imp_->collision_detection_flag_) {
     imp_->collision_detection_->computePointPairPenetration(pairs);
+  }
+  return pairs;
+}
+auto PhysicsEngine::computeHeightFieldPenetration()
+    -> std::vector<common::PenetrationAsPointPair> {
+  SIRE_PROFILE_FUNCTION();
+  std::vector<common::PenetrationAsPointPair> pairs;
+  if (imp_->collision_detection_flag_) {
+    imp_->collision_detection_->computeHeightFieldPenetration(pairs);
   }
   return pairs;
 }
@@ -445,13 +569,17 @@ auto PhysicsEngine::cptContactInfo(
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  SIRE_PROFILE_FUNCTION();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
 
-  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
-  imp_->contact_solver_->cptContactSolverResult(
-      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  {
+    SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
+    imp_->contact_solver_->cptContactSolverResult(
+        imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  }
   const sire::Size num_contacts = penetration_pairs.size();
+  SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
@@ -479,8 +607,8 @@ auto PhysicsEngine::cptContactInfo(
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
-    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
-                            pe_C, separation_speed, slip_speed, pair, f_C});
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i],
+                            pe_C, separation_speed, slip_speed, pair, fs, f_C});
   }
   return solver_result.dt;
 }
@@ -489,14 +617,19 @@ auto PhysicsEngine::cptContactInfo(
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<std::array<double, 16>>& T_C_vec,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  SIRE_PROFILE_FUNCTION();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
   solver_result.dt = suggestTime;
 
-  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
-  imp_->contact_solver_->cptContactSolverResult(
-      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  applyJointLimitForces(suggestTime);
+  {
+    SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
+    imp_->contact_solver_->cptContactSolverResult(
+        imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  }
   const sire::Size num_contacts = penetration_pairs.size();
+  SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
@@ -524,8 +657,8 @@ auto PhysicsEngine::cptContactInfo(
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
-    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
-                            pe_C, separation_speed, slip_speed, pair, f_C});
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i],
+                            pe_C, separation_speed, slip_speed, pair, fs, f_C});
   }
   return solver_result.dt;
 }
@@ -533,15 +666,20 @@ auto PhysicsEngine::cptContactInfo(
     double suggestTime,
     std::vector<common::PenetrationAsPointPair>& penetration_pairs,
     std::vector<common::PointPairContactInfo>& contact_info) -> double {
+  SIRE_PROFILE_FUNCTION();
   // 使用engine_ptr和当前Model的状态结合Penetration_pair，计算接触信息
   contact::ContactSolverResult solver_result;
   solver_result.dt = suggestTime;
   std::vector<std::array<double, 16>> T_C_vec;
 
-  // solver_result.resize(imp_->part_size_ * 6, penetration_pairs.size());
-  imp_->contact_solver_->cptContactSolverResult(
-      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  applyJointLimitForces(suggestTime);
+  {
+    SIRE_PROFILE_SCOPE("ContactSolver::cptContactSolverResult");
+    imp_->contact_solver_->cptContactSolverResult(
+        imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
+  }
   const sire::Size num_contacts = penetration_pairs.size();
+  SIRE_PROFILE_PLOT("contact.num_contacts", static_cast<double>(num_contacts));
   // 需要计算接触点的运动学，即接触点的坐标系求解的f v，到世界坐标系
   std::vector<double>& fn = solver_result.fn;
   std::vector<double>& ft = solver_result.ft;
@@ -569,10 +707,21 @@ auto PhysicsEngine::cptContactInfo(
     double slip_speed = aris::dynamic::s_norm(2, vt.data() + 2 * i);
     double separation_speed = vn[i];
     // LOG_IF(fn[i] > 1e5, DEBUG) << "Huge impact recorded: " << fn[i];
-    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i], fs,
-                            pe_C, separation_speed, slip_speed, pair, f_C});
+    contact_info.push_back({solver_result.prtsA[i], solver_result.prtsB[i],
+                            pe_C, separation_speed, slip_speed, pair, fs, f_C});
   }
   return solver_result.dt;
+}
+auto PhysicsEngine::integrateByContactInfo(
+    double suggestTime,
+    std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    std::vector<common::PointPairContactInfo>& contact_info) -> void {
+  contact::ContactSolverResult solver_result;
+  solver_result.dt = suggestTime;
+  std::vector<std::array<double, 16>> T_C_vec;
+  applyJointLimitForces(suggestTime);
+  imp_->contact_solver_->cptContactSolverResult(
+      imp_->model_ptr_, penetration_pairs, T_C_vec, solver_result);
 }
 auto PhysicsEngine::recordsContactCptInfo() -> nlohmann::json {
   return imp_->contact_solver_->debugByRecords();
@@ -585,12 +734,14 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
   using aris::dynamic::GeneralForce;
   using aris::dynamic::SingleComponentForce;
   const sire::Size motion_size = imp_->model_ptr_->motionPool().size();
-  const sire::Size part_size = imp_->part_size_;
-  const sire::Size force_size = motion_size + part_size - 1;  // 减去ground的力
+  const sire::Size part_size = imp_->model_ptr_->partPool().size();
+  // const sire::Size force_size = motion_size + part_size - 1;  //
+  // 减去ground的力
   auto& force_pool = imp_->model_ptr_->forcePool();
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
-  force_pool.clear();
+  imp_->forcePool_offset_ = force_pool.size();
+  // force_pool.clear();
   // TODO: 这种写法有很大的问题。关于外力不能这样调整
   for (int i = 0; i < motion_size; ++i) {
     auto& force = force_pool.add<SingleComponentForce>(
@@ -602,12 +753,13 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
       actuator->setFcePtr(&force);
     }
   }
-  imp_->contact_force_idx_ = motion_size;
+  imp_->contact_force_idx_ = imp_->forcePool_offset_ + motion_size;
+  // 假定 ground 的partid一定为 0；
   for (int i = 0; i < part_size; ++i) {
     auto& force = force_pool.add<GeneralForce>(
         std::string("cf_" + std::to_string(i)),
         &part_pool.at(i).markerPool().at(0),
-        &part_pool.at(imp_->model_ptr_->ground().id()).markerPool().at(1));
+        &part_pool.at(imp_->model_ptr_->ground().id()).markerPool().at(0));
     force.setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
   imp_->contact_force_size_ = force_pool.size() - imp_->contact_force_idx_;
@@ -615,16 +767,17 @@ auto PhysicsEngine::initPartContactForce2Model() -> void {
 auto PhysicsEngine::resetPartContactForce() -> void {
   using aris::dynamic::GeneralForce;
   using aris::dynamic::SingleComponentForce;
-  const sire::Size motion_size = imp_->model_ptr_->motionPool().size();
-  const sire::Size part_size = imp_->part_size_;
-  auto& force_pool = imp_->model_ptr_->forcePool();
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
+  auto& force_pool = imp_->model_ptr_->forcePool();
+  const sire::Size motion_size = motion_pool.size();
+  const sire::Size part_size = part_pool.size();
   // for (int i = 0; i < imp_->contact_force_size_; ++i) {
   //   dynamic_cast<SingleComponentForce&>(force_pool.at(i +
   //   imp_->contact_force_idx_)).setFce(0);
   // }
-  for (sire::Size i = motion_size; i < part_size + motion_size; ++i) {
+  for (sire::Size i = imp_->contact_force_idx_;
+       i < imp_->contact_force_idx_ + part_size; ++i) {
     dynamic_cast<GeneralForce&>(force_pool.at(i))
         .setFce(std::array<double, 6>{0, 0, 0, 0, 0, 0}.data());
   }
@@ -632,12 +785,14 @@ auto PhysicsEngine::resetPartContactForce() -> void {
 auto PhysicsEngine::resetMotionForce() -> void {
   using aris::dynamic::GeneralForce;
   using aris::dynamic::SingleComponentForce;
-  const sire::Size motion_size = imp_->model_ptr_->motionPool().size();
-  const sire::Size part_size = imp_->part_size_;
   auto& force_pool = imp_->model_ptr_->forcePool();
   auto& motion_pool = imp_->model_ptr_->motionPool();
   auto& part_pool = imp_->model_ptr_->partPool();
-  for (int i = 0; i < motion_size; ++i) {
+  const sire::Size motion_size = motion_pool.size();
+  const sire::Size part_size = part_pool.size();
+
+  for (int i = imp_->forcePool_offset_;
+       i < imp_->forcePool_offset_ + motion_size; ++i) {
     dynamic_cast<SingleComponentForce&>(force_pool.at(i)).setFce(0);
   }
 }
@@ -647,15 +802,13 @@ auto PhysicsEngine::saveInitialModel(aris::dynamic::Model& model) -> void {
 auto PhysicsEngine::resetInitialModel() -> void {
   aris::core::fromXmlString(*imp_->model_ptr_, imp_->initial_model_config_);
   imp_->model_ptr_->init();
-  imp_->part_pool_ptr_ = &imp_->model_ptr_->partPool();
-  imp_->part_size_ = imp_->part_pool_ptr_->size();
   imp_->contact_solver_->init(this);
 }
-
+auto PhysicsEngine::reset() -> void { imp_->contact_solver_->init(this); }
 auto PhysicsEngine::cptGlbForceByContactInfo(
     const std::vector<common::PointPairContactInfo>& contact_info) -> bool {
   const sire::Size num_contacts = contact_info.size();
-  const sire::Size contact_force_offset = imp_->model_ptr_->motionPool().size();
+  const sire::Size contact_force_offset = imp_->contact_force_idx_;
   auto& force_pool = imp_->model_ptr_->forcePool();
   for (int i = 0; i < num_contacts; ++i) {
     const common::PointPairContactInfo& info = contact_info.at(i);
@@ -678,15 +831,243 @@ auto PhysicsEngine::cptGlbForceByContactInfo(
   }
   return true;
 }
+auto PhysicsEngine::enforceJointLimitSafety() -> bool {
+  auto& model = *imp_->model_ptr_;
+  auto& motionPool = model.motionPool();
+  if (imp_->joint_limit_method_ == "disabled") return false;
+
+  const double tolerance = imp_->joint_limit_method_ == "projection"
+                               ? 0.0
+                               : imp_->joint_limit_emergency_tolerance_;
+  bool projected_joint_state = false;
+  for (sire::Size i{0}; i < motionPool.size(); ++i) {
+    auto& motion = motionPool[i];
+    if (!motion.active()) continue;
+    if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion);
+        actuator != nullptr) {
+      projected_joint_state |= actuator->enforcePositionLimits(tolerance);
+    }
+  }
+  if (projected_joint_state) {
+    model.forwardKinematics();
+    model.forwardKinematicsVel();
+  }
+  return projected_joint_state;
+}
+
+auto PhysicsEngine::applyJointLimitForces(double dt) -> void {
+  SIRE_PROFILE_SCOPE("physics/jointLimitNcp");
+  imp_->joint_limit_last_active_count_ = 0;
+  imp_->joint_limit_last_iterations_ = 0;
+  imp_->joint_limit_last_residual_ = 0.0;
+  imp_->joint_limit_last_max_reaction_ = 0.0;
+  imp_->joint_limit_last_saturated_count_ = 0;
+  if (imp_->joint_limit_method_ != "shifted_ncp" || !(dt > 0.0) ||
+      !std::isfinite(dt)) {
+    return;
+  }
+
+  struct ActiveLimit {
+    aris::dynamic::Motion* motion;
+    aris::dynamic::SingleComponentForce* force;
+    double sign;
+    double distance;
+    double base_force;
+  };
+
+  auto& model = *imp_->model_ptr_;
+  std::vector<ActiveLimit> active_limits;
+  active_limits.reserve(model.motionPool().size());
+  const double margin = imp_->joint_limit_activation_margin_;
+  for (auto& motion : model.motionPool()) {
+    if (!motion.active()) continue;
+    auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion);
+    if (actuator == nullptr || actuator->fcePtr() == nullptr) continue;
+
+    const double position = motion.mp();
+    const double velocity = motion.mv();
+    if (!std::isfinite(position) || !std::isfinite(velocity)) {
+      throw std::runtime_error("joint state contains NaN or Inf");
+    }
+    const double predicted_position = position + dt * velocity;
+    if (std::isfinite(actuator->minPosition()) &&
+        (position <= actuator->minPosition() + margin ||
+         predicted_position <= actuator->minPosition() + margin)) {
+      active_limits.push_back({&motion, actuator->fcePtr(), 1.0,
+                               position - actuator->minPosition(),
+                               actuator->fcePtr()->fce()});
+    }
+    if (std::isfinite(actuator->maxPosition()) &&
+        (position >= actuator->maxPosition() - margin ||
+         predicted_position >= actuator->maxPosition() - margin)) {
+      active_limits.push_back({&motion, actuator->fcePtr(), -1.0,
+                               actuator->maxPosition() - position,
+                               actuator->fcePtr()->fce()});
+    }
+  }
+  if (active_limits.empty()) return;
+
+  aris::dynamic::ForwardDynamicSolver* dynamics = nullptr;
+  for (auto& solver : model.solverPool()) {
+    if (auto* candidate =
+            dynamic_cast<aris::dynamic::ForwardDynamicSolver*>(&solver);
+        candidate != nullptr) {
+      dynamics = candidate;
+      break;
+    }
+  }
+  if (dynamics == nullptr) {
+    throw std::runtime_error(
+        "shifted_ncp joint limits require a ForwardDynamicSolver");
+  }
+
+  // Contact reactions from the previous event must not enter the free-motion
+  // acceleration used by the joint-limit NCP. The RAII object restores every
+  // force's active flag on exit.
+  FceActiveStateRecorder active_state(&model);
+  activateContactForce(false);
+
+  const auto refresh_motion_acceleration = [&]() {
+    if (dynamics->dynAccAndFce() != 0) {
+      throw std::runtime_error(
+          "forward dynamics failed while assembling joint limits");
+    }
+    for (auto& motion : model.motionPool()) motion.updA();
+  };
+
+  refresh_motion_acceleration();
+  const sire::Size count = active_limits.size();
+  std::vector<double> free_acceleration(count, 0.0);
+  std::vector<double> free_velocity(count, 0.0);
+  for (sire::Size i = 0; i < count; ++i) {
+    free_acceleration[i] = active_limits[i].motion->ma();
+    free_velocity[i] =
+        active_limits[i].sign *
+        (active_limits[i].motion->mv() + dt * free_acceleration[i]);
+  }
+
+  // Build W = J M^-1 J^T with signed unit generalized-force probes. This is
+  // independent of the selected contact solver and only runs near a limit.
+  std::vector<double> inverse_mass(count * count, 0.0);
+  for (sire::Size column = 0; column < count; ++column) {
+    auto& limit = active_limits[column];
+    limit.force->setFce(limit.base_force + limit.sign);
+    refresh_motion_acceleration();
+    for (sire::Size row = 0; row < count; ++row) {
+      inverse_mass[row * count + column] =
+          active_limits[row].sign *
+          (active_limits[row].motion->ma() - free_acceleration[row]);
+    }
+    limit.force->setFce(limit.base_force);
+  }
+
+  // Numerical probes can introduce slight asymmetry. Symmetrizing preserves
+  // the positive-semidefinite Delassus structure expected by the NCP.
+  for (sire::Size row = 0; row < count; ++row) {
+    for (sire::Size column = row + 1; column < count; ++column) {
+      const double symmetric =
+          0.5 * (inverse_mass[row * count + column] +
+                 inverse_mass[column * count + row]);
+      inverse_mass[row * count + column] = symmetric;
+      inverse_mass[column * count + row] = symmetric;
+    }
+  }
+
+  std::vector<double> reaction(count, 0.0);
+  std::vector<double> offset(count, 0.0);
+  // Recovery is a physical-time correction.  An event-refined substep can be
+  // orders of magnitude shorter than the nominal physics step; asking for the
+  // same fraction of position error to be removed in that tiny interval would
+  // create target velocities and forces proportional to 1/dt.  Keep boundary
+  // prediction tied to the actual interval, but recover an already violated
+  // limit over at least one nominal physics step.
+  const double nominal_dt =
+      imp_->simulation_loop_ptr_ == nullptr
+          ? dt
+          : imp_->simulation_loop_ptr_->deltaT();
+  const double recovery_horizon =
+      std::isfinite(nominal_dt) && nominal_dt > 0.0
+          ? std::max(dt, nominal_dt)
+          : dt;
+  for (sire::Size i = 0; i < count; ++i) {
+    const double distance = active_limits[i].distance;
+    // Inside the valid interval, allow motion up to the boundary. Once
+    // outside, recover over the nominal-step horizon defined above.
+    const double target_velocity =
+        distance >= 0.0
+            ? -distance / dt
+            : -imp_->joint_limit_recovery_factor_ * distance /
+                  recovery_horizon;
+    offset[i] = free_velocity[i] - target_velocity;
+  }
+
+  double inverse_mass_scale = 0.0;
+  for (sire::Size i = 0; i < count; ++i) {
+    inverse_mass_scale = std::max(
+        inverse_mass_scale, std::abs(inverse_mass[i * count + i]));
+  }
+  // Regularize W before multiplying by dt.  A fixed floor on dt*W changes the
+  // NCP as an event substep shrinks; this floor follows dt and only protects a
+  // numerically zero/negative diagonal.
+  const double inverse_mass_regularization =
+      64 * std::numeric_limits<double>::epsilon() *
+      std::max(1.0, inverse_mass_scale);
+  double residual = std::numeric_limits<double>::infinity();
+  sire::Size iterations = 0;
+  for (sire::Size iteration = 0;
+       iteration < imp_->joint_limit_max_iterations_; ++iteration) {
+    iterations = iteration + 1;
+    residual = 0.0;
+    for (sire::Size row = 0; row < count; ++row) {
+      double velocity_error = offset[row];
+      for (sire::Size column = 0; column < count; ++column) {
+        velocity_error +=
+            dt * inverse_mass[row * count + column] * reaction[column];
+      }
+      const double diagonal =
+          dt * std::max(inverse_mass[row * count + row],
+                        inverse_mass_regularization);
+      const double old_reaction = reaction[row];
+      reaction[row] = std::clamp(old_reaction - velocity_error / diagonal,
+                                 0.0, imp_->joint_limit_max_force_);
+      residual = std::max(residual,
+                          std::abs(reaction[row] - old_reaction) * diagonal);
+    }
+    if (residual <= imp_->joint_limit_tolerance_) break;
+  }
+
+  // Add mechanical stop reactions after the motor force has been clamped.
+  // Limit reactions are intentionally not restricted by motor effort limits.
+  double max_reaction = 0.0;
+  sire::Size saturated_reactions = 0;
+  for (sire::Size i = 0; i < count; ++i) {
+    auto& limit = active_limits[i];
+    limit.force->setFce(limit.force->fce() + limit.sign * reaction[i]);
+    max_reaction = std::max(max_reaction, reaction[i]);
+    if (reaction[i] >= imp_->joint_limit_max_force_) ++saturated_reactions;
+  }
+  imp_->joint_limit_last_active_count_ = count;
+  imp_->joint_limit_last_iterations_ = iterations;
+  imp_->joint_limit_last_residual_ = residual;
+  imp_->joint_limit_last_max_reaction_ = max_reaction;
+  imp_->joint_limit_last_saturated_count_ = saturated_reactions;
+  SIRE_PROFILE_PLOT("joint_limit.active", static_cast<double>(count));
+  SIRE_PROFILE_PLOT("joint_limit.iterations", static_cast<double>(iterations));
+  SIRE_PROFILE_PLOT("joint_limit.residual", residual);
+  SIRE_PROFILE_PLOT("joint_limit.max_reaction", max_reaction);
+  SIRE_PROFILE_PLOT("joint_limit.saturated",
+                    static_cast<double>(saturated_reactions));
+}
+
 auto PhysicsEngine::fwdActuators() -> void {
   auto& model = *imp_->model_ptr_;
+  enforceJointLimitSafety();
   auto& motionPool = model.motionPool();
   for (sire::Size i{0}; i < motionPool.size(); ++i) {
     auto& motion = motionPool[i];
     if (!motion.active()) continue;
     if (auto* actuator = dynamic_cast<actuator::ActuatorSISO*>(&motion);
         actuator != nullptr) {
-      // std::cout << i << " ";
       actuator->forward();
     }
   }
@@ -712,6 +1093,24 @@ ARIS_REGISTRATION {
             &PhysicsEngine::collisionDetectionFlag)
       .prop("enable_contact_solver", &PhysicsEngine::setContactSolverFlag,
             &PhysicsEngine::contactSolverFlag)
+      .prop("joint_limit_method", &PhysicsEngine::setJointLimitMethod,
+            &PhysicsEngine::jointLimitMethod)
+      .prop("joint_limit_activation_margin",
+            &PhysicsEngine::setJointLimitActivationMargin,
+            &PhysicsEngine::jointLimitActivationMargin)
+      .prop("joint_limit_recovery_factor",
+            &PhysicsEngine::setJointLimitRecoveryFactor,
+            &PhysicsEngine::jointLimitRecoveryFactor)
+      .prop("joint_limit_emergency_tolerance",
+            &PhysicsEngine::setJointLimitEmergencyTolerance,
+            &PhysicsEngine::jointLimitEmergencyTolerance)
+      .prop("joint_limit_max_force", &PhysicsEngine::setJointLimitMaxForce,
+            &PhysicsEngine::jointLimitMaxForce)
+      .prop("joint_limit_max_iterations",
+            &PhysicsEngine::setJointLimitMaxIterations,
+            &PhysicsEngine::jointLimitMaxIterations)
+      .prop("joint_limit_tolerance", &PhysicsEngine::setJointLimitTolerance,
+            &PhysicsEngine::jointLimitTolerance)
       .prop("collision_detection", &PhysicsEngine::resetCollisionDetection,
             CollisionDetectionFunc(&PhysicsEngine::collisionDetection))
       .prop("contact_solver", &PhysicsEngine::resetContactSolver,

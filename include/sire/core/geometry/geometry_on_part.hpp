@@ -21,7 +21,7 @@ namespace sire::geometry {
 // array by convention.
 class GeometryOnPart : public GeometryBase {
  public:
-  auto partPm() const -> const aris::dynamic::double4x4&;
+  // auto partPm() const -> const aris::dynamic::double4x4&;
   auto isDynamic() const -> bool;
   auto setDynamic(bool is_dynamic) -> void;
   auto relativeToPart() const -> bool;

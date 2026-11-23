@@ -6,6 +6,7 @@ namespace sire::core {
 struct ContactPairManager::Imp {
   std::unordered_map<SortedPair<sire::PartId>, ContactPairValue>
       contact_pair_map_;
+  ContactPointMap contact_point_map_;
   std::unordered_set<sire::PartId> impacted_prt_set_;
   std::unordered_set<SortedPair<sire::PartId>> impacted_contact_set_;
   // 正在接触的Set
@@ -29,6 +30,9 @@ auto ContactPairManager::isImpactedSetEmpty() const -> bool {
 auto ContactPairManager::contactPairMap()
     -> std::unordered_map<SortedPair<sire::PartId>, ContactPairValue>& {
   return imp_->contact_pair_map_;
+}
+auto ContactPairManager::contactPointMap() -> ContactPointMap& {
+  return imp_->contact_point_map_;
 }
 auto ContactPairManager::impactedPrtSet() -> std::unordered_set<sire::PartId>& {
   return imp_->impacted_prt_set_;
@@ -82,6 +86,7 @@ auto ContactPairManager::setValue(const core::SortedPair<sire::PartId>& pair,
 }
 auto ContactPairManager::clear() -> void {
   imp_->contact_pair_map_.clear();
+  imp_->contact_point_map_.clear();
   imp_->impacted_contact_set_.clear();
   imp_->impacted_prt_set_.clear();
 }

@@ -16,8 +16,7 @@ struct IntegratorBase::Imp {
 auto IntegratorBase::init(physics::PhysicsEngine* engine) -> void {
   SIRE_ASSERT(engine != nullptr);
   imp_->engine_ptr_ = engine;
-  model_ptr_ = dynamic_cast<aris::dynamic::Model*>(
-      &aris::server::ControlServer::instance().model());
+  model_ptr_ = engine->currentModel();
   part_pool_length_ = model_ptr_->partPool().size();
   motion_pool_length_ = model_ptr_->motionPool().size();
   general_motion_pool_length_ = model_ptr_->generalMotionPool().size();

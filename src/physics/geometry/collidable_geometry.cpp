@@ -17,6 +17,8 @@
 #include "sire/core/constants.hpp"
 
 namespace sire::physics::geometry {
+using namespace std;
+using namespace coal;
 // This prt_pm should be the part pose in world coordinate.
 auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
   prt_pm = prt_pm ? prt_pm : sire::default_pm;
@@ -31,17 +33,19 @@ auto CollidableGeometry::updateLocation(const double* prt_pm) -> void {
 }
 auto CollidableGeometry::init() -> void {}
 CollidableGeometry::CollidableGeometry(const double* prt_pm, int part_id,
-                                       bool is_dynamic,
+                                       bool is_dynamic, bool visible,
                                        const std::string& material,
                                        const std::string& propStr)
     : sire::geometry::GeometryOnPart(prt_pm, part_id, is_dynamic),
-      Collidable(material, propStr) {}
+      Collidable(material, propStr),
+      visible_(visible) {}
 CollidableGeometry::~CollidableGeometry() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(CollidableGeometry);
 
 ARIS_REGISTRATION {
   aris::core::class_<CollidableGeometry>("CollidableGeometry")
       .inherit<sire::geometry::GeometryOnPart>()
-      .inherit<Collidable>();
+      .inherit<Collidable>()
+      .prop("visible", &CollidableGeometry::setVisible, &CollidableGeometry::visible);
 }
 }  // namespace sire::physics::geometry

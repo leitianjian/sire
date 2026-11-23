@@ -1,5 +1,8 @@
 #include "sire/simulator/simulation_loop.hpp"
 
+#include <algorithm>
+#include <typeinfo>
+
 #include <aris/core/object.hpp>
 #include <aris/core/reflection.hpp>
 #include <aris/dynamic/model.hpp>
@@ -8,6 +11,7 @@
 #include "sire/core/base_factory.hpp"
 #include "sire/core/constants.hpp"
 #include "sire/core/module_base.hpp"
+#include "sire/core/profiler.hpp"
 #include "sire/core/prop_map.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/middleware/sire_middleware.hpp"
@@ -17,7 +21,82 @@
 #include "sire/simulator/joint_constraint_solver.hpp"
 #include "sire/simulator/simulator_modules.hpp"
 
+#include "log/easyloggingConfig.hpp"
+
 namespace sire::simulator {
+namespace {
+auto coincidentEventTolerance(double simulation_dt, double control_dt)
+    -> double {
+  return std::min(1e-6, 1e-3 * std::min(simulation_dt, control_dt));
+}
+}  // namespace
+auto ModelData::initFromModel(const aris::dynamic::Model& model) -> void {
+  partSize = model.partPool().size();
+  motionSize = model.motionPool().size();
+  fcePoolSize = model.forcePool().size();
+  partPqVec.resize(partSize);
+  partVsVec.resize(partSize);
+}
+auto ModelData::update(aris::dynamic::Model& model) -> void {
+  for (size_t i = 0; i < partSize; ++i) {
+    const auto& part = model.partPool()[i];
+    part.getPq(partPqVec[i].data());
+    part.getVs(partVsVec[i].data());
+  }
+  for (size_t i = 0; i < fcePoolSize; ++i) {
+    auto& fce = model.forcePool()[i];
+    if (typeid(fce) == typeid(aris::dynamic::GeneralForce)) {
+      generalFceIdx.push_back(i);
+      std::array<double, 6> arr;
+      std::copy_n(dynamic_cast<aris::dynamic::GeneralForce&>(fce).fce(), 6,
+                  arr.begin());
+      generalFceVec.push_back(std::move(arr));  // move 可省略，array 是值语义
+    } else if (typeid(fce) == typeid(aris::dynamic::SingleComponentForce)) {
+      singleCompFceIdx.push_back(i);
+      singleCompFceVec.push_back(
+          dynamic_cast<aris::dynamic::SingleComponentForce&>(fce).fce());
+    }
+  }
+}
+auto ModelData::resetModel(aris::dynamic::Model& model) -> void {
+  for (sire::Size i = 0; i < partSize; ++i) {
+    model.partPool()[i].setPq(partPqVec[i].data());
+    model.partPool()[i].setVs(partVsVec[i].data());
+    std::fill_n(const_cast<double*>(model.partPool()[i].as()), 6, 0);
+  }
+  // TODO: 重要：一定要加这个，要不然会导致初始状态积分存在不一致的情况
+  // 单独的Mp不行，Mp,Mv之后效果比较好，好像Mp Mv Ma之后效果才最好，很奇怪。
+  for (sire::Size i = 0; i < motionSize; ++i) {
+    model.motionPool()[i].setMp(0);
+    model.motionPool()[i].setMv(0);
+    model.motionPool()[i].setMa(0);
+  }
+  // double cf[6]{0};
+  // for (sire::Size i = 0; i < model.jointPool().size(); ++ i) {
+  //   model.jointPool()[i].setCf(cf);
+  // }
+  sire::Size gfSize{generalFceIdx.size()}, scfSize{singleCompFceIdx.size()};
+  for (sire::Size i = 0; i < gfSize; ++i) {
+    auto& gf = dynamic_cast<aris::dynamic::GeneralForce&>(
+        model.forcePool()[generalFceIdx[i]]);
+    gf.setFce(generalFceVec[i].data());
+  }
+  for (sire::Size i = 0; i < scfSize; ++i) {
+    dynamic_cast<aris::dynamic::SingleComponentForce&>(
+        model.forcePool()[singleCompFceIdx[i]])
+        .setFce(singleCompFceVec[i]);
+  }
+  for (sire::Size i = gfSize + scfSize; i < model.forcePool().size(); ++i) {
+    if (i < gfSize + scfSize + motionSize) {
+      dynamic_cast<aris::dynamic::SingleComponentForce&>(model.forcePool()[i])
+          .setFce(0);
+    } else {
+      auto& gf =
+          dynamic_cast<aris::dynamic::GeneralForce&>(model.forcePool()[i]);
+      std::fill_n(const_cast<double*>(gf.fce()), 6, 0);
+    }
+  }
+}
 using core::TriggerBase, core::EventBase, core::HandlerBase;
 using std::map;
 struct SimulationLoop::Imp {
@@ -28,6 +107,7 @@ struct SimulationLoop::Imp {
   SensorPool* sensor_pool_ptr_;
   // std::vector<aris::dynamic::Model*> model_pool_{2};
   aris::dynamic::Model* model_ptr_;
+  ModelData init_model_data_;
 
   // 用来保存全局变量，使用xml配置，在trigger event handle中可以使用
   core::PropMap global_variable_pool_;
@@ -44,6 +124,13 @@ struct SimulationLoop::Imp {
   // all time represent in seconds;
   double dt_{0.001};
   double ctrlt_{0.001};
+  bool is_init_ctrl_{false};
+  bool is_ctrl_flag_{false};
+
+  double prevCtrlTime_{0};
+  double prevIntTime_{0};
+  double nextSuggestTime_{-1};
+
   std::chrono::system_clock::time_point current_time_;
   std::chrono::system_clock::time_point start_time_;
   std::int64_t sim_count_;
@@ -118,6 +205,8 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
 
   imp_->model_ptr_->solverPool().add<solver::JointConstraintSolver>();
 
+  imp_->init_model_data_.initFromModel(*imp_->model_ptr_);
+  imp_->init_model_data_.update(*imp_->model_ptr_);
   // 正确设置model中的力
   imp_->physics_engine_ptr_->initPartContactForce2Model();
   // std::cout << aris::core::toXmlString(*(imp_->model_ptr_)) << std::endl;
@@ -144,12 +233,35 @@ auto SimulationLoop::init(middleware::SireMiddleware* middleware) -> void {
     }
   });
 }
+auto SimulationLoop::init(aris::dynamic::Model* m, physics::PhysicsEngine* e,
+                          simulator::SimulatorModules* sm) -> void {
+  imp_->physics_engine_ptr_ = e;
+  imp_->integrator_pool_ptr_ = &sm->integratorPool();
+
+  // 初始化Simulator中的Model指针
+  // ControlServer中有一个Model的资源，另一个用来备份的Model由Simulator管理
+  imp_->model_ptr_ = m;
+  imp_->timer_.init();
+
+  imp_->event_manager_->init(this);
+  imp_->ctrlPtr_->init(this);
+  imp_->is_ctrl_flag_ = imp_->is_init_ctrl_;
+
+  // 很重要，与积分器用的.back().kinPos()相关，去掉这个就要用fk，不用back
+  imp_->model_ptr_->solverPool().add<solver::JointConstraintSolver>();
+  imp_->init_model_data_.initFromModel(*imp_->model_ptr_);
+  imp_->init_model_data_.update(*imp_->model_ptr_);
+  // 正确设置model中的力
+}
 auto SimulationLoop::timer() -> core::Timer& { return imp_->timer_; }
 auto SimulationLoop::recorder() -> simulator::Recorder& {
   return imp_->recorder_;
 }
 auto SimulationLoop::recordsContactCptInfo() -> nlohmann::json {
   return imp_->physics_engine_ptr_->recordsContactCptInfo();
+}
+auto SimulationLoop::headerIsCtrl() -> bool {
+  return imp_->event_manager_->eventListHeader()->eventId() == 2;
 }
 auto SimulationLoop::integrate() -> bool {
   // Get header event pointer
@@ -193,6 +305,8 @@ auto SimulationLoop::handleContact() -> void {
 }
 auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
   for (sire::Size i = 0; i < frame_skip; ++i) {
+    // SIRE_PROFILE_FRAME_NAMED("sim/frame");
+    SIRE_PROFILE_FRAME();
     // Get header event pointer
     core::EventBase* header = imp_->event_manager_->eventListHeader();
     // New handler by event id
@@ -200,9 +314,17 @@ auto SimulationLoop::step(sire::Size frame_skip, bool pause_if_fast) -> void {
         createHandlerByEventId(header->eventId());
     handler->init(this);
     imp_->can_get_data_.store(false);
-    handler->integrate(header);
+    {
+      SIRE_PROFILE_SCOPE("sim/integrate");
+      handler->integrate(header);
+    }
     imp_->can_get_data_.store(true);
-    if (handler->handle(header)) {
+    bool handled = false;
+    {
+      SIRE_PROFILE_SCOPE("sim/handle");
+      handled = handler->handle(header);
+    }
+    if (handled) {
       // imp_->event_manager_->generateEvent();
       if (pause_if_fast) {
         imp_->timer_.pauseIfTooFast();
@@ -251,6 +373,135 @@ auto SimulationLoop::simTime() -> double { return imp_->timer_.simTime(); }
 auto SimulationLoop::isEventListEmpty() -> bool {
   return imp_->event_manager_->isEventListEmpty();
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  MuJoCo-style control-timed API — for RL and other fixed-interval
+//  controllers that need to integrate through variable-size sub-steps.
+// ═══════════════════════════════════════════════════════════════════════
+auto SimulationLoop::applyActuators() -> void {
+  auto* engine = imp_->physics_engine_ptr_;
+  SIRE_ASSERT(engine != nullptr);
+  engine->fwdActuators();
+}
+
+auto SimulationLoop::stepPhysics() -> double {
+  auto* engine = imp_->physics_engine_ptr_;
+  SIRE_ASSERT(engine != nullptr);
+  engine->resetPartContactForce();
+
+  engine->updateGeometryLocationFromModel();
+  // 1. Collision detection
+  std::vector<physics::common::PenetrationAsPointPair> pairs;
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
+    engine->cptPointPairPenetration(pairs);
+  }
+  double nextCtrlSimSuggestDt = imp_->event_manager_->cptNextCtrlSimSuggestDt();
+  std::vector<physics::common::PointPairContactInfo> contact_info;
+  {
+    SIRE_PROFILE_SCOPE("sim/contactSolving");
+    // process_penetration_depth_and_maintain_impact_set6(this, pairs);
+    // TODO(ltj): 关节的控制力怎么进来，控制要怎么写
+    engine->integrateByContactInfo(nextCtrlSimSuggestDt, pairs, contact_info);
+  }
+
+  SIRE_PROFILE_FRAME();
+  return nextCtrlSimSuggestDt;
+}
+
+auto SimulationLoop::stepSimple() -> double {
+  applyActuators();
+  return stepPhysics();
+}
+
+auto SimulationLoop::advanceToSimTime(double targetTime)
+    -> std::pair<double, sire::Size> {
+  double t0 = imp_->timer_.simTime();
+  sire::Size sub_steps = 0;
+
+  while (imp_->timer_.simTime() < targetTime - 1e-12) {
+    double remaining = targetTime - imp_->timer_.simTime();
+    // Clamp the nominal suggestion so we don't shoot past target.
+    double original_dt = imp_->dt_;
+    double original_ctrl = imp_->ctrlt_;
+
+    double dt_actual = stepPhysics();
+    ++sub_steps;
+
+    // Safety: if dt_actual is zero (shouldn't happen), break to avoid
+    // infinite loop.
+    if (dt_actual <= 1e-14) {
+      break;
+    }
+  }
+
+  return {imp_->timer_.simTime() - t0, sub_steps};
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  stepPhysicsSimple — solver computes forces, loop handles integration
+// ═══════════════════════════════════════════════════════════════════════
+auto SimulationLoop::stepPhysicsSimple() -> double {
+  using namespace physics;
+  auto* engine = imp_->physics_engine_ptr_;
+  SIRE_ASSERT(engine != nullptr);
+
+  engine->resetPartContactForce();
+  engine->updateGeometryLocationFromModel();
+
+  std::vector<common::PenetrationAsPointPair> pairs;
+  {
+    SIRE_PROFILE_SCOPE("sim/collisionDetection");
+    engine->cptPointPairPenetration(pairs);
+  }
+
+  double dt_actual;
+
+  if (pairs.empty()) {
+    dt_actual = imp_->ctrlt_;
+    imp_->integrator_pool_ptr_->at(0).updPs(dt_actual);
+  } else {
+    // process_penetration_depth_and_maintain_impact_set6(this, pairs);
+
+    std::vector<std::array<double, 16>> T_C_vec;
+    std::vector<common::PointPairContactInfo> contact_info;
+    double suggest_dt = imp_->ctrlt_;
+    double nextCtrlSimSuggestDt =
+        imp_->event_manager_->cptNextCtrlSimSuggestDt();
+    {
+      SIRE_PROFILE_SCOPE("sim/contactSolving");
+      engine->integrateByContactInfo(nextCtrlSimSuggestDt, pairs, contact_info);
+    }
+    imp_->integrator_pool_ptr_->at(0).updPs(dt_actual);
+    imp_->recorder_.recordContactInfo(contact_info, 1);
+    imp_->recorder_.recordPenetrationPairs(pairs);
+  }
+
+  double t = imp_->timer_.updateSimTime(dt_actual);
+  imp_->recorder_.addRecord(t);
+  imp_->model_ptr_->setTime(t);
+  return dt_actual;
+}
+
+auto SimulationLoop::cptNextCtrlSimSuggestDt() -> double {
+  double nextCtrlSimSuggestDt{-1};
+  double nextCtrlTime = imp_->prevCtrlTime_ + imp_->ctrlt_;
+  double nextSimTime = imp_->prevIntTime_ + imp_->dt_;
+  DLOG(DEBUG) << "next ctrl time " << nextCtrlTime << " next sim time "
+              << nextSimTime;
+  if (nextCtrlTime < nextSimTime ||
+      aris::dynamic::s_is_equal(
+          nextCtrlTime, nextSimTime,
+          coincidentEventTolerance(imp_->dt_, imp_->ctrlt_))) {
+    nextCtrlSimSuggestDt =
+        nextCtrlTime - imp_->timer_.simTime();
+  } else {
+    nextCtrlSimSuggestDt =
+        nextSimTime - imp_->timer_.simTime();
+  }
+  return nextCtrlSimSuggestDt;
+}
+
 auto SimulationLoop::isRunning() -> bool {
   return imp_->is_simulation_running_.load();
 }
@@ -351,6 +602,14 @@ auto SimulationLoop::resetController(simulator::Controller* ctrlPtr) -> void {
 auto SimulationLoop::controller() const -> const simulator::Controller& {
   return *imp_->ctrlPtr_;
 }
+auto SimulationLoop::isInitCtrl() -> bool { return imp_->is_init_ctrl_; }
+auto SimulationLoop::setIsInitCtrl(bool isInitCtrl) -> void {
+  imp_->is_init_ctrl_ = isInitCtrl;
+}
+auto SimulationLoop::isCtrlFlag() -> bool { return imp_->is_ctrl_flag_; }
+auto SimulationLoop::setIsCtrlFlag(bool isCtrlFlag) -> void {
+  imp_->is_ctrl_flag_ = isCtrlFlag;
+}
 auto SimulationLoop::deltaT() -> double { return imp_->dt_; }
 auto SimulationLoop::setDeltaT(double delta_t_in) -> void {
   SIRE_ASSERT(delta_t_in >= 0);
@@ -381,8 +640,34 @@ auto SimulationLoop::getGlobalVariablePool() const -> const core::PropMap& {
   return imp_->global_variable_pool_;
 }
 auto SimulationLoop::reset() -> void {
-  imp_->contact_pair_manager_.contactPairMap().clear();
+  imp_->contact_pair_manager_.clear();
+  imp_->event_manager_->reset();
+  imp_->init_model_data_.resetModel(*imp_->model_ptr_);
+  imp_->is_ctrl_flag_ = imp_->is_init_ctrl_;
   imp_->timer_.reset();
+  imp_->recorder_.reset();
+  imp_->prevCtrlTime_ = 0;
+  imp_->prevIntTime_ = 0;
+  imp_->nextSuggestTime_ = -1;
+}
+auto SimulationLoop::resetRL() -> void {
+  imp_->contact_pair_manager_.clear();
+  imp_->event_manager_->reset();
+  imp_->is_ctrl_flag_ = imp_->is_init_ctrl_;
+  imp_->timer_.reset();
+  imp_->prevCtrlTime_ = 0;
+  imp_->prevIntTime_ = 0;
+  imp_->nextSuggestTime_ = -1;
+}
+auto SimulationLoop::resetRLNoTimer() -> void {
+  imp_->contact_pair_manager_.clear();
+  imp_->event_manager_->reset();
+  imp_->is_ctrl_flag_ = imp_->is_init_ctrl_;
+  imp_->prevCtrlTime_ = imp_->timer_.simTime();
+  imp_->prevIntTime_ = imp_->timer_.simTime();
+  imp_->nextSuggestTime_ = -1;
+}
+auto SimulationLoop::resetRecorder() -> void {
   imp_->recorder_.reset();
 }
 
@@ -400,6 +685,8 @@ ARIS_REGISTRATION {
   aris::core::class_<SimulationLoop>("SimulationLoop")
       .prop("dt", &SimulationLoop::setDeltaT, &SimulationLoop::deltaT)
       .prop("ctrlt", &SimulationLoop::setCtrlT, &SimulationLoop::ctrlT)
+      .prop("isInitCtrl", &SimulationLoop::setIsInitCtrl,
+            &SimulationLoop::isInitCtrl)
       .prop("realtime_rate", &SimulationLoop::setRealtimeRate,
             &SimulationLoop::targetRealtimeRate)
       .prop("sim_duration", &SimulationLoop::setSimDuration,

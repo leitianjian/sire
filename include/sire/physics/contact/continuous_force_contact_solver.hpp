@@ -28,7 +28,6 @@
 
 namespace sire::physics {
 namespace contact {
-using namespace coal;
 /* contact-based implementation */
 class SIRE_API ContinuousForceContactSolver : public ContactSolver {
  public:

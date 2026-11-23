@@ -19,8 +19,6 @@
 namespace sire::physics {
 class PhysicsEngine;
 namespace collision {
-using namespace std;
-
 /* drake-based implementation
  * filter和geometry配置都先读进去，之后通过init进行碰撞管理器的初始化
  * 使用无锁数据同步从transfer中取数据
@@ -42,6 +40,10 @@ class SIRE_API CollisionDetection {
   auto numDynamicGeometries() -> sire::Size;
   auto hasCollisions() -> bool;
   auto computePointPairPenetration(
+      std::vector<common::PenetrationAsPointPair>& contacts) -> bool;
+  /// @brief 与 computePointPairPenetration 类似，但 HeightField
+  /// 碰撞对会检测多个接触点并做空间去重。
+  auto computeHeightFieldPenetration(
       std::vector<common::PenetrationAsPointPair>& contacts) -> bool;
   auto init(physics::PhysicsEngine* engine_ptr) -> void;
 

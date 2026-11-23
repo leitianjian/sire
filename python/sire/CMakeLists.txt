@@ -18,25 +18,40 @@ endif()
 # message(STATUS "Find Python at ${Python3_ROOT_DIR}")
 # find_package(Python COMPONENTS Development.Module REQUIRED)
 find_package(pybind11 REQUIRED)
+find_package(Threads REQUIRED)
 set(PYTHON_MODULE_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python_modules")
 file(MAKE_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR})
 
+# Clarabel doesn't export a CMake config, so we include it directly from the source tree
+if(NOT TARGET libclarabel_c_shared)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)
+endif()
 # SIRE PYTHON BINDING
 pybind11_add_module(sire
   "pybind11_json.hpp"
-  "sire_bindings.cpp")
+  "sire_bindings.cpp"
+  "bindings_core.cpp"
+  "bindings_model.cpp"
+  "bindings_physics.cpp"
+  "bindings_pointer_arrays.cpp"
+  "bindings_rl.cpp"
+  "bindings_server.cpp"
+  "bindings_simulator.cpp"
+  "bindings_utils.cpp")
 target_compile_features(sire PUBLIC cxx_std_17)
 target_include_directories(sire
   PUBLIC
     ${aris_INCLUDE_DIRS}
     ${PROJECT_BINARY_DIR}
-    ${coal_INCLUDE_DIRS}
     ${ASSIMP_INCLUDE_DIRS}
+  PRIVATE
+		${CMAKE_SOURCE_DIR}/third_party/clarabel/include
 )
 
 # 链接库
 target_link_libraries(sire
   PRIVATE
+    sire_profiler
     sire_core
     sire_log
     sire_server
@@ -46,17 +61,29 @@ target_link_libraries(sire
     sire_sensor
     sire_physics
     sire_actuator
+    Threads::Threads
     ${aris_LIBRARIES}
     ${PUB_RELY_LINK_LIB} # 继承第三方依赖
+    ${PRI_RELY_LINK_LIB}
 )
+
+if(SIRE_ENABLE_CUDA)
+  target_sources(sire PRIVATE bindings_cuda.cpp $<TARGET_OBJECTS:sire_cuda_scene_objects>)
+  target_compile_definitions(sire PRIVATE SIRE_PYTHON_CUDA=1)
+  target_link_libraries(sire PRIVATE sire_cuda)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # Keep this toolkit's runtime private when PyTorch has loaded its own.
+    target_link_options(sire PRIVATE "LINKER:--exclude-libs,libcudart_static.a")
+  endif()
+endif()
 
 # 设置模块输出名称和路径
 set_target_properties(sire PROPERTIES
   OUTPUT_NAME "sire"
   PREFIX ""
-  SUFFIX ".pyd" # Windows 后缀
   LIBRARY_OUTPUT_DIRECTORY ${PYTHON_MODULE_OUTPUT_DIR}
 )
+# Keep pybind11's Python ABI suffix (e.g. .cp313-win_amd64.pyd).
 
 # # 复制运行时依赖的 DLL 到输出目录（Windows 特有）
 # add_custom_command(TARGET sire_python POST_BUILD
@@ -68,26 +95,14 @@ set_target_properties(sire PROPERTIES
 # 安装 Python 模块
 install(TARGETS sire
   CONFIGURATIONS Release
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/release"
+  DESTINATION "python/release"
+  COMPONENT PythonRuntime
 )
 
 install(TARGETS sire
   CONFIGURATIONS Debug
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/debug"
+  DESTINATION "python/debug"
+  COMPONENT PythonRuntime
 )
 
-# # 安装依赖 DLL（可选）
-install(FILES
-  $<TARGET_FILE:sire_lib>
-  CONFIGURATIONS Debug
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/debug"
-)
-
-# # 安装依赖 DLL（可选）
-install(FILES
-  $<TARGET_FILE:sire_lib>
-  CONFIGURATIONS Release
-  DESTINATION "${CMAKE_INSTALL_PREFIX}/python/release"
-)
-
-INSTALL_DLL(DESTINATION ${CMAKE_INSTALL_PREFIX}/python/${CMAKE_BUILD_TYPE_LOWER})
+INSTALL_DLL(DESTINATION python/${CMAKE_BUILD_TYPE_LOWER} COMPONENT PythonRuntime)

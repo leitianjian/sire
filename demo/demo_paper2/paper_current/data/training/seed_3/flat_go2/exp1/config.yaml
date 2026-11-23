@@ -1,0 +1,334 @@
+env_cfg:
+  asset:
+    angular_damping: 0.0
+    armature: 0.0
+    collapse_fixed_joints: true
+    default_dof_drive_mode: 3
+    density: 0.001
+    disable_gravity: false
+    file: '{LEGGED_GYM_ROOT_DIR}/resources/robots/go2/flat.xml'
+    fix_base_link: false
+    flip_visual_attachments: true
+    foot_name: foot
+    linear_damping: 0.0
+    max_angular_velocity: 1000.0
+    max_linear_velocity: 1000.0
+    name: go2
+    penalize_contacts_on:
+    - thigh
+    - calf
+    replace_cylinder_with_capsule: true
+    self_collisions: 1
+    terminate_after_contacts_on:
+    - base
+    thickness: 0.01
+  commands:
+    ang_vel_yaw_slew_rate: 8.0
+    curriculum: false
+    heading_command: false
+    lin_vel_slew_rate: 4.0
+    max_curriculum: 1.0
+    num_commands: 4
+    ranges:
+      ang_vel_yaw:
+      - -1
+      - 1
+      heading:
+      - -3.14
+      - 3.14
+      lin_vel_x:
+      - -1.0
+      - 1.0
+      lin_vel_y:
+      - -1.0
+      - 1.0
+    resampling_time: 5.0
+    smooth_commands: false
+  control:
+    action_scale: 0.25
+    control_type: P
+    damping:
+      joint: 0.5
+    decimation: 20
+    stiffness:
+      joint: 20.0
+  domain_rand:
+    added_mass_range:
+    - -0.5
+    - 1.5
+    friction_range:
+    - 0.2
+    - 2.5
+    max_push_vel_xy: 0.5
+    push_interval: 250
+    push_interval_s: 5
+    push_robots: false
+    randomize_base_mass: false
+    randomize_friction: false
+    sire_contact_cr: 0.3
+    sire_contact_d: 50000.0
+    sire_contact_k: 200000000.0
+    sire_material_pair:
+    - m1
+    - m1
+    sire_nominal_friction: 0.4
+    sire_threshold_velocity: 0.3
+  env:
+    env_spacing: 3.0
+    episode_length_s: 20
+    num_actions: 12
+    num_envs: 1024
+    num_observations: 45
+    num_privileged_obs: 235
+    send_timeouts: true
+  init_state:
+    ang_vel:
+    - 0.0
+    - 0.0
+    - 0.0
+    default_joint_angles:
+      FL_calf_joint: -1.5
+      FL_hip_joint: 0.1
+      FL_thigh_joint: 0.8
+      FR_calf_joint: -1.5
+      FR_hip_joint: -0.1
+      FR_thigh_joint: 0.8
+      RL_calf_joint: -1.5
+      RL_hip_joint: 0.1
+      RL_thigh_joint: 1.0
+      RR_calf_joint: -1.5
+      RR_hip_joint: -0.1
+      RR_thigh_joint: 1.0
+    init_yaw_range:
+    - 0.0
+    - 0.0
+    lin_vel:
+    - 0.0
+    - 0.0
+    - 0.0
+    pos:
+    - 0.0
+    - 0.0
+    - 0.42
+    rot:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  noise:
+    add_noise: false
+    noise_level: 1.0
+    noise_scales:
+      ang_vel: 0.2
+      dof_pos: 0.01
+      dof_vel: 1.5
+      gravity: 0.05
+      height_measurements: 0.1
+      lin_vel: 0.1
+  normalization:
+    clip_actions: 100.0
+    clip_observations: 100.0
+    obs_scales:
+      ang_vel: 0.25
+      dof_pos: 1.0
+      dof_vel: 0.05
+      height_measurements: 5.0
+      lin_vel: 2.0
+  rewards:
+    base_height_target: 0.29
+    feet_air_time_reward_cap: 0.2
+    feet_air_time_threshold: 0.08
+    feet_slip_speed_sq_cap: 1.0
+    max_contact_force: 100.0
+    only_positive_rewards: false
+    scales:
+      action_magnitude: -0.001
+      action_rate: -0.01
+      ang_vel_xy: -0.05
+      base_height: -5.0
+      collision: -1.0
+      default_pos: -0.1
+      dof_acc: -2.5e-07
+      dof_pos_limits: -10.0
+      dof_vel: 0.0
+      feet_air_time: 3.0
+      feet_slip: -0.2
+      feet_stumble: -0.0
+      hip_pos: -0.2
+      lin_vel_z: -2.0
+      orientation: -5.0
+      stand_still: -1.0
+      termination: -0.0
+      torques: -0.0001
+      tracking_ang_vel: 0.5
+      tracking_lin_vel: 1.0
+    soft_dof_pos_limit: 1.0
+    soft_dof_vel_limit: 1.0
+    soft_torque_limit: 1.0
+    tracking_sigma: 0.25
+  sim:
+    dt: 0.001
+    gravity:
+    - 0.0
+    - 0.0
+    - -9.81
+    physx:
+      bounce_threshold_velocity: 0.5
+      contact_collection: 2
+      contact_offset: 0.01
+      default_buffer_size_multiplier: 5
+      max_depenetration_velocity: 1.0
+      max_gpu_contact_pairs: 8388608
+      num_position_iterations: 4
+      num_threads: 10
+      num_velocity_iterations: 0
+      rest_offset: 0.0
+      solver_type: 1
+    sire_batch_threads: 16
+    sire_diagnostics: false
+    sire_max_recoveries_per_step: 1024
+    sire_max_recovery_fraction: 0.0
+    sire_max_total_recoveries: 0
+    sire_recovery_window_steps: 1000
+    substeps: 1
+    up_axis: 1
+  terrain:
+    base_half_height: 0.04
+    border_size: 2.0
+    curriculum: false
+    dynamic_friction: 1.0
+    heightfield_height_override: 0.2
+    heightfield_height_range:
+    - 0.1
+    - 0.3
+    heightfield_ncol: 257
+    heightfield_nrow: 257
+    heightfield_smooth_steps: 8
+    heightfield_spawn_flat_radius: 3
+    horizontal_scale: 0.1
+    max_init_terrain_level: 0
+    measure_heights: false
+    measured_points_x:
+    - -0.8
+    - -0.7
+    - -0.6
+    - -0.5
+    - -0.4
+    - -0.3
+    - -0.2
+    - -0.1
+    - 0.0
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    measured_points_y:
+    - -0.5
+    - -0.4
+    - -0.3
+    - -0.2
+    - -0.1
+    - 0.0
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    mesh_type: plane
+    num_cols: 1
+    num_rows: 1
+    restitution: 0.0
+    rough_height_range:
+    - 0.01
+    - 0.05
+    rough_tile_size: 1.0
+    scene_curriculum_content_length: null
+    scene_curriculum_content_width: null
+    scene_curriculum_dir: null
+    scene_curriculum_single_level: null
+    selected: false
+    slope_angle_override_deg: 4.0
+    slope_half_height: 0.12
+    slope_range_deg:
+    - 3.0
+    - 8.0
+    slope_treshold: 0.75
+    spawn_offset_x: 2.0
+    spawn_offset_y: 5.0
+    spawn_rand_x_range:
+    - -1.0
+    - 1.0
+    spawn_rand_y_range:
+    - -1.0
+    - 1.0
+    static_friction: 1.0
+    terrain_kwargs: null
+    terrain_length: 10.0
+    terrain_proportions:
+    - 0.1
+    - 0.1
+    - 0.35
+    - 0.25
+    - 0.2
+    terrain_seed: 1234
+    terrain_type_mode: heightfield
+    terrain_width: 10.0
+    vertical_scale: 0.005
+  viewer:
+    lookat:
+    - 11.0
+    - 5
+    - 3.0
+    pos:
+    - 10
+    - 0
+    - 6
+    ref_env: 0
+train_cfg:
+  algorithm:
+    clip_param: 0.2
+    desired_kl: 0.01
+    entropy_coef: 0.01
+    gamma: 0.99
+    lam: 0.95
+    learning_rate: 0.001
+    max_grad_norm: 1.0
+    num_learning_epochs: 5
+    num_mini_batches: 4
+    schedule: adaptive
+    use_clipped_value_loss: true
+    value_loss_coef: 1.0
+  policy:
+    activation: elu
+    actor_hidden_dims:
+    - 512
+    - 256
+    - 128
+    critic_hidden_dims:
+    - 512
+    - 256
+    - 128
+    init_noise_std: 1.0
+  runner:
+    algorithm_class_name: PPO
+    checkpoint: -1
+    debug_reward: false
+    experiment_name: flat_go2
+    load_run: -1
+    log_episode_keys: []
+    log_interval: 1
+    log_root: /mnt/data/workspace/ltj/sire/logs/paper_v5_eliminate_seeds_1_4_20260924_150330/seed_3
+    max_iterations: 1200
+    memory_interval: 0
+    num_steps_per_env: 120
+    policy_class_name: ActorCritic
+    resume: false
+    resume_path: null
+    run_name: ''
+    save_interval: 50
+  runner_class_name: OnPolicyRunner
+  seed: 3

@@ -283,7 +283,7 @@
             <ContactPositionForceSolver __prop_name__="contact_solver" default_k="200000000" default_cr="0.2">
                 <MaterialManager __prop_name__="material_manager" default_prop="{k:140000000,d:1000,cr:1}">
                     <MaterialPairPropPool __prop_name__="material_pair_prop_pool">
-                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:8000,cr:0.3,cof:0.8,threshold_velocity:1e-4}"/>
+                        <MaterialPairProp first_name="m1" second_name="m1" prop="{k:2e8,d:200000,cr:0.3,cof:0.8,threshold_velocity:1e-4}"/>
                     </MaterialPairPropPool>
                 </MaterialManager>
             </ContactPositionForceSolver>

@@ -2,6 +2,18 @@
 cmake_minimum_required(VERSION 3.18.0)
 project(sire VERSION 1.0.0)
 
+option(SIRE_ENABLE_CUDA "Build Sire's native CUDA simulation backend" OFF)
+if(SIRE_ENABLE_CUDA)
+	enable_language(CUDA)
+	find_package(CUDAToolkit REQUIRED)
+	add_subdirectory(src/physics/cuda)
+endif()
+
+if(POLICY CMP0167)
+	cmake_policy(SET CMP0167 NEW)
+	set(CMAKE_POLICY_DEFAULT_CMP0167 NEW)
+endif()
+
 # set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 if(UNIX)
 	set(CMAKE_INSTALL_PREFIX "/usr/sire/sire-1.0")
@@ -22,7 +34,36 @@ if(WIN32)
 	add_definitions(${CMAKE_CXX_FLAGS})
 endif(WIN32)
 
+# Source files contain UTF-8 comments. MSVC's locale-dependent default can
+# otherwise consume a trailing multibyte byte as a line continuation.
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 include(cmake_macros/base.cmake)
+
+# ---------------------- profiling hooks ---------------------------
+# A stable project-level instrumentation API (see include/sire/core/profiler.hpp).
+# Default backend is no-op; Tracy is optional.
+option(SIRE_ENABLE_TRACY "Enable Tracy profiler instrumentation (requires Tracy package)" OFF)
+
+add_library(sire_profiler INTERFACE)
+target_include_directories(sire_profiler
+	INTERFACE
+		$<INSTALL_INTERFACE:include>
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+
+if(SIRE_ENABLE_TRACY)
+	find_package(Tracy CONFIG QUIET)
+	if(Tracy_FOUND)
+		target_link_libraries(sire_profiler INTERFACE Tracy::TracyClient)
+		target_compile_definitions(sire_profiler INTERFACE SIRE_PROFILE_TRACY TRACY_ENABLE)
+		message(STATUS "Sire profiling backend: Tracy")
+	else()
+		message(WARNING "SIRE_ENABLE_TRACY=ON but Tracy not found; profiling will be disabled")
+	endif()
+endif()
 
 find_pkg_path(aris aris)
 
@@ -30,9 +71,26 @@ find_pkg_path(assimp assimp)
 
 find_pkg_path(coal hpp_fcl)
 
+# coal (hpp-fcl) headers include <Eigen/Core>, but Eigen's headers are typically under
+# <prefix>/include/eigen3, so we must pull Eigen's include dirs into our compile lines.
+find_package(Eigen3 CONFIG REQUIRED)
+
+# Aggregate coal + Eigen usage requirements so targets can just link this once.
+add_library(sire_deps_coal INTERFACE)
+target_link_libraries(sire_deps_coal
+	INTERFACE
+		coal::coal
+)
+
 find_pkg_path(stduuid stduuid)
 
 find_pkg_path(msgpack-cxx msgpack_cxx)
+
+# Clarabel doesn't export a CMake config. Reuse its existing Rust runtime for
+# normal C++ iterations; the helper falls back to a source build when missing.
+if(NOT TARGET libclarabel_c_shared)
+	include(${CMAKE_SOURCE_DIR}/cmake_macros/clarabel_dependency.cmake)
+endif()
 
 include(GenerateExportHeader)
 
@@ -69,6 +127,7 @@ target_sources(sire_core
 		"src/core/geometry/mesh_geometry.cpp"
 		"src/core/geometry/sphere_shape.cpp"
 		"src/core/geometry/sphere_geometry.cpp"
+		"src/core/geometry/height_field_shape.cpp"
 		"src/core/geometry/geometry_base.cpp"
 		"src/core/geometry/geometry_on_part.cpp"
 		#"src/core/geometry/geometry_properties.cpp"
@@ -108,8 +167,12 @@ target_sources(sire_core
 		"include/sire/core/geometry/cylinder_geometry.hpp"
 		"include/sire/core/geometry/mesh_shape.hpp"
 		"include/sire/core/geometry/mesh_geometry.hpp"
+		"include/sire/core/geometry/height_field_shape.hpp"
 		"include/sire/core/geometry/geometry_base.hpp"
 		"include/sire/core/geometry/geometry_on_part.hpp"
+		"include/sire/core/geometry/geometry_adapter.hpp"
+		"include/sire/ext/stb_image_write.h"
+		"include/sire/ext/stb_image.h"
 		#"include/sire/core/geometry/geometry_properties.hpp"
 )
 target_include_directories(sire_core
@@ -121,6 +184,7 @@ target_include_directories(sire_core
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
+target_link_libraries(sire_core PRIVATE sire_profiler)
 install(DIRECTORY include/sire/core DESTINATION include/sire)
 
 add_subdirectory(src/log)
@@ -143,6 +207,7 @@ target_include_directories(sire_actuator
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
+target_link_libraries(sire_actuator PRIVATE sire_profiler)
 install(DIRECTORY include/sire/actuator DESTINATION include/sire)
 
 # TODO(ltj)  Physics cmakelist to sub-directory
@@ -162,6 +227,7 @@ target_sources(sire_physics
 		"src/physics/geometry/collidable_geometry.cpp"
 		"src/physics/geometry/sphere_collision_geometry.cpp"
 		"src/physics/geometry/box_collision_geometry.cpp"
+		"src/physics/geometry/height_field.cpp"
 		"src/physics/geometry/capsule_collision_geometry.cpp"
 		"src/physics/geometry/cylinder_collision_geometry.cpp"
 		"src/physics/geometry/mesh_collision_geometry.cpp"
@@ -169,12 +235,26 @@ target_sources(sire_physics
 		"src/physics/contact/stiffness_damping_contact_solver.cpp"
 		"src/physics/contact/continuous_force_contact_solver.cpp"
 		"src/physics/contact/avg_force_contact_solver.cpp"
+		"src/physics/contact/analytical_tangent_force_solver.cpp"
+		"src/physics/contact/analytical_implicit_friction_solver.cpp"
 		"src/physics/contact/contact_position_force_solver.cpp"
+		"src/physics/contact/contact_force_solver.cpp"
+		"src/physics/contact/ps_vs_solver.cpp"
+		"src/physics/contact/clarabel_contact_solver.cpp"
+		"src/physics/contact/sor_contact_solver.cpp"
+		"src/physics/contact/admm_contact_solver.cpp"
+		"src/physics/contact/simple_admm_contact_solver.cpp"
+		"src/physics/contact/smooth_linear_contact_solver.cpp"
+		"src/physics/contact/newton_pipg_contact_solver.cpp"
+		"src/physics/contact/exact_coulomb_contact_solver.cpp"
 		"src/physics/collision/collision_detection.cpp"
 		"src/physics/collision/collision_filter.cpp"
 		"src/physics/collision/collision_exists_callback.cpp"
 		"src/physics/collision/collided_objects_callback.cpp"
 		"src/physics/collision/penetration_as_point_pair_callback.cpp"
+		"src/physics/collision/height_field_contact_callback.cpp"
+		"src/physics/collision/height_field_contact_generator.cpp"
+		"src/physics/collision/height_field_prism_contact_generator.cpp"
 		"src/physics/common/point_pair_contact_info.cpp"
 		"src/physics/common/motion_force.cpp"
 		"src/physics/physics_engine.cpp"
@@ -182,8 +262,10 @@ target_sources(sire_physics
 	PUBLIC
 		"include/sire/physics/geometry/collidable.hpp"
 		"include/sire/physics/geometry/collidable_geometry.hpp"
+		"include/sire/physics/geometry/collision_adapter.hpp"
 		"include/sire/physics/geometry/sphere_collision_geometry.hpp"
 		"include/sire/physics/geometry/box_collision_geometry.hpp"
+		"include/sire/physics/geometry/height_field.hpp"
 		"include/sire/physics/geometry/capsule_collision_geometry.hpp"
 		"include/sire/physics/geometry/cylinder_collision_geometry.hpp"
 		"include/sire/physics/geometry/mesh_collision_geometry.hpp"
@@ -191,13 +273,24 @@ target_sources(sire_physics
 		"include/sire/physics/contact/stiffness_damping_contact_solver.hpp"
 		"include/sire/physics/contact/continuous_force_contact_solver.hpp"
 		"include/sire/physics/contact/avg_force_contact_solver.hpp"
-		"include/sire/physics/contact/contact_position_force_solver.hpp"
+		"include/sire/physics/contact/analytical_tangent_force_solver.hpp"
+		"include/sire/physics/contact/analytical_implicit_friction_solver.hpp"
+		"include/sire/physics/contact/contact_force_solver.hpp"
+		"include/sire/physics/contact/ps_vs_solver.hpp"
+		"include/sire/physics/contact/clarabel_contact_solver.hpp"
+		"include/sire/physics/contact/sor_contact_solver.hpp"
+		"include/sire/physics/contact/admm_contact_solver.hpp"
+		"include/sire/physics/contact/simple_admm_contact_solver.hpp"
+		"include/sire/physics/contact/newton_pipg_contact_solver.hpp"
+		"include/sire/physics/contact/exact_coulomb_contact_solver.hpp"
 		"include/sire/physics/contact/contact_solver_result.hpp"
 		"include/sire/physics/collision/collision_detection.hpp"
 		"include/sire/physics/collision/collision_filter.hpp"
 		"include/sire/physics/collision/collision_exists_callback.hpp"
 		"include/sire/physics/collision/collided_objects_callback.hpp"
 		"include/sire/physics/collision/penetration_as_point_pair_callback.hpp"
+		"include/sire/physics/collision/height_field_contact_callback.hpp"
+		"include/sire/physics/collision/height_field_contact_generator.hpp"
 		"include/sire/physics/common/penetration_as_point_pair.hpp"
 		"include/sire/physics/common/point_pair_contact_info.hpp"
 		"include/sire/physics/common/motion_force.hpp"
@@ -213,9 +306,10 @@ target_include_directories(sire_physics
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
+		${CMAKE_SOURCE_DIR}/third_party/clarabel/include
 )
+target_link_libraries(sire_physics PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/physics DESTINATION include/sire)
 
 # Build lib integrator of sire
@@ -243,9 +337,9 @@ target_include_directories(sire_integrator
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
+target_link_libraries(sire_integrator PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/integrator DESTINATION include/sire)
 
 # Build lib simulator of sire
@@ -262,6 +356,7 @@ target_sources(sire_simulator
 	PRIVATE
 		"src/simulator/recorder.cpp"
 		"src/simulator/simulation_loop.cpp"
+		"src/simulator/simulator.cpp"
 		"src/simulator/events.cpp"
 		"src/simulator/simulation_result.cpp"
 		"src/simulator/simulator_modules.cpp"
@@ -270,8 +365,9 @@ target_sources(sire_simulator
 		"src/simulator/controller.cpp"
 		"src/simulator/joint_constraint_solver.cpp"
 	PUBLIC
-	"include/sire/simulator/recorder.hpp"
+		"include/sire/simulator/recorder.hpp"
 		"include/sire/simulator/simulation_loop.hpp"
+		"include/sire/simulator/simulator.hpp"
 		"include/sire/simulator/events.hpp"
 		"include/sire/simulator/simulation_result.hpp"
 		"include/sire/simulator/simulator_modules.hpp"
@@ -289,9 +385,9 @@ target_include_directories(sire_simulator
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
+target_link_libraries(sire_simulator PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/simulator DESTINATION include/sire)
 
 # add_subdirectory(third_party/stduuid)
@@ -325,7 +421,7 @@ target_sources(sire_server
 		"src/server/base64.hpp"
 	# "src/server/sire_socket_server.cpp"
 	# "src/server/uuid.h"
-	"src/ext/tinyxml2.cpp"
+		"src/ext/tinyxml2.cpp"
 	PUBLIC
 		"include/sire/server/api.hpp"
 		"include/sire/server/interface.hpp"
@@ -357,8 +453,8 @@ target_include_directories(sire_server
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 		${ASSIMP_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 )
+target_link_libraries(sire_server PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/server DESTINATION include/sire)
 install(DIRECTORY include/sire/ext DESTINATION include/sire)
 install(DIRECTORY include/sire/plan DESTINATION include/sire)
@@ -385,9 +481,9 @@ target_include_directories(sire_middleware
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 )
+target_link_libraries(sire_middleware PRIVATE sire_profiler sire_deps_coal)
 install(DIRECTORY include/sire/middleware DESTINATION include/sire)
 
 add_library(sire_sensor OBJECT)
@@ -408,6 +504,7 @@ target_include_directories(sire_sensor
 		${PROJECT_SOURCE_DIR}/src
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
+target_link_libraries(sire_sensor PRIVATE sire_profiler)
 install(DIRECTORY include/sire/sensor DESTINATION include/sire)
 
 # Build library for sire
@@ -433,9 +530,28 @@ target_include_directories(sire_lib
 	PRIVATE
 		${PROJECT_SOURCE_DIR}/src
 )
-set(PUB_RELY_LINK_LIB ${coal_LIBRARIES} ${aris_LIBRARIES} msgpack-cxx)
+set(PUB_RELY_LINK_LIB coal::coal ${aris_LIBRARIES} msgpack-cxx)
+set(PRI_RELY_LINK_LIB libclarabel_c_shared)
 message(STATUS ${coal_LIBRARIES})
-target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB})
+target_link_libraries(sire_lib PUBLIC ${PUB_RELY_LINK_LIB} PRIVATE ${PRI_RELY_LINK_LIB} sire_profiler)
+
+if(SIRE_ENABLE_CUDA)
+	add_library(sire_cuda_scene_objects OBJECT
+		src/physics/cuda/flat_ground_model.cpp
+		src/physics/cuda/rigid_body_batch.cpp
+		src/physics/cuda/rigid_body_limits_model.cpp
+		src/physics/cuda/rigid_body_model.cpp)
+	set_target_properties(sire_cuda_scene_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+	target_link_libraries(sire_cuda_scene_objects PRIVATE sire_cuda sire_lib)
+	add_library(sire_cuda_scene STATIC $<TARGET_OBJECTS:sire_cuda_scene_objects>)
+	target_link_libraries(sire_cuda_scene PUBLIC sire_cuda sire_lib)
+endif()
+
+if(WIN32)
+	add_custom_command(TARGET sire_lib POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_PROPERTY:libclarabel_c_shared,SIRE_RUNTIME_FILE> $<TARGET_FILE_DIR:sire_lib>
+	)
+endif()
 
 if(BUILD_PYTHON)
 	add_subdirectory(python/sire)

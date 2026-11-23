@@ -137,7 +137,8 @@ target_link_libraries(screw_test
 		${PUB_RELY_LINK_LIB}
 )
 
-add_executable(force_screw_test "core/force_screw_test.cpp")
+add_executable(force_screw_test "core/force_screw_test.cpp"
+    "core/matrix_exp_multiply_test.cpp")
 target_compile_features(force_screw_test PUBLIC cxx_std_17)
 target_include_directories(force_screw_test
 	PRIVATE
@@ -154,6 +155,10 @@ target_link_libraries(force_screw_test
 
 find_package(Eigen3 REQUIRED NO_MODULE)
 
+if(NOT TARGET libclarabel_c_shared)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)
+endif()
+
 add_executable(physics_engine_test
 	"physics/collision/physics_engine_test.cpp")
 target_compile_features(physics_engine_test PUBLIC cxx_std_17)
@@ -161,11 +166,86 @@ target_include_directories(physics_engine_test
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
+		${CMAKE_SOURCE_DIR}/third_party/clarabel/include  # Manually add include path just in case
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
 target_link_libraries(physics_engine_test
+	PRIVATE
+		GTest::gtest_main
+		Eigen3::Eigen
+		libclarabel_c_shared # 使用 shared，避免静态链接的 Rust NT 库报错
+		sire_physics
+		sire_log
+		sire_core
+		sire_simulator
+		sire_middleware
+		sire_server
+		sire_integrator
+		sire_actuator
+		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
+)
+
+# Geometry-only regression for Sire's HeightField narrow phase.  Compile the
+# generator directly so failures do not depend on the contact solver.
+add_executable(height_field_witness_test
+	"physics/collision/height_field_witness_test.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_prism_contact_generator.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp")
+target_compile_features(height_field_witness_test PRIVATE cxx_std_17)
+target_include_directories(height_field_witness_test PRIVATE
+	"${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_witness_test PRIVATE
+	GTest::gtest_main
+	sire_lib
+	coal::coal)
+add_test(NAME height_field_witness_test COMMAND height_field_witness_test)
+
+# Manual Release benchmark: compares COAL's eight-contact query with Sire's
+# selected contacts for identical HeightField/shape poses.
+add_executable(height_field_contact_benchmark
+	"physics/collision/height_field_contact_benchmark.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp")
+target_compile_features(height_field_contact_benchmark PRIVATE cxx_std_17)
+target_include_directories(height_field_contact_benchmark PRIVATE
+	"${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_contact_benchmark PRIVATE coal::coal)
+
+# Equal flat surfaces, uncapped candidate validation, identical final reduction.
+add_executable(height_field_overhead_benchmark
+	"physics/collision/height_field_overhead_benchmark.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp")
+target_compile_features(height_field_overhead_benchmark PRIVATE cxx_std_17)
+target_include_directories(height_field_overhead_benchmark PRIVATE
+	"${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_overhead_benchmark PRIVATE sire_lib coal::coal)
+
+add_executable(height_field_prism_benchmark
+	"physics/collision/height_field_prism_benchmark.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_contact_generator.cpp"
+	"${CMAKE_SOURCE_DIR}/src/physics/collision/height_field_prism_contact_generator.cpp")
+target_compile_features(height_field_prism_benchmark PRIVATE cxx_std_17)
+target_include_directories(height_field_prism_benchmark PRIVATE "${CMAKE_SOURCE_DIR}/include")
+target_link_libraries(height_field_prism_benchmark PRIVATE sire_lib coal::coal)
+
+# Clarabel doesn't export a CMake config, so we include it directly from the source tree
+if(NOT TARGET libclarabel_c_shared)
+	add_subdirectory(${CMAKE_SOURCE_DIR}/third_party/clarabel ${CMAKE_BINARY_DIR}/clarabel)
+endif()
+
+add_executable(test_clarabel
+	"physics/contact/test_clarabel.cpp")
+target_compile_features(test_clarabel PUBLIC cxx_std_17)
+target_include_directories(test_clarabel
+	PRIVATE
+		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+		${aris_INCLUDE_DIRS}
+		${ASSIMP_INCLUDE_DIRS}
+		${CMAKE_SOURCE_DIR}/third_party/clarabel/include  # Manually add include path just in case
+		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
+)
+target_link_libraries(test_clarabel
 	PRIVATE
 		GTest::gtest_main
 		Eigen3::Eigen
@@ -178,7 +258,14 @@ target_link_libraries(physics_engine_test
 		sire_integrator
 		sire_actuator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 )
+
+if(WIN32)
+	add_custom_command(TARGET test_clarabel POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/third_party/clarabel/rust_wrapper/target/$<IF:$<CONFIG:Debug>,debug,release>/clarabel_c.dll $<TARGET_FILE_DIR:test_clarabel>
+	)
+endif()
 
 add_executable(multi_contact_mass_matrix
 	"physics/contact/multi_contact_mass_matrix.cpp")
@@ -203,7 +290,6 @@ target_include_directories(geometry_serialization_test
 	PRIVATE
 		$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 		${aris_INCLUDE_DIRS}
-		${coal_INCLUDE_DIRS}
 		${ASSIMP_INCLUDE_DIRS}
 		${PROJECT_BINARY_DIR} # sire_lib_EXPORTS
 )
@@ -219,6 +305,7 @@ target_link_libraries(geometry_serialization_test
 		sire_integrator
 		sire_actuator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 )
 
 if(WIN32)
@@ -264,6 +351,51 @@ if(WIN32)
 endif(WIN32)
 
 include(GoogleTest)
+
+# Opt-in with BUILD_TEST; tests run only when explicitly requested.
+add_executable(single_point_contact_test
+	"physics/contact/single_point_contact_test.cpp"
+	"physics/contact/shifted_spectral_admm_test.cpp")
+target_compile_features(single_point_contact_test PRIVATE cxx_std_17)
+target_include_directories(single_point_contact_test PRIVATE
+	${PROJECT_SOURCE_DIR}/include
+	${PROJECT_BINARY_DIR}
+	${aris_INCLUDE_DIRS})
+target_link_libraries(single_point_contact_test PRIVATE
+	GTest::gtest_main sire_lib ${PUB_RELY_LINK_LIB})
+add_test(NAME single_point_contact_test COMMAND single_point_contact_test)
+
+if(SIRE_ENABLE_CUDA)
+	add_executable(cuda_contact_trajectory_test "physics/contact/cuda_contact_trajectory_test.cpp")
+	target_include_directories(cuda_contact_trajectory_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+	target_link_libraries(cuda_contact_trajectory_test PRIVATE sire_cuda sire_lib)
+	add_test(NAME cuda_contact_trajectory_test COMMAND cuda_contact_trajectory_test)
+	set_tests_properties(cuda_contact_trajectory_test PROPERTIES SKIP_RETURN_CODE 77)
+	add_executable(cuda_spectral_admm_test "physics/contact/cuda_spectral_admm_test.cpp")
+	target_include_directories(cuda_spectral_admm_test PRIVATE ${PROJECT_SOURCE_DIR}/src)
+	target_link_libraries(cuda_spectral_admm_test PRIVATE sire_cuda sire_lib)
+	add_test(NAME cuda_spectral_admm_test COMMAND cuda_spectral_admm_test)
+	set_tests_properties(cuda_spectral_admm_test PROPERTIES SKIP_RETURN_CODE 77)
+	add_executable(cuda_contact_history_test "physics/contact/cuda_contact_history_test.cpp")
+	target_link_libraries(cuda_contact_history_test PRIVATE sire_cuda sire_lib)
+	add_test(NAME cuda_contact_history_test COMMAND cuda_contact_history_test)
+	set_tests_properties(cuda_contact_history_test PROPERTIES SKIP_RETURN_CODE 77)
+	add_executable(cuda_flat_ground_collision_test "physics/collision/cuda_flat_ground_collision_test.cpp")
+	target_link_libraries(cuda_flat_ground_collision_test PRIVATE sire_cuda_scene)
+	add_test(NAME cuda_flat_ground_collision_test COMMAND cuda_flat_ground_collision_test go2_rai_foot.xml)
+	set_tests_properties(cuda_flat_ground_collision_test PROPERTIES SKIP_RETURN_CODE 77
+		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/demo/demo_python/sirePaperDogRL")
+	add_executable(cuda_rigid_body_dynamics_test "physics/contact/cuda_rigid_body_dynamics_test.cpp")
+	target_link_libraries(cuda_rigid_body_dynamics_test PRIVATE sire_cuda_scene)
+	add_test(NAME cuda_rigid_body_dynamics_test COMMAND cuda_rigid_body_dynamics_test go2_rai_foot.xml)
+	set_tests_properties(cuda_rigid_body_dynamics_test PROPERTIES SKIP_RETURN_CODE 77
+		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/demo/demo_python/sirePaperDogRL")
+	add_executable(cuda_rigid_body_batch_test "physics/contact/cuda_rigid_body_batch_test.cpp")
+	target_link_libraries(cuda_rigid_body_batch_test PRIVATE sire_cuda_scene)
+	add_test(NAME cuda_rigid_body_batch_test COMMAND cuda_rigid_body_batch_test go2_rai_foot.xml)
+	set_tests_properties(cuda_rigid_body_batch_test PROPERTIES SKIP_RETURN_CODE 77
+		WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}/demo/demo_python/sirePaperDogRL")
+endif()
 
 # set not to run test post build
 # gtest_discover_tests(collision_detection_test sorted_pair_test multi_contact_mass_matrix force_screw_test)

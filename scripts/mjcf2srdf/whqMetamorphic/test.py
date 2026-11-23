@@ -537,7 +537,7 @@ def main():
   # model.addFixedJointAbs(model.partPool()[9], model.partPool()[1], [1, 0, 0], [1, 0, 0])
   cs.init()
   # print(sire.toXmlString(cs))
-  simulator = sire.simulator(cs)
+  simulator = sire.simulationLoop(cs)
   model = cs.model()
 
   # 仿真控制循环

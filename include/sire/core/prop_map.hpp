@@ -6,18 +6,17 @@
 
 #include <aris/core/object.hpp>
 namespace sire::core {
-using std::string;
 class SIRE_API PropMap {
  public:
-  auto addProp(const string& name, double value) -> void;
-  auto rmProp(const string& name) -> bool;
-  auto updProp(const string& name, double new_value) -> void;
+  auto addProp(const std::string& name, double value) -> void;
+  auto rmProp(const std::string& name) -> bool;
+  auto updProp(const std::string& name, double new_value) -> void;
   auto clear() -> void;
-  auto contains(const string& name) const -> bool;
-  auto getPropValue(const string& name) const -> double;
-  auto getPropValueOrDefault(const string& name, double default_value) const
-      -> double;
-  auto toString() const -> string;
+  auto contains(const std::string& name) const -> bool;
+  auto getPropValue(const std::string& name) const -> double;
+  auto getPropValueOrDefault(const std::string& name,
+                             double default_value) const -> double;
+  auto toString() const -> std::string;
   auto fromString(std::string_view str) -> bool;
   auto swap(PropMap& other) noexcept -> PropMap&;
   auto compare(const PropMap& other) const noexcept -> bool;

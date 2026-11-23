@@ -8,6 +8,8 @@
 #include "sire/core/geometry/capsule_shape.hpp"
 #include "sire/core/geometry/cylinder_shape.hpp"
 #include "sire/core/geometry/sphere_shape.hpp"
+#include "sire/core/geometry/height_field_shape.hpp"
+#include "sire/core/geometry/mesh_shape.hpp"
 #include "sire/core/nice_type_name.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/core/string_utils.hpp"
@@ -23,32 +25,20 @@ void ShapeCalculator::ImplementGeometry(const CapsuleShape&, void*) {
   ThrowUnsupportedGeometry("Capsule");
 }
 
-// void ShapeCalculator::ImplementGeometry(const Convex&, void*) {
-//   ThrowUnsupportedGeometry("Convex");
-// }
-
 void ShapeCalculator::ImplementGeometry(const CylinderShape&, void*) {
   ThrowUnsupportedGeometry("Cylinder");
 }
-
-// void ShapeCalculator::ImplementGeometry(const Ellipsoid&, void*) {
-//   ThrowUnsupportedGeometry("Ellipsoid");
-// }
-
-// void ShapeCalculator::ImplementGeometry(const HalfSpace&, void*) {
-//   ThrowUnsupportedGeometry("HalfSpace");
-// }
 
 void ShapeCalculator::ImplementGeometry(const MeshShape&, void*) {
   ThrowUnsupportedGeometry("Mesh");
 }
 
-// void ShapeCalculator::ImplementGeometry(const MeshcatCone&, void*) {
-//   ThrowUnsupportedGeometry("MeshcatCone");
-// }
-
 void ShapeCalculator::ImplementGeometry(const SphereShape&, void*) {
   ThrowUnsupportedGeometry("Sphere");
+}
+
+void ShapeCalculator::ImplementGeometry(const HeightFieldShape&, void*) {
+  ThrowUnsupportedGeometry("HeightField");
 }
 
 void ShapeCalculator::ThrowUnsupportedGeometry(const std::string& shape_name) {
@@ -56,6 +46,7 @@ void ShapeCalculator::ThrowUnsupportedGeometry(const std::string& shape_name) {
       sire::core::string_format("This class (%s) does not support %s.",
                                 core::NiceTypeName::Get(*this), shape_name));
 }
+
 void ShapeToName::ImplementGeometry(const BoxShape& box, void*) {
   string_ = "box";
 }
@@ -68,61 +59,28 @@ void ShapeToName::ImplementGeometry(const CylinderShape& cylinder, void*) {
   string_ = "cylinder";
 }
 
-// void ShapeToString::ImplementGeometry(const Capsule& capsule, void*) {
-//   string_ = fmt::format("Capsule(r: {}, l: {})", capsule.radius(),
-//                         capsule.length());
-// }
-
-// void ShapeToString::ImplementGeometry(const Convex& convex, void*) {
-//   string_ =
-//       fmt::format("Convex(s: {}, path: {})", convex.scale(),
-//       convex.filename());
-// }
-
-// void ShapeToString::ImplementGeometry(const Cylinder& cylinder, void*) {
-//   string_ = fmt::format("Cylinder(r: {}, l: {})", cylinder.radius(),
-//                         cylinder.length());
-// }
-
-// void ShapeToString::ImplementGeometry(const Ellipsoid& ellipsoid, void*) {
-//   string_ = fmt::format("Ellipsoid(a: {}, b: {}, c: {})", ellipsoid.a(),
-//                         ellipsoid.b(), ellipsoid.c());
-// }
-
-// void ShapeToString::ImplementGeometry(const HalfSpace&, void*) {
-//   string_ = "Halfspace";
-// }
-
 void ShapeToName::ImplementGeometry(const MeshShape& mesh, void*) {
   string_ = "mesh";
 }
 
-// void ShapeToString::ImplementGeometry(const MeshcatCone& cone, void*) {
-//   string_ = fmt::format("MeshcatCone(height: {}, a: {}, b: {})",
-//   cone.height(),
-//                         cone.a(), cone.b());
-// }
-
 void ShapeToName::ImplementGeometry(const SphereShape& sphere, void*) {
   string_ = "sphere";
+}
+
+void ShapeToName::ImplementGeometry(const HeightFieldShape& height_field, void*) {
+  string_ = "hfield";
 }
 
 void ShapeToInertia::ImplementGeometry(const MeshShape& mesh, void* user_data) {
   ThrowUnsupportedGeometry("mesh inertia calc not support");
 }
 
-// void ShapeToString::ImplementGeometry(const MeshcatCone& cone, void*) {
-//   string_ = fmt::format("MeshcatCone(height: {}, a: {}, b: {})",
-//   cone.height(),
-//                         cone.a(), cone.b());
-// }
-
-void ShapeToInertia::ImplementGeometry(const SphereShape& sphere,
-                                       void* user_data) {
+void ShapeToInertia::ImplementGeometry(const SphereShape& sphere, void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double ixyz = 0.4 * iv[0] * sphere.radius() * sphere.radius();
   iv[4] = iv[5] = iv[6] = ixyz;
 }
+
 void ShapeToInertia::ImplementGeometry(const BoxShape& box, void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double mass = iv[0], x{box.width()}, y{box.length()}, z{box.height()};
@@ -130,22 +88,44 @@ void ShapeToInertia::ImplementGeometry(const BoxShape& box, void* user_data) {
   iv[5] = mass * (x * x + z * z) / 12;  // iy
   iv[6] = mass * (x * x + y * y) / 12;  // iz
 }
-void ShapeToInertia::ImplementGeometry(const CapsuleShape& capsule,
-                                       void* user_data) {
+
+void ShapeToInertia::ImplementGeometry(const CapsuleShape& capsule, void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double mass = iv[0], radius{capsule.radius()}, length{capsule.length()};
-  // ShapeCalculator::ThrowUnsupportedGeometry("");
-  // iv[4] = mass * (y * y + z * z) / 12;  // ix
-  // iv[5] = mass * (x * x + z * z) / 12;  // iy
-  // iv[6] = mass * (x * x + y * y) / 12;  // iz
+
+  // The capsule axis is local z.  `length` is the cylindrical section length;
+  // the two hemispheres add 2 * radius to the total end-to-end length.
+  // Assume uniform density and split the supplied total mass by volume.
+  const double volume_length = length + 4.0 * radius / 3.0;
+  const double cylinder_mass = mass * length / volume_length;
+  const double hemispheres_mass = mass - cylinder_mass;
+  const double hemisphere_center_offset = length / 2.0 + 3.0 * radius / 8.0;
+
+  const double axial_inertia =
+      0.5 * cylinder_mass * radius * radius +
+      0.4 * hemispheres_mass * radius * radius;
+  const double transverse_inertia =
+      cylinder_mass * (3.0 * radius * radius + length * length) / 12.0 +
+      hemispheres_mass *
+          (83.0 * radius * radius / 320.0 +
+           hemisphere_center_offset * hemisphere_center_offset);
+
+  iv[4] = iv[5] = transverse_inertia;
+  iv[6] = axial_inertia;
 }
-void ShapeToInertia::ImplementGeometry(const CylinderShape& cylinder,
-                                       void* user_data) {
+
+void ShapeToInertia::ImplementGeometry(const CylinderShape& cylinder, void* user_data) {
   double* iv = static_cast<double*>(user_data);
   double mass = iv[0], radius{cylinder.radius()}, length{cylinder.length()};
-  // ShapeCalculator::ThrowUnsupportedGeometry("");
-  // iv[4] = mass * (y * y + z * z) / 12;  // ix
-  // iv[5] = mass * (x * x + z * z) / 12;  // iy
-  // iv[6] = mass * (x * x + y * y) / 12;  // iz
+
+  // Coal cylinders use the local z axis as their symmetry axis.
+  iv[4] = iv[5] =
+      mass * (3.0 * radius * radius + length * length) / 12.0;
+  iv[6] = 0.5 * mass * radius * radius;
 }
+
+void ShapeToInertia::ImplementGeometry(const HeightFieldShape&, void*) {
+  ThrowUnsupportedGeometry("heightfield inertia calc not support");
+}
+
 }  // namespace sire::geometry

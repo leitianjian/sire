@@ -1,5 +1,7 @@
 #include "sire/physics/physics_engine.hpp"
 
+#include <memory>
+
 #include <coal/data_types.h>
 #include <eigen3/Eigen/Eigenvalues>
 #include <gtest/gtest.h>
@@ -20,6 +22,7 @@
 using namespace sire::geometry;
 using namespace sire::physics;
 using namespace coal;
+using namespace std;
 using sire::physics::common::PenetrationAsPointPair;
 class SimplePenetrationTest : public ::testing::Test {
  protected:
@@ -133,7 +136,7 @@ class SimplePenetrationTest : public ::testing::Test {
     EXPECT_EQ(penetration_results.size(), 0);
   }
 
-  unique_ptr<PhysicsEngine> engine_{std::make_unique<PhysicsEngine>()};
+  std::unique_ptr<PhysicsEngine> engine_{std::make_unique<PhysicsEngine>()};
   collision::CollisionDetection* collision_engine_;
 
   double X_WGs_[14]{
@@ -625,20 +628,29 @@ class TableSurfaceModelTestor : public ::testing::Test {
     collision_engine_ = new collision::CollisionDetection();
     engine_->resetCollisionDetection(collision_engine_);
     engine_->setCollisionDetectionFlag(true);
-    engine_->addSphereGeometry(sphereRadius, 0, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 1, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 2, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 3, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 4, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 5, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 6, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
+    using namespace sire::physics::geometry;
+    auto& geoPool = engine_->geometryPool();
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 0, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 1, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 2, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 3, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 4, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 5, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 6, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
     aris::core::Matrix filter_state{1, 0, 0, 0, 1, 0, 0, 0, 1};
     engine_->collisionFilter().setStateMat(filter_state);
     sire::core::PropMap property("k:2e8,d:1000,cr:0.2");
@@ -1061,21 +1073,29 @@ class TableGroundModelTestor : public ::testing::Test {
   void initPhysicsEngine() {
     collision_engine_ = new collision::CollisionDetection();
     engine_->resetCollisionDetection(collision_engine_);
-    engine_->setCollisionDetectionFlag(true);
-    engine_->addSphereGeometry(sphereRadius, 0, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 1, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 2, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 3, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 4, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 5, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
-    engine_->addSphereGeometry(sphereRadius, 6, true, sire::default_pm);
-    engine_->geometryPool().back().setMaterial("m1");
+    using namespace sire::physics::geometry;
+    auto& geoPool = engine_->geometryPool();
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 0, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 1, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 2, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 3, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 4, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 5, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
+    geoPool.add<SphereCollisionGeometry>(sphereRadius, 6, true,
+                                         sire::default_pm);
+    geoPool.back().setMaterial("m1");
     aris::core::Matrix filter_state{1, 0, 0, 0, 1, 0, 0, 0, 1};
     engine_->collisionFilter().setStateMat(filter_state);
     sire::core::PropMap property("k:2e8,d:1000,cr:0.2");
@@ -1207,8 +1227,10 @@ TEST_F(SimplePenetrationTest, PenetrationDynamicAndAnchored) {
   collision_engine_ = new collision::CollisionDetection();
   engine_->resetCollisionDetection(collision_engine_);
   engine_->setCollisionDetectionFlag(true);
-  engine_->addSphereGeometry(radius_, 0, sire::default_pm, false);
-  engine_->addSphereGeometry(radius_, 1, true, sire::default_pm);
+  using namespace sire::physics::geometry;
+  auto& geoPool = engine_->geometryPool();
+  geoPool.add<SphereCollisionGeometry>(radius_, 0, false, sire::default_pm);
+  geoPool.add<SphereCollisionGeometry>(radius_, 1, true, sire::default_pm);
   aris::core::Matrix filter_state{1, 0, 0, 1};
   engine_->collisionFilter().setStateMat(filter_state);
   engine_->init();
@@ -1230,9 +1252,11 @@ TEST_F(MultipleObjectsPenetrationTest, PenetrationTwoDynamicAndAnchored) {
   collision_engine_ = new collision::CollisionDetection();
   engine_->resetCollisionDetection(collision_engine_);
   engine_->setCollisionDetectionFlag(true);
-  engine_->addSphereGeometry(radius_, 0, sire::default_pm, false);
-  engine_->addSphereGeometry(radius_, 1, true, sire::default_pm);
-  engine_->addSphereGeometry(radius_, 2, true, sire::default_pm);
+  using namespace sire::physics::geometry;
+  auto& geoPool = engine_->geometryPool();
+  geoPool.add<SphereCollisionGeometry>(radius_, 0, false, sire::default_pm);
+  geoPool.add<SphereCollisionGeometry>(radius_, 1, true, sire::default_pm);
+  geoPool.add<SphereCollisionGeometry>(radius_, 2, true, sire::default_pm);
   aris::core::Matrix filter_state{1, 0, 0, 0, 1, 0, 0, 0, 1};
   engine_->collisionFilter().setStateMat(filter_state);
   engine_->init();

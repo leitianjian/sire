@@ -1,0 +1,139 @@
+#ifndef SIRE_SIMPLE_ADMM_CONTACT_SOLVER_HPP_
+#define SIRE_SIMPLE_ADMM_CONTACT_SOLVER_HPP_
+
+#include <array>
+#include <cstdint>
+#include <unordered_map>
+#include <vector>
+
+#include "sire/physics/contact/admm_contact_solver.hpp"
+
+namespace sire::physics::contact::simple_admm {
+
+/// Contact solver baseline following Algorithm 1 of Le Lidec et al., RSS 2024.
+///
+/// This class only replaces the assembled contact-force solve.  Collision
+/// handling, contact-frame construction, force application, and time stepping
+/// are inherited from AdmmContactSolver so comparisons isolate the numerical
+/// contact solver.
+class SIRE_API SimpleAdmmContactSolver : public admm_contact::AdmmContactSolver {
+ public:
+  SimpleAdmmContactSolver() = default;
+  ~SimpleAdmmContactSolver() override = default;
+
+  auto setWarmStartEnabled(bool enabled) noexcept -> void;
+  auto warmStartEnabled() const noexcept -> bool;
+
+ protected:
+  auto supportsPatchContactMode() const -> bool override { return true; }
+  auto solveContactForceQP(
+      sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+      std::vector<double>& v0, std::vector<double>& v_target,
+      std::vector<double>& b, double h, std::vector<double>& contactFce,
+      sire::Size max_iters, double max_err) -> double override;
+
+  auto solveSpectralContactForce(
+      bool shifted, sire::Size n, std::vector<double>& fri_coef,
+      std::vector<double>& invM_3n, std::vector<double>& v0,
+      std::vector<double>& v_target, std::vector<double>& b, double h,
+      std::vector<double>& contactFce, sire::Size max_iters, double max_err)
+      -> double;
+
+  auto prepareContactForceInitialGuess(
+      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      const std::vector<std::array<double, 16>>& contact_frames,
+      const std::vector<sire::Size>& preserved_pair_indices, double h,
+      std::vector<double>& contact_force) -> void override;
+  auto commitContactForceSolution(
+      const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+      const std::vector<std::array<double, 16>>& contact_frames,
+      const std::vector<sire::Size>& preserved_pair_indices, double h,
+      const std::vector<double>& contact_force) -> void override;
+  auto clearContactSolverState() -> void override;
+  auto contactSolverMaxIterations() const noexcept -> sire::Size override {
+    return 1000;
+  }
+
+ private:
+  struct WarmStartContact {
+    sire::geometry::GeometryId id_a{};
+    sire::geometry::GeometryId id_b{};
+    std::uint64_t contact_id{};
+    std::array<double, 3> point_W{};
+    std::array<double, 3> force_W{};
+    std::array<double, 3> dual_W{};
+  };
+
+  bool warm_start_enabled_{true};
+  bool has_primal_guess_{false};
+  bool has_dual_guess_{false};
+  std::vector<double> prepared_dual_guess_;
+  std::vector<double> last_dual_solution_;
+  std::vector<WarmStartContact> warm_start_contacts_;
+  // Patch tangential force is distributed over all support indices; normal
+  // constraints remain independent and share one Coulomb budget.
+  std::vector<std::vector<int>> patch_groups_;
+  std::unordered_map<std::uint64_t, std::uint64_t> friction_anchor_ids_;
+};
+
+/// Spectral ADMM on the target-shifted NCP. The only numerical change from
+/// SimpleAdmmContactSolver is g_N += v_target (desired velocity = -v_target).
+/// Defaults to the single-point contact model, including depth baselines and
+/// contact end-time computation. Reference-style cross-step contact-force
+/// warm starting is enabled by default and can be disabled explicitly.
+class SIRE_API ShiftedSpectralAdmmContactSolver
+    : public SimpleAdmmContactSolver {
+ public:
+  ShiftedSpectralAdmmContactSolver();
+  ~ShiftedSpectralAdmmContactSolver() override = default;
+
+ protected:
+  auto solveContactForceQP(
+      sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+      std::vector<double>& v0, std::vector<double>& v_target,
+      std::vector<double>& b, double h, std::vector<double>& contactFce,
+      sire::Size max_iters, double max_err) -> double override;
+};
+
+/// Standalone rigid-contact spectral ADMM entry point for Python comparisons.
+///
+/// The common Sire trace interface does not carry a contact-compliance vector,
+/// so this baseline evaluates the published rigid case R = 0.  v_target is
+/// intentionally ignored: modifying g with Sire's target velocity would create
+/// an adapted solver rather than reproduce the method described in the paper.
+/// Algorithm 1 is evaluated in impulse coordinates and converted back to force
+/// at the public boundary, preserving the paper's parameter and residual units.
+SIRE_API auto cptContactForceSpectralAdmm(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 1000, double max_err = 1e-8) -> double;
+
+/// Same impulse-space iteration as the baseline, with g = v0 - h*b + E_N*t.
+/// Here t is v_target, so the shifted normal velocity is c_N + v_target.
+/// The target is a velocity: do not scale it by h or add it to De Saxce Gamma.
+SIRE_API auto cptContactForceShiftedSpectralAdmm(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 1000, double max_err = 1e-8) -> double;
+
+/// Solve the same shifted contact problem with explicitly prepared warm
+/// starts. A null guess selects the ordinary cold-start initialization.
+SIRE_API auto cptContactForceShiftedSpectralAdmmWithWarmStart(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    const std::vector<double>* initial_force, const std::vector<double>* initial_dual,
+    std::vector<double>* solved_dual, sire::Size max_iters, double max_err) -> double;
+
+/// Backward-compatible alias. Prefer cptContactForceSpectralAdmm in new code.
+auto cptContactForceSimpleAdmm(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters = 1000, double max_err = 1e-8) -> double;
+
+}  // namespace sire::physics::contact::simple_admm
+
+#endif  // SIRE_SIMPLE_ADMM_CONTACT_SOLVER_HPP_

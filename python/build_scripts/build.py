@@ -131,6 +131,7 @@ if __name__ == "__main__":
             "TARGET_ARIS_PATH": str(options.aris_path), 
             "TARGET_HPP_FCL_PATH": str(options.fcl_path / build_type), 
             "TARGET_STDUUID_PATH": str(options.uuid_path / build_type),
+            # "TARGET_CLARABEL_PATH": str(options.clarabel_path / build_type),
             # "TARGET_PYTHON_PATH": str(options.python_path),
             "CMAKE_BUILD_TYPE": build_type,
             })

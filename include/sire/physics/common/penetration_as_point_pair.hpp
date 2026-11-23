@@ -1,13 +1,13 @@
 #ifndef SIRE_PENETRATION_AS_POINT_PAIR_HPP_
 #define SIRE_PENETRATION_AS_POINT_PAIR_HPP_
 #include <algorithm>
+#include <cstdint>
 
 #include <coal/data_types.h>
 
 #include "sire/core/geometry/geometry_base.hpp"
 
 namespace sire::physics::common {
-using namespace coal;
 /** A characterization of the intersection of two penetrating geometries. The
  characterization consists of a pair of points and a normal. The points
  represent a point on each geometry that most deeply penetrates the other
@@ -26,10 +26,17 @@ struct PenetrationAsPointPair {
     std::swap(p_WCa, p_WCb);
     nhat_AB_W = -nhat_AB_W;
   }
-  SIRE_DEFINE_TO_JSON_HEAD(PenetrationAsPointPair) {
+  SIRE_DEFINE_TO_JSON_IN_CLASS_HEAD {
     j["geomIdA"] = id_A;
     j["geomIdB"] = id_B;
     j["depth"] = depth;
+    j["modifiedDepth"] = modifiedDepth;
+    j["p_WC"] = p_WC;
+    j["p_WCa"] = p_WCa;
+    j["p_WCb"] = p_WCb;
+    j["nhat_AB_W"] = nhat_AB_W;
+    j["contactId"] = contact_id;
+    j["patchId"] = patch_id;
   }
   bool compareById(const PenetrationAsPointPair& other) const {
     return (id_A == other.id_A && id_B == other.id_B) ||
@@ -41,18 +48,23 @@ struct PenetrationAsPointPair {
   sire::geometry::GeometryId id_B;
   /** The point on A that most deeply penetrates B, measured and expressed in
    the world frame. */
-  Vec3s p_WCa;
+  coal::Vec3s p_WCa;
   /** The point on B that most deeply penetrates A, measured and expressed in
    the world frame. */
-  Vec3s p_WCb;
+  coal::Vec3s p_WCb;
   /** Contact point position in world frame*/
-  Vec3s p_WC;
+  coal::Vec3s p_WC;
   /** The unit-length normal which defines the penetration direction, pointing
    from geometry A into geometry B, measured and expressed in the world frame.
    It _approximates_ the normal to the plane on which the contact patch lies. */
-  Vec3s nhat_AB_W;
+  coal::Vec3s nhat_AB_W;
   /** The penetration depth. Should be positive*/
   double depth{-1.0};
+
+  double modifiedDepth{-1.0};
+  /// Stable identifiers supplied by a persistent contact manifold, if any.
+  std::uint64_t contact_id{0};
+  std::uint64_t patch_id{0};
 };
 
 }  // namespace sire::physics::common

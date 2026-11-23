@@ -7,7 +7,6 @@ target_include_directories(${sire_demo}
 	PRIVATE 
 		${aris_INCLUDE_DIRS} 
 		${PROJECT_BINARY_DIR} 
-		${coal_INCLUDE_DIRS}
 	)
 target_link_libraries(${sire_demo}
 	PRIVATE
@@ -20,6 +19,7 @@ target_link_libraries(${sire_demo}
 		sire_physics 
 		sire_actuator
 		${PUB_RELY_LINK_LIB}
+		${PRI_RELY_LINK_LIB}
 	)
 # DEBUG INSTALL 
 install(

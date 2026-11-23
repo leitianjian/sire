@@ -1,5 +1,6 @@
 #include "sire/simulator/event_manager.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <list>
 #include <map>
@@ -22,11 +23,20 @@
 #include "log/easyloggingConfig.hpp"
 
 namespace sire::simulator {
+namespace {
+auto coincidentEventTolerance(double simulation_dt, double control_dt)
+    -> double {
+  // Preserve the existing 1 us small-remainder guard at the usual 1 ms
+  // physics step, while preventing that absolute value from swallowing one or
+  // more events when a caller configures a sub-microsecond nominal step.
+  return std::min(1e-6, 1e-3 * std::min(simulation_dt, control_dt));
+}
+}  // namespace
 struct EventManager::Imp {
   SimulationLoop* simulationLoopPtr_;
   // prevCtrlTime <= prevIntTime_
-  double prevCtrlTime_{-1};
-  double prevIntTime_{-1};
+  double prevCtrlTime_{0};
+  double prevIntTime_{0};
   double nextSuggestTime_{-1};
   sire::Size nextEventId_{1};
 
@@ -63,11 +73,19 @@ EventManager::EventManager() : imp_(std::make_unique<Imp>()) {
 EventManager::~EventManager() = default;
 SIRE_DEFINE_MOVE_CTOR_CPP(EventManager);
 auto EventManager::init(simulator::SimulationLoop* simulationLoopPtr) -> void {
+  addEvent(createEventById(0));
   imp_->header_ = imp_->event_list_.begin();
   SIRE_ASSERT(simulationLoopPtr != nullptr);
   imp_->simulationLoopPtr_ = simulationLoopPtr;
 }
-
+auto EventManager::reset() -> void {
+  imp_->prevCtrlTime_ = 0;
+  imp_->prevIntTime_ = 0;
+  imp_->nextSuggestTime_ = -1;
+  imp_->event_list_.clear();
+  addEvent(createEventById(0));
+  imp_->header_ = imp_->event_list_.begin();
+}
 auto EventManager::eventHandlerMap() -> std::map<sire::Size, sire::Size>& {
   return imp_->event_handler_map_;
 }
@@ -75,7 +93,6 @@ auto EventManager::addEventHandlerRule(sire::core::EventId name1,
                                        sire::core::HandlerId name2) -> void {
   imp_->event_handler_map_[name1] = name2;
 }
-
 auto EventManager::resetEventHandlerPairPool(
     aris::core::PointerArray<EventHandlerIdPair>* pool) -> void {
   for (auto& id_pair : *pool) {
@@ -141,7 +158,9 @@ auto EventManager::cptNextCtrlSimSuggestDt() -> double {
   DLOG(DEBUG) << "next ctrl time " << nextCtrlTime << " next sim time "
               << nextSimTime;
   if (nextCtrlTime < nextSimTime ||
-      aris::dynamic::s_is_equal(nextCtrlTime, nextSimTime, 1e-6)) {
+      aris::dynamic::s_is_equal(
+          nextCtrlTime, nextSimTime,
+          coincidentEventTolerance(simDt, ctrlDt))) {
     nextCtrlSimSuggestDt =
         nextCtrlTime - imp_->simulationLoopPtr_->timer().simTime();
     imp_->nextEventId_ = 2;

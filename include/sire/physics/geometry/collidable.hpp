@@ -19,13 +19,11 @@
 namespace sire::physics {
 namespace geometry {
 /* unique geometry id for every added collision geometry */
-using namespace std;
-using namespace coal;
 
 class SIRE_API Collidable {
  public:
-  auto getCollisionObject() -> CollisionObject*;
-  auto resetCollisionObject(CollisionObject* object) -> void;
+  auto getCollisionObject() -> coal::CollisionObject*;
+  auto resetCollisionObject(coal::CollisionObject* object) -> void;
   auto setContactProp(const core::PropMap& map) -> void;
   auto setContactProp(core::PropMap& map) -> void;
   auto setContactProp(std::string& propString) -> void;
@@ -39,7 +37,8 @@ class SIRE_API Collidable {
   auto setMaterial(const std::string& material) -> void;
   auto virtual updateLocation(const double* pm) -> void = 0;
   auto virtual init() -> void = 0;
-  explicit Collidable(const std::string& material = "m1", const std::string& propStr = "{}");
+  explicit Collidable(const std::string& material = "m1",
+                      const std::string& propStr = "{}");
   virtual ~Collidable();
   SIRE_DECLARE_MOVE_CTOR(Collidable);
 
@@ -48,8 +47,5 @@ class SIRE_API Collidable {
   aris::core::ImpPtr<Imp> imp_;
 };
 }  // namespace geometry
-
-using CollisionObjectsPair =
-    std::pair<sire::geometry::GeometryId, sire::geometry::GeometryId>;
 }  // namespace sire::physics
 #endif

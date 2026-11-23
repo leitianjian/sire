@@ -54,6 +54,12 @@ install_manifest.txt
 .vscode/
 build/
 
+.reasonix/
+scripts/SireRLGym/logs/*
+**/logs/
+**/log/
+*.pt
+
 # for clion
 cmake-build-debug-visual-studio
 cmake-build-debug
@@ -94,7 +100,27 @@ trash/
 
 # simulation results log
 contact_solver_result.json
-result.json
+solver_traces/
+tmp/
+log.txt
+*result.json
+motion_data/
+*.pdb
+
+# Local experiment runs, generated diagnostics and backups.
+/docs/cuda_performance.md
+/.codex_runs/
+/sire_parallel_experiment_*/
+/sim2sim/policies/go2_cuda_1024/
+/demo/demo_python/SireRLGym/repro_20steps.json
+/demo/demo_python/heightField/box_data.txt
+/demo/demo_python/heightField/hfield_data.txt
+/demo/demo_python/heightField/ball_drop_hf_bak.xml
+/demo/demo_python/mujocoDogRL/go2_bak.xml
+/scripts/tools/result1_swapped.json
+/scripts/tools/result_debug.json
+/sim2sim/deploy_sire/validation/final_report.json
+/src/physics/contact/avg_force_contact_solver_bak.cpp
 
 # python
 */.env
@@ -104,6 +130,7 @@ result.json
 
 MUJOCO_LOG.txt
 
+*.zip
 *.npz
 *.png
 *.jpg
@@ -113,3 +140,50 @@ MUJOCO_LOG.txt
 *.tiff
 *.tif
 *.npy
+
+# Documentation media is versioned so README assets render on GitHub.
+!/docs/media/*.png
+!/docs/media/*.gif
+!/docs/media/*.webm
+
+# Raw full-resolution capture sources. Kept on disk for re-encoding only:
+# they exceed GitHub's file size limit. Commit the derived .gif/.webm instead.
+/docs/media/real.mp4
+
+# Local diagnostic note; intentionally never committed.
+/LOCAL_MEMORY_ISSUE.txt
+/python/src/sire/native/_runtime/
+
+# Local toolchains and dependency installs.
+/.deps/
+/.rust/
+
+# Local build tools, caches, credentials and large generated artifacts.
+/.ruff_cache/
+/.pytest_cache/
+/.mypy_cache/
+/artifacts/
+/figures/
+/AGENTS.md
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+*.ckpt
+*.onnx
+*.pth
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.tiff
+*.pdf
+*.csv.gz
+*.json.gz
+*.bak
+*.orig
+*.rej
+*.ipynb_checkpoints/

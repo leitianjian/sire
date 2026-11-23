@@ -1,0 +1,17 @@
+# Paths in this file are relative to the repository root.
+policy: sim2sim/policies/exp7/model_550_jit.pt
+xml: demo/demo_python/resources/robots/go2/flat.xml
+
+# Same 50 Hz policy period as training, with the reference deploy_mujoco's
+# 2 ms MuJoCo physics step. Training's 5 ms step is NOT changed by this tool.
+simulation_dt: 0.002
+
+# go2_rl_gym deploy_mujoco Xbox mapping: forward=-LY, left=-LX, yaw=-RX.
+joystick:
+  index: 0
+  axes: [1, 0, 3]
+  signs: [-1, -1, -1]
+  max_command: [1.0, 1.0, 1.0]
+  deadzone: 0.1
+  reset_button: 0        # A
+  pause_button: 7        # Start

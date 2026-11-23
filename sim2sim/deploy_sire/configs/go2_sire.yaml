@@ -1,0 +1,42 @@
+control_dt: 0.02
+msg_type: "go"
+imu_type: "torso"
+lowcmd_topic: "rt/lowcmd"
+lowstate_topic: "rt/lowstate"
+
+# Exp7, iteration 550, actor-only JIT; no critic/optimizer on the robot.
+policy_path: "{LEGGED_GYM_ROOT_DIR}/policies/exp7_model_550_jit.pt"
+policy_sha256: "385f657aaae6040389e54a05e0ba78f38a6d52222f39f5babd7b611122791e75"
+
+# Policy order: all four hips, all four thighs, all four calves.
+policy_joint_names:
+  - FL_hip_joint
+  - FR_hip_joint
+  - RL_hip_joint
+  - RR_hip_joint
+  - FL_thigh_joint
+  - FR_thigh_joint
+  - RL_thigh_joint
+  - RR_thigh_joint
+  - FL_calf_joint
+  - FR_calf_joint
+  - RL_calf_joint
+  - RR_calf_joint
+# Unitree motors: FR=0/1/2, FL=3/4/5, RR=6/7/8, RL=9/10/11.
+joint2motor_idx: [3, 0, 9, 6, 4, 1, 10, 7, 5, 2, 11, 8]
+default_angles: [0.1, -0.1, 0.1, -0.1, 0.8, 0.8, 1.0, 1.0, -1.5, -1.5, -1.5, -1.5]
+
+# User approved policy-phase gains; original stand-up/hold gains stay 40 / 0.6.
+kps: [25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25, 25]
+kds: [0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6]
+obs_scales_ang_vel: 0.25
+obs_scales_dof_pos: 1.0
+obs_scales_dof_vel: 0.05
+# Physical command upper bounds and observation scaling are different things.
+max_cmd: [1.0, 1.0, 1.0]
+command_scale: [2.0, 2.0, 0.25]
+action_scale: 0.25
+clip_observations: 100.0
+clip_actions: 100.0
+num_actions: 12
+num_obs: 45

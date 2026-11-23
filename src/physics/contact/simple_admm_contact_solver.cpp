@@ -1,0 +1,722 @@
+#include "sire/physics/contact/simple_admm_contact_solver.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <unordered_map>
+#include <utility>
+
+#include <eigen3/Eigen/Cholesky>
+#include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/Eigenvalues>
+
+#include <aris/core/reflection.hpp>
+#include <aris/dynamic/pose.hpp>
+
+#include "sire/core/profiler.hpp"
+
+#include "spectral_admm_math.hpp"
+
+namespace sire::physics::contact::simple_admm {
+
+namespace {
+
+using MatrixXdRM = Eigen::Matrix<double, -1, -1, Eigen::RowMajor>;
+
+auto projectCoulombCone(const Eigen::Vector3d& value, double mu)
+    -> Eigen::Vector3d {
+  const auto projected = detail::projectCoulombCone({value.x(), value.y(), value.z()}, mu);
+  return {projected.x, projected.y, projected.normal};
+}
+
+auto projectCoulombCones(const Eigen::VectorXd& value, int contact_count,
+                         const std::vector<double>& friction)
+    -> Eigen::VectorXd {
+  Eigen::VectorXd result(value.size());
+  for (int contact = 0; contact < contact_count; ++contact) {
+    result.segment<3>(3 * contact) =
+        projectCoulombCone(value.segment<3>(3 * contact), friction[contact]);
+  }
+  return result;
+}
+
+auto projectDualCoulombCone(const Eigen::Vector3d& value, double mu)
+    -> Eigen::Vector3d {
+  const auto projected = detail::projectDualCoulombCone({value.x(), value.y(), value.z()}, mu);
+  return {projected.x, projected.y, projected.normal};
+}
+
+auto projectDualCoulombCones(const Eigen::VectorXd& value, int contact_count,
+                             const std::vector<double>& friction)
+    -> Eigen::VectorXd {
+  Eigen::VectorXd result(value.size());
+  for (int contact = 0; contact < contact_count; ++contact) {
+    result.segment<3>(3 * contact) = projectDualCoulombCone(
+        value.segment<3>(3 * contact), friction[contact]);
+  }
+  return result;
+}
+
+// A patch has one tangential resultant, distributed equally over its support
+// points, and one independent normal reaction per support. Equal distribution
+// applies the resultant at the support centroid without requiring a separate
+// patch Jacobian.
+auto projectPatchCones(const Eigen::VectorXd& value,
+                       const std::vector<std::vector<int>>& groups,
+                       const std::vector<double>& friction)
+    -> Eigen::VectorXd {
+  Eigen::VectorXd result = Eigen::VectorXd::Zero(value.size());
+  for (const auto& group : groups) {
+    const int anchor = group.front();
+    const double mu = std::max(0.0, friction[anchor]);
+    const double root_count = std::sqrt(static_cast<double>(group.size()));
+    const double alpha = mu / root_count;
+    Eigen::Vector2d tangent_sum = Eigen::Vector2d::Zero();
+    for (int contact : group)
+      tangent_sum += value.segment<2>(3 * contact);
+    const Eigen::Vector2d tangent = tangent_sum / root_count;
+    const double radius = tangent.norm();
+    double positive_normal = 0.0;
+    for (int contact : group)
+      positive_normal += std::max(0.0, value(3 * contact + 2));
+    double multiplier = 0.0;
+    if (alpha > 0.0 && radius > alpha * positive_normal) {
+      double lo = 0.0, hi = radius;
+      for (int iteration = 0; iteration < 45; ++iteration) {
+        const double mid = 0.5 * (lo + hi);
+        double normal_sum = 0.0;
+        for (int contact : group)
+          normal_sum += std::max(0.0,
+                                 value(3 * contact + 2) + alpha * mid);
+        if (radius - mid > alpha * normal_sum)
+          lo = mid;
+        else
+          hi = mid;
+      }
+      multiplier = hi;
+    }
+    Eigen::Vector2d tangent_per_contact = Eigen::Vector2d::Zero();
+    if (mu > std::numeric_limits<double>::epsilon() && radius > 0.0) {
+      tangent_per_contact =
+          std::max(0.0, 1.0 - multiplier / radius) * tangent_sum /
+          static_cast<double>(group.size());
+    }
+    for (int contact : group) {
+      result.segment<2>(3 * contact) = tangent_per_contact;
+      result(3 * contact + 2) =
+          std::max(0.0, value(3 * contact + 2) + alpha * multiplier);
+    }
+  }
+  return result;
+}
+
+auto projectDualPatchCones(const Eigen::VectorXd& value,
+                           const std::vector<std::vector<int>>& groups,
+                           const std::vector<double>& friction)
+    -> Eigen::VectorXd {
+  // Moreau decomposition for the positive dual cone: P_C*(x) = x + P_C(-x).
+  return value + projectPatchCones(-value, groups, friction);
+}
+
+/// Paper definition: Gamma(sigma)_i = (0, 0, mu_i ||sigma_T,i||).
+auto computeDeSaxceShift(const Eigen::VectorXd& sigma, int contact_count,
+                         const std::vector<double>& friction)
+    -> Eigen::VectorXd {
+  Eigen::VectorXd shift = Eigen::VectorXd::Zero(sigma.size());
+  for (int contact = 0; contact < contact_count; ++contact) {
+    shift(3 * contact + 2) =
+        friction[contact] * sigma.segment<2>(3 * contact).norm();
+  }
+  return shift;
+}
+
+auto computePatchDeSaxceShift(
+    const Eigen::VectorXd& sigma,
+    const std::vector<std::vector<int>>& groups,
+    const std::vector<double>& friction) -> Eigen::VectorXd {
+  Eigen::VectorXd shift = Eigen::VectorXd::Zero(sigma.size());
+  for (const auto& group : groups) {
+    const int anchor = group.front();
+    Eigen::Vector2d mean_velocity = Eigen::Vector2d::Zero();
+    for (int contact : group)
+      mean_velocity += sigma.segment<2>(3 * contact);
+    mean_velocity /= static_cast<double>(group.size());
+    const double value = friction[anchor] * mean_velocity.norm();
+    for (int contact : group) shift(3 * contact + 2) = value;
+  }
+  return shift;
+}
+
+/// Estimate lambda_max(H) using Simple's configured three-vector Lanczos
+/// decomposition. The nonuniform deterministic start keeps the estimate
+/// reproducible and avoids an accidental orthogonality with common modes.
+auto estimateLargestEigenvalue(const Eigen::MatrixXd& H) -> double {
+  constexpr int lanczos_size = 3;
+  const int steps = std::min(lanczos_size, static_cast<int>(H.rows()));
+  Eigen::VectorXd q(H.rows());
+  for (Eigen::Index i = 0; i < q.size(); ++i) {
+    q(i) = 1.0 + 0.01 * static_cast<double>(i + 1);
+  }
+  q.normalize();
+
+  Eigen::VectorXd q_previous = Eigen::VectorXd::Zero(H.rows());
+  Eigen::MatrixXd tridiagonal = Eigen::MatrixXd::Zero(steps, steps);
+  double beta_previous = 0.0;
+  int completed_steps = 0;
+  for (int step = 0; step < steps; ++step) {
+    Eigen::VectorXd w = H * q - beta_previous * q_previous;
+    const double alpha = q.dot(w);
+    w -= alpha * q;
+    tridiagonal(step, step) = alpha;
+    completed_steps = step + 1;
+
+    const double beta = w.norm();
+    if (step + 1 == steps || !(beta > std::numeric_limits<double>::epsilon()) ||
+        !std::isfinite(beta)) {
+      break;
+    }
+    tridiagonal(step, step + 1) = beta;
+    tridiagonal(step + 1, step) = beta;
+    q_previous = q;
+    q = w / beta;
+    beta_previous = beta;
+  }
+
+  Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eigensolver(
+      tridiagonal.topLeftCorner(completed_steps, completed_steps),
+      Eigen::EigenvaluesOnly);
+  if (eigensolver.info() != Eigen::Success ||
+      eigensolver.eigenvalues().size() == 0) {
+    return 0.0;
+  }
+  return std::max(0.0, eigensolver.eigenvalues().maxCoeff());
+}
+
+auto complementarityResidual(const Eigen::VectorXd& force,
+                             const Eigen::VectorXd& dual, int contact_count,
+                             const std::vector<std::vector<int>>* patch_groups)
+    -> double {
+  if (patch_groups) {
+    double residual = 0.0;
+    for (const auto& group : *patch_groups) {
+      double product = 0.0;
+      for (int contact : group)
+        product += force.segment<3>(3 * contact).dot(
+            dual.segment<3>(3 * contact));
+      residual = std::max(residual, std::abs(product));
+    }
+    return residual;
+  }
+  double residual = 0.0;
+  for (int contact = 0; contact < contact_count; ++contact) {
+    residual = std::max(
+        residual,
+        std::abs(
+            force.segment<3>(3 * contact).dot(dual.segment<3>(3 * contact))));
+  }
+  return residual;
+}
+
+// One iteration kernel for both variants. A null target preserves the paper
+// baseline; a non-null target shifts only the NCP's free normal velocity.
+auto solveSpectralAdmm(sire::Size n, std::vector<double>& fri_coef,
+                       std::vector<double>& invM_3n, std::vector<double>& v0,
+                       const std::vector<double>* normal_target,
+                       const std::vector<std::vector<int>>* patch_groups,
+                       std::vector<double>& b, double h,
+                       const std::vector<double>* initial_force,
+                       const std::vector<double>* initial_dual,
+                       std::vector<double>& contactFce,
+                       std::vector<double>* solved_dual, sire::Size max_iters,
+                       double max_err) -> double {
+  SIRE_PROFILE_FUNCTION();
+
+  const int contact_count = static_cast<int>(n);
+  const int dimension = 3 * contact_count;
+  if (contact_count == 0) {
+    std::fill(contactFce.begin(), contactFce.end(), 0.0);
+    return 0.0;
+  }
+  if (fri_coef.size() < n ||
+      invM_3n.size() < static_cast<size_t>(dimension * dimension) ||
+      v0.size() < static_cast<size_t>(dimension) ||
+      b.size() < static_cast<size_t>(dimension) ||
+      (normal_target && normal_target->size() < n) ||
+      contactFce.size() < static_cast<size_t>(dimension) || h <= 0.0) {
+    return std::numeric_limits<double>::infinity();
+  }
+
+  Eigen::Map<MatrixXdRM> inverse_mass(invM_3n.data(), dimension, dimension);
+  Eigen::Map<Eigen::VectorXd> initial_velocity(v0.data(), dimension);
+  Eigen::Map<Eigen::VectorXd> external_acceleration(b.data(), dimension);
+
+  // Algorithm 1 is written in contact impulses lambda. Sire's invM_3n maps
+  // forces to accelerations with the opposite sign, so the impulse-space
+  // Delassus operator is -invM_3n (without h). Solving in impulse coordinates
+  // preserves the paper's eta, rho, and absolute stopping-residual units.
+  Eigen::MatrixXd G = -inverse_mass;
+  G = 0.5 * (G + G.transpose());
+  Eigen::VectorXd g = initial_velocity - h * external_acceleration;
+  if (normal_target) {
+    for (int contact = 0; contact < contact_count; ++contact) {
+      if (!std::isfinite((*normal_target)[contact])) {
+        return std::numeric_limits<double>::infinity();
+      }
+      // c = G*lambda + v0 - h*b is the physical post-step velocity.
+      // Desired c_N = -v_target, so w_N = c_N + v_target. This constant
+      // velocity shift enters g once, with no h scaling or extra constraint.
+      g(3 * contact + 2) += (*normal_target)[contact];
+    }
+  }
+
+  constexpr double eta = detail::spectral_admm_eta;
+  constexpr double tau = detail::spectral_admm_tau;
+  auto penalty = detail::initialSpectralPenalty(estimateLargestEigenvalue(G));
+
+  Eigen::VectorXd f = Eigen::VectorXd::Zero(dimension);
+  if (initial_force &&
+      initial_force->size() >= static_cast<size_t>(dimension)) {
+    // Public Sire values are forces; Algorithm 1 iterates on impulses.
+    f = h * Eigen::Map<const Eigen::VectorXd>(initial_force->data(), dimension);
+  }
+  const auto project_primal = [&](const Eigen::VectorXd& value) {
+    return patch_groups ? projectPatchCones(value, *patch_groups, fri_coef)
+                        : projectCoulombCones(value, contact_count, fri_coef);
+  };
+  const auto project_dual = [&](const Eigen::VectorXd& value) {
+    return patch_groups
+               ? projectDualPatchCones(value, *patch_groups, fri_coef)
+               : projectDualCoulombCones(value, contact_count, fri_coef);
+  };
+  const auto de_saxce_shift = [&](const Eigen::VectorXd& value) {
+    return patch_groups
+               ? computePatchDeSaxceShift(value, *patch_groups, fri_coef)
+               : computeDeSaxceShift(value, contact_count, fri_coef);
+  };
+  Eigen::VectorXd y = project_primal(f);
+  Eigen::VectorXd z = Eigen::VectorXd::Zero(dimension);
+
+  double effective_penalty = tau * penalty.rho;
+  if (initial_dual && initial_dual->size() >= static_cast<size_t>(dimension)) {
+    z = Eigen::Map<const Eigen::VectorXd>(initial_dual->data(), dimension);
+  } else {
+    // Match Pinocchio's first-solve initialization: construct a dual-cone
+    // feasible value from the projected primal guess and the current problem.
+    // Pinocchio applies the damped Delassus operator and then removes its
+    // proximal diagonal here. With R=0 this reduces exactly to G*y + g.
+    z = G * y + g;
+    z += de_saxce_shift(z);
+    z = project_dual(z);
+  }
+
+  Eigen::MatrixXd augmented_matrix;
+  Eigen::LDLT<Eigen::MatrixXd> factorization;
+  auto refactor = [&]() {
+    augmented_matrix = G + (eta + effective_penalty) *
+                               Eigen::MatrixXd::Identity(dimension, dimension);
+    factorization.compute(augmented_matrix);
+    return factorization.info() == Eigen::Success;
+  };
+  bool factorization_ok = refactor();
+
+  double primal_residual = std::numeric_limits<double>::infinity();
+  double dual_residual = std::numeric_limits<double>::infinity();
+  double complementarity_residual = std::numeric_limits<double>::infinity();
+  sire::Size iterations = 0;
+  sire::Size factorization_updates = 1;
+
+  for (sire::Size iteration = 0; iteration < max_iters; ++iteration) {
+    ++iterations;
+    const Eigen::VectorXd f_previous = f;
+    const Eigen::VectorXd y_previous = y;
+
+    // Algorithm 1, line 2: refresh the nonlinear De Saxce term every sweep.
+    const Eigen::VectorXd shift = de_saxce_shift(z);
+
+    // Algorithm 1, lines 3-4 / Eq. (37).
+    const Eigen::VectorXd rhs =
+        effective_penalty * y + z - (g + shift) + eta * f_previous;
+    if (factorization_ok) {
+      f = factorization.solve(rhs);
+      factorization_ok = factorization.info() == Eigen::Success;
+    }
+    if (!factorization_ok || !f.allFinite()) {
+      // Numerical fallback only; it does not change the NCP being solved.
+      const Eigen::MatrixXd regularized =
+          augmented_matrix +
+          detail::spectral_admm_fallback * Eigen::MatrixXd::Identity(dimension, dimension);
+      f = regularized.ldlt().solve(rhs);
+    }
+
+    // Algorithm 1, lines 5-6 / Eqs. (39) and (36c).
+    y = project_primal(f - z / effective_penalty);
+    z -= effective_penalty * (f - y);
+
+    // Eqs. (40)-(43): all three absolute residuals are required.
+    primal_residual = (f - y).lpNorm<Eigen::Infinity>();
+    dual_residual =
+        (eta * (f - f_previous) + effective_penalty * (y - y_previous))
+            .lpNorm<Eigen::Infinity>();
+    complementarity_residual =
+        complementarityResidual(y, z, contact_count, patch_groups);
+
+    if (primal_residual <= max_err && dual_residual <= max_err &&
+        complementarity_residual <= max_err) {
+      break;
+    }
+
+    // Sec. III-F spectral update: p <- p +/- 0.05 is equivalent to
+    // rho <- rho * kappa^(+/- 0.05) because m and L remain fixed here.
+    if (detail::adaptSpectralPenalty(penalty, primal_residual, dual_residual)) {
+      effective_penalty = tau * penalty.rho;
+      factorization_ok = refactor();
+      ++factorization_updates;
+    }
+  }
+
+  // Sire exposes contact forces, whereas Algorithm 1 returns impulses:
+  // lambda = h * force.
+  Eigen::Map<Eigen::VectorXd> output_force(contactFce.data(), dimension);
+  output_force = y / h;
+  if (solved_dual) {
+    solved_dual->assign(z.data(), z.data() + z.size());
+  }
+
+  const double error = std::max(
+      primal_residual, std::max(dual_residual, complementarity_residual));
+  SIRE_PROFILE_PLOT("spectral_admm.primal_residual", primal_residual);
+  SIRE_PROFILE_PLOT("spectral_admm.dual_residual", dual_residual);
+  SIRE_PROFILE_PLOT("spectral_admm.complementarity_residual",
+                    complementarity_residual);
+  SIRE_PROFILE_PLOT("spectral_admm.rho", penalty.rho);
+  SIRE_PROFILE_PLOT("spectral_admm.iterations",
+                    static_cast<double>(iterations));
+  SIRE_PROFILE_PLOT("spectral_admm.factorization_updates",
+                    static_cast<double>(factorization_updates));
+  return error;
+}
+
+}  // namespace
+
+auto cptContactForceSpectralAdmm(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
+  (void)v_target;
+  return solveSpectralAdmm(n, fri_coef, invM_3n, v0, nullptr, nullptr, b, h,
+                           nullptr, nullptr, contactFce, nullptr, max_iters,
+                           max_err);
+}
+
+auto cptContactForceShiftedSpectralAdmm(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
+  return cptContactForceShiftedSpectralAdmmWithWarmStart(n, fri_coef, invM_3n, v0, v_target,
+      b, h, contactFce, nullptr, nullptr, nullptr, max_iters, max_err);
+}
+
+auto cptContactForceShiftedSpectralAdmmWithWarmStart(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    const std::vector<double>* initial_force, const std::vector<double>* initial_dual,
+    std::vector<double>* solved_dual, sire::Size max_iters, double max_err) -> double {
+  return solveSpectralAdmm(n, fri_coef, invM_3n, v0, &v_target, nullptr, b, h,
+                           initial_force, initial_dual, contactFce, solved_dual,
+                           max_iters, max_err);
+}
+
+auto cptContactForceSimpleAdmm(sire::Size n, std::vector<double>& fri_coef,
+                               std::vector<double>& invM_3n,
+                               std::vector<double>& v0,
+                               std::vector<double>& v_target,
+                               std::vector<double>& b, double h,
+                               std::vector<double>& contactFce,
+                               sire::Size max_iters, double max_err) -> double {
+  return cptContactForceSpectralAdmm(n, fri_coef, invM_3n, v0, v_target, b, h,
+                                     contactFce, max_iters, max_err);
+}
+
+auto SimpleAdmmContactSolver::solveContactForceQP(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
+  return solveSpectralContactForce(false, n, fri_coef, invM_3n, v0, v_target, b,
+                                   h, contactFce, max_iters, max_err);
+}
+
+auto SimpleAdmmContactSolver::setWarmStartEnabled(bool enabled) noexcept
+    -> void {
+  warm_start_enabled_ = enabled;
+  if (!enabled) clearContactSolverState();
+}
+
+auto SimpleAdmmContactSolver::warmStartEnabled() const noexcept -> bool {
+  return warm_start_enabled_;
+}
+
+auto SimpleAdmmContactSolver::solveSpectralContactForce(
+    bool shifted, sire::Size n, std::vector<double>& fri_coef,
+    std::vector<double>& invM_3n, std::vector<double>& v0,
+    std::vector<double>& v_target, std::vector<double>& b, double h,
+    std::vector<double>& contactFce, sire::Size max_iters, double max_err)
+    -> double {
+  const std::vector<double>* initial_force =
+      has_primal_guess_ ? &contactFce : nullptr;
+  const std::vector<double>* initial_dual =
+      has_dual_guess_ ? &prepared_dual_guess_ : nullptr;
+  const std::vector<double>* normal_target = shifted ? &v_target : nullptr;
+  const auto* groups = patchContactMode() && !patch_groups_.empty()
+                           ? &patch_groups_
+                           : nullptr;
+  const bool trace_single_point = shifted && singlePointContactMode();
+  if (trace_single_point) traceShiftedAdmmInputs(initial_force, initial_dual);
+  const double error = solveSpectralAdmm(
+      n, fri_coef, invM_3n, v0, normal_target, groups, b, h, initial_force,
+      initial_dual, contactFce, &last_dual_solution_, max_iters, max_err);
+  if (trace_single_point) traceShiftedAdmmDual(last_dual_solution_);
+  has_primal_guess_ = false;
+  has_dual_guess_ = false;
+  prepared_dual_guess_.clear();
+  return error;
+}
+
+auto SimpleAdmmContactSolver::prepareContactForceInitialGuess(
+    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    const std::vector<std::array<double, 16>>& contact_frames,
+    const std::vector<sire::Size>& preserved_pair_indices, double,
+    std::vector<double>& contact_force) -> void {
+  patch_groups_.clear();
+  if (patchContactMode()) {
+    std::unordered_map<std::uint64_t, std::size_t> group_by_id;
+    std::vector<std::uint64_t> group_ids;
+    for (sire::Size contact = 0; contact < preserved_pair_indices.size();
+         ++contact) {
+      const auto& pair = penetration_pairs[preserved_pair_indices[contact]];
+      if (pair.patch_id == 0) {
+        patch_groups_.push_back({static_cast<int>(contact)});
+        group_ids.push_back(0);
+      } else {
+        auto [it, inserted] =
+            group_by_id.emplace(pair.patch_id, patch_groups_.size());
+        if (inserted) {
+          patch_groups_.emplace_back();
+          group_ids.push_back(pair.patch_id);
+        }
+        patch_groups_[it->second].push_back(static_cast<int>(contact));
+      }
+    }
+    std::unordered_map<std::uint64_t, std::uint64_t> next_anchor_ids;
+    for (std::size_t group_index = 0; group_index < patch_groups_.size();
+         ++group_index) {
+      auto& group = patch_groups_[group_index];
+      const auto patch_id = group_ids[group_index];
+      if (patch_id != 0) {
+        const auto previous = friction_anchor_ids_.find(patch_id);
+        if (previous != friction_anchor_ids_.end()) {
+          const auto found = std::find_if(
+              group.begin(), group.end(), [&](int contact) {
+                return penetration_pairs[preserved_pair_indices[contact]]
+                           .contact_id == previous->second;
+              });
+          if (found != group.end()) {
+            std::iter_swap(group.begin(), found);
+            next_anchor_ids.emplace(patch_id, previous->second);
+            continue;
+          }
+        }
+      }
+      if (group.size() < 2) {
+        if (patch_id != 0)
+          next_anchor_ids.emplace(
+              patch_id,
+              penetration_pairs[preserved_pair_indices[group.front()]]
+                  .contact_id);
+        continue;
+      }
+      std::array<double, 3> centroid{};
+      for (int contact : group) {
+        const auto& point =
+            penetration_pairs[preserved_pair_indices[contact]].p_WC;
+        for (int axis = 0; axis < 3; ++axis)
+          centroid[axis] += point[axis] / group.size();
+      }
+      auto nearest = group.begin();
+      double nearest_distance = std::numeric_limits<double>::infinity();
+      for (auto it = group.begin(); it != group.end(); ++it) {
+        const auto& point =
+            penetration_pairs[preserved_pair_indices[*it]].p_WC;
+        double distance = 0.0;
+        for (int axis = 0; axis < 3; ++axis)
+          distance += std::pow(point[axis] - centroid[axis], 2);
+        if (distance < nearest_distance) {
+          nearest = it;
+          nearest_distance = distance;
+        }
+      }
+      std::iter_swap(group.begin(), nearest);
+      if (patch_id != 0)
+        next_anchor_ids.emplace(
+            patch_id,
+            penetration_pairs[preserved_pair_indices[group.front()]]
+                .contact_id);
+    }
+    friction_anchor_ids_ = std::move(next_anchor_ids);
+  }
+  has_primal_guess_ = false;
+  has_dual_guess_ = false;
+  prepared_dual_guess_.assign(contact_force.size(), 0.0);
+  std::fill(contact_force.begin(), contact_force.end(), 0.0);
+  if (!warm_start_enabled_ || warm_start_contacts_.empty()) return;
+
+  // Simple does not supply an explicit dual guess. Pinocchio therefore keeps
+  // the dual iterate stored in its persistent solver whenever the problem
+  // dimension is unchanged. Reproduce that index-based behavior here.
+  if (!patchContactMode() &&
+      last_dual_solution_.size() == contact_force.size()) {
+    prepared_dual_guess_ = last_dual_solution_;
+    has_dual_guess_ = true;
+  }
+
+  sire::Size matched_contacts = 0;
+  for (sire::Size contact = 0; contact < preserved_pair_indices.size();
+       ++contact) {
+    const sire::Size pair_index = preserved_pair_indices[contact];
+    if (pair_index >= penetration_pairs.size() ||
+        pair_index >= contact_frames.size()) {
+      continue;
+    }
+    const auto& pair = penetration_pairs[pair_index];
+    const WarmStartContact* best = nullptr;
+    bool reversed = false;
+    double best_distance = std::numeric_limits<double>::infinity();
+    for (const auto& previous : warm_start_contacts_) {
+      if (patchContactMode() && pair.contact_id != 0) {
+        if (previous.contact_id == pair.contact_id) {
+          best = &previous;
+          reversed = false;
+          break;
+        }
+        continue;
+      }
+      const bool same_order =
+          previous.id_a == pair.id_A && previous.id_b == pair.id_B;
+      const bool reverse_order =
+          previous.id_a == pair.id_B && previous.id_b == pair.id_A;
+      if (!same_order && !reverse_order) continue;
+      double distance = 0.0;
+      for (int axis = 0; axis < 3; ++axis) {
+        const double delta = previous.point_W[axis] - pair.p_WC[axis];
+        distance += delta * delta;
+      }
+      if (distance < best_distance) {
+        best_distance = distance;
+        best = &previous;
+        reversed = reverse_order;
+      }
+    }
+    if (!best) continue;
+
+    double force_W[3];
+    for (int axis = 0; axis < 3; ++axis) {
+      const double sign = reversed ? -1.0 : 1.0;
+      force_W[axis] = sign * best->force_W[axis];
+    }
+    double force_C[3];
+    aris::dynamic::s_inv_pm_dot_v3(contact_frames[pair_index].data(), force_W,
+                                   force_C);
+    for (int axis = 0; axis < 3; ++axis) {
+      contact_force[3 * contact + axis] = force_C[axis];
+    }
+    if (patchContactMode() && pair.contact_id != 0) {
+      double dual_C[3];
+      aris::dynamic::s_inv_pm_dot_v3(contact_frames[pair_index].data(),
+                                     best->dual_W.data(), dual_C);
+      for (int axis = 0; axis < 3; ++axis)
+        prepared_dual_guess_[3 * contact + axis] = dual_C[axis];
+      has_dual_guess_ = true;
+    }
+    ++matched_contacts;
+  }
+  has_primal_guess_ = matched_contacts > 0;
+}
+
+auto SimpleAdmmContactSolver::commitContactForceSolution(
+    const std::vector<common::PenetrationAsPointPair>& penetration_pairs,
+    const std::vector<std::array<double, 16>>& contact_frames,
+    const std::vector<sire::Size>& preserved_pair_indices, double,
+    const std::vector<double>& contact_force) -> void {
+  if (!warm_start_enabled_) return;
+  const sire::Size contact_count = preserved_pair_indices.size();
+  if (contact_force.size() < 3 * contact_count ||
+      last_dual_solution_.size() < 3 * contact_count) {
+    clearContactSolverState();
+    return;
+  }
+
+  std::vector<WarmStartContact> next;
+  next.reserve(contact_count);
+  for (sire::Size contact = 0; contact < contact_count; ++contact) {
+    const sire::Size pair_index = preserved_pair_indices[contact];
+    if (pair_index >= penetration_pairs.size() ||
+        pair_index >= contact_frames.size()) {
+      continue;
+    }
+    const auto& pair = penetration_pairs[pair_index];
+    WarmStartContact record;
+    record.id_a = pair.id_A;
+    record.id_b = pair.id_B;
+    record.contact_id = pair.contact_id;
+    for (int axis = 0; axis < 3; ++axis) {
+      record.point_W[axis] = pair.p_WC[axis];
+    }
+    aris::dynamic::s_pm_dot_v3(contact_frames[pair_index].data(),
+                               contact_force.data() + 3 * contact,
+                               record.force_W.data());
+    aris::dynamic::s_pm_dot_v3(contact_frames[pair_index].data(),
+                               last_dual_solution_.data() + 3 * contact,
+                               record.dual_W.data());
+    next.push_back(record);
+  }
+  warm_start_contacts_ = std::move(next);
+}
+
+auto SimpleAdmmContactSolver::clearContactSolverState() -> void {
+  patch_groups_.clear();
+  friction_anchor_ids_.clear();
+  has_primal_guess_ = false;
+  has_dual_guess_ = false;
+  prepared_dual_guess_.clear();
+  last_dual_solution_.clear();
+  warm_start_contacts_.clear();
+}
+
+ShiftedSpectralAdmmContactSolver::ShiftedSpectralAdmmContactSolver() {
+  setContactModelMode("single_point");
+  setInitialPenetrationPolicy("eliminate");
+}
+
+auto ShiftedSpectralAdmmContactSolver::solveContactForceQP(
+    sire::Size n, std::vector<double>& fri_coef, std::vector<double>& invM_3n,
+    std::vector<double>& v0, std::vector<double>& v_target,
+    std::vector<double>& b, double h, std::vector<double>& contactFce,
+    sire::Size max_iters, double max_err) -> double {
+  return solveSpectralContactForce(true, n, fri_coef, invM_3n, v0, v_target, b,
+                                   h, contactFce, max_iters, max_err);
+}
+
+ARIS_REGISTRATION {
+  aris::core::class_<SimpleAdmmContactSolver>("SimpleAdmmContactSolver")
+      .inherit<admm_contact::AdmmContactSolver>()
+      .prop("warm_start_enabled", &SimpleAdmmContactSolver::setWarmStartEnabled,
+            &SimpleAdmmContactSolver::warmStartEnabled);
+  aris::core::class_<ShiftedSpectralAdmmContactSolver>(
+      "ShiftedSpectralAdmmContactSolver")
+      .inherit<SimpleAdmmContactSolver>();
+}
+
+}  // namespace sire::physics::contact::simple_admm

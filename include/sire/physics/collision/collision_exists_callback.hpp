@@ -13,8 +13,6 @@
 #include "sire/physics/collision/collision_filter.hpp"
 
 namespace sire::physics::collision {
-using namespace std;
-using namespace coal;
 namespace has_collisions {
 struct CallbackData {
   /* Constructs the fully-specified callback data. The values are as described
@@ -28,17 +26,17 @@ struct CallbackData {
   CollisionFilter& collision_filter_;
 
   /* The parameters for the fcl object-object collision function.  */
-  CollisionData collision_data_;
+  coal::CollisionData collision_data_;
 
   /* The result of the collisions exist query.  */
   bool collision_exist_{false};
 };
 }  // namespace has_collisions
 // drake-based implementation
-class SIRE_API CollisionExistsCallback : public CollisionCallBackBase {
+class SIRE_API CollisionExistsCallback : public coal::CollisionCallBackBase {
  public:
   has_collisions::CallbackData data;
-  auto collide(CollisionObject* o1, CollisionObject* o2) -> bool override;
+  auto collide(coal::CollisionObject* o1, coal::CollisionObject* o2) -> bool override;
   CollisionExistsCallback(CollisionFilter* filter_in);
   virtual ~CollisionExistsCallback() = default;
 };

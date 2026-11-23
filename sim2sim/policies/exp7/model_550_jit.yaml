@@ -1,0 +1,73 @@
+schema_version: 1
+source_checkpoint: /mnt/data/workspace/sire/logs/flat_go2/exp7/model_550.pt
+source_sha256: b5408416fd8e02c13894a9b4cd102e58f88ebeae0af9681e3ffdecadd40d1999
+iteration: 550
+num_observations: 45
+num_actions: 12
+policy_joint_names:
+- FL_hip_joint
+- FR_hip_joint
+- RL_hip_joint
+- RR_hip_joint
+- FL_thigh_joint
+- FR_thigh_joint
+- RL_thigh_joint
+- RR_thigh_joint
+- FL_calf_joint
+- FR_calf_joint
+- RL_calf_joint
+- RR_calf_joint
+env_cfg:
+  control:
+    action_scale: 0.25
+    control_type: P
+    damping:
+      joint: 0.6
+    decimation: 20
+    stiffness:
+      joint: 25.0
+  init_state:
+    ang_vel:
+    - 0.0
+    - 0.0
+    - 0.0
+    default_joint_angles:
+      FL_calf_joint: -1.5
+      FL_hip_joint: 0.1
+      FL_thigh_joint: 0.8
+      FR_calf_joint: -1.5
+      FR_hip_joint: -0.1
+      FR_thigh_joint: 0.8
+      RL_calf_joint: -1.5
+      RL_hip_joint: 0.1
+      RL_thigh_joint: 1.0
+      RR_calf_joint: -1.5
+      RR_hip_joint: -0.1
+      RR_thigh_joint: 1.0
+    init_yaw_range:
+    - -3.1415926
+    - 3.1415926
+    lin_vel:
+    - 0.0
+    - 0.0
+    - 0.0
+    pos:
+    - 0.0
+    - 0.0
+    - 0.34
+    rot:
+    - 0.0
+    - 0.0
+    - 0.0
+    - 1.0
+  normalization:
+    clip_actions: 100.0
+    clip_observations: 100.0
+    obs_scales:
+      ang_vel: 0.25
+      dof_pos: 1.0
+      dof_vel: 0.05
+      height_measurements: 5.0
+      lin_vel: 2.0
+  sim:
+    dt: 0.001

@@ -1,0 +1,38 @@
+{
+  "status": "offline_checks_passed",
+  "python": "3.8.10 (default, May 26 2023, 14:05:08) \n[GCC 9.4.0]",
+  "torch": "2.0.0+nv23.05",
+  "policy_sha256": "385f657aaae6040389e54a05e0ba78f38a6d52222f39f5babd7b611122791e75",
+  "preserved_lifecycle_checks": 10,
+  "jit_cross_platform_max_error": 3.814697265625e-06,
+  "adapter_max_error": 2.980232238769531e-07,
+  "command_max": [
+    1.0,
+    1.0,
+    1.0
+  ],
+  "command_scale": [
+    2.0,
+    2.0,
+    0.25
+  ],
+  "joint2motor_idx": [
+    3,
+    0,
+    9,
+    6,
+    4,
+    1,
+    10,
+    7,
+    5,
+    2,
+    11,
+    8
+  ],
+  "dds_imported": false,
+  "hardware_commands_sent": 0,
+  "warnings": [
+    "Reference common/command_helper.py writes qd; installed Go2 MotorCmd defines dq. Helpers intentionally preserved byte-for-byte as requested. This check does not certify zero/damping delivery, link-loss behavior or physical safety. No hardware communication was performed."
+  ]
+}

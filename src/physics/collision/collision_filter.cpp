@@ -4,6 +4,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <unordered_map>
 
 #include <coal/broadphase/broadphase_callbacks.h>
 #include <coal/broadphase/broadphase_collision_manager.h>
@@ -25,7 +26,7 @@ namespace sire::physics::collision {
 using namespace coal;
 struct CollisionFilter::Imp {
   FilterState filter_state_;
-  unordered_map<CollisionGeometry*, GeometryId> geometry_map_;
+  std::unordered_map<CollisionGeometry*, GeometryId> geometry_map_;
   aris::core::Matrix state_mat_;
   sire::Size geo_size_{0};
 };
@@ -150,7 +151,7 @@ auto CollisionFilter::loadMatConfig() -> void {
 }
 auto CollisionFilter::saveMatConfig() -> void {
   sire::Size size = imp_->filter_state_.size();
-  imp_->state_mat_.swap(aris::core::Matrix(1, size * size, 0.0));
+  imp_->state_mat_ = aris::core::Matrix(1, size * size, 0.0);
   for (Size i = 0; i < size; ++i) {
     imp_->state_mat_(0, i * size + i) = 1;
   }

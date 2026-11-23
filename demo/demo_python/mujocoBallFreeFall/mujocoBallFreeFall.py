@@ -8,10 +8,10 @@ plt.rcParams['font.sans-serif'] = 'Microsoft YaHei'  # 或 'Source Han Sans', 'B
 # MuJoCo模型XML字符串
 MUJOCO_MODEL_XML = """
 <mujoco>
-  <option timestep="0.01"/>
+  <option timestep="0.001"/>
 
   <default>
-    <geom solref="-10000000 -10"/>
+    <geom solref="-1000000 0"/>
   </default>
   
   <worldbody>
@@ -41,7 +41,7 @@ model = mujoco.MjModel.from_xml_string(MUJOCO_MODEL_XML)
 data = mujoco.MjData(model)
 
 # 设置仿真时长
-simulation_time = 5.0  # 仿真时间（秒）
+simulation_time = 10.0  # 仿真时间（秒）
 num_steps = int(simulation_time / model.opt.timestep)
 
 # 存储时间和高度数据
@@ -60,7 +60,7 @@ for i in range(num_steps):
 
 # 绘制高度-时间曲线
 plt.figure(figsize=(10, 6))
-plt.plot(time_points[90:], height_points[90:], 'b-', lw=2)
+plt.plot(time_points[:], height_points[:], 'b-', lw=2)
 plt.xlabel('时间 (秒)', fontsize=12)
 plt.ylabel('小球高度 (米)', fontsize=12)
 plt.title('小球下落高度随时间变化', fontsize=14)
@@ -71,12 +71,12 @@ plt.tight_layout()
 
 # 标记关键点
 # 找到第一次反弹的位置
-for i in range(1, num_steps):
-    if height_points[i] < height_points[i-1] and height_points[i] < 0.1:
-        plt.plot(time_points[i], height_points[i], 'ro', markersize=8)
-        plt.text(time_points[i]+0.1, height_points[i]+0.1, 
-                 f'第一次反弹: {time_points[i]:.2f}s', fontsize=10)
-        break
+# for i in range(1, num_steps):
+#     if height_points[i] < height_points[i-1] and height_points[i] < 0.1:
+#         plt.plot(time_points[i], height_points[i], 'ro', markersize=8)
+#         plt.text(time_points[i]+0.1, height_points[i]+0.1, 
+#                  f'第一次反弹: {time_points[i]:.2f}s', fontsize=10)
+#         break
 
 # 添加理论曲线对比
 # 理论自由落体高度公式: h = h0 - 0.5*g*t^2

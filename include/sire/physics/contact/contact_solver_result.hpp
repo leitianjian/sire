@@ -14,7 +14,6 @@
 #include "sire/core/sorted_pair.hpp"
 
 namespace sire::physics::contact {
-using namespace coal;
 struct ContactSolverResult {
   void resize(sire::Size num_velocities, sire::Size num_contacts) {
     vs_next.resize(num_velocities, 0);

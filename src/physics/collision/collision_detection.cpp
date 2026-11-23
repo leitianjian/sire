@@ -2,8 +2,10 @@
 
 #include <fstream>
 #include <mutex>
+#include <sstream>
 #include <string>
 #include <thread>
+#include <unordered_map>
 
 #include <coal/broadphase/broadphase_callbacks.h>
 #include <coal/broadphase/broadphase_collision_manager.h>
@@ -24,6 +26,7 @@
 #include "sire/core/constants.hpp"
 #include "sire/core/sire_assert.hpp"
 #include "sire/physics/collision/collision_exists_callback.hpp"
+#include "sire/physics/collision/height_field_contact_callback.hpp"
 #include "sire/physics/collision/penetration_as_point_pair_callback.hpp"
 #include "sire/physics/geometry/sphere_collision_geometry.hpp"
 #include "sire/physics/physics_engine.hpp"
@@ -40,11 +43,13 @@ struct CollisionDetection::Imp {
   aris::core::PointerArray<geometry::CollidableGeometry,
                            aris::dynamic::Geometry>* geometry_pool_ptr_{
       nullptr};
-  unordered_map<GeometryId, geometry::CollidableGeometry*>*
+  std::unordered_map<GeometryId, geometry::CollidableGeometry*>*
       dynamic_objects_map_ptr_{nullptr};
-  unordered_map<GeometryId, geometry::CollidableGeometry*>*
+  std::unordered_map<GeometryId, geometry::CollidableGeometry*>*
       anchored_objects_map_ptr_{nullptr};
   CollisionFilter* collision_filter_ptr_{nullptr};
+  physics::PhysicsEngine* engine_ptr_{nullptr};
+  HeightFieldContactManifold height_field_manifold_;
 
   Imp() : geometry_pool_ptr_(nullptr), collision_filter_ptr_(nullptr) {}
 };
@@ -60,6 +65,21 @@ auto CollisionDetection::updateLocation(const aris::dynamic::Model* model_ptr)
     if (geometry.isDynamic()) {
       double temp_pm[16];
       model_ptr->partPool().at(geometry.partId()).getPm(temp_pm);
+      // NaN guard: if part pose is invalid (e.g. after integration divergence),
+      // skip this update so coal's BVH doesn't segfault on bad data.
+      bool pose_valid = true;
+      for (int k = 0; k < 16; ++k) {
+        if (!std::isfinite(temp_pm[k])) {
+          pose_valid = false;
+          break;
+        }
+      }
+      if (!pose_valid) {
+        std::ostringstream oss;
+        oss << "[Sire] CollisionDetection: NaN pose for geometry "
+            << geometry.id() << " part " << geometry.partId();
+        throw std::runtime_error(oss.str());
+      }
       geometry.updateLocation(temp_pm);
     }
   }
@@ -72,6 +92,21 @@ auto CollisionDetection::updateLocation(const double* part_pq) -> bool {
     if (geometry.isDynamic()) {
       double temp_pm[16];
       aris::dynamic::s_pq2pm(part_pq + 7 * geometry.partId(), temp_pm);
+      // NaN guard for part_pq input
+      bool pose_valid = true;
+      for (int k = 0; k < 16; ++k) {
+        if (!std::isfinite(temp_pm[k])) {
+          pose_valid = false;
+          break;
+        }
+      }
+      if (!pose_valid) {
+        std::ostringstream oss;
+        oss << "[Sire] CollisionDetection: NaN pose for geometry "
+            << geometry.id() << " part " << geometry.partId()
+            << " (from part_pq)";
+        throw std::runtime_error(oss.str());
+      }
       geometry.updateLocation(temp_pm);
     }
   }
@@ -120,10 +155,12 @@ auto CollisionDetection::updateAnchoredGeometriesMananger() -> void {
 }
 auto CollisionDetection::clearDynamicGeometries() -> bool {
   imp_->dynamic_tree_.clear();
+  imp_->height_field_manifold_.clear();
   return true;
 }
 auto CollisionDetection::clearAnchoredGeometries() -> bool {
   imp_->anchored_tree_.clear();
+  imp_->height_field_manifold_.clear();
   return true;
 }
 auto CollisionDetection::hasCollisions() -> bool {
@@ -141,10 +178,31 @@ auto CollisionDetection::computePointPairPenetration(
   imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
   return true;
 }
+auto CollisionDetection::computeHeightFieldPenetration(
+    std::vector<common::PenetrationAsPointPair>& contacts) -> bool {
+  const bool patch_mode = imp_->engine_ptr_ &&
+                          imp_->engine_ptr_->contactSolver().patchContactMode();
+  if (!patch_mode) imp_->height_field_manifold_.clear();
+  if (patch_mode) imp_->height_field_manifold_.beginQuery();
+  HeightFieldContactCallback callback(imp_->collision_filter_ptr_, &contacts,
+                                       patch_mode ? &imp_->height_field_manifold_
+                                                  : nullptr,
+                                       patch_mode,
+                                       patch_mode && imp_->engine_ptr_->contactSolver()
+                                           .contactModelMode() == "height_field_prism",
+                                       patch_mode ? imp_->engine_ptr_->contactSolver()
+                                           .heightFieldPrismMaxContacts() : 50);
+  imp_->dynamic_tree_.collide(&callback);
+  imp_->dynamic_tree_.collide(&imp_->anchored_tree_, &callback);
+  if (patch_mode) imp_->height_field_manifold_.endQuery();
+  return true;
+}
 auto CollisionDetection::numDynamicGeometries() -> sire::Size {
   return imp_->dynamic_tree_.size();
 }
 auto CollisionDetection::init(physics::PhysicsEngine* engine_ptr) -> void {
+  imp_->engine_ptr_ = engine_ptr;
+  imp_->height_field_manifold_.clear();
   imp_->dynamic_objects_map_ptr_ = &engine_ptr->dynamicObjectsMap();
   imp_->anchored_objects_map_ptr_ = &engine_ptr->anchoredObjectsMap();
   imp_->collision_filter_ptr_ = &engine_ptr->collisionFilter();

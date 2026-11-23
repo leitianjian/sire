@@ -1,0 +1,23 @@
+# MuJoCo condim=3, iteration 1200.
+policy_path: model_1200_mujoco_condim3_jit.pt
+control_dt: 0.02
+lowcmd_topic: rt/lowcmd
+lowstate_topic: rt/lowstate
+
+# Policy order: FL/FR/RL/RR hips, then thighs, then calves.
+# Unitree motor order: FR, FL, RR, RL (hip/thigh/calf for each leg).
+joint2motor_idx: [3, 0, 9, 6, 4, 1, 10, 7, 5, 2, 11, 8]
+default_angles: [0.1, -0.1, 0.1, -0.1, 0.8, 0.8, 1.0, 1.0, -1.5, -1.5, -1.5, -1.5]
+kps: [20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20]
+kds: [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]
+
+obs_scales_ang_vel: 0.25
+obs_scales_dof_pos: 1.0
+obs_scales_dof_vel: 0.05
+max_cmd: [1.0, 1.0, 1.0]
+command_scale: [2.0, 2.0, 0.25]
+action_scale: 0.25
+clip_observations: 100.0
+clip_actions: 100.0
+num_actions: 12
+num_obs: 45
