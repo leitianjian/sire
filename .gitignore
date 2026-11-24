@@ -108,7 +108,6 @@ motion_data/
 *.pdb
 
 # Local experiment runs, generated diagnostics and backups.
-/docs/cuda_performance.md
 /.codex_runs/
 /sire_parallel_experiment_*/
 /sim2sim/policies/go2_cuda_1024/
