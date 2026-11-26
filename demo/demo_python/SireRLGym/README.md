@@ -16,29 +16,13 @@ python -m venv .venv
 
 ## 2. Build Sire
 
-Initialize the repository submodules and build the native Python module with
-`BUILD_PYTHON=ON`. Dependency locations are ordinary CMake cache paths and may
-be changed for the local machine:
+Follow the [Sire Python SDK build guide](../../../python/BUILDING.md) to prepare
+the native dependencies and install Sire into the training environment. Use the
+same interpreter for installation and training.
 
 ```bash
-git submodule update --init --recursive
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_PYTHON=ON \
-  -DPython3_EXECUTABLE="$PWD/.venv/bin/python" \
-  -DTARGET_ARIS_PATH=/path/to/aris/install \
-  -DTARGET_HPP_FCL_PATH=/path/to/hpp-fcl/install \
-  -DTARGET_STDUUID_PATH=/path/to/stduuid/install
-cmake --build build --parallel
-mkdir -p python/src/sire/native
-cp build/python_modules/sire.so python/src/sire/native/sire.so
-```
-
-The dependency paths are examples; point them at the corresponding local
-install prefixes. Verify the binding before starting training:
-
-```bash
-PYTHONPATH=python/src .venv/bin/python -c \
-  "import sire; print(sire.SireRLBatchStepper)"
+.venv/bin/python -m pip install -e ./python
+.venv/bin/python -c "import sire; print(sire.SireRLBatchStepper)"
 ```
 
 The requirements pin the upstream `rsl_rl` revision used by this integration;
@@ -50,8 +34,7 @@ The default GO2 task uses flat ground, a 1 kHz physics step and a 50 Hz policy
 step. A 1024-environment, 16-thread run is:
 
 ```bash
-PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
-  demo/demo_python/SireRLGym/scripts/train.py \
+.venv/bin/python demo/demo_python/SireRLGym/scripts/train.py \
   --task go2 --num_envs 1024 --sire_batch_threads 16 \
   --max_iterations 1000 --save_interval 50 --flat_terrain
 ```
@@ -64,7 +47,7 @@ Plot a completed run from its TensorBoard event, memory samples, and copied
 console log:
 
 ```bash
-PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
+PYTHONPATH=demo/demo_python .venv/bin/python \
   demo/demo_python/SireRLGym/scripts/plot_training.py \
   logs/flat_go2/expN
 ```
@@ -80,7 +63,7 @@ Keep the policy period at 20 ms and replay the same checkpoint, initial state,
 and commands with 1 ms and 5 ms physics steps:
 
 ```bash
-PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
+PYTHONPATH=demo/demo_python .venv/bin/python \
   demo/demo_python/SireRLGym/scripts/compare_sim_dt.py \
   --checkpoint logs/flat_go2/expN/model_1000.pt \
   --sim-dts 0.001,0.005 --control-dt 0.02 --steps 500
@@ -104,10 +87,10 @@ long evaluations.
 ## 5. Regression and throughput checks
 
 ```bash
-PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
+PYTHONPATH=demo/demo_python .venv/bin/python \
   demo/demo_python/SireRLGym/test/test_sire_batch_training.py
 
-PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
+PYTHONPATH=demo/demo_python .venv/bin/python \
   demo/demo_python/SireRLGym/test/benchmark_sire_batch.py \
   --num-envs 1024 --threads 16 --steps 20 --flat-terrain
 ```
@@ -121,11 +104,11 @@ include the failing environment and its state.
 Export a checkpoint to TorchScript, then run the standalone Sire simulator:
 
 ```bash
-PYTHONPATH=python/src:demo/demo_python .venv/bin/python \
+PYTHONPATH=demo/demo_python .venv/bin/python \
   demo/demo_python/SireRLGym/scripts/export_policy_jit.py \
   /path/to/model_1000.pt --out /tmp/go2_policy.pt
 
-PYTHONPATH=python/src .venv/bin/python demo/demo_python/dogRL/dog_can_work.py \
+.venv/bin/python demo/demo_python/dogRL/dog_can_work.py \
   go2_can_work.yaml --policy /tmp/go2_policy.pt --cmd 1 0 0
 ```
 

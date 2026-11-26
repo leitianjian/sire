@@ -1,6 +1,6 @@
 # 必须包含
 [build-system]
-requires = ["setuptools>=64", "wheel", "cmake", "packaging", "tomli; python_version < '3.11'"]
+requires = ["setuptools>=64", "wheel", "cmake", "packaging", "pybind11>=2.10", "tomli; python_version < '3.11'"]
 build-backend = "setuptools.build_meta"
 
 # 推荐包含
@@ -17,10 +17,7 @@ maintainers  = [
 ]
 description = "Simulator based on aris"
 readme = "README.md"
-license = "MIT"
-license-files = [
-    "LICENSE.txt",
-]
+license = {file = "LICENSE.txt"}
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -30,3 +27,6 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering",
 ]
+
+[project.optional-dependencies]
+viewer = ["glfw", "PyOpenGL"]

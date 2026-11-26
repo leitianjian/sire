@@ -106,3 +106,21 @@ install(TARGETS sire
 )
 
 INSTALL_DLL(DESTINATION python/${CMAKE_BUILD_TYPE_LOWER} COMPONENT PythonRuntime)
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set_target_properties(sire PROPERTIES INSTALL_RPATH "$ORIGIN")
+  if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug")
+    set(_aris_runtime aris::debug::aris_lib)
+  else()
+    set(_aris_runtime aris::aris_lib)
+  endif()
+  foreach(_runtime_target IN ITEMS ${_aris_runtime} coal::coal)
+    get_target_property(_runtime_type ${_runtime_target} TYPE)
+    if(_runtime_type STREQUAL "SHARED_LIBRARY")
+      install(IMPORTED_RUNTIME_ARTIFACTS ${_runtime_target}
+        LIBRARY DESTINATION python/${CMAKE_BUILD_TYPE_LOWER} COMPONENT PythonRuntime)
+    endif()
+  endforeach()
+  install(FILES "$<TARGET_PROPERTY:libclarabel_c_shared,SIRE_RUNTIME_FILE>"
+    DESTINATION python/${CMAKE_BUILD_TYPE_LOWER} COMPONENT PythonRuntime)
+endif()

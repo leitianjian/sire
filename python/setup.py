@@ -7,18 +7,18 @@ from setuptools.command.build_ext import build_ext
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from native_build import build_native, sync_runtime
+from native_build import build_native, runtime_files, sync_runtime
 
 
 class CMakeBuildExt(build_ext):
     def run(self):
-        runtime = build_native()
-        files = [path for path in runtime.iterdir() if path.is_file() and not path.name.startswith('.')]
         if self.inplace or getattr(self, 'editable_mode', False):
-            self._native_outputs = [str(path) for path in files]
+            runtime = build_native()
+            files = [runtime / name for name in runtime_files(runtime)]
         else:
             destination = Path(self.get_ext_fullpath('sire.native.sire')).parent
-            self._native_outputs = [str(path) for path in sync_runtime(files, destination)]
+            files = sync_runtime(build_native(activate=False), destination)
+        self._native_outputs = [str(path) for path in files]
 
     def get_outputs(self):
         return getattr(self, '_native_outputs', [])

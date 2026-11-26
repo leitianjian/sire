@@ -1,8 +1,7 @@
 """Regression coverage for the native Sire RL batch training path.
 
 Run from the repository root with no extra test dependency:
-  PYTHONPATH=python/src:demo/demo_python \
-    .venv/bin/python demo/demo_python/SireRLGym/test/test_sire_batch_training.py
+  cd demo/demo_python && python -m SireRLGym.test.test_sire_batch_training
 """
 
 from __future__ import annotations
@@ -238,13 +237,13 @@ class SireBatchTrainingTest(unittest.TestCase):
         self.assertTrue(bool(env.reset_buf[1]))
         self.assertFalse(bool(env.time_out_buf[1]))
 
-    def test_go2_action_guard_limits_pd_target_offset(self):
+    def test_go2_action_guard_applies_configured_clip(self):
         env = _make_env(num_envs=1, threads=1)
-        self.assertEqual(env.cfg.normalization.clip_actions, 4.0)
-        self.assertLessEqual(
-            env.cfg.normalization.clip_actions * env.cfg.control.action_scale,
-            1.0,
-        )
+        self.assertEqual(env.cfg.normalization.clip_actions, 100.0)
+        env.cfg.normalization.clip_actions = 4.0
+        actions = torch.full_like(env.actions, 5.0)
+        env.step(actions)
+        torch.testing.assert_close(env.actions, torch.full_like(actions, 4.0))
 
     def test_low_base_does_not_terminate_but_excessive_roll_does(self):
         env = _make_env()

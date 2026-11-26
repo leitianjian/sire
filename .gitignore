@@ -58,6 +58,7 @@ build/
 scripts/SireRLGym/logs/*
 **/logs/
 **/log/
+!/src/log/
 *.pt
 
 # for clion

@@ -1,59 +1,47 @@
-import warnings
-import sys
+"""Python interface to the Sire simulator."""
 
-# 版本信息
-__version__ = "1.0.0"
-
-# # 动态导入核心功能
-# def __getattr__(name):
-#     """延迟加载模块和函数"""
-#     # if name in ['core', 'extensions']:
-#         # 导入子模块
-#     try:
-#       module = __import__(f'sire.{name}')
-#       setattr(sys.modules[__name__], name, module)
-#       return module
-#     except ImportError:
-#       raise AttributeError(f"module 'sire' has no attribute '{name}'")
-    # # 尝试从核心模块导入常用函数
-    # if name in ['calculate', 'process', 'transform']:
-    #     try:
-    #         from .core import name as func
-    #         setattr(sys.modules[__name__], name, func)
-    #         return func
-
-    
-# import logging
-# logger = logging.getLogger('sire')
-
-# from . import visualize
-
-# logger.debug("开始提升 visualize 模块的函数")
-
-# # 提升函数
-# for name in dir(visualize):
-#     if not name.startswith('_'):
-#         logger.debug(f"提升函数: {name}")
-#         setattr(sys.modules[__name__], name, getattr(visualize, name))
-
-# logger.debug("函数提升完成")
-# 导入纯 Python 模块
-from .py_module import visualize
-
-# 将函数映射到当前命名空间
-for name in dir(visualize):
-    if not name.startswith('_'):
-      setattr(sys.modules[__name__], name, getattr(visualize, name))
+from importlib import import_module as _import_module
+from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
+from importlib.metadata import version as _package_version
+import sys as _sys
 
 try:
-  from .native import sire
-  # 将函数映射到当前命名空间
-  for name in dir(sire):
-    if not name.startswith('_'):
-      setattr(sys.modules[__name__], name, getattr(sire, name))
+    from .native import sire
 except ImportError as error:
-  raise ImportError(
-      f"Sire native extension could not be loaded by {sys.executable}. "
-      "Build it with the same project venv using python/build_native.py. "
-      f"Original error: {error}"
-  ) from error
+    raise ImportError(
+        f"Sire native extension could not be loaded by {_sys.executable}. "
+        "Install Sire for this Python interpreter. See python/BUILDING.md. "
+        f"Original error: {error}"
+    ) from error
+
+try:
+    __version__ = _package_version("sire")
+except _PackageNotFoundError:
+    __version__ = "0.1.0"
+
+_native_exports = [name for name in dir(sire) if not name.startswith("_")]
+globals().update({name: getattr(sire, name) for name in _native_exports})
+
+# Recording playback historically exported these functions at package level.
+# Load its dependencies only when callers use playback.
+_playback_exports = (
+    "animateRobotByRecords", "animateRobotByRecordsRealtime", "binarySearch",
+    "buildHFieldMeshFull", "buildHFieldMeshHeights", "buildHFieldMeshPNG",
+    "create_scale_matrix", "draw_arrow_realtime", "pe3132tfmatrix", "pq2tfmatrix",
+    "robotInit", "rotation_matrix_from_vectors", "s_pe_dot_pe", "setRobotPq",
+    "setRobotPqRealtime", "visualize",
+)
+__all__ = _native_exports + list(_playback_exports)
+
+
+def __getattr__(name):
+    if name in _playback_exports:
+        visualize = _import_module(".py_module.visualize", __name__)
+        value = visualize if name == "visualize" else getattr(visualize, name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()).union(_playback_exports))

@@ -1,8 +1,25 @@
-# Go2 平地 MuJoCo + 手柄测试（本地，不纳入 Git）
+# Go2 策略播放与仿真对照
 
 默认使用你选定的 `exp7/model_550.pt` 导出的 actor JIT。本文的 `run.sh` 入口只用于仿真，不连接机器人真机；不会启动训练、创建 Sire 环境或修改后台实验。新建的真机代码副本单独放在 `deploy_sire/`，请先阅读其 `README_REVIEW.md`，不要混淆两个入口。
 
-## 启动
+## Sire 单场景实时行走与 RGB-D
+
+在当前 Python 环境按 [SDK 安装指南](../python/BUILDING.md)安装 `./python[viewer]`，并准备 `torch` 和 `PyYAML`。从仓库根目录运行。
+
+```bash
+python -m sim2sim.walk_sire --cmd 0.25 0 0 --duration 10
+```
+
+也可以在任意目录运行 `python /path/to/sire/sim2sim/walk_sire.py`。
+
+Sire CPU 求解单个平地场景，Sire Viewer 用 GLFW 和 OpenGL 绘制窗口和 RGB-D。左键旋转、右键平移、滚轮缩放、Esc 退出。右侧 RGB 和深度预览叠加在场景之上。`--cmd` 依次传入机身前向速度、侧向速度和偏航角速度。
+
+- 默认使用本地 `sim2sim/policies/go2_cuda_1024/model_1000_jit.pt` 和 `demo/demo_python/dogRL/assets`。可用 `--policy` 和 `--mesh-dir` 指向已有的 JIT 和 OBJ 文件。
+- 用 `--camera-size`、`--camera-fps`、`--camera-fov-y` 或 `--camera-intrinsics FX FY CX CY`、`--camera-clip NEAR FAR` 调整相机。SDK 的 [`CameraConfig`](../python/src/sire/sensor.py) 设置安装连杆及相对位姿，`Camera.read()` 获取最近一帧。
+- 用 `--save-rgbd frame.npz` 保存最后一帧，包含 RGB、米制光轴深度、有效像素掩码、仿真时间戳、帧编号和内参。加 `--headless` 使用 EGL 离屏渲染。
+- 本入口使用 `numpy`、`torch`、`PyYAML`、`glfw` 和 `PyOpenGL`，需要 OpenGL 3.3 或更新版本。主循环在 [`walk_sire.py`](walk_sire.py)，一次 `sim.step(action)` 推进一个策略控制周期，随后读取状态给相机与 Viewer。
+
+## MuJoCo 平地与手柄对照
 
 在 Sire 仓库根目录：
 

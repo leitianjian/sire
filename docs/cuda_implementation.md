@@ -59,26 +59,19 @@ cmake -S third_party/stduuid -B build/deps/stduuid \
   -DUUID_ENABLE_INSTALL=ON -DUUID_BUILD_TESTS=OFF
 cmake --build build/deps/stduuid --target install --parallel
 
-cmake -S . -B build/cuda -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_PREFIX_PATH="$SIRE_DEPS_PREFIX" \
-  -DCMAKE_CUDA_ARCHITECTURES="$SIRE_CUDA_ARCH" \
-  -DSIRE_ENABLE_CUDA=ON -DBUILD_PYTHON=ON \
-  -DPYBIND11_FINDPYTHON=ON -DPython_EXECUTABLE="$(command -v python)" \
-  -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
-cmake --build build/cuda --target sire --parallel
-
-export PYTHONPATH="$PWD/build/cuda/python_modules:$PWD/demo/demo_python${PYTHONPATH:+:$PYTHONPATH}"
+CMAKE_PREFIX_PATH="$SIRE_DEPS_PREFIX" SIRE_ENABLE_CUDA=ON \
+  CMAKE_CUDA_ARCHITECTURES="$SIRE_CUDA_ARCH" python -m pip install -e ./python
 python -c 'import sire; print(sire.__file__); print(sire.SireCudaBatchStepper)'
 ```
 
-如果系统安装了多个 Toolkit，可在首次配置时通过 `CMAKE_CUDA_COMPILER` 指定 `nvcc`，并通过 `CUDAToolkit_ROOT` 指定对应的 Toolkit 根目录。依赖分开安装时，可以使用分号连接多个 `CMAKE_PREFIX_PATH` 前缀，或设置 `TARGET_ARIS_PATH`、`TARGET_HPP_FCL_PATH` 与 `TARGET_STDUUID_PATH`。
+如果系统安装了多个 Toolkit，可通过 `CMAKE_CUDA_COMPILER` 指定 `nvcc`，并通过 `CUDAToolkit_ROOT` 指定对应的 Toolkit 根目录。依赖分开安装时，可设置 `BUILD_ARIS_PATH`、`BUILD_FCL_PATH` 和 `BUILD_UUID_PATH`。安装和增量构建见 [Sire Python SDK 安装指南](../python/BUILDING.md)。
 
 ## 训练与步进基准
 
-继续使用上面激活的 Python 环境与 `PYTHONPATH`。下面的命令从仓库根目录启动 1024 环境的 Go2 训练，每 100 轮存档一次。
+继续使用上面激活的 Python 环境。下面的命令从仓库根目录启动 1024 环境的 Go2 训练，每 100 轮存档一次。
 
 ```bash
-python -m SireRLGym.scripts.train --task go2 --flat_terrain \
+python demo/demo_python/SireRLGym/scripts/train.py --task go2 --flat_terrain \
   --sire_backend cuda --rl_device cuda:0 --num_envs 1024 \
   --num_steps_per_env 24 --max_iterations 1000 --save_interval 100 --seed 1
 ```
@@ -99,8 +92,9 @@ Go2 默认物理步长为 1 ms，策略控制周期为 20 ms。环境和 PPO 默
 流数由 `sim.sire_cuda_streams` 控制。原生基准中，每个环境完成一个控制周期计为一步。
 
 ```bash
-python -m SireRLGym.test.benchmark_sire_batch --backend cuda --device cuda:0 \
-  --flat-terrain --native-only --num-envs 256 --warmup-steps 5 --steps 30
+(cd demo/demo_python && python -m SireRLGym.test.benchmark_sire_batch \
+  --backend cuda --device cuda:0 --flat-terrain --native-only \
+  --num-envs 256 --warmup-steps 5 --steps 30)
 ```
 
 追加 `--streams 1` 可对比单 stream。CPU 基准改用 `--backend cpu --device cpu --threads N`。若需要运行原生回归测试，以 `-DBUILD_TEST=ON` 重新配置并构建 CUDA 测试目标，再用 `ctest --test-dir build/cuda -R '^cuda_' --output-on-failure` 运行。逐事件对照和接触力回放见[接触实现与已锁定依赖](contact_implementation.md)。
