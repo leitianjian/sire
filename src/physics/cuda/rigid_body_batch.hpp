@@ -30,7 +30,8 @@ struct RigidBodyBatchState {
 class RigidBodyBatch {
  public:
   RigidBodyBatch(PhysicsEngine& engine, std::size_t batch, double physics_dt,
-                 double control_dt, const std::vector<RigidJointControl>& control);
+                 double control_dt, const std::vector<RigidJointControl>& control,
+                 bool vary_friction = false, bool vary_base_mass = false);
   ~RigidBodyBatch();
   RigidBodyBatch(const RigidBodyBatch&) = delete;
   auto operator=(const RigidBodyBatch&) -> RigidBodyBatch& = delete;
@@ -52,6 +53,16 @@ class RigidBodyBatch {
   /// motion-ordered positions and rates, respectively.
   void reset(const bool* mask, const double* base_poses, const double* base_velocities,
              const double* joint_positions, const double* joint_rates, cudaStream_t stream);
+
+  /// Update enabled parameters from device [batch] buffers. Null inputs retain
+  /// their previous values; a null mask selects all. Resets preserve the values.
+  /// Friction targets m1/m1; mass offsets are relative to the model's base mass.
+  void setDomainParameters(const double* friction, const double* base_mass_offsets,
+                           const bool* mask, cudaStream_t stream);
+
+  /// Set the base origin's world XY velocity from device [batch, 2], zero its
+  /// vertical velocity, and preserve angular velocity and joint rates.
+  void pushBaseVelocity(const double* xy_velocity, cudaStream_t stream);
 
  private:
   struct Imp;

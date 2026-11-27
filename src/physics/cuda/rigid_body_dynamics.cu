@@ -24,7 +24,7 @@ __device__ auto jointScrew(const double* pose, const double* marker, double* scr
 __device__ auto buildBodyTerms(RigidBodyTree model, std::size_t body, std::size_t dof,
                                const double* poses, const double* velocities,
                                const double* wrenches, double* inertia, double* jacobian,
-                               double* bias, double* rhs) -> void {
+                               double* bias, double* rhs, const double* part_inertia) -> void {
   const bool moving = body != model.ground;
   for (std::size_t i = 0; i < 6; ++i) {
     bias[i] = 0.0;
@@ -52,7 +52,7 @@ __device__ auto buildBodyTerms(RigidBodyTree model, std::size_t body, std::size_
     }
   }
 
-  detail::worldInertia(model.bodies[body].inertia, poses + 12 * body, inertia);
+  detail::worldInertia(part_inertia, poses + 12 * body, inertia);
   const auto* v = velocities + 6 * body;
   double momentum[6]{};
   for (std::size_t i = 0; i < 6; ++i) {
@@ -111,11 +111,19 @@ __device__ auto writeAcceleration(std::size_t rows, std::size_t dof, const doubl
   if (__syncthreads_and(valid) == 0 && threadIdx.x == 0) status = RigidDynamicsStatus::NumericalFailure;
 }
 
+template <bool VaryBaseMass>
 __global__ void solveTree(RigidBodyTree model, RigidDynamicsInputs inputs,
                           RigidDynamicsOutputs outputs, double* scratch) {
   const std::size_t env = blockIdx.x;
   if (inputs.configs && (inputs.configs[env].suspended ||
                          outputs.status[env] != RigidDynamicsStatus::Success)) return;
+  const auto* base_inertia = VaryBaseMass ? inputs.base_inertias + 10 * env : nullptr;
+  if constexpr (VaryBaseMass) {
+    if (!(::isfinite(base_inertia[0]) && base_inertia[0] > 0.0)) {
+      if (threadIdx.x == 0) outputs.status[env] = RigidDynamicsStatus::NonPositiveMass;
+      return;
+    }
+  }
   const auto dof = 6 + model.joint_count;
   const auto rows = 6 * model.body_count;
   const auto* poses = inputs.poses + env * 2 * rows;
@@ -132,7 +140,8 @@ __global__ void solveTree(RigidBodyTree model, RigidDynamicsInputs inputs,
   for (std::size_t body = threadIdx.x; body < model.body_count; body += blockDim.x) {
     const auto row = 6 * body;
     buildBodyTerms(model, body, dof, poses, vel, wrench, inertia + 6 * row,
-                   jacobian + row * dof, bias + row, rhs + row);
+                   jacobian + row * dof, bias + row, rhs + row,
+                   VaryBaseMass && body == inputs.base_body ? base_inertia : model.bodies[body].inertia);
   }
   __syncthreads();
 
@@ -228,9 +237,14 @@ auto launchRigidBodyDynamics(
   if (batch == 0) return cudaSuccess;
   if (!validDimensions(batch, model.body_count, model.joint_count) || !model.bodies ||
       model.ground >= model.body_count || !inputs.poses || !inputs.velocities || !outputs.accelerations ||
+      (inputs.base_inertias && (inputs.base_body >= model.body_count || inputs.base_body == model.ground)) ||
       !outputs.jacobians || !outputs.mass_factor || !outputs.status || !scratch) return cudaErrorInvalidValue;
   const auto shared_bytes = (6 + model.joint_count) * sizeof(double);
-  solveTree<<<static_cast<unsigned>(batch), block_size, shared_bytes, stream>>>(model, inputs, outputs, scratch);
+  if (inputs.base_inertias) {
+    solveTree<true><<<static_cast<unsigned>(batch), block_size, shared_bytes, stream>>>(model, inputs, outputs, scratch);
+  } else {
+    solveTree<false><<<static_cast<unsigned>(batch), block_size, shared_bytes, stream>>>(model, inputs, outputs, scratch);
+  }
   return cudaGetLastError();
 }
 

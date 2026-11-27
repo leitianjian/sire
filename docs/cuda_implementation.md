@@ -86,6 +86,9 @@ python demo/demo_python/SireRLGym/scripts/train.py --task go2 --flat_terrain \
 | `--max_iterations`、`--save_interval`、`--log_dir` | 目标迭代编号、模型保存间隔、日志根目录 |
 | `--resume PATH` | 加载 checkpoint 并训练到 `--max_iterations` 指定的编号 |
 | `--seed`、`--log_interval` | 随机种子、训练统计的输出间隔 |
+| `--randomize_friction`、`--randomize_base_mass` | 从任务配置的范围为每个环境采样摩擦系数和基座质量偏移 |
+| `--randomize_on_reset` | CUDA 环境重置时重抽已开启的摩擦和质量参数。默认在启动时采样一次 |
+| `--push_robots`、`--push_interval_s` | 周期性设置每个机器人基座的新水平速度，可覆盖两次推扰间隔 |
 
 Go2 默认物理步长为 1 ms，策略控制周期为 20 ms。环境和 PPO 默认值在
 [`go2_config.py`](../demo/demo_python/SireRLGym/envs/go2/go2_config.py)，
@@ -99,6 +102,39 @@ Go2 默认物理步长为 1 ms，策略控制周期为 20 ms。环境和 PPO 默
 
 追加 `--streams 1` 可对比单 stream。CPU 基准改用 `--backend cpu --device cpu --threads N`。若需要运行原生回归测试，以 `-DBUILD_TEST=ON` 重新配置并构建 CUDA 测试目标，再用 `ctest --test-dir build/cuda -R '^cuda_' --output-on-failure` 运行。逐事件对照和接触力回放见[接触实现与已锁定依赖](contact_implementation.md)。
 
+## 批量离屏 RGB-D 相机
+
+Linux 的 CUDA 版在检测到 EGL 和 OpenGL 开发库时会构建原生 `BatchCamera`。运行需要同一块 NVIDIA GPU 上的 CUDA 与 OpenGL 4.3 EGL 上下文。CMake 的 `SIRE_ENABLE_CUDA_CAMERA=OFF` 可只构建 CUDA 仿真。现有 `Viewer` 和单场景 `Camera` 使用相同的 `SireScene`、`CameraConfig`、光轴深度和无效像素约定。
+
+下面的例子在已有 CUDA Go2 环境 `env` 中，从仿真结果采集一批图像。`mount` 是相机相对 `base` 的 4×4 刚体变换，约定 `+X` 向右、`+Y` 向上、`-Z` 向前。
+
+```python
+from sire.sensor import BatchCamera, CameraConfig
+from sire.viewer import SireScene
+
+scene = SireScene(env.sire_models[0], mesh_directory)
+optics = CameraConfig(160, 120, parent="base", local_pose=mount)
+with BatchCamera(scene, optics, env.num_envs, device=env.device, chunk_size=64) as camera:
+    env.step(actions)
+    frame = camera.capture(env._cuda_state["poses"])
+    # frame.rgb:   [N, H, W, 3], uint8 CUDA tensor
+    # frame.depth: [N, H, W], float32 CUDA tensor in meters
+    # frame.valid: [N, H, W], bool CUDA tensor
+```
+
+相机逐块实例化绘制。CUDA 输入位姿和输出图像都留在设备上。`capture()` 在调用方当前的 PyTorch CUDA stream 上提交工作，每次采集复用输出缓冲区。需要保存历史帧时，在下一次采集前复制张量。采样频率由调用方控制，使用 50 Hz 控制循环时，每 5 步采集一次对应 10 Hz 仿真时间。
+
+可运行 `python -m unittest discover -s python -p test_cuda_batch_camera.py -v` 检查多图块裁剪、像素位置和米制深度。测试使用现有单场景渲染器作为对照。
+
+## GPU 随机化
+
+平地 Go2 默认关闭物理参数随机化。训练时可追加
+`--randomize_friction --randomize_base_mass --randomize_on_reset --push_robots`。
+摩擦、质量偏移和推扰范围由 `go2_config.py` 的 `domain_rand` 配置决定。
+CPU 在启动时读取标称模型。GPU 对每个环境独立采样，只有启用随机化的字段才为每个环境存储一份。
+质量偏移始终相对于标称质量，保持标称质心和绕质心的转动惯量。
+参数和推扰直接写入设备缓冲区，重置后的环境沿用已有的物理步进图。
+
 ## 适用范围
 
-CUDA 路径目前支持无窗口 GO2 平地训练，使用 P 控制、固定摩擦与质量，关闭随机推力、地形或指令课程、地形高度测量、CPU 场景录制与求解器 trace。碰撞使用平地专用几何路径。箱体或圆柱在地面箱体的侧面和边缘遇到该路径未覆盖的接触时，环境会返回状态码。CPU 仍是训练入口的默认后端，也可用于现有的地形和调试功能。
+CUDA 路径目前支持无窗口 GO2 平地训练，使用 P 控制。地形和指令课程、地形高度测量、CPU 场景录制与求解器 trace 仍由 CPU 后端提供。GPU 碰撞移植了 Sire 锁定版本的 COAL 查询，支持球体、箱体和圆柱与有限地面箱体的碰撞，包括侧面和边缘。CPU 仍是训练入口的默认后端。

@@ -1278,13 +1278,13 @@ class LeggedRobotSire(VecEnv):
             f"Sire environment failed: {type(error).__name__}: {error}\n{state}"
         )
 
-    def _apply_sire_domain_randomization(self, sim, model):
+    def _apply_sire_domain_randomization(self, sim, model, *, sample=True):
         """Apply fixed per-environment dynamics randomization before init()."""
         rand_cfg = self.cfg.domain_rand
 
         nominal_friction = float(getattr(rand_cfg, "sire_nominal_friction", 0.6))
         friction = nominal_friction
-        if getattr(rand_cfg, "randomize_friction", False):
+        if sample and getattr(rand_cfg, "randomize_friction", False):
             low, high = map(float, rand_cfg.friction_range)
             if low <= 0.0 or high < low:
                 raise ValueError(f"Invalid friction_range: {rand_cfg.friction_range}")
@@ -1311,7 +1311,7 @@ class LeggedRobotSire(VecEnv):
         base_iv = np.asarray(base_part.prtIv, dtype=np.float64).copy()
         nominal_mass = float(base_iv[0])
         mass_offset = 0.0
-        if getattr(rand_cfg, "randomize_base_mass", False):
+        if sample and getattr(rand_cfg, "randomize_base_mass", False):
             low, high = map(float, rand_cfg.added_mass_range)
             if high < low:
                 raise ValueError(

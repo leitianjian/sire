@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include <aris/dynamic/model.hpp>
+#include <coal/narrowphase/support_functions.h>
 #include <coal/shape/geometric_shapes.h>
 
 #include "sire/core/material_manager.hpp"
@@ -96,6 +97,15 @@ auto loadFlatGroundModel(PhysicsEngine& engine) -> FlatGroundModel {
   if (model.ground.body >= model.body_count) throw std::invalid_argument("Invalid anchored body index");
   std::copy_n(box.halfSide.data(), 3, model.ground.half_extent);
   std::copy_n(ground.getTranslation().data(), 3, model.ground.center);
+  // COAL initializes the box support bias on its first query. Read the
+  // effective bias in this process with the default GJK search direction.
+  const coal::Box unit_box(2.0, 2.0, 2.0);
+  coal::Vec3s support;
+  coal::details::ShapeSupportData support_data;
+  int hint = 0;
+  coal::details::getShapeSupport(&unit_box, coal::Vec3s(-1.0, 0.0, 0.0), support, hint,
+                                 support_data);
+  model.ground.negative_support_scale = -support[0];
 
   auto& filter = engine.collisionFilter();
   const auto& dynamic = engine.dynamicObjectsMap();
@@ -109,6 +119,7 @@ auto loadFlatGroundModel(PhysicsEngine& engine) -> FlatGroundModel {
     const auto& material = solver->materialManager().getPropMapOrDefault(
         {ground_shape.material(), shape->material()});
     auto collider = materialCollider(*shape, material);
+    collider.variable_friction = ground_shape.material() == "m1" && shape->material() == "m1";
     if (collider.geometry <= model.ground.geometry || collider.body >= model.body_count) {
       throw std::invalid_argument("CUDA flat-ground collision requires ground-first geometry IDs and valid bodies");
     }

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
 import sire
 
@@ -90,7 +92,7 @@ class _ShardedCudaBatchStepper:
         for output, shards in self._gather_buffers:
             torch.cat(shards, dim=0, out=output)
 
-    def _enqueue(self, method, inputs, stream):
+    def _enqueue(self, method, inputs, stream, *, gather=True):
         caller = torch.cuda.current_stream(self._device)
         if stream != caller.cuda_stream:
             caller = (torch.cuda.ExternalStream(stream, device=self._device) if stream
@@ -109,8 +111,9 @@ class _ShardedCudaBatchStepper:
             done.record(worker)
         for _, _, _, done in self._shards:
             caller.wait_event(done)
-        with torch.cuda.stream(caller):
-            self._gather()
+        if gather:
+            with torch.cuda.stream(caller):
+                self._gather()
 
     def step(self, actions=None, stream=0):
         self._enqueue("step", (actions,), stream)
@@ -121,6 +124,13 @@ class _ShardedCudaBatchStepper:
     ):
         self._enqueue("reset", (mask, base_poses, base_velocities, joint_positions, joint_rates),
                       stream)
+
+    def set_domain_parameters(self, friction, base_mass_offsets, mask, stream):
+        self._enqueue("set_domain_parameters", (friction, base_mass_offsets, mask), stream,
+                      gather=False)
+
+    def push_base_velocity(self, xy_velocity, stream):
+        self._enqueue("push_base_velocity", (xy_velocity,), stream)
 
     def outputs(self):
         return self._state
@@ -138,6 +148,11 @@ class LeggedRobotSireCuda(LeggedRobotSire):
     def _num_sire_instances(self):
         return 1
 
+    def _apply_sire_domain_randomization(self, sim, model):
+        # The host scene provides nominal parameters. Each GPU world samples
+        # its own values after the batched model has been created.
+        return super()._apply_sire_domain_randomization(sim, model, sample=False)
+
     def create_sim(self):
         cfg = self.cfg
         if (
@@ -150,12 +165,6 @@ class LeggedRobotSireCuda(LeggedRobotSire):
             or cfg.control.control_type != "P"
         ):
             raise ValueError("Sire CUDA supports headless flat Go2 with P control")
-        if (
-            cfg.domain_rand.randomize_friction
-            or cfg.domain_rand.randomize_base_mass
-            or cfg.domain_rand.push_robots
-        ):
-            raise ValueError("Sire CUDA requires fixed friction and mass with robot pushes disabled")
         if getattr(cfg.sim, "sire_diagnostics", False):
             raise ValueError("Sire CUDA does not support CPU history diagnostics")
         super().create_sim()
@@ -168,6 +177,7 @@ class LeggedRobotSireCuda(LeggedRobotSire):
             raise ValueError("sim.sire_cuda_streams must be positive")
         self.sire_cuda_streams = min(requested_streams, self.num_envs)
         shard_size, extra = divmod(self.num_envs, self.sire_cuda_streams)
+        self._configure_domain_randomization()
         stepper_args = (
             float(self.cfg.sim.dt),
             float(self.dt),
@@ -180,7 +190,9 @@ class LeggedRobotSireCuda(LeggedRobotSire):
         )
         steppers = [
             sire.SireCudaBatchStepper(self.sire_simulators[0], shard_size + (index < extra),
-                                    *stepper_args)
+                                    *stepper_args,
+                                    vary_friction=self._friction_range is not None,
+                                    vary_base_mass=self._mass_range is not None)
             for index in range(self.sire_cuda_streams)
         ]
         first_stepper = steppers[0]
@@ -211,6 +223,8 @@ class LeggedRobotSireCuda(LeggedRobotSire):
             (self.num_envs, self.num_dof), dtype=torch.float64, device=self.device
         )
         self._previous_cuda_stream = torch.cuda.current_stream(self.device)
+        if not self._randomize_on_reset and (self._friction_range or self._mass_range):
+            self._sample_domain_parameters(None, self._previous_cuda_stream)
         self._command_period = max(1, int(self.cfg.commands.resampling_time / self.dt))
         third_command = "heading" if self.cfg.commands.heading_command else "ang_vel_yaw"
         bounds = [self.command_ranges[name] for name in ("lin_vel_x", "lin_vel_y", third_command)]
@@ -220,6 +234,52 @@ class LeggedRobotSireCuda(LeggedRobotSire):
         self._command_span = torch.tensor(
             [bound[1] - bound[0] for bound in bounds], device=self.device, dtype=torch.float32
         )
+
+    def _configure_domain_randomization(self):
+        cfg = self.cfg.domain_rand
+        self._friction_range = tuple(map(float, cfg.friction_range)) if cfg.randomize_friction else None
+        self._mass_range = tuple(map(float, cfg.added_mass_range)) if cfg.randomize_base_mass else None
+        if self._friction_range:
+            low, high = self._friction_range
+            if not (math.isfinite(low) and math.isfinite(high) and 0.0 < low <= high):
+                raise ValueError("friction_range must contain ordered positive finite values")
+            if tuple(cfg.sire_material_pair) != ("m1", "m1"):
+                raise ValueError("Go2 CUDA friction randomization uses the m1–m1 material pair")
+            self.friction_coeffs = self.friction_coeffs.clone()
+        if self._mass_range:
+            low, high = self._mass_range
+            base_mass = float(self.sire_models[0].link(self.base_body_pid).prtIv[0])
+            if not (math.isfinite(low) and math.isfinite(high) and low <= high and base_mass + low > 0.0):
+                raise ValueError("added_mass_range must be ordered, finite, and keep the base mass positive")
+            self.base_mass_offsets = self.base_mass_offsets.clone()
+        self._randomize_on_reset = bool(
+            getattr(cfg, "randomize_on_reset", False) and (self._friction_range or self._mass_range)
+        )
+        self._push_period = None
+        if cfg.push_robots:
+            max_velocity = float(cfg.max_push_vel_xy)
+            if not math.isfinite(max_velocity) or max_velocity < 0.0:
+                raise ValueError("max_push_vel_xy must be finite and nonnegative")
+            if not math.isfinite(cfg.push_interval_s) or cfg.push_interval <= 0:
+                raise ValueError("push_interval_s must be finite and positive")
+            self._push_period = cfg.push_interval
+            self._push_range = (-max_velocity, max_velocity)
+        if self._friction_range or self._mass_range or self._push_period:
+            self._domain_rng = torch.Generator(device=self.device).manual_seed(torch.initial_seed())
+
+    def _domain_uniform(self, bounds, shape):
+        low, high = bounds
+        values = torch.rand(shape, dtype=torch.float64, device=self.device, generator=self._domain_rng)
+        return values.mul_(high - low).add_(low)
+
+    def _sample_domain_parameters(self, mask, stream):
+        shape = (self.num_envs,)
+        friction = self._domain_uniform(self._friction_range, shape) if self._friction_range else None
+        mass_offsets = self._domain_uniform(self._mass_range, shape) if self._mass_range else None
+        self._sire_batch_stepper.set_domain_parameters(friction, mass_offsets, mask, stream.cuda_stream)
+        for values, sample in ((self.friction_coeffs, friction), (self.base_mass_offsets, mass_offsets)):
+            if sample is not None:
+                values[:, 0].copy_(sample if mask is None else torch.where(mask, sample, values[:, 0]))
 
     def _ordered_stream(self):
         stream = torch.cuda.current_stream(self.device)
@@ -308,6 +368,8 @@ class LeggedRobotSireCuda(LeggedRobotSire):
         self._update_smoothed_commands()
 
     def _reset_masked(self, mask, stream):
+        if self._randomize_on_reset:
+            self._sample_domain_parameters(mask, stream)
         cfg = self.cfg.init_state
         positions = self.default_dof_pos * torch_rand_float(
             0.5, 1.5, (self.num_envs, self.num_dof), self.device
@@ -394,6 +456,9 @@ class LeggedRobotSireCuda(LeggedRobotSire):
 
         self.episode_length_buf += 1
         self.common_step_counter += 1
+        if self._push_period is not None and self.common_step_counter % self._push_period == 0:
+            velocity = self._domain_uniform(self._push_range, (self.num_envs, 2))
+            self._sire_batch_stepper.push_base_velocity(velocity, stream.cuda_stream)
         self._refresh_sim_tensors_sire()
         self._update_base_frame()
         self._post_physics_step_callback()

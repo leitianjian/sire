@@ -64,6 +64,7 @@ class GO2RoughCfg(LeggedRobotCfg):
         sire_nominal_friction = 0.4
         randomize_base_mass = False
         added_mass_range = [-0.5, 1.5]
+        randomize_on_reset = False
         # Sire material metadata needed to rebuild the per-environment pair
         # while changing only friction.
         sire_material_pair = ['m1', 'm1']

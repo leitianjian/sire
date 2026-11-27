@@ -62,6 +62,9 @@ void init_core(py::module& m);
 #ifdef SIRE_PYTHON_CUDA
 void init_cuda_rl(py::module& m);
 #endif
+#ifdef SIRE_PYTHON_CUDA_CAMERA
+void init_cuda_camera(py::module& m);
+#endif
 
 PYBIND11_MODULE(sire, m) {
   aris::core::setDefaultLogDirectory(std::filesystem::current_path() / "log");
@@ -87,5 +90,8 @@ PYBIND11_MODULE(sire, m) {
   init_core(m);
 #ifdef SIRE_PYTHON_CUDA
   init_cuda_rl(m);
+#endif
+#ifdef SIRE_PYTHON_CUDA_CAMERA
+  init_cuda_camera(m);
 #endif
 }

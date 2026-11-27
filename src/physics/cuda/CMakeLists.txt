@@ -19,3 +19,10 @@ target_include_directories(sire_cuda
 	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 	PRIVATE ${PROJECT_SOURCE_DIR}/include ${PROJECT_SOURCE_DIR}/src)
 target_link_libraries(sire_cuda PUBLIC CUDA::cudart_static)
+
+# Keep the COAL port's support and simplex tie decisions close to the host
+# build, which evaluates the same expressions without fused operations.
+set_property(SOURCE flat_ground_collision.cu APPEND PROPERTY COMPILE_OPTIONS
+	"$<$<CUDA_COMPILER_ID:NVIDIA>:--fmad=false>"
+	"$<$<CUDA_COMPILER_ID:NVIDIA>:--expt-relaxed-constexpr>"
+	"$<$<CUDA_COMPILER_ID:Clang>:-ffp-contract=off>")

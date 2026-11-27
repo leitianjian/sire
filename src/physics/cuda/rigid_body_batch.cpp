@@ -106,7 +106,7 @@ void requireFinite(const std::vector<double>& values) {
 
 struct RigidBodyBatch::Imp {
   Imp(PhysicsEngine& engine, std::size_t count, double physics, double control_step,
-      const std::vector<RigidJointControl>& joint_control);
+      const std::vector<RigidJointControl>& joint_control, bool vary_friction, bool vary_base_mass);
 
   void allocate();
   void buildGraph(cudaStream_t stream);
@@ -131,6 +131,7 @@ struct RigidBodyBatch::Imp {
   DeviceBuffer<RigidBodyJointLimits> limits;
   DeviceBuffer<RigidJointControl> control;
   DeviceBuffer<double> initial_poses, initial_velocities, initial_positions, initial_rates;
+  DeviceBuffer<double> friction_overrides, base_inertias;
 
   DeviceBuffer<ContactHistoryConfig> configs;
   DeviceBuffer<RigidDynamicsStatus> statuses;
@@ -142,6 +143,7 @@ struct RigidBodyBatch::Imp {
   DeviceBuffer<double> reactions, reaction_scratch, steps, integration_scratch, contact_wrenches;
 
   DeviceBuffer<WorldContact> world_contacts;
+  DeviceBuffer<unsigned char> collision_scratch;
   DeviceBuffer<DetectedContact> detections;
   DeviceBuffer<GroundCollisionStatus> collision_status;
   DeviceBuffer<std::size_t> penetration_counts, force_counts, selected_indices;
@@ -166,7 +168,8 @@ struct RigidBodyBatch::Imp {
 };
 
 RigidBodyBatch::Imp::Imp(PhysicsEngine& engine, std::size_t count, double physics,
-                        double control_step, const std::vector<RigidJointControl>& joint_control)
+                        double control_step, const std::vector<RigidJointControl>& joint_control,
+                        bool vary_friction, bool vary_base_mass)
     : batch(count), physics_dt(physics), control_dt(control_step) {
   if (!batch || batch > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
       !std::isfinite(physics_dt) || physics_dt <= 0.0 ||
@@ -216,6 +219,27 @@ RigidBodyBatch::Imp::Imp(PhysicsEngine& engine, std::size_t count, double physic
   tree = {bodies.data(), rigid_model.bodies.size(), rigid_model.joint_count, rigid_model.ground, {}};
   std::copy_n(rigid_model.gravity, 6, tree.gravity);
 
+  if (vary_friction) {
+    const auto collider = std::find_if(ground_model.colliders.begin(), ground_model.colliders.end(),
+                                       [](const auto& shape) { return shape.variable_friction; });
+    if (collider == ground_model.colliders.end() ||
+        !std::isfinite(collider->friction) || collider->friction < 0.0) {
+      throw std::invalid_argument("CUDA friction randomization requires a valid m1/m1 collision pair");
+    }
+    friction_overrides.upload(std::vector<double>(batch, collider->friction));
+  }
+  if (vary_base_mass) {
+    const auto& nominal = rigid_model.bodies[root].inertia;
+    if (nominal[0] <= 0.0) {
+      throw std::invalid_argument("CUDA base mass randomization requires a positive nominal base mass");
+    }
+    std::vector<double> values(product({batch, 10}));
+    for (std::size_t env = 0; env < batch; ++env) {
+      std::copy_n(nominal, 10, values.data() + 10 * env);
+    }
+    base_inertias.upload(values);
+  }
+
   std::vector<double> pose_template, velocity_template, position_template, rate_template;
   for (const auto& part : model->partPool()) {
     pose_template.insert(pose_template.end(), *part.pm(), *part.pm() + 12);
@@ -257,7 +281,8 @@ void RigidBodyBatch::Imp::allocate() {
   const auto normal_size = separationWorkspaceSize(batch, capacity);
   const auto admm_size = spectralAdmmWorkspaceSize(batch, capacity);
   const auto reaction_size = jointLimitReactionWorkspaceSize(batch, joints);
-  if (!normal_size || !admm_size || (joints && !reaction_size)) {
+  const auto collision_size = groundCollisionWorkspaceSize(batch);
+  if (!normal_size || !admm_size || !collision_size || (joints && !reaction_size)) {
     throw std::length_error("Unsupported CUDA rigid-body solver workspace size");
   }
 
@@ -284,6 +309,7 @@ void RigidBodyBatch::Imp::allocate() {
   contact_wrenches.allocate({batch, body, 6});
 
   world_contacts.allocate({batch, capacity});
+  collision_scratch.allocate({collision_size});
   detections.allocate({batch, capacity});
   collision_status.allocate({batch});
   penetration_counts.allocate({batch});
@@ -374,7 +400,7 @@ void RigidBodyBatch::Imp::launchEvent(cudaStream_t stream) {
   }
 
   checkCuda(launchRigidBodyDynamics(batch, tree,
-      {poses.data(), velocities.data(), motor_torques.data(), nullptr, configs.data()},
+      {poses.data(), velocities.data(), motor_torques.data(), nullptr, configs.data(), base_inertias.data(), root},
       {accelerations.data(), jacobians.data(), mass_factor.data(), statuses.data()},
       dynamics_scratch.data(), stream), "Solve CUDA free-body dynamics");
   if (joints && limit_settings.method == RigidBodyLimitMethod::ShiftedNcp) {
@@ -388,7 +414,8 @@ void RigidBodyBatch::Imp::launchEvent(cudaStream_t stream) {
   }
 
   checkCuda(launchFlatGroundCollision(batch, body, capacity, ground, colliders.data(), colliders.size(),
-      poses.data(), configs.data(), world_contacts.data(), collision_status.data(), stream),
+      poses.data(), configs.data(), world_contacts.data(), collision_status.data(),
+      collision_scratch.data(), stream, friction_overrides.data()),
       "Detect CUDA ground contacts");
   checkCuda(launchFrameContacts(batch, capacity, body, configs.data(), world_contacts.data(),
       velocities.data(), detections.data(), stream), "Frame CUDA ground contacts");
@@ -444,8 +471,9 @@ void RigidBodyBatch::Imp::checkDevice() const {
 }
 
 RigidBodyBatch::RigidBodyBatch(PhysicsEngine& engine, std::size_t batch, double physics_dt,
-                               double control_dt, const std::vector<RigidJointControl>& control)
-    : imp_(std::make_unique<Imp>(engine, batch, physics_dt, control_dt, control)) {}
+                               double control_dt, const std::vector<RigidJointControl>& control,
+                               bool vary_friction, bool vary_base_mass)
+    : imp_(std::make_unique<Imp>(engine, batch, physics_dt, control_dt, control, vary_friction, vary_base_mass)) {}
 
 RigidBodyBatch::~RigidBodyBatch() {
   int previous{};
@@ -495,6 +523,23 @@ void RigidBodyBatch::reset(const bool* mask, const double* base_poses, const dou
                           const double* joint_positions, const double* joint_rates, cudaStream_t stream) {
   imp_->checkDevice();
   imp_->reset(mask, base_poses, base_velocities, joint_positions, joint_rates, stream);
+}
+
+void RigidBodyBatch::setDomainParameters(const double* friction, const double* base_mass_offsets,
+                                         const bool* mask, cudaStream_t stream) {
+  auto& state = *imp_;
+  state.checkDevice();
+  checkCuda(launchSetRigidBodyDomainParameters(state.batch, friction, base_mass_offsets, mask,
+      state.bodies.data() + state.root, state.friction_overrides.data(), state.base_inertias.data(), stream),
+      "Set CUDA rigid-body domain parameters");
+}
+
+void RigidBodyBatch::pushBaseVelocity(const double* xy_velocity, cudaStream_t stream) {
+  auto& state = *imp_;
+  state.checkDevice();
+  checkCuda(launchPushRigidBodyBase(state.batch, state.tree.body_count, state.root, state.tree.ground,
+      xy_velocity, state.poses.data(), state.velocities.data(), state.statuses.data(), stream),
+      "Push CUDA rigid-body base velocity");
 }
 
 }  // namespace sire::physics::contact::cuda

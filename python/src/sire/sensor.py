@@ -181,3 +181,125 @@ class Camera:
         self._last_tick = tick
         self._last_sample_time = sim_time
         return frame
+
+
+@dataclass(frozen=True)
+class BatchCameraFrame:
+    """CUDA tensors in top-to-bottom image order.
+
+    RGB is uint8 [N, H, W, 3]. Optical-axis depth is float32 [N, H, W]
+    in meters. The boolean valid mask [N, H, W] identifies measured pixels.
+    """
+
+    rgb: "torch.Tensor"
+    depth: "torch.Tensor"
+    valid: "torch.Tensor"
+
+
+class BatchCamera:
+    """Render one RGB-D camera per environment of a CUDA simulator batch.
+
+    The camera uploads a shared copy of the visual geometry from a SireScene.
+    The same CameraConfig applies to every environment. The caller schedules
+    capture explicitly. CameraConfig.fps applies to the single Camera's
+    sampling clock. BatchCamera can be used as a context manager.
+    """
+
+    def __init__(self, scene, config: CameraConfig, num_envs: int, *, device="cuda:0",
+                 chunk_size: int = 64):
+        from threading import Lock
+
+        from .native import sire as native
+
+        try:
+            make_camera = native._SireCudaBatchCamera
+        except AttributeError as error:
+            raise RuntimeError("BatchCamera requires Sire built with CUDA camera support") from error
+
+        import torch
+
+        from .viewer.renderer import _box_vertices, _load_obj
+
+        for name, value in (("num_envs", num_envs), ("chunk_size", chunk_size)):
+            if not isinstance(value, Integral) or isinstance(value, bool) or value <= 0:
+                raise ValueError(f"{name} must be a positive integer")
+        device = torch.device(device)
+        if device.type != "cuda":
+            raise ValueError("BatchCamera requires a CUDA device")
+        if device.index is None:
+            device = torch.device("cuda", torch.cuda.current_device())
+
+        body_indices = {name: index for index, name in enumerate(scene.parts)}
+        parent = -1 if config.parent is None else body_indices[config.parent]
+        meshes, items = [], []
+        mesh_indices = {}
+        for item in scene.items:
+            key = item.mesh.resolve() if item.mesh is not None else tuple(item.size)
+            if key not in mesh_indices:
+                mesh_indices[key] = len(meshes)
+                vertices = _load_obj(key) if item.mesh is not None else _box_vertices(key)
+                meshes.append(vertices)
+            body = -1 if item.body is None else body_indices[item.body]
+            items.append((mesh_indices[key], body, np.ravel(item.local_pose).tolist(),
+                          item.color, item.checker))
+
+        self.config = config
+        self.num_envs = int(num_envs)
+        self.device = device
+        self._lock = Lock()
+        self._torch = torch
+        self._camera = make_camera(device.index, self.num_envs, len(body_indices), parent,
+                                   config.width, config.height, min(chunk_size, self.num_envs),
+                                   config.pinhole, config.near, config.far,
+                                   config.local_pose.ravel().tolist(), meshes, items)
+        shape = (self.num_envs, config.height, config.width)
+        self._frame = BatchCameraFrame(
+            torch.empty(shape + (3,), dtype=torch.uint8, device=device),
+            torch.empty(shape, dtype=torch.float32, device=device),
+            torch.empty(shape, dtype=torch.bool, device=device),
+        )
+        self._ready = torch.cuda.Event()
+        self._ready.record(torch.cuda.current_stream(device))
+
+    def capture(self, poses: "torch.Tensor") -> BatchCameraFrame:
+        """Capture from contiguous float64 CUDA poses [N, bodies, 3, 4].
+
+        Pose matrices are row-major in model body order, as returned by the
+        CUDA batch stepper. Capture uses the current PyTorch CUDA stream for
+        this device. Order pose writes and output reads on that stream or
+        synchronize access across streams. Keep the pose storage and its
+        producer alive until capture completes on the stream.
+
+        Each call reuses the same frame tensors. Clone them before the next
+        capture if the frame must be retained. Finish any reads on other
+        streams before the next capture reuses the buffers.
+        """
+        with self._lock:
+            if self._camera is None:
+                raise RuntimeError("BatchCamera is closed")
+            stream = self._torch.cuda.current_stream(self.device)
+            stream.wait_event(self._ready)
+            frame = self._frame
+            for output in (frame.rgb, frame.depth, frame.valid):
+                output.record_stream(stream)
+            if isinstance(poses, self._torch.Tensor) and poses.device == self.device:
+                poses.record_stream(stream)
+            try:
+                self._camera.capture(poses, frame.rgb, frame.depth, frame.valid, stream.cuda_stream)
+            finally:
+                self._ready.record(stream)
+            return frame
+
+    def close(self) -> None:
+        """Wait for the last capture and release the renderer."""
+        with self._lock:
+            if self._camera is not None:
+                self._ready.synchronize()
+                self._camera = None
+                self._frame = None
+
+    def __enter__(self) -> BatchCamera:
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.close()

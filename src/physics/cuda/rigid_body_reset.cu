@@ -2,6 +2,8 @@
 
 #include <limits>
 
+#include "rigid_body_math.hpp"
+
 namespace sire::physics::contact::cuda {
 namespace {
 
@@ -49,6 +51,66 @@ __global__ void resetRigidBodyBatch(
   }
 }
 
+__global__ void setDomainParameters(
+    std::size_t batch, const double* friction, const double* base_mass_offsets,
+    const bool* mask, const RigidBody* nominal_base, double* friction_overrides,
+    double* base_inertias) {
+  const auto env = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (env >= batch || (mask && !mask[env])) return;
+  if (friction) friction_overrides[env] = friction[env];
+  if (base_mass_offsets) {
+    const auto* nominal = nominal_base->inertia;
+    auto* inertia = base_inertias + 10 * env;
+    const double mass = nominal[0] + base_mass_offsets[env];
+    if (mass == nominal[0]) {
+      for (int component = 0; component < 10; ++component) inertia[component] = nominal[component];
+      return;
+    }
+    const double delta = mass - nominal[0];
+    const double cx = nominal[1] / nominal[0];
+    const double cy = nominal[2] / nominal[0];
+    const double cz = nominal[3] / nominal[0];
+    inertia[0] = mass;
+    inertia[1] = mass * cx;
+    inertia[2] = mass * cy;
+    inertia[3] = mass * cz;
+    inertia[4] = nominal[4] + delta * (cy * cy + cz * cz);
+    inertia[5] = nominal[5] + delta * (cx * cx + cz * cz);
+    inertia[6] = nominal[6] + delta * (cx * cx + cy * cy);
+    inertia[7] = nominal[7] - delta * cx * cy;
+    inertia[8] = nominal[8] - delta * cx * cz;
+    inertia[9] = nominal[9] - delta * cy * cz;
+  }
+}
+
+__global__ void pushBase(
+    std::size_t batch, std::size_t body_count, std::size_t root, std::size_t ground,
+    const double* xy_velocity, const double* poses, double* velocities,
+    RigidDynamicsStatus* status) {
+  const auto env = static_cast<std::size_t>(blockIdx.x) * blockDim.x + threadIdx.x;
+  if (env >= batch || status[env] != RigidDynamicsStatus::Success) return;
+  const auto* target = xy_velocity + 2 * env;
+  if (!::isfinite(target[0]) || !::isfinite(target[1])) {
+    status[env] = RigidDynamicsStatus::InvalidInput;
+    return;
+  }
+  const auto* base_pose = poses + 12 * (env * body_count + root);
+  auto* twists = velocities + 6 * env * body_count;
+  const double point[] = {base_pose[3], base_pose[7], base_pose[11]};
+  double angular_velocity[3];
+  detail::rigidCross3(twists + 6 * root + 3, point, angular_velocity);
+  const double base_linear[] = {target[0] - angular_velocity[0],
+                                target[1] - angular_velocity[1], -angular_velocity[2]};
+  double shift[3];
+  for (int axis = 0; axis < 3; ++axis) shift[axis] = base_linear[axis] - twists[6 * root + axis];
+  for (std::size_t body = 0; body < body_count; ++body) {
+    if (body == ground) continue;
+    for (int axis = 0; axis < 3; ++axis) {
+      twists[6 * body + axis] = body == root ? base_linear[axis] : twists[6 * body + axis] + shift[axis];
+    }
+  }
+}
+
 }  // namespace
 
 auto launchResetRigidBodyBatch(
@@ -71,6 +133,32 @@ auto launchResetRigidBodyBatch(
   }
   resetRigidBodyBatch<<<static_cast<unsigned>(blocks), block_size, 0, stream>>>(
       batch, body_count, joint_count, root, source, state, history);
+  return cudaGetLastError();
+}
+
+auto launchSetRigidBodyDomainParameters(
+    std::size_t batch, const double* friction, const double* base_mass_offsets,
+    const bool* mask, const RigidBody* nominal_base, double* friction_overrides,
+    double* base_inertias, cudaStream_t stream) -> cudaError_t {
+  if (batch == 0 || (!friction && !base_mass_offsets)) return cudaSuccess;
+  const auto blocks = (batch - 1) / block_size + 1;
+  if (blocks > std::numeric_limits<int>::max() || (friction && !friction_overrides) ||
+      (base_mass_offsets && (!base_inertias || !nominal_base))) return cudaErrorInvalidValue;
+  setDomainParameters<<<static_cast<unsigned>(blocks), block_size, 0, stream>>>(
+      batch, friction, base_mass_offsets, mask, nominal_base, friction_overrides, base_inertias);
+  return cudaGetLastError();
+}
+
+auto launchPushRigidBodyBase(
+    std::size_t batch, std::size_t body_count, std::size_t root, std::size_t ground,
+    const double* xy_velocity, const double* poses, double* velocities,
+    RigidDynamicsStatus* status, cudaStream_t stream) -> cudaError_t {
+  if (batch == 0) return cudaSuccess;
+  const auto blocks = (batch - 1) / block_size + 1;
+  if (blocks > std::numeric_limits<int>::max() || root >= body_count || ground >= body_count ||
+      root == ground || !xy_velocity || !poses || !velocities || !status) return cudaErrorInvalidValue;
+  pushBase<<<static_cast<unsigned>(blocks), block_size, 0, stream>>>(
+      batch, body_count, root, ground, xy_velocity, poses, velocities, status);
   return cudaGetLastError();
 }
 

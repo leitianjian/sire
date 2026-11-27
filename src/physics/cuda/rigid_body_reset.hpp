@@ -42,4 +42,14 @@ auto launchResetRigidBodyBatch(
     std::size_t root, RigidBodyResetSource source, RigidBodyResetState state,
     ContactHistory history, cudaStream_t stream) -> cudaError_t;
 
+auto launchSetRigidBodyDomainParameters(
+    std::size_t batch, const double* friction, const double* base_mass_offsets,
+    const bool* mask, const RigidBody* nominal_base, double* friction_overrides,
+    double* base_inertias, cudaStream_t stream) -> cudaError_t;
+
+auto launchPushRigidBodyBase(
+    std::size_t batch, std::size_t body_count, std::size_t root, std::size_t ground,
+    const double* xy_velocity, const double* poses, double* velocities,
+    RigidDynamicsStatus* status, cudaStream_t stream) -> cudaError_t;
+
 }  // namespace sire::physics::contact::cuda

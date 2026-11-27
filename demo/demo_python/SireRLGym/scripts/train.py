@@ -86,6 +86,16 @@ def parse_args():
                    help='Sire physics backend. CUDA requires a flat go2 scene.')
     p.add_argument('--sire_cuda_streams', type=int, default=None,
                    help='CUDA simulation streams (default: 4, capped at the environment count).')
+    p.add_argument('--randomize_friction', action='store_true',
+                   help='Sample each environment’s contact friction from the task range.')
+    p.add_argument('--randomize_base_mass', action='store_true',
+                   help='Sample each environment’s base mass offset from the task range.')
+    p.add_argument('--randomize_on_reset', action='store_true',
+                   help='Resample enabled material and mass parameters at each CUDA environment reset.')
+    p.add_argument('--push_robots', action='store_true',
+                   help='Periodically perturb each robot’s base velocity.')
+    p.add_argument('--push_interval_s', type=float, default=None,
+                   help='Override the time in simulated seconds between pushes.')
     p.add_argument(
         '--save_interval',
         type=int,
@@ -190,6 +200,21 @@ def main():
         if args.sire_cuda_streams < 1:
             raise ValueError('--sire_cuda_streams must be positive')
         env_cfg.sim.sire_cuda_streams = args.sire_cuda_streams
+    domain_rand = env_cfg.domain_rand
+    if args.randomize_friction:
+        domain_rand.randomize_friction = True
+    if args.randomize_base_mass:
+        domain_rand.randomize_base_mass = True
+    if args.push_robots:
+        domain_rand.push_robots = True
+    if args.randomize_on_reset:
+        if args.sire_backend != 'cuda':
+            raise ValueError('--randomize_on_reset requires the CUDA simulator.')
+        domain_rand.randomize_on_reset = True
+    if args.push_interval_s is not None:
+        if not 0.0 < args.push_interval_s < float('inf'):
+            raise ValueError('--push_interval_s must be finite and positive.')
+        domain_rand.push_interval_s = args.push_interval_s
     if args.max_iterations is not None:
         train_cfg.runner.max_iterations = args.max_iterations
     if args.num_steps_per_env is not None:
@@ -316,6 +341,10 @@ def main():
         f"num_steps_per_env={train_cfg.runner.num_steps_per_env} "
         f"sire_batch_threads={env_cfg.sim.sire_batch_threads} "
         f"sire_cuda_streams={getattr(env, 'sire_cuda_streams', 0)} "
+        f"randomize_friction={domain_rand.randomize_friction} "
+        f"randomize_base_mass={domain_rand.randomize_base_mass} "
+        f"randomize_on_reset={getattr(domain_rand, 'randomize_on_reset', False)} "
+        f"push_robots={domain_rand.push_robots} "
         f"max_iterations={'inf' if getattr(train_cfg.runner, 'infinite_mode', False) else train_cfg.runner.max_iterations} "
         f"save_interval={train_cfg.runner.save_interval} "
         f"visualize_interval={args.visualize_interval} "

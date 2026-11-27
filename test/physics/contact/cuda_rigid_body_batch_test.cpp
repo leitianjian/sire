@@ -195,6 +195,113 @@ void checkReset(const RigidBodyBatch& batch, const Snapshot& actual, const Snaps
   }
 }
 
+void checkDomainParameters(sire::physics::PhysicsEngine& engine,
+                           const std::vector<RigidJointControl>& controls, cudaStream_t stream) {
+  constexpr std::size_t size = 7;
+  RigidBodyBatch batch(engine, size, physics_dt, control_dt, controls, true, true);
+  DeviceBuffer<double> friction(size), mass(size), base_velocities(6 * size), push(2 * size);
+  DeviceBuffer<bool> mask(size), repeat_mask(size), restore_mask(size);
+  const std::array<bool, size> selected{true, false, true, true, true, true, true};
+  const std::array<bool, size> repeat{false, false, false, false, true, false, false};
+  const std::array<bool, size> restore{false, false, false, false, false, false, true};
+  checkCuda(cudaMemcpyAsync(mask.data(), selected.data(), sizeof(selected), cudaMemcpyHostToDevice, stream));
+  checkCuda(cudaMemcpyAsync(repeat_mask.data(), repeat.data(), sizeof(repeat), cudaMemcpyHostToDevice, stream));
+  checkCuda(cudaMemcpyAsync(restore_mask.data(), restore.data(), sizeof(restore), cudaMemcpyHostToDevice, stream));
+  friction.upload({0.4, 1.0, 0.02, 1.0, 0.4, 0.4, 0.4});
+  mass.upload({0.0, 3.0, 0.0, 0.0, 3.0, 3.0, 3.0});
+  std::vector<double> velocity(6 * size, 0.0);
+  for (std::size_t env = 0; env < size; ++env) velocity[6 * env] = 1.0;
+  base_velocities.upload(velocity);
+  batch.setDomainParameters(friction.data(), mass.data(), mask.data(), stream);
+  batch.reset(nullptr, nullptr, base_velocities.data(), nullptr, nullptr, stream);
+  batch.setDomainParameters(nullptr, mass.data(), repeat_mask.data(), stream);
+
+  std::array<double, size> tangential{};
+  double mass_response = 0.0;
+  const auto velocity_stride = 6 * batch.bodyCount();
+  for (std::size_t tick = 1; tick <= ticks; ++tick) {
+    batch.step(nullptr, stream);
+    const auto state = readBatch(batch, stream);
+    checkState(state);
+    for (std::size_t env = 0; env < size; ++env) {
+      checkClock(state, env, tick * control_dt);
+      for (std::size_t body = 0; body < batch.bodyCount(); ++body) {
+        const auto* wrench = state.contact_wrenches.data() + env * velocity_stride + 6 * body;
+        tangential[env] += std::hypot(wrench[0], wrench[1]);
+      }
+    }
+    for (std::size_t component = 0; component < velocity_stride; ++component) {
+      const auto& values = state.velocities;
+      if (std::abs(values[component] - values[velocity_stride + component]) > 1e-10) {
+        throw std::runtime_error("Masked domain update affected an unselected Go2 environment");
+      }
+      const auto changed = values[4 * velocity_stride + component];
+      if (std::abs(changed - values[5 * velocity_stride + component]) > 1e-10) {
+        throw std::runtime_error("Repeated base mass update compounded the previous offset");
+      }
+      mass_response = std::max(mass_response, std::abs(changed - values[component]));
+    }
+  }
+  if (!(tangential[3] > tangential[2] + 1e-3)) {
+    throw std::runtime_error("Higher randomized friction did not increase sliding contact force");
+  }
+  if (!(mass_response > 1e-4)) {
+    throw std::runtime_error("Randomized base mass did not change the Go2 trajectory");
+  }
+
+  mass.upload(std::vector<double>(size, 0.0));
+  batch.setDomainParameters(nullptr, mass.data(), restore_mask.data(), stream);
+  batch.reset(nullptr, nullptr, base_velocities.data(), nullptr, nullptr, stream);
+  for (std::size_t tick = 1; tick <= ticks; ++tick) {
+    batch.step(nullptr, stream);
+    const auto state = readBatch(batch, stream);
+    checkClock(state, 6, tick * control_dt);
+    for (std::size_t component = 0; component < velocity_stride; ++component) {
+      if (std::abs(state.velocities[component] - state.velocities[6 * velocity_stride + component]) > 1e-10) {
+        throw std::runtime_error("A zero offset did not restore the nominal Go2 base mass");
+      }
+    }
+  }
+
+  std::vector<double> xy(2 * size);
+  for (std::size_t env = 0; env < size; ++env) {
+    std::copy_n(std::array{0.0, 0.0, 0.3, 0.1, -0.2, 0.3}.data(), 6, velocity.data() + 6 * env);
+    xy[2 * env] = 0.25 * env;
+    xy[2 * env + 1] = -0.125 * env;
+  }
+  base_velocities.upload(velocity);
+  push.upload(xy);
+  batch.reset(nullptr, nullptr, base_velocities.data(), nullptr, nullptr, stream);
+  const auto before = readBatch(batch, stream);
+  batch.pushBaseVelocity(push.data(), stream);
+  const auto after = readBatch(batch, stream);
+  checkState(after);
+  for (std::size_t env = 0; env < size; ++env) {
+    checkClock(after, env, 0.0);
+    const auto root_body = env * batch.bodyCount() + batch.rootBody();
+    const auto root = 6 * root_body;
+    const auto* pose = before.poses.data() + 12 * root_body;
+    const auto* angular = before.velocities.data() + root + 3;
+    const std::array expected{
+        xy[2 * env] - (angular[1] * pose[11] - angular[2] * pose[7]),
+        xy[2 * env + 1] - (angular[2] * pose[3] - angular[0] * pose[11]),
+        -(angular[0] * pose[7] - angular[1] * pose[3]), angular[0], angular[1], angular[2]};
+    for (std::size_t component = 0; component < expected.size(); ++component) {
+      if (std::abs(after.velocities[root + component] - expected[component]) > 1e-12) {
+        throw std::runtime_error("Go2 push did not set its base twist as requested");
+      }
+      const auto delta = expected[component] - before.velocities[root + component];
+      for (std::size_t body = batch.rootBody() + 1; body < batch.bodyCount(); ++body) {
+        const auto index = env * velocity_stride + 6 * body + component;
+        if (std::abs(after.velocities[index] - before.velocities[index] - delta) > 1e-12) {
+          throw std::runtime_error("Go2 push did not propagate through its articulated tree");
+        }
+      }
+    }
+  }
+  std::cout << "Go2 domain parameters affected contact and dynamics, respected masks, and preserved coherent pushes.\n";
+}
+
 void run(const char* scene) {
   sire::simulator::Simulator cpu;
   aris::core::fromXmlFile(cpu, scene);
@@ -206,6 +313,7 @@ void run(const char* scene) {
     controls.push_back({joint, 0.0, 0.0, 0.0, 1.0});
   }
   Stream stream;
+  checkDomainParameters(cpu.physicsEngine(), controls, stream.value);
   RigidBodyBatch batch(cpu.physicsEngine(), batch_size, physics_dt, control_dt, controls);
   if (batch.batchSize() != batch_size || batch.bodyCount() != 18 || batch.jointCount() != 12 ||
       batch.rootBody() != 1) {
@@ -249,6 +357,9 @@ void run(const char* scene) {
   }
   if (!std::all_of(saw_contact.begin(), saw_contact.end(), [](bool value) { return value; })) {
     throw std::runtime_error("Some Go2 environments never produced a ground-contact force");
+  }
+  if (later.pose > 1e-7 || later.velocity > 1e-6) {
+    throw std::runtime_error("Go2 CUDA trajectory differs from CPU after ground contact");
   }
 
   std::array<bool, batch_size> mask{};

@@ -179,17 +179,18 @@ environments. `launchFlatGroundCollision` reads the per-environment body poses
 on the device and sends compact world witnesses and counts directly to
 `launchFrameContacts` on the same stream.
 
-Sphere witnesses use finite box geometry, including side and corner
-contacts. Box and cylinder witnesses use the analytic support point against
-the top or bottom face. A possible side or edge intersection for those
-shapes reports `UnsupportedBoundary` for that environment. At a support
-tie the GPU uses the midpoint along the tied directions. The CPU COAL
-solver can choose a different point on the same feature. GPU contacts
-follow geometry-ID order, while CPU order follows the broad-phase traversal.
+The CUDA query ports the pinned COAL narrow phase for the three shape
+pairs used in the scene. Box–sphere uses the analytic distance calculation.
+Box–box and box–cylinder use the ported GJK/EPA support functions, simplex
+tests, convergence settings, and witness reconstruction. All three
+queries use the finite ground box, including its sides and edges. GPU
+collision queries use eight CUDA lanes per environment and emit contacts
+in geometry-ID order. CPU order follows broad-phase traversal.
 
 Build `cuda_flat_ground_collision_test` with CUDA and tests enabled.
-The CTest case loads the existing Go2 scene and verifies synthetic
-collisions across 1,024 environments. With `SIRE_SOLVER_TRACE_DIR` set,
+The CTest case checks synthetic collisions across 1,024 environments
+against COAL and checks contacts from several Go2 poses against CPU Sire.
+With `SIRE_SOLVER_TRACE_DIR` set,
 the history file also records body poses. Replay generates collisions
 and contact frames from those poses and velocities, then compares the
 results with CPU Sire by geometry pair.

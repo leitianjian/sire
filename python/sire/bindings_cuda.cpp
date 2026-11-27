@@ -117,7 +117,8 @@ class SireCudaBatchStepper {
       sire::simulator::Simulator& simulator, std::size_t num_envs, double physics_dt,
       double control_dt, const std::vector<std::size_t>& motion_indices,
       const std::vector<double>& p_gains, const std::vector<double>& d_gains,
-      const std::vector<double>& default_positions, double action_scale, int device)
+      const std::vector<double>& default_positions, double action_scale, int device,
+      bool vary_friction, bool vary_base_mass)
       : device_(device) {
     auto& engine = simulator.physicsEngine();
     auto& model = simulator.model();
@@ -145,7 +146,8 @@ class SireCudaBatchStepper {
     if (device < 0) throw py::value_error("CUDA device must be a nonnegative index");
     CudaDeviceGuard guard(device_);
     batch_ = std::shared_ptr<RigidBodyBatch>(
-        new RigidBodyBatch(engine, num_envs, physics_dt, control_dt, control),
+        new RigidBodyBatch(engine, num_envs, physics_dt, control_dt, control,
+                           vary_friction, vary_base_mass),
         BatchDeleter{device_});
   }
 
@@ -185,6 +187,31 @@ class SireCudaBatchStepper {
     CudaDeviceGuard guard(device_);
     batch_->reset(selected, poses, velocities, positions, rates,
                   reinterpret_cast<cudaStream_t>(stream));
+  }
+
+  void setDomainParameters(const py::object& friction, const py::object& base_mass_offsets,
+                           const py::object& mask, std::uintptr_t stream) {
+    py::module_ torch;
+    if (!friction.is_none() || !base_mass_offsets.is_none() || !mask.is_none()) {
+      torch = py::module_::import("torch");
+    }
+    const auto* coefficients =
+        tensorPointer<double>(friction, torch, "float64", device_, {numEnvs()}, "friction");
+    const auto* offsets = tensorPointer<double>(base_mass_offsets, torch, "float64", device_,
+                                                {numEnvs()}, "base_mass_offsets");
+    const auto* selected = tensorPointer<bool>(mask, torch, "bool", device_, {numEnvs()}, "mask");
+    CudaDeviceGuard guard(device_);
+    batch_->setDomainParameters(coefficients, offsets, selected,
+                                reinterpret_cast<cudaStream_t>(stream));
+  }
+
+  void pushBaseVelocity(const py::object& xy_velocity, std::uintptr_t stream) {
+    if (xy_velocity.is_none()) throw py::type_error("xy_velocity must be a torch.Tensor");
+    const auto* velocities = tensorPointer<double>(xy_velocity, py::module_::import("torch"),
+                                                   "float64", device_, {numEnvs(), 2},
+                                                   "xy_velocity");
+    CudaDeviceGuard guard(device_);
+    batch_->pushBaseVelocity(velocities, reinterpret_cast<cudaStream_t>(stream));
   }
 
   auto outputs() const -> py::dict {
@@ -227,18 +254,27 @@ void init_cuda_rl(py::module& m) {
   py::class_<SireCudaBatchStepper>(m, "SireCudaBatchStepper")
       .def(py::init<sire::simulator::Simulator&, std::size_t, double, double,
                     const std::vector<std::size_t>&, const std::vector<double>&,
-                    const std::vector<double>&, const std::vector<double>&, double, int>(),
+                    const std::vector<double>&, const std::vector<double>&, double, int,
+                    bool, bool>(),
            "simulator"_a, "num_envs"_a, "physics_dt"_a, "control_dt"_a, "motion_indices"_a,
-           "p_gains"_a, "d_gains"_a, "default_positions"_a, "action_scale"_a, "device"_a = 0)
+           "p_gains"_a, "d_gains"_a, "default_positions"_a, "action_scale"_a, "device"_a = 0,
+           "vary_friction"_a = false, "vary_base_mass"_a = false)
       .def("step", &SireCudaBatchStepper::step, "actions"_a = py::none(), "stream"_a = 0,
            "Enqueue a control interval. Keep the actions alive until the stream finishes using them.")
       .def("reset", &SireCudaBatchStepper::reset, "mask"_a = py::none(),
            "base_poses"_a = py::none(), "base_velocities"_a = py::none(),
            "joint_positions"_a = py::none(), "joint_rates"_a = py::none(), "stream"_a = 0,
            "Enqueue resets. Keep reset inputs alive until the stream finishes using them.")
+      .def("set_domain_parameters", &SireCudaBatchStepper::setDomainParameters,
+           "friction"_a = py::none(), "base_mass_offsets"_a = py::none(), "mask"_a = py::none(),
+           "stream"_a = 0, "Enqueue domain updates. Keep inputs alive until the stream finishes "
+                           "using them.")
+      .def("push_base_velocity", &SireCudaBatchStepper::pushBaseVelocity, "xy_velocity"_a,
+           "stream"_a = 0, "Enqueue base velocity pushes. Keep xy_velocity alive until the stream "
+                           "finishes using it.")
       .def("outputs", &SireCudaBatchStepper::outputs,
            "Live views of simulator storage. Treat them as read-only and order access on the "
-           "step/reset stream. Poses are [batch, bodies, 3, 4] in row-major order. "
+           "stream used for batch operations. Poses are [batch, bodies, 3, 4] in row-major order. "
            "Time and event count are [batch] with the native clock record stride.")
       .def_property_readonly("numEnvs", &SireCudaBatchStepper::numEnvs)
       .def_property_readonly("bodyCount", &SireCudaBatchStepper::bodyCount)

@@ -57,10 +57,11 @@ auto runCollision(const FlatGroundModel& model, std::size_t count, std::size_t c
   DeviceBuffer<WorldContact> contacts(count * capacity);
   DeviceBuffer<GroundCollisionStatus> status(count);
   DeviceBuffer<DetectedContact> framed(count * capacity);
+  DeviceBuffer<unsigned char> workspace(groundCollisionWorkspaceSize(count));
   Stream stream;
   checkCuda(launchFlatGroundCollision(count, model.body_count, capacity, model.ground,
       colliders.data(), model.colliders.size(), body_poses.data(), configs.data(), contacts.data(),
-      status.data(), stream.get()));
+      status.data(), workspace.data(), stream.get()));
   if (!velocities.empty()) {
     checkCuda(launchFrameContacts(count, capacity, model.body_count, configs.data(), contacts.data(),
                                   body_velocities.data(), framed.data(), stream.get()));
@@ -83,7 +84,7 @@ void compare(const WorldContact& actual, const std::array<double, 3>& point,
     normal_sq += std::pow(actual.normal[k] - normal[k], 2);
   }
   const double p = std::sqrt(point_sq), n = std::sqrt(normal_sq), d = std::abs(actual.depth - depth);
-  if (!(p <= 2e-5 && d <= 2e-8 && n <= 1e-8)) {
+  if (!(p <= 1e-9 && d <= 1e-9 && n <= 1e-9)) {
     std::cerr << "geometry " << actual.geometry_b << ", errors in point, depth and normal: "
               << p << ", " << d << ", " << n << '\n';
     throw std::runtime_error("GPU collision witness differs from Sire");
@@ -107,9 +108,10 @@ void synthetic() {
   const GroundBox ground{0, 0, {0, 0, -0.1}, {1, 1, 0.1}};
   const double identity[12]{1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0};
   FlatGroundModel model{ground, 4, {
-      {1, 1, GroundShape::Sphere, {}, {0.05}, 2e8, 5000, 0.3},
-      {2, 2, GroundShape::Box, {}, {0.03, 0.02, 0.015}, 2e8, 5000, 0.4},
-      {3, 3, GroundShape::Cylinder, {}, {0.018, 0.04}, 2e8, 5000, 0.5}}};
+      {1, 1, GroundShape::Sphere, false, {}, {0.05}, 2e8, 5000, 0.3},
+      {2, 2, GroundShape::Box, false, {}, {0.03, 0.02, 0.015}, 2e8, 5000, 0.4},
+      {3, 3, GroundShape::Cylinder, false, {}, {0.018, 0.04}, 2e8, 5000, 0.5}}};
+  std::swap(model.colliders.front(), model.colliders.back());
   for (auto& shape : model.colliders) std::copy_n(identity, 12, shape.local_pose);
   std::vector<double> poses(count * model.body_count * 12);
   for (std::size_t i = 0; i < count; ++i) {
@@ -131,6 +133,33 @@ void synthetic() {
       std::copy_n(pm, 12, pose + j * 12);
     }
   }
+  struct Probe {
+    const char* name;
+    std::array<double, 3> center;
+    bool aligned;
+    bool box_penetrates;
+    bool cylinder_penetrates;
+  };
+  const std::array<Probe, 10> probes{{
+      {"top face", {0, 0, 0.010}, true, true, true},
+      {"side face", {1.008, 0.1, -0.09}, true, true, true},
+      {"opposite side with tilt", {-1.008, -0.1, -0.09}, false, true, true},
+      {"vertical edge", {1.006, 1.006, -0.095}, true, true, true},
+      {"top corner with tilt", {0.997, 0.997, 0.006}, false, true, true},
+      {"coincident centers", {0, 0, -0.1}, true, true, true},
+      {"bottom face", {0, 0, -0.207}, true, true, true},
+      {"outside slab", {1.2, 1.2, -0.1}, true, false, false},
+      {"cylinder clears vertical edge", {1.014, 1.014, -0.095}, true, true, false},
+      {"above slab", {0, 0, 0.1}, true, false, false},
+  }};
+  for (std::size_t env = 0; env < probes.size(); ++env) {
+    const auto& probe = probes[env];
+    for (std::size_t body = 1; body < model.body_count; ++body) {
+      auto* pose = poses.data() + (env * model.body_count + body) * 12;
+      if (probe.aligned) std::copy_n(identity, 12, pose);
+      for (std::size_t axis = 0; axis < 3; ++axis) pose[4 * axis + 3] = probe.center[axis];
+    }
+  }
   const auto result = runCollision(model, count, capacity, poses);
   const coal::Box slab(2, 2, 0.2), box(0.06, 0.04, 0.03);
   const coal::Sphere sphere(0.05);
@@ -138,27 +167,34 @@ void synthetic() {
   const coal::CollisionGeometry* geometry[] = {&sphere, &box, &cylinder};
   const coal::Transform3s ground_pose(coal::Vec3s(0, 0, -0.1));
   coal::CollisionRequest request;
-  // Use a tighter geometric reference for these small boxes. The Go2 trace
-  // replay below uses the unmodified Sire collision request.
-  request.gjk_tolerance = 1e-10;
-  request.epa_tolerance = 1e-10;
+  request.gjk_tolerance = 2e-8;
   request.num_max_contacts = 1;
   request.enable_contact = true;
   Errors errors;
   for (std::size_t env = 0; env < count; ++env) {
     if (result.status[env] != GroundCollisionStatus::Success) throw std::runtime_error("Synthetic collision failed");
     std::size_t slot = 0;
-    for (std::size_t j = 0; j < capacity; ++j) {
+    for (const auto& collider : model.colliders) {
       coal::CollisionResult cpu;
-      coal::collide(&slab, ground_pose, geometry[j], transform(poses.data() + (4 * env + j + 1) * 12),
-                    request, cpu);
+      coal::collide(&slab, ground_pose, geometry[collider.geometry - 1],
+                    transform(poses.data() + (model.body_count * env + collider.body) * 12), request, cpu);
+      if (env < probes.size() && collider.shape != GroundShape::Sphere) {
+        const auto& probe = probes[env];
+        const bool penetrates = collider.shape == GroundShape::Box ? probe.box_penetrates : probe.cylinder_penetrates;
+        if (cpu.isCollision() != penetrates) {
+          throw std::runtime_error(std::string("Unexpected COAL classification at ") + probe.name);
+        }
+      }
       if (!cpu.isCollision()) continue;
       const auto& witness = cpu.getContact(0);
       const double depth = std::abs(witness.penetration_depth);
       if (depth <= std::numeric_limits<double>::epsilon()) continue;
       if (slot >= result.configs[env].detected) throw std::runtime_error("Missing synthetic collision");
       const auto& contact = result.contacts[env * capacity + slot++];
-      if (contact.geometry_b != j + 1 || contact.body_b != j + 1) {
+      if (contact.geometry_a != ground.geometry || contact.body_a != ground.body ||
+          contact.geometry_b != collider.geometry || contact.body_b != collider.body ||
+          contact.stiffness != collider.stiffness || contact.damping != collider.damping ||
+          contact.friction != collider.friction) {
         throw std::runtime_error("Wrong synthetic collision pair");
       }
       compare(contact, {witness.pos[0], witness.pos[1], witness.pos[2]},
@@ -173,14 +209,54 @@ void synthetic() {
       throw std::runtime_error("Missing capacity error");
     }
   }
-  poses[27] = 0.99;  // A dynamic box straddles the lateral boundary.
-  const auto edge = runCollision(model, count, capacity, poses);
-  if (edge.status[0] != GroundCollisionStatus::UnsupportedBoundary ||
-      edge.configs[0].detected != capacity + 1 || edge.status[1] != GroundCollisionStatus::Success) {
-    throw std::runtime_error("Wrong boundary error isolation");
-  }
   std::cout << "Compared " << errors.witnesses << " synthetic GPU witnesses with COAL across "
             << count << " environments\n";
+}
+
+void compareGo2Scene(sire::physics::PhysicsEngine& engine, const FlatGroundModel& model) {
+  auto& parts = engine.currentModel()->partPool();
+  std::vector<std::array<double, 16>> initial(model.body_count);
+  for (std::size_t body = 0; body < model.body_count; ++body) {
+    std::copy_n(*parts[body].pm(), 16, initial[body].begin());
+  }
+  const std::array<double, 5> heights{0, 1.0, -0.025, -0.10, -0.20};
+  std::vector<double> poses;
+  std::vector<std::vector<sire::physics::common::PenetrationAsPointPair>> expected;
+  for (const auto height : heights) {
+    for (std::size_t body = 0; body < model.body_count; ++body) {
+      auto pose = initial[body];
+      if (body != model.ground.body) pose[11] += height;
+      parts[body].setPm(pose.data());
+      poses.insert(poses.end(), pose.begin(), pose.begin() + 12);
+    }
+    engine.updateGeometryLocationFromModel();
+    auto pairs = engine.computePointPairPenetration();
+    std::sort(pairs.begin(), pairs.end(), [](const auto& lhs, const auto& rhs) { return lhs.id_B < rhs.id_B; });
+    expected.push_back(std::move(pairs));
+  }
+  const auto capacity = model.colliders.size();
+  const auto result = runCollision(model, heights.size(), capacity, poses);
+  Errors errors;
+  for (std::size_t env = 0; env < heights.size(); ++env) {
+    if (result.status[env] != GroundCollisionStatus::Success ||
+        result.configs[env].detected != expected[env].size()) {
+      throw std::runtime_error("Different Go2 scene collision count at height offset " + std::to_string(heights[env]));
+    }
+    for (std::size_t slot = 0; slot < expected[env].size(); ++slot) {
+      const auto& actual = result.contacts[env * capacity + slot];
+      const auto& reference = expected[env][slot];
+      if (actual.geometry_a != reference.id_A || actual.geometry_b != reference.id_B ||
+          actual.body_a != engine.queryGeometryPoolById(reference.id_A)->partId() ||
+          actual.body_b != engine.queryGeometryPoolById(reference.id_B)->partId()) {
+        throw std::runtime_error("Different Go2 scene collision pair or ordering");
+      }
+      compare(actual, {reference.p_WC[0], reference.p_WC[1], reference.p_WC[2]},
+              {reference.nhat_AB_W[0], reference.nhat_AB_W[1], reference.nhat_AB_W[2]}, reference.depth, errors);
+    }
+  }
+  if (errors.witnesses == 0 || !expected[1].empty()) throw std::runtime_error("Go2 scene did not exercise contact and separation");
+  std::cout << "Compared " << errors.witnesses << " Go2 collision witnesses with Sire across "
+            << heights.size() << " scene poses\n";
 }
 
 void replay(const FlatGroundModel& model, const std::filesystem::path& directory) {
@@ -257,6 +333,7 @@ int main(int argc, char** argv) {
     if (model.colliders.size() != 25 || model.body_count != 18) {
       throw std::runtime_error("Unexpected Go2 collision model dimensions");
     }
+    compareGo2Scene(simulator.physicsEngine(), model);
     if (argc == 3) replay(model, argv[2]);
     return 0;
   } catch (const std::exception& error) {

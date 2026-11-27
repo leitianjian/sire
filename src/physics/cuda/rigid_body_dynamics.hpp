@@ -19,6 +19,8 @@ struct RigidDynamicsInputs {
   const double* torques;  // Optional; motor order from the model.
   const double* wrenches;  // Optional; net world wrench per body.
   const ContactHistoryConfig* configs{nullptr};  // Optional event suspension mask.
+  const double* base_inertias{nullptr};          // Optional [batch, 10] ARIS inertias.
+  std::size_t base_body{};
 };
 
 struct RigidDynamicsOutputs {

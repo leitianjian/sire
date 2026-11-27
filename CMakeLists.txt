@@ -71,9 +71,11 @@ find_pkg_path(assimp assimp)
 
 find_pkg_path(coal hpp_fcl)
 
-# coal (hpp-fcl) headers include <Eigen/Core>, but Eigen's headers are typically under
-# <prefix>/include/eigen3, so we must pull Eigen's include dirs into our compile lines.
+# COAL and the CUDA collision port use Eigen.
 find_package(Eigen3 CONFIG REQUIRED)
+if(SIRE_ENABLE_CUDA)
+	target_link_libraries(sire_cuda PRIVATE Eigen3::Eigen)
+endif()
 
 # Aggregate coal + Eigen usage requirements so targets can just link this once.
 add_library(sire_deps_coal INTERFACE)

@@ -74,6 +74,28 @@ if(SIRE_ENABLE_CUDA)
   if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     # Keep this toolkit's runtime private when PyTorch has loaded its own.
     target_link_options(sire PRIVATE "LINKER:--exclude-libs,libcudart_static.a")
+
+    option(SIRE_ENABLE_CUDA_CAMERA "Build the EGL/CUDA offscreen camera when OpenGL is available" ON)
+    if(SIRE_ENABLE_CUDA_CAMERA)
+      find_package(OpenGL QUIET COMPONENTS OpenGL EGL)
+      if(TARGET OpenGL::OpenGL AND TARGET OpenGL::EGL)
+        add_library(sire_cuda_camera STATIC
+          ${PROJECT_SOURCE_DIR}/src/sensor/cuda_batch_camera.cpp
+          ${PROJECT_SOURCE_DIR}/src/sensor/cuda_batch_camera_kernels.cu)
+        target_include_directories(sire_cuda_camera PUBLIC ${PROJECT_SOURCE_DIR}/include)
+        target_compile_features(sire_cuda_camera PUBLIC cxx_std_17)
+        set_target_properties(sire_cuda_camera PROPERTIES
+          CUDA_STANDARD 17 CUDA_STANDARD_REQUIRED ON POSITION_INDEPENDENT_CODE ON)
+        target_link_libraries(sire_cuda_camera
+          PUBLIC CUDA::cudart_static
+          PRIVATE OpenGL::OpenGL OpenGL::EGL ${CMAKE_DL_LIBS})
+        target_sources(sire PRIVATE bindings_cuda_camera.cpp)
+        target_compile_definitions(sire PRIVATE SIRE_PYTHON_CUDA_CAMERA=1)
+        target_link_libraries(sire PRIVATE sire_cuda_camera)
+      else()
+        message(STATUS "CUDA batch camera disabled: EGL and OpenGL development libraries not found")
+      endif()
+    endif()
   endif()
 endif()
 
