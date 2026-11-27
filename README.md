@@ -37,6 +37,8 @@ CUDA 默认用 4 条 stream 并行推进环境，`--sire_cuda_streams 1` 可切�
 | `demo/`、`scripts/` | C++/Python 示例、论文复现和开发工具。`scripts/dm_control/` 是场景转换使用的上游副本 |
 | `third_party/`、`cmake_macros/` | 原生依赖与构建辅助 |
 
+旧版浏览器示例所用的 `web_interface/` 可从 Git 提交 `8cec73e` 取出。复现这些示例时，在外部目录构建前端，再将示例的 `document_root` 指向该目录下构建后的静态资源。
+
 ## 论文与许可证
 
 Sire 的高刚度连续接触方法发表于 IEEE Robotics and Automation Letters。[A Convergent Continuous Contact Solver With Explicit Separation Time for High-Stiffness Contact](https://doi.org/10.1109/LRA.2026.3692328)

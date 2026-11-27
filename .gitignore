@@ -70,28 +70,7 @@ cmake-build-debug
 __pycache__
 .venv
 
-# nodejs web_interface
-# dependencies
-node_modules/
-robot/
-.pnp
-.pnp.js
-
-# testing
-coverage
-
-# misc
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-.idea
 trash/
 
 # 3d meshes
@@ -108,9 +87,28 @@ log.txt
 motion_data/
 *.pdb
 
-# Local experiment runs, generated diagnostics and backups.
+# Local assistant settings and runs.
+/.agent/
+/.agents/
+/.aws/
+/.claude/
+/.codex/
+/.codx/
+/.codex_run/
 /.codex_runs/
+
+# Legacy frontend, build files, and local editor settings kept outside Git.
+/web_interface/
+/Traditional_CMakeLists.txt
+/Dockerfile
+/package.txt
+/.clang-format
+/.clocconfig
+/cpp.hint
+
+# Local experiment runs, generated diagnostics and backups.
 /sire_parallel_experiment_*/
+/sim2real_logs/
 /sim2sim/policies/go2_cuda_1024/
 /demo/demo_python/SireRLGym/repro_20steps.json
 /demo/demo_python/heightField/box_data.txt
