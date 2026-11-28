@@ -105,6 +105,8 @@ motion_data/
 /.clang-format
 /.clocconfig
 /cpp.hint
+/changelog.md
+/problem_solution.md
 
 # Local experiment runs, generated diagnostics and backups.
 /sire_parallel_experiment_*/
