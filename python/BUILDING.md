@@ -39,6 +39,16 @@ SIRE_ENABLE_CUDA=ON CMAKE_CUDA_ARCHITECTURES=89 python -m pip install -e ./pytho
 python -c "import sire; from sire.viewer import Viewer; from sire.sensor import Camera; print(sire.__file__); print(sire.SireRLBatchStepper)"
 ```
 
+### 真实感渲染依赖
+
+先安装与 NVIDIA 驱动兼容的 CUDA 版 PyTorch，再在同一环境启用可选依赖。
+
+```bash
+python -m pip install -e './python[photoreal]'
+```
+
+`gsplat` 首次使用可能通过 Ninja 编译 CUDA 扩展。需要可用的 CUDA Toolkit，并可在运行前用 `CUDA_HOME` 选择 Toolkit、用 `MAX_JOBS=4` 限制编译并行。CUDA 版 Sire SDK 在 Linux 上可通过 CUDA/OpenGL 互操作把 3DGS 图像直接送进 Viewer 的纹理。CPU 版 Sire SDK 也能使用真实感模式，此时图像经过主机缓冲。经典 Viewer 只需 `[viewer]`。
+
 ## 日常开发和 wheel
 
 修改 C++ 后可以用同一 Python 环境执行增量编译。使用 CUDA 版时，重编时传入和初次安装一致的 CUDA 选项。

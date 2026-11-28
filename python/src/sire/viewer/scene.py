@@ -12,7 +12,7 @@ import sire
 
 @dataclass(frozen=True)
 class RenderItem:
-    body: str
+    body: Optional[str]
     local_pose: np.ndarray
     color: tuple[float, float, float]
     mesh: Optional[Path] = None

@@ -20,10 +20,43 @@ python -m sim2sim.walk_sire --policy /tmp/sire_go2_jit.pt \
 
 Sire CPU 求解单个平地场景，Sire Viewer 用 GLFW 和 OpenGL 绘制窗口和 RGB-D。左键旋转、右键平移、滚轮缩放、Esc 退出。右侧 RGB 和深度预览叠加在场景之上。`--cmd` 依次传入机身前向速度、侧向速度和偏航角速度。
 
+- 在同一个 `walk_sire.py` 中用 `--render-mode classic|photoreal|none` 选择模式。`classic` 是默认的 GLFW Viewer。`none` 只跑 Sire 和策略，不加载渲染网格、不创建相机或窗口，也不等待墙钟时间。
 - 将 JIT 和 OBJ 分别放到 `sim2sim/policies/go2_cuda_1024/model_1000_jit.pt` 和 `demo/demo_python/dogRL/assets` 后，可以省略相应参数。
 - 用 `--camera-size`、`--camera-fps`、`--camera-fov-y` 或 `--camera-intrinsics FX FY CX CY`、`--camera-clip NEAR FAR` 调整相机。SDK 的 [`CameraConfig`](../python/src/sire/sensor.py) 设置安装连杆及相对位姿，`Camera.read()` 获取最近一帧。
-- 用 `--save-rgbd frame.npz` 保存最后一帧，包含 RGB、米制光轴深度、有效像素掩码、仿真时间戳、帧编号和内参。加 `--headless` 使用 EGL 离屏渲染。
-- 本入口使用 `numpy`、`torch`、`PyYAML`、`glfw` 和 `PyOpenGL`，需要 OpenGL 3.3 或更新版本。主循环在 [`walk_sire.py`](walk_sire.py)，一次 `sim.step(action)` 推进一个策略控制周期，随后读取状态给相机与 Viewer。
+- 用 `--save-rgbd frame.npz` 保存最后一帧，包含 RGB、米制光轴深度、有效像素掩码、仿真时间戳、帧编号和内参。`classic` 和 `photoreal` 加 `--headless` 时仍会使用 EGL 渲染 RGB-D。
+- 三种模式都在 [`walk_sire.py`](walk_sire.py) 的同一循环中调用 `sim.step(action)`。渲染模式的窗口和相机使用 OpenGL 3.3 或更新版本。
+
+```bash
+python -m sim2sim.walk_sire --render-mode none --duration 10
+python -m sim2sim.walk_sire --render-mode classic --headless --duration 2 --save-rgbd /tmp/classic.npz
+```
+
+### 真实感模式
+
+在已有 CUDA 版 PyTorch 的 Python 环境按 [SDK 安装指南](../python/BUILDING.md#真实感渲染依赖)安装 `./python[photoreal]`。准备一份标准 3DGS PLY 和与它对齐的三角网格（PLY 或 OBJ）。例如从 [Habitat-GS scene56](https://huggingface.co/datasets/RukawaY/gs_scenes/tree/9d1b04d/val/scene56) 下载 `scene56.gs.ply` 和 `scene56.mesh.ply`，在同一目录保存 `room.json`。
+
+```json
+{
+  "gaussians": "scene56.gs.ply",
+  "depth_mesh": "scene56.mesh.ply",
+  "position": [-2.0, 2.625, 0.1405],
+  "rotation_wxyz": [0.5, 0.5, 0.5, 0.5],
+  "scale": 0.25
+}
+```
+
+两个资产共用这个资产到 Sire 世界坐标的变换。`position` 用米，`scale` 是每个资产单位对应的米数。示例把一段开阔地板对齐到 Sire 的起步位置；其他场景需要相应调整这三个值。
+
+```bash
+MAX_JOBS=4 python -m sim2sim.walk_sire --render-mode photoreal \
+  --scene /path/to/room.json --cmd 0.10 0 0 --duration 4
+```
+
+场景的 RGB 由 CUDA 3DGS 渲染，Go2 用 PBR 网格渲染。`--scene` 用同一份资产的几何替换原地面碰撞盒，CPU Sire 可与扫描场景接触；`classic` 和 `none` 也可加载这个物理场景。另有 `--photoreal-scene` 用于在平地和演示盒上预览外观。`collision_mesh` 省略时和 `depth_mesh` 共用同一网格。
+
+要用 `0.25 m/s` 回放这个示例，可先用 [`simplify_collision`](../docs/api_reference.md#sirescene_importsimplify_collision) 将原始网格简化到约 15 万面，再在 JSON 中设置 `"collision_mesh": "scene56.collision.ply"`。`depth_mesh` 继续使用原始扫描。
+
+具备 CUDA/OpenGL 互操作的环境通过原生 SDK 在显存中传递图像，终端显示 `splat_transfer=cuda-gl`。通过主机缓冲的环境显示 `splat_transfer=host`。批量离屏使用 [`BatchCamera`](../docs/api_reference.md#siresensorbatchcamera)，直接采集 CUDA 张量。
 
 ## MuJoCo 平地与手柄对照
 

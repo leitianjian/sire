@@ -1,4 +1,6 @@
 // Auto-split from sire_bindings.cpp
+#include <algorithm>
+#include <array>
 #include <codecvt>
 #include <fstream>
 #include <iostream>
@@ -161,6 +163,30 @@ void init_physics(py::module& m) {
       .def_property("geometryPool", &sire::physics::PhysicsEngine::geometryPool,
                     &sire::physics::PhysicsEngine::resetGeometryPool)
       .def("numGeometries", &sire::physics::PhysicsEngine::numGeometries)
+      .def("replaceStaticMeshGeometry",
+           [](sire::physics::PhysicsEngine& self, sire::geometry::GeometryId id,
+              const std::string& resource_path, double scale, const std::array<double, 16>& pose)
+               -> sire::physics::geometry::MeshCollisionGeometry& {
+             auto& pool = self.geometryPool();
+             const auto original = std::find_if(pool.begin(), pool.end(), [id](const auto& geometry) {
+               return geometry.geometryId() == id;
+             });
+             if (original == pool.end() || original->isDynamic() || original->partId() != 0) {
+               throw std::invalid_argument("Expected an anchored world geometry with the requested ID");
+             }
+             if (self.queryGeometryPoolById(id)) {
+               throw std::logic_error("Replace collision geometry before Simulator.init()");
+             }
+             const auto index = original - pool.begin();
+             const std::array<double, 3> size{scale, scale, scale};
+             auto& mesh = pool.add<sire::physics::geometry::MeshCollisionGeometry>(
+                 resource_path, size, 0, false, pose.data(), original->visible(),
+                 original->material(), original->contactPropStr());
+             mesh.setGeometryId(id);
+             pool.erase(pool.begin() + index);
+             return mesh;
+           }, "geometry_id"_a, "resource_path"_a, "scale"_a, "pose"_a,
+           py::return_value_policy::reference_internal)
       .def(
           "addBoxGeometry",
           [](sire::physics::PhysicsEngine& self, double x, double y, double z,

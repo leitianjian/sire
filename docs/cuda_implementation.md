@@ -124,6 +124,8 @@ with BatchCamera(scene, optics, env.num_envs, device=env.device, chunk_size=64) 
 
 相机逐块实例化绘制。CUDA 输入位姿和输出图像都留在设备上。`capture()` 在调用方当前的 PyTorch CUDA stream 上提交工作，每次采集复用输出缓冲区。需要保存历史帧时，在下一次采集前复制张量。采样频率由调用方控制，使用 50 Hz 控制循环时，每 5 步采集一次对应 10 Hz 仿真时间。
 
+可选参数 `scene_asset` 加载场景深度网格和静态高斯外观。现有 CUDA 物理后端仍使用前述的平地碰撞。场景资产格式和固定／腕部双相机示例见 [Python API 参考](api_reference.md#siresensorbatchcamera)。
+
 可运行 `python -m unittest discover -s python -p test_cuda_batch_camera.py -v` 检查多图块裁剪、像素位置和米制深度。测试使用现有单场景渲染器作为对照。
 
 ## GPU 随机化

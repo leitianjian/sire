@@ -66,7 +66,7 @@ __global__ void cameraViewProjections(const float* body_rows, float* view_projec
 }
 
 __global__ void packImages(const uchar4* rgba_atlas, const float* depth_atlas,
-                           unsigned char* rgb, float* depth, bool* valid,
+                           unsigned char* rgb, float* depth, bool* valid, bool* foreground,
                            int width, int height, int columns, int first,
                            std::size_t count) {
   const std::size_t i = blockIdx.x * static_cast<std::size_t>(blockDim.x) + threadIdx.x;
@@ -83,8 +83,12 @@ __global__ void packImages(const uchar4* rgba_atlas, const float* depth_atlas,
   rgb[output * 3 + 1] = color.y;
   rgb[output * 3 + 2] = color.z;
   const float z = depth_atlas[source];
-  valid[output] = z > 0.0f;
-  depth[output] = valid[output] ? z : __int_as_float(0x7fc00000);
+  const bool has_depth = z > 0.0f;
+  valid[output] = has_depth;
+  depth[output] = has_depth ? z : __int_as_float(0x7fc00000);
+  if (foreground) {
+    foreground[output] = has_depth && color.w > 127;
+  }
 }
 
 unsigned int blocks(std::size_t count) {
@@ -119,13 +123,13 @@ void launchCameraTransforms(const double* poses, float* body_rows,
 }
 
 void launchCameraPack(const unsigned char* rgba_atlas, const float* depth_atlas,
-                      unsigned char* rgb, float* depth, bool* valid, int width,
+                      unsigned char* rgb, float* depth, bool* valid, bool* foreground, int width,
                       int height, int columns, int first, int count,
                       cudaStream_t stream) {
   const auto pixels = static_cast<std::size_t>(count) * width * height;
   packImages<<<blocks(pixels), kThreads, 0, stream>>>(
       reinterpret_cast<const uchar4*>(rgba_atlas), depth_atlas, rgb, depth,
-      valid, width, height, columns, first, pixels);
+      valid, foreground, width, height, columns, first, pixels);
   checkCudaCamera(cudaGetLastError(), "launch RGB-D packing");
 }
 

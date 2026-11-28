@@ -30,3 +30,4 @@ classifiers = [
 
 [project.optional-dependencies]
 viewer = ["glfw", "PyOpenGL"]
+photoreal = ["glfw", "PyOpenGL", "plyfile>=1.0.3", "gsplat==1.5.3"]

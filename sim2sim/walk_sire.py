@@ -1,4 +1,4 @@
-"""Run one Go2 with a saved policy, live Sire poses, and an RGB-D camera."""
+"""Run one Go2 with a saved policy and optional RGB-D rendering."""
 
 from __future__ import annotations
 
@@ -10,8 +10,6 @@ import time
 import numpy as np
 import sire
 import torch
-from sire.sensor import Camera, CameraConfig
-from sire.viewer import MeshRenderer, SireScene, Viewer, graphics_context
 
 if __package__:
     from .go2_policy import load_jit
@@ -34,7 +32,7 @@ def _joint_gains(names, settings):
 class Go2Simulation:
     """Advance Sire by one policy control interval per step(action)."""
 
-    def __init__(self, profile):
+    def __init__(self, profile, scene_asset=None):
         env = profile["env_cfg"]
         control = env["control"]
         if control["control_type"] != "P":
@@ -54,12 +52,15 @@ class Go2Simulation:
         model = self.model
         ground = model.link(0)
         self.base = model.link(1)
-        box_pose = np.eye(4)
-        box_pose[:3, 3] = BOX_CENTER
-        box_transform = box_pose.ravel().tolist()
-        ground.addBoxGeometry(ground.id, *BOX_SIZE, box_transform)
-        self.sim.physicsEngine().addBoxGeometry(*BOX_SIZE, ground.id, False, box_transform,
-                                               True, "m1", "{k:2.8e8,d:2000}")
+        if scene_asset is None:
+            box_pose = np.eye(4)
+            box_pose[:3, 3] = BOX_CENTER
+            box_transform = box_pose.ravel().tolist()
+            ground.addBoxGeometry(ground.id, *BOX_SIZE, box_transform)
+            self.sim.physicsEngine().addBoxGeometry(*BOX_SIZE, ground.id, False, box_transform,
+                                                   True, "m1", "{k:2.8e8,d:2000}")
+        else:
+            scene_asset.replace_collision(self.sim, geometry_id=0)
         self.sim.init()
 
         motion_ids = {model.jointPool()[i].name: i for i in range(model.numMotions())}
@@ -136,56 +137,107 @@ def _go2_style(item, geometry):
     return item
 
 
-def run_walk(args, config, sim, controller, window):
+def _rollout(args, sim, controller, update_capture=None, present=None):
+    command = np.array(args.cmd)
+    start = time.perf_counter()
+    initial_time = sim.sim_time
+    base = np.asarray(sim.base.getPm()).reshape(4, 4)
+    initial_position = base[:3, 3].copy()
+    min_height = initial_position[2]
+    if update_capture is not None:
+        update_capture(initial_time)
+    while True:
+        elapsed = sim.sim_time - initial_time
+        if present is not None:
+            time.sleep(max(0, start + elapsed - time.perf_counter()))
+            if not present(base[:3, 3], elapsed):
+                break
+        if args.duration and elapsed >= args.duration - 1e-9:
+            break
+        action = controller.act(sim, command, base[:3, :3])
+        sim.step(action)
+        base = np.asarray(sim.base.getPm()).reshape(4, 4)
+        min_height = min(min_height, base[2, 3])
+        if update_capture is not None:
+            update_capture(sim.sim_time)
+
+    delta = base[:3, 3] - initial_position
+    return (f"sim={elapsed:.2f}s wall={time.perf_counter() - start:.2f}s "
+            f"walk_xy=({delta[0]:.3f}, {delta[1]:.3f})m min_height={min_height:.3f}m")
+
+
+def _run_rendered_walk(args, config, sim, controller, window, scene_asset):
+    from sire.sensor import Camera
+    from sire.viewer import MeshRenderer, RenderItem, SireScene, Viewer
+
     scene = SireScene(sim.model, args.mesh_dir, style=_go2_style)
-    renderer = MeshRenderer(scene.items)
+    photoreal = args.render_mode == "photoreal"
+    items = [item for item in scene.items if not item.checker] if photoreal or scene_asset else scene.items
+    if photoreal:
+        from sire.viewer.photoreal import PhotorealRenderer
+
+        renderer = PhotorealRenderer(items, scene_asset.source if scene_asset else args.photoreal_scene)
+    else:
+        if scene_asset is not None:
+            items = [RenderItem(None, scene_asset.asset_to_world, (.55, .55, .55),
+                                mesh=scene_asset.depth_mesh), *items]
+        renderer = MeshRenderer(items)
     try:
-        poses = scene.poses()
+        poses = None
         camera = Camera(config, lambda optics, pose: renderer.capture(poses, optics, pose),
                         deferred_render=lambda optics, pose: renderer.prepare_capture(poses, optics, pose))
         viewer = Viewer(window, renderer) if window else None
-        update_camera = camera.update_deferred if viewer else camera.update
-        command = np.array(args.cmd)
-        start = time.perf_counter()
-        initial_time = sim.sim_time
-        base = poses["base"]
-        initial_position = base[:3, 3].copy()
-        min_height = initial_position[2]
-        update_camera(initial_time, poses)
-        while True:
-            elapsed = sim.sim_time - initial_time
-            if viewer:
-                time.sleep(max(0, start + elapsed - time.perf_counter()))
-                if not viewer.sync(poses, base[:3, 3], capture_preview=True):
-                    break
-            if args.duration and elapsed >= args.duration - 1e-9:
-                break
-            action = controller.act(sim, command, base[:3, :3])
-            sim.step(action)
-            poses = scene.poses()
-            update_camera(sim.sim_time, poses)
-            base = poses["base"]
-            min_height = min(min_height, base[2, 3])
+        last_presented = -1
 
+        def update_capture(sim_time):
+            nonlocal poses
+            poses = scene.poses()
+            camera.update_deferred(sim_time, poses)
+
+        def present(target, elapsed):
+            nonlocal last_presented
+            if photoreal:
+                # The orbit view and on-board camera have independent frame clocks.
+                frame = int(elapsed * 30 + 1e-9)
+                if frame == last_presented:
+                    return True
+                last_presented = frame
+            return viewer.sync(poses, target, capture_preview=True)
+
+        stats = _rollout(args, sim, controller, update_capture, present if viewer else None)
         frame = camera.read()
         if args.save_rgbd:
             np.savez_compressed(args.save_rgbd, rgb=frame.rgb, depth=frame.depth, valid=frame.valid,
                                 sim_time=frame.sim_time, frame_id=frame.frame_id, intrinsics=config.pinhole)
-        delta = base[:3, 3] - initial_position
-        print(f"sim={elapsed:.2f}s wall={time.perf_counter() - start:.2f}s "
-              f"walk_xy=({delta[0]:.3f}, {delta[1]:.3f})m min_height={min_height:.3f}m "
-              f"rgbd_frames={frame.frame_id + 1} valid_depth={frame.valid.mean():.1%}")
+        transfer = f" splat_transfer={renderer.splat_transfer}" if photoreal else ""
+        print(f"{stats} rgbd_frames={frame.frame_id + 1} valid_depth={frame.valid.mean():.1%}{transfer}")
     finally:
         renderer.close()
 
 
-def main():
+def _camera_config(args):
+    from sire.sensor import CameraConfig
+
+    # Robot axes are +X forward, +Y left, +Z up. The camera tilts down by 10 degrees.
+    pitch = np.deg2rad(10)
+    s, c = np.sin(pitch), np.cos(pitch)
+    mount = np.array([[0, s, -c, .34], [-1, 0, 0, 0], [0, c, s, .07], [0, 0, 0, 1]])
+    return CameraConfig(*args.camera_size, fps=args.camera_fps, fov_y=args.camera_fov_y,
+                        intrinsics=args.camera_intrinsics, near=args.camera_clip[0], far=args.camera_clip[1],
+                        parent="base", local_pose=mount)
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--policy", type=Path, default=POLICY, help="Go2 TorchScript actor")
     parser.add_argument("--deployment-config", type=Path, help="Override the actor's embedded deployment config")
     parser.add_argument("--mesh-dir", type=Path, default=ASSETS, help="Directory containing the Go2 OBJ meshes")
     parser.add_argument("--cmd", type=float, nargs=3, default=(0.25, 0, 0), metavar=("VX", "VY", "YAW_RATE"))
     parser.add_argument("--duration", type=float, default=15, help="Simulated seconds, or 0 to run until window close")
+    parser.add_argument("--render-mode", choices=("classic", "photoreal", "none"), default="classic",
+                        help="Use the classic viewer, photoreal rendering, or simulation only (default: classic)")
+    parser.add_argument("--scene", type=Path, help="Scene JSON for the visual scene and CPU collision mesh")
+    parser.add_argument("--photoreal-scene", type=Path, help="Scene JSON for visualization on the demo physics")
     parser.add_argument("--headless", action="store_true", help="Capture RGB-D without opening the desktop window")
     parser.add_argument("--save-rgbd", type=Path, help="Save the latest RGB-D frame as an NPZ file")
     parser.add_argument("--camera-size", type=int, nargs=2, default=(640, 480), metavar=("WIDTH", "HEIGHT"))
@@ -193,25 +245,40 @@ def main():
     parser.add_argument("--camera-fov-y", type=float, default=60, help="Vertical field of view in degrees")
     parser.add_argument("--camera-intrinsics", type=float, nargs=4, metavar=("FX", "FY", "CX", "CY"))
     parser.add_argument("--camera-clip", type=float, nargs=2, default=(.05, 20), metavar=("NEAR", "FAR"))
-    args = parser.parse_args()
-    if not np.isfinite(args.duration) or args.duration < 0 or (args.headless and args.duration == 0):
-        parser.error("--duration must be finite and nonnegative (positive in headless mode)")
+    args = parser.parse_args(argv)
+    if not np.isfinite(args.duration) or args.duration < 0:
+        parser.error("--duration must be finite and nonnegative")
+    if args.duration == 0 and (args.headless or args.render_mode == "none"):
+        parser.error("--duration must be positive when running without a window")
     if not np.isfinite(args.cmd).all():
         parser.error("--cmd needs three finite values")
+    if args.render_mode == "none" and args.save_rgbd is not None:
+        parser.error("--save-rgbd requires a rendering mode")
+    if args.scene is not None and args.photoreal_scene is not None:
+        parser.error("Use --scene for matching visuals and physics, or --photoreal-scene for the visual preview")
+    if args.render_mode == "photoreal" and args.scene is None and args.photoreal_scene is None:
+        parser.error("Photoreal rendering requires --scene or --photoreal-scene")
 
-    # Robot axes are +X forward, +Y left, +Z up. The camera tilts down by 10 degrees.
-    pitch = np.deg2rad(10)
-    s, c = np.sin(pitch), np.cos(pitch)
-    mount = np.array([[0, s, -c, .34], [-1, 0, 0, 0], [0, c, s, .07], [0, 0, 0, 1]])
-    config = CameraConfig(*args.camera_size, fps=args.camera_fps, fov_y=args.camera_fov_y,
-                          intrinsics=args.camera_intrinsics, near=args.camera_clip[0], far=args.camera_clip[1],
-                          parent="base", local_pose=mount)
     torch.set_num_threads(1)
     actor, profile = load_jit(args.policy, args.deployment_config)
-    sim = Go2Simulation(profile)
+    scene_asset = None
+    if args.scene is not None:
+        from sire.scene import SceneAsset
+
+        scene_asset = SceneAsset.load(args.scene)
+        if args.render_mode == "photoreal" and scene_asset.gaussians is None:
+            parser.error("The requested scene has no Gaussian (gaussians) asset")
+    sim = Go2Simulation(profile, scene_asset)
     controller = Go2Controller(actor, profile)
+    if args.render_mode == "none":
+        print(_rollout(args, sim, controller))
+        return
+
+    from sire.viewer import graphics_context
+
+    config = _camera_config(args)
     with graphics_context(args.headless, title="Sire Go2 | RGB-D") as window:
-        run_walk(args, config, sim, controller, window)
+        _run_rendered_walk(args, config, sim, controller, window, scene_asset)
 
 
 if __name__ == "__main__":

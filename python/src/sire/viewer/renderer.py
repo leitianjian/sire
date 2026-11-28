@@ -125,6 +125,41 @@ def _load_obj(path):
     return np.ascontiguousarray(np.concatenate((points, vertex_normals), axis=-1).reshape(-1, 6))
 
 
+def _load_depth_mesh(path):
+    if path.suffix.lower() != ".ply":
+        return _load_obj(path)
+
+    from plyfile import PlyData, PlyParseError
+
+    # Binary triangle PLY can be mapped directly instead of reading each face separately.
+    try:
+        ply = PlyData.read(str(path), known_list_len={"face": {"vertex_indices": 3, "vertex_index": 3}})
+    except PlyParseError as error:
+        raise ValueError(f"Could not read triangle depth mesh {path}: {error}") from error
+    if "vertex" not in ply or "face" not in ply or not len(ply["face"].data):
+        raise ValueError(f"Depth mesh {path} contains no faces")
+    vertices = ply["vertex"].data
+    faces = ply["face"].data
+    fields = faces.dtype.names
+    index_field = next((name for name in ("vertex_indices", "vertex_index") if name in fields), None)
+    if index_field is None:
+        raise ValueError(f"Depth mesh {path} must contain triangle faces")
+    indices = faces[index_field]
+    if indices.dtype == object:
+        if any(len(face) != 3 for face in indices):
+            raise ValueError(f"Depth mesh {path} must contain triangle faces")
+        indices = np.stack(indices)
+    if np.any(indices < 0) or np.any(indices >= len(vertices)):
+        raise ValueError(f"Depth mesh {path} contains an invalid vertex index")
+    points = np.column_stack([vertices[axis] for axis in "xyz"]).astype(np.float32)[indices]
+    if all(name in vertices.dtype.names for name in ("nx", "ny", "nz")):
+        normals = np.column_stack([vertices[name] for name in ("nx", "ny", "nz")]).astype(np.float32)[indices]
+    else:
+        flat = np.cross(points[:, 1] - points[:, 0], points[:, 2] - points[:, 0])
+        normals = np.broadcast_to(flat[:, None, :], points.shape)
+    return np.ascontiguousarray(np.concatenate((points, normals), axis=-1).reshape(-1, 6))
+
+
 def _box_vertices(size):
     x, y, z = np.asarray(size) / 2
     corners = np.array([[-x, -y, -z], [x, -y, -z], [x, y, -z], [-x, y, -z],
@@ -161,6 +196,10 @@ def _projection(config):
 class MeshRenderer:
     """Render scene items in the current OpenGL context."""
 
+    scene_fragment = _SCENE_FRAGMENT
+    clear_color = (0.18, 0.23, 0.28, 1.0)
+    _load_mesh = staticmethod(_load_depth_mesh)
+
     def __init__(self, items):
         # The context owner selects the PyOpenGL platform before constructing us.
         from OpenGL import GL as gl
@@ -180,7 +219,7 @@ class MeshRenderer:
         try:
             self._scene_program = shaders.compileProgram(
                 shaders.compileShader(_SCENE_VERTEX, gl.GL_VERTEX_SHADER),
-                shaders.compileShader(_SCENE_FRAGMENT, gl.GL_FRAGMENT_SHADER),
+                shaders.compileShader(self.scene_fragment, gl.GL_FRAGMENT_SHADER),
             )
             self._programs.append(self._scene_program)
             self._scene_uniforms = {
@@ -203,7 +242,7 @@ class MeshRenderer:
             for item in items:
                 key = item.mesh if item.mesh is not None else tuple(item.size)
                 if key not in self._meshes:
-                    vertices = _load_obj(item.mesh) if item.mesh is not None else _box_vertices(item.size)
+                    vertices = self._load_mesh(item.mesh) if item.mesh is not None else _box_vertices(item.size)
                     self._upload(key, vertices)
                 self._items.append((item, self._meshes[key]))
         except Exception:
@@ -224,6 +263,12 @@ class MeshRenderer:
         gl.glBindVertexArray(0)
         gl.glBindBuffer(gl.GL_ARRAY_BUFFER, 0)
 
+    def _set_scene_uniforms(self, world_pose):
+        """Set extra uniforms for the active scene program."""
+
+    def _set_item_uniforms(self, item):
+        """Set extra uniforms for a single draw in the scene pass."""
+
     def _render(self, poses, config, world_pose, width, height):
         gl = self._gl
         uniforms = self._scene_uniforms
@@ -234,17 +279,19 @@ class MeshRenderer:
         gl.glDepthRange(1, 0)
         gl.glDepthFunc(gl.GL_GREATER)
         gl.glClearDepth(0)
-        gl.glClearColor(0.18, 0.23, 0.28, 1.0)
+        gl.glClearColor(*self.clear_color)
         gl.glClear(gl.GL_COLOR_BUFFER_BIT | gl.GL_DEPTH_BUFFER_BIT)
         gl.glUseProgram(self._scene_program)
         gl.glUniformMatrix4fv(uniforms["view_projection"], 1, gl.GL_FALSE,
                               np.ascontiguousarray(view_projection.T, dtype=np.float32))
+        self._set_scene_uniforms(world_pose)
         for item, (vao, _, count) in self._items:
             model = item.local_pose if item.body is None else poses[item.body] @ item.local_pose
             gl.glUniformMatrix4fv(uniforms["model"], 1, gl.GL_FALSE,
                                   np.ascontiguousarray(model.T, dtype=np.float32))
             gl.glUniform3f(uniforms["color"], *item.color)
             gl.glUniform1i(uniforms["checker"], item.checker)
+            self._set_item_uniforms(item)
             gl.glBindVertexArray(vao)
             gl.glDrawArrays(gl.GL_TRIANGLES, 0, count)
         gl.glBindVertexArray(0)

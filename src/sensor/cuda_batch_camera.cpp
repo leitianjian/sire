@@ -90,6 +90,7 @@ in vec3 world_normal;
 in float optical_depth;
 uniform vec3 color;
 uniform bool checker;
+uniform bool background_item;
 layout(location = 0) out vec4 pixel;
 layout(location = 1) out float depth;
 
@@ -102,7 +103,7 @@ void main() {
     }
     vec3 light = normalize(vec3(-0.4, -0.6, 1.0));
     float diffuse = max(dot(normalize(world_normal), light), 0.0);
-    pixel = vec4(surface * (0.55 + 0.45 * diffuse), 1.0);
+    pixel = vec4(surface * (0.55 + 0.45 * diffuse), background_item ? 0.0 : 1.0);
     depth = optical_depth;
 }
 )GLSL";
@@ -586,6 +587,7 @@ struct CudaBatchCamera::Impl {
         local_pose_uniform = glGetUniformLocation(program, "local_pose");
         color_uniform = glGetUniformLocation(program, "color");
         checker_uniform = glGetUniformLocation(program, "checker");
+        background_uniform = glGetUniformLocation(program, "background_item");
         glViewport(0, 0, atlas_width, atlas_height);
         glEnable(GL_DEPTH_TEST);
         glDepthRange(1.0, 0.0);
@@ -609,13 +611,15 @@ struct CudaBatchCamera::Impl {
             glUniformMatrix4fv(local_pose_uniform, 1, GL_TRUE, item.local_pose.data());
             glUniform3fv(color_uniform, 1, item.color.data());
             glUniform1i(checker_uniform, item.checker);
+            glUniform1i(background_uniform, item.background);
             glBindVertexArray(mesh.vao);
             glDrawArraysInstanced(GL_TRIANGLES, 0, mesh.count, count);
         }
         checkGl("Render CUDA camera OpenGL atlas");
     }
 
-    void capture(const double* poses, unsigned char* rgb, float* depth, bool* valid, cudaStream_t stream) {
+    void capture(const double* poses, unsigned char* rgb, float* depth, bool* valid,
+                 cudaStream_t stream, bool* foreground) {
         const std::lock_guard lock(mutex);
         const CurrentCudaDevice current_device(config.device);
         const CurrentEglContext current_context(display, surface, context);
@@ -637,7 +641,7 @@ struct CudaBatchCamera::Impl {
             checkCudaCamera(cudaMemcpy2DFromArrayAsync(depth_atlas, depth_pitch, outputs.image(1), 0, 0,
                                                       depth_pitch, active_height, cudaMemcpyDeviceToDevice, stream),
                             "Copy CUDA camera depth atlas");
-            launchCameraPack(rgba_atlas, depth_atlas, rgb, depth, valid,
+            launchCameraPack(rgba_atlas, depth_atlas, rgb, depth, valid, foreground,
                              config.width, config.height, columns, first, count, stream);
             outputs.unmap();
             first += count;
@@ -671,6 +675,7 @@ struct CudaBatchCamera::Impl {
     GLint local_pose_uniform = -1;
     GLint color_uniform = -1;
     GLint checker_uniform = -1;
+    GLint background_uniform = -1;
 };
 
 CudaBatchCamera::CudaBatchCamera(CudaCameraConfig config, const std::vector<CudaCameraMesh>& meshes,
@@ -682,12 +687,76 @@ CudaBatchCamera::CudaBatchCamera(CudaCameraConfig config, const std::vector<Cuda
 CudaBatchCamera::~CudaBatchCamera() = default;
 
 void CudaBatchCamera::capture(const double* poses, unsigned char* rgb, float* depth, bool* valid,
-                             cudaStream_t stream) {
-    impl_->capture(poses, rgb, depth, valid, stream);
+                             cudaStream_t stream, bool* foreground) {
+    impl_->capture(poses, rgb, depth, valid, stream, foreground);
 }
 
 const CudaCameraConfig& CudaBatchCamera::config() const {
     return impl_->config;
+}
+
+CudaGlTexture::CudaGlTexture(unsigned int texture_id, int device, int width, int height)
+    : device_(device), width_(width), height_(height) {
+    if (texture_id == 0 || device < 0 || width <= 0 || height <= 0) {
+        throw std::invalid_argument("Invalid CUDA OpenGL texture configuration");
+    }
+    if (!glGetString(GL_VERSION)) {
+        throw std::runtime_error("CUDA texture interop requires a current OpenGL context");
+    }
+    const CurrentCudaDevice current(device_);
+    unsigned int mapped_count = 0;
+    int mapped_device = -1;
+    const auto query = cudaGLGetDevices(&mapped_count, &mapped_device, 1, cudaGLDeviceListAll);
+    if (query != cudaSuccess) {
+        cudaGetLastError();
+        checkCudaCamera(query, "Identify CUDA device of viewer OpenGL context");
+    }
+    if (mapped_count != 1 || mapped_device != device_) {
+        throw std::runtime_error("Viewer OpenGL context is attached to a different CUDA device");
+    }
+    const auto registration = cudaGraphicsGLRegisterImage(
+        &resource_, texture_id, GL_TEXTURE_2D, cudaGraphicsRegisterFlagsWriteDiscard);
+    if (registration != cudaSuccess) {
+        cudaGetLastError();
+        checkCudaCamera(registration, "Register viewer OpenGL texture with CUDA");
+    }
+}
+
+CudaGlTexture::~CudaGlTexture() {
+    try {
+        close();
+    } catch (...) {
+        cudaGetLastError();
+    }
+}
+
+void CudaGlTexture::upload(const unsigned char* rgba, cudaStream_t stream) {
+    if (!resource_) {
+        throw std::runtime_error("CUDA OpenGL texture is closed");
+    }
+    const CurrentCudaDevice current(device_);
+    checkCudaCamera(cudaGraphicsMapResources(1, &resource_, stream), "Map viewer OpenGL texture");
+    try {
+        cudaArray_t array = nullptr;
+        checkCudaCamera(cudaGraphicsSubResourceGetMappedArray(&array, resource_, 0, 0),
+                        "Access mapped viewer OpenGL texture");
+        const size_t pitch = static_cast<size_t>(width_) * 4;
+        checkCudaCamera(cudaMemcpy2DToArrayAsync(array, 0, 0, rgba, pitch, pitch, height_,
+                                               cudaMemcpyDeviceToDevice, stream),
+                        "Upload CUDA image to viewer OpenGL texture");
+    } catch (...) {
+        cudaGraphicsUnmapResources(1, &resource_, stream);
+        throw;
+    }
+    checkCudaCamera(cudaGraphicsUnmapResources(1, &resource_, stream), "Unmap viewer OpenGL texture");
+}
+
+void CudaGlTexture::close() {
+    if (resource_) {
+        const CurrentCudaDevice current(device_);
+        checkCudaCamera(cudaGraphicsUnregisterResource(resource_), "Unregister viewer OpenGL texture");
+        resource_ = nullptr;
+    }
 }
 
 }  // namespace sire::sensor

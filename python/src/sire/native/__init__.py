@@ -22,3 +22,12 @@ else:
     # Standard wheels place their ABI-tagged extension alongside this file.
     _dll_root = _root
 _dll_directory = os.add_dll_directory(str(_dll_root)) if os.name == 'nt' and _dll_root.is_dir() else None
+
+
+def __getattr__(name):
+    if name == 'sire' and _editable_source and not _runtime.is_dir():
+        raise ImportError(
+            f'No native runtime for {_runtime_tag}. From the repository root run '
+            f'`{sys.executable} python/build_native.py` with your native dependency prefixes.'
+        )
+    raise AttributeError(name)

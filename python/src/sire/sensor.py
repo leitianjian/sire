@@ -200,13 +200,14 @@ class BatchCamera:
     """Render one RGB-D camera per environment of a CUDA simulator batch.
 
     The camera uploads a shared copy of the visual geometry from a SireScene.
-    The same CameraConfig applies to every environment. The caller schedules
-    capture explicitly. CameraConfig.fps applies to the single Camera's
-    sampling clock. BatchCamera can be used as a context manager.
+    A SceneAsset or JSON path adds static depth geometry and optional Gaussian
+    appearance. Each instance uses the same CameraConfig across environments.
+    Use a separate instance for each camera mount or optics. The caller schedules
+    capture explicitly. BatchCamera can be used as a context manager.
     """
 
     def __init__(self, scene, config: CameraConfig, num_envs: int, *, device="cuda:0",
-                 chunk_size: int = 64):
+                 chunk_size: int = 64, scene_asset=None):
         from threading import Lock
 
         from .native import sire as native
@@ -218,7 +219,7 @@ class BatchCamera:
 
         import torch
 
-        from .viewer.renderer import _box_vertices, _load_obj
+        from .viewer.renderer import _box_vertices, _load_depth_mesh
 
         for name, value in (("num_envs", num_envs), ("chunk_size", chunk_size)):
             if not isinstance(value, Integral) or isinstance(value, bool) or value <= 0:
@@ -231,25 +232,43 @@ class BatchCamera:
 
         body_indices = {name: index for index, name in enumerate(scene.parts)}
         parent = -1 if config.parent is None else body_indices[config.parent]
+        self._gaussians = None
+        self._foreground = None
+        view_items = list(scene.items)
+        if scene_asset is not None:
+            from .scene import SceneAsset
+            from .viewer.scene import RenderItem
+
+            asset = scene_asset if isinstance(scene_asset, SceneAsset) else SceneAsset.load(scene_asset)
+            room = RenderItem(None, asset.asset_to_world, (0.24, 0.24, 0.24), mesh=asset.depth_mesh)
+            view_items.insert(0, room)
+            if asset.gaussians is not None:
+                from .viewer._gaussian_rasterizer import _GaussianRasterizer
+
+                self._gaussians = _GaussianRasterizer.for_scene(asset.source, device)
+        else:
+            room = None
         meshes, items = [], []
         mesh_indices = {}
-        for item in scene.items:
+        for item in view_items:
             key = item.mesh.resolve() if item.mesh is not None else tuple(item.size)
             if key not in mesh_indices:
                 mesh_indices[key] = len(meshes)
-                vertices = _load_obj(key) if item.mesh is not None else _box_vertices(key)
+                vertices = _load_depth_mesh(key) if item.mesh is not None else _box_vertices(key)
                 meshes.append(vertices)
             body = -1 if item.body is None else body_indices[item.body]
-            items.append((mesh_indices[key], body, np.ravel(item.local_pose).tolist(),
-                          item.color, item.checker))
+            entry = (mesh_indices[key], body, np.ravel(item.local_pose).tolist(), item.color, item.checker)
+            items.append(entry + (item is room,) if self._gaussians is not None else entry)
 
         self.config = config
         self.num_envs = int(num_envs)
         self.device = device
         self._lock = Lock()
         self._torch = torch
+        self._parent = parent
+        self._chunk_size = min(chunk_size, self.num_envs)
         self._camera = make_camera(device.index, self.num_envs, len(body_indices), parent,
-                                   config.width, config.height, min(chunk_size, self.num_envs),
+                                   config.width, config.height, self._chunk_size,
                                    config.pinhole, config.near, config.far,
                                    config.local_pose.ravel().tolist(), meshes, items)
         shape = (self.num_envs, config.height, config.width)
@@ -258,6 +277,9 @@ class BatchCamera:
             torch.empty(shape, dtype=torch.float32, device=device),
             torch.empty(shape, dtype=torch.bool, device=device),
         )
+        if self._gaussians is not None:
+            self._foreground = torch.empty(shape, dtype=torch.bool, device=device)
+            self._mount = torch.tensor(config.local_pose, dtype=torch.float64, device=device)
         self._ready = torch.cuda.Event()
         self._ready.record(torch.cuda.current_stream(device))
 
@@ -285,10 +307,31 @@ class BatchCamera:
             if isinstance(poses, self._torch.Tensor) and poses.device == self.device:
                 poses.record_stream(stream)
             try:
-                self._camera.capture(poses, frame.rgb, frame.depth, frame.valid, stream.cuda_stream)
+                if self._gaussians is None:
+                    self._camera.capture(poses, frame.rgb, frame.depth, frame.valid, stream.cuda_stream)
+                else:
+                    self._foreground.record_stream(stream)
+                    self._camera.capture(poses, frame.rgb, frame.depth, frame.valid,
+                                         stream.cuda_stream, self._foreground)
+                    self._composite_gaussians(poses)
             finally:
                 self._ready.record(stream)
             return frame
+
+    def _composite_gaussians(self, poses):
+        torch = self._torch
+        with torch.inference_mode():
+            for start in range(0, self.num_envs, self._chunk_size):
+                rows = slice(start, min(start + self._chunk_size, self.num_envs))
+                count = rows.stop - rows.start
+                world = self._mount.expand(count, -1, -1)
+                if self._parent >= 0:
+                    world = world.clone()
+                    world[:, :3, :] = poses[rows, self._parent] @ self._mount
+                rgb, alpha = self._gaussians.render(self.config, world)
+                mesh = self._frame.rgb[rows]
+                color = rgb.mul_(255).addcmul_(1 - alpha, mesh).round_().clamp_(0, 255)
+                mesh.copy_(torch.where(self._foreground[rows, ..., None], mesh, color))
 
     def close(self) -> None:
         """Wait for the last capture and release the renderer."""
@@ -297,6 +340,8 @@ class BatchCamera:
                 self._ready.synchronize()
                 self._camera = None
                 self._frame = None
+                self._foreground = None
+                self._gaussians = None
 
     def __enter__(self) -> BatchCamera:
         return self
